@@ -57,7 +57,7 @@ const page = async () => {
           </div>
           
           <div className="mt-8 text-center text-zinc-400 text-sm max-w-2xl mx-auto bg-zinc-900/30 backdrop-blur-sm rounded-xl p-4 border border-zinc-800/20">
-            <p className="mb-1">Images are generated using the AI Power Grid distributed network.</p>
+            <p className="mb-1">Images are generated using the distributed image workers.</p>
             <p>Please be patient as generation times may vary based on network load.</p>
           </div>
         </div>
