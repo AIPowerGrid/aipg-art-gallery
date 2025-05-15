@@ -35,7 +35,7 @@ const page = async () => {
           <div className="flex flex-wrap items-center justify-center mt-6 gap-3">
             <div className="flex items-center space-x-2 bg-zinc-900/60 backdrop-blur-sm rounded-full px-5 py-2 border border-zinc-800/30 shadow-lg">
               <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="text-zinc-300 text-sm font-medium">AI Power Grid Powered</span>
+              <span className="text-zinc-300 text-sm font-medium">Distributed Image Workers</span>
             </div>
             <div className="flex items-center space-x-2 bg-zinc-900/60 backdrop-blur-sm rounded-full px-5 py-2 border border-zinc-800/30 shadow-lg">
               <Sparkles className="w-4 h-4 text-indigo-400 mr-1" />
