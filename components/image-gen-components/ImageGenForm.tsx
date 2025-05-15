@@ -66,6 +66,35 @@ import { blobToBase64 } from "@/utils/imageUtils";
 import { isBase64UrlImage, base64toBlob, dataUrlToFile } from "@/utils/imageUtils";
 import { FormSchema } from "@/types";
 import { AnimatePresence, motion } from "framer-motion";
+import stylesData from "@/constants/styles.json";
+
+// Define a basic interface for the style objects
+interface ImageStyle {
+  name: string;
+  model?: string; // Assuming styles.json might have a 'model' field
+  models?: string[]; // Or a 'models' field
+  prompt?: string;
+  negative_prompt?: string;
+  sampler?: string;
+  seed?: string;
+  cfg_scale?: number;
+  steps?: number;
+  // Add other potential fields from styles.json as needed
+  // e.g., width, height, clip_skip, etc.
+  width?: number;
+  height?: number;
+  clip_skip?: number;
+  loras?: Array<{ name: string; model?: number; clip?: number; is_version?: boolean }>;
+  // Fields from the "fantasy" example in styles.json
+  "fantasy-high-fantasy"?: { // This structure is a bit unusual, might need to flatten/normalize
+    prompt: string;
+    negative_prompt: string;
+    model: string;
+    // ... other specific properties
+  };
+  // Catch-all for other properties
+  [key: string]: any;
+}
 
 const optionSchema = z.object({
   label: z.string(),
@@ -82,7 +111,7 @@ const formSchema = z.object({
   seed: z.string().optional(),
   sampler: z.string(),
   batchSize: z.number().min(1).max(4),
-  steps: z.number().min(10).max(50),
+  steps: z.number().min(1).max(50),
   width: z.number().min(256).max(1024),
   height: z.number().min(256).max(1024),
   guidance: z.number().min(1).max(30),
@@ -110,6 +139,7 @@ const formSchema = z.object({
   sourceImage: z.string().optional(),
   sourceMask: z.string().optional(),
   denoising_strength: z.number().min(0.01).max(1).default(0.75),
+  selectedStyle: z.string().optional(),
 });
 
 const samplerListLite = [
@@ -158,6 +188,10 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
   const [maskImagePreview, setMaskImagePreview] = useState<string | null>(null);
   const [isDrawingMask, setIsDrawingMask] = useState(false);
   
+  // State for styles
+  const [styles, setStyles] = useState<ImageStyle[]>([]);
+  const [selectedStyleName, setSelectedStyleName] = useState<string>("_NONE_");
+
   // Initialize Supabase client
   const supabase = createSupabaseClient();
 
@@ -205,6 +239,7 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
       multiHiresFix: false,
       multiKarras: false,
       multiControlType: false,
+      selectedStyle: "",
     },
   });
 
@@ -225,6 +260,181 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
       setGenerateDisable(true);
     }
   }, [user]);
+
+  // Load styles from JSON
+  useEffect(() => {
+    // The styles.json is structured with top-level keys (e.g., "flux", "sdxl") acting as names,
+    // and the style configuration object as their value.
+    // We need to iterate over entries to preserve these names.
+    console.log("Attempting to load stylesData:", stylesData); // Log the raw import
+    
+    const loadedStyles = Object.entries(stylesData).map(([name, styleProps]) => ({
+      name: name, // The key from stylesData is the style name
+      ...(styleProps as Omit<ImageStyle, 'name'>) // Spread the rest of the properties
+    }));
+    
+    console.log("Loaded styles after Object.entries and mapping:", loadedStyles); // Log the processed styles
+    setStyles(loadedStyles);
+  }, []);
+
+  // Effect to apply selected style to the form
+  useEffect(() => {
+    if (selectedStyleName === "_NONE_" || !selectedStyleName) {
+      // If "None (Custom)" is selected, or no style is selected initially,
+      // you might want to reset to default values or do nothing,
+      // allowing manual input. For now, we'll just log it.
+      // Consider if form.reset() or specific field resets are needed here.
+      // If you want to clear fields when selecting "None", you could do:
+      // form.reset(form.formState.defaultValues); // or specific fields
+      // Be mindful of not creating an infinite loop with form.watch or other useEffects.
+      // If you want to clear fields when selecting "None", you could do:
+      // form.reset(form.formState.defaultValues); // or specific fields
+      return;
+    }
+
+    const style = styles.find(s => s.name === selectedStyleName);
+    if (style) {
+      // Helper to safely set value if property exists in style
+      const setFormValue = (fieldName: keyof z.infer<typeof formSchema>, value: any) => {
+        if (value !== undefined && value !== null) {
+          form.setValue(fieldName, value, { shouldValidate: true, shouldDirty: true });
+        }
+      };
+
+      // Normalize potential nested style structures (like the "fantasy-high-fantasy" example)
+      let effectiveStyle = style;
+      if (style[style.name] && typeof style[style.name] === 'object') {
+        // If the style object has a key that is its own name and contains the actual properties
+        effectiveStyle = { ...style, ...style[style.name] };
+      }
+
+      // Apply common fields (prompts handled specially)
+      let currentPositivePrompt = form.getValues("positivePrompt") || "";
+      let currentNegativePrompt = form.getValues("negativePrompt") || "";
+
+      if (effectiveStyle.prompt) {
+        let stylePositivePrompt = effectiveStyle.prompt;
+        if (stylePositivePrompt.includes("{p}")) {
+          stylePositivePrompt = stylePositivePrompt.replace("{p}", currentPositivePrompt).trim();
+        } else {
+          // If no {p}, decide behavior: prepend, append, or replace.
+          // For now, let's assume it's a base prompt to which user input might have been part of {p} or is cleared.
+          // If user types AFTER applying style, their text becomes the new {p} if they re-apply or change style.
+          // This behavior might need refinement based on desired UX.
+          // For a simple approach, if {p} isn't there, the style prompt *is* the new prompt.
+        }
+        // Replace {np} in positive prompt with current negative prompt
+        if (stylePositivePrompt.includes("{np}")) {
+          stylePositivePrompt = stylePositivePrompt.replace("{np}", currentNegativePrompt).trim();
+        }
+        setFormValue("positivePrompt", stylePositivePrompt);
+      }
+
+      if (effectiveStyle.negative_prompt) {
+        let styleNegativePrompt = effectiveStyle.negative_prompt;
+        if (styleNegativePrompt.includes("{np}")) {
+          styleNegativePrompt = styleNegativePrompt.replace("{np}", currentNegativePrompt).trim();
+        } else {
+          // Similar to positive: if no {np}, style's negative prompt is the new base.
+        }
+        // Replace {p} in negative prompt with current positive prompt (less common, but possible)
+        if (styleNegativePrompt.includes("{p}")) {
+          styleNegativePrompt = styleNegativePrompt.replace("{p}", currentPositivePrompt).trim();
+        }
+        setFormValue("negativePrompt", styleNegativePrompt);
+      } else if (effectiveStyle.prompt && effectiveStyle.prompt.includes("{np}")) {
+        // If the positive prompt from the style used {np} but the style itself doesn't have a dedicated negative_prompt field,
+        // it implies the negative part was meant to be extracted. The code above already put currentNegativePrompt into {np}.
+        // If currentNegativePrompt was empty, {np} would be replaced by empty string.
+        // We might want to explicitly set the negative prompt field if the style prompt suggests one.
+        // For example, if style prompt is "good stuff {p} ### bad stuff {np}" and user's NP is empty,
+        // then NP field should become "bad stuff". This is a bit complex with current structure.
+        // The current logic replaces {np} in the positive prompt string with form's current negative_prompt.
+        // If style.negative_prompt is MISSING, but style.prompt had {np}, the NP field won't be separately populated from the style itself.
+        // This is tricky. Let's refine based on styles.json structure.
+        // A common pattern is `prompt_text###negative_prompt_text`
+        if (typeof effectiveStyle.prompt === 'string' && effectiveStyle.prompt.includes('###')) {
+          const parts = effectiveStyle.prompt.split('###');
+          // Positive part was already processed above (including {p} and {np} replacement)
+          // Now, let's see if the second part (intended as negative) exists and set it if NP field is empty or was part of {np}
+          if (parts.length > 1 && parts[1].trim() !== "") {
+            let potentialNegativeFromSplit = parts[1].trim();
+            // If this potential negative contains {np}, replace it with user's current NP
+            if (potentialNegativeFromSplit.includes("{np}")){
+                potentialNegativeFromSplit = potentialNegativeFromSplit.replace("{np}", currentNegativePrompt).trim();
+            }
+             // If it contains {p}, replace it with user's current PP
+            if (potentialNegativeFromSplit.includes("{p}")){
+                potentialNegativeFromSplit = potentialNegativeFromSplit.replace("{p}", currentPositivePrompt).trim();
+            }
+            // Only set if the style didn't explicitly have a negative_prompt field or if that field was empty
+            if (!effectiveStyle.negative_prompt) {
+                 setFormValue("negativePrompt", potentialNegativeFromSplit);
+            }
+          }
+        }
+      }
+
+      // Model selection logic:
+      // styles.json can have 'model' (string) or 'models' (array of strings)
+      // We need to pick one that exists in the fetched 'models' list.
+      let modelToSet = form.getValues("model"); // Default to current or initial model
+      const availableModelNames = models?.map((m: Model) => m.name) || [];
+
+      if (effectiveStyle.model && typeof effectiveStyle.model === 'string') {
+        if (availableModelNames.includes(effectiveStyle.model)) {
+          modelToSet = effectiveStyle.model;
+        } else {
+          console.warn(`Style model "${effectiveStyle.model}" not found in available models.`);
+        }
+      } else if (effectiveStyle.models && Array.isArray(effectiveStyle.models) && effectiveStyle.models.length > 0) {
+        // If multiple models are specified in the style, try to find the first one available
+        const foundModel = effectiveStyle.models.find(m => availableModelNames.includes(m));
+        if (foundModel) {
+          modelToSet = foundModel;
+        } else {
+          console.warn(`None of the style models "${effectiveStyle.models.join(', ')}" found in available models.`);
+        }
+      }
+      setFormValue("model", modelToSet);
+      
+      // Use effectiveStyle.sampler_name if that's the field in styles.json
+      if (effectiveStyle.sampler_name) setFormValue("sampler", effectiveStyle.sampler_name);
+      else if (effectiveStyle.sampler) setFormValue("sampler", effectiveStyle.sampler); // Fallback to .sampler
+
+      if (effectiveStyle.seed) setFormValue("seed", String(effectiveStyle.seed)); // Ensure seed is a string
+      
+      // Ensure numeric values and handle potential strings from JSON
+      if (effectiveStyle.steps) setFormValue("steps", Number(effectiveStyle.steps)); 
+      if (effectiveStyle.width) setFormValue("width", Number(effectiveStyle.width));
+      if (effectiveStyle.height) setFormValue("height", Number(effectiveStyle.height));
+      if (effectiveStyle.cfg_scale) setFormValue("guidance", Number(effectiveStyle.cfg_scale)); // Map cfg_scale to guidance
+      if (effectiveStyle.clip_skip) setFormValue("clipskip", Number(effectiveStyle.clip_skip)); // Map clip_skip to clipskip
+
+      // For boolean fields, ensure they are explicitly set if present in the style
+      if (effectiveStyle.karras !== undefined) setFormValue("karras", effectiveStyle.karras);
+      if (effectiveStyle.nsfw !== undefined) setFormValue("nsfw", effectiveStyle.nsfw);
+      if (effectiveStyle.hires_fix !== undefined) setFormValue("hires_fix", effectiveStyle.hires_fix);
+      if (effectiveStyle.tiling !== undefined) setFormValue("tiling", effectiveStyle.tiling);
+      
+      // If loras are defined, you might want to append them to the prompt or handle them separately
+      if (effectiveStyle.loras && Array.isArray(effectiveStyle.loras)) {
+        let promptValue = form.getValues("positivePrompt") || "";
+        effectiveStyle.loras.forEach(lora => {
+          const loraString = `<lora:${lora.name}:${lora.model || 1}>`; // Assuming lora.model is weight
+          if (!promptValue.includes(loraString)) {
+            promptValue += ` ${loraString}`;
+          }
+        });
+        setFormValue("positivePrompt", promptValue.trim());
+      }
+
+      toast({
+        title: "Style Applied",
+        description: `"${style.name}" preset has been applied.`,
+      });
+    }
+  }, [selectedStyleName, styles, form, models, toast]); // Added models and toast to dependency array
 
   const updateMetadata = useImageMetadataStore(
     (state) => state.initializeMetadata
@@ -264,6 +474,7 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
       multiHiresFix: false,
       multiKarras: false,
       multiControlType: false,
+      selectedStyle: "",
     });
   };
 
@@ -444,6 +655,49 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                 />
               </div>
               
+              {/* Style Selector */}
+              {styles && styles.length > 0 && (
+                <div className="bg-zinc-900/60 rounded-xl border border-zinc-800/60 p-5 shadow-md mb-6">
+                  <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center">
+                    <Sparkles className="w-5 h-5 mr-2 text-indigo-400" /> Style Preset
+                  </h3>
+                  <FormField
+                    control={form.control}
+                    name="selectedStyle" // This name is temporary for the Select, actual form fields are updated by useEffect
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="sr-only">Style Preset</FormLabel>
+                        <Select
+                          onValueChange={(value) => setSelectedStyleName(value)}
+                          value={selectedStyleName}
+                        >
+                          <FormControl>
+                            <SelectTrigger className="bg-zinc-950/50 border-zinc-800 focus:border-purple-500 transition-colors">
+                              <SelectValue placeholder="Select a style preset..." />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent className="bg-zinc-950 border-zinc-800">
+                            <SelectItem value="_NONE_">None (Custom)</SelectItem>
+                            {styles.map((style, index) => {
+                              console.log("Rendering SelectItem for style:", style.name, "Type:", typeof style.name, "Value to be used:", style.name);
+                              return (
+                                <SelectItem key={style.name || index} value={style.name}>
+                                  {style.name}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription className="mt-2 text-zinc-400">
+                          Apply predefined settings from a style template.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
+
               {(form.watch("generationMode") === "image-to-image" || form.watch("generationMode") === "inpainting") && (
                 <div className="bg-zinc-900/60 rounded-xl border border-zinc-800/60 p-5 shadow-md mb-6">
                   <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center">
@@ -809,7 +1063,7 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                   </FormLabel>
                                   <FormControl>
                                     <SliderWithCounter
-                                      min={10}
+                                      min={1}
                                       max={50}
                                       step={1}
                                       value={field.value}
