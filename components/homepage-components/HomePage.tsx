@@ -19,6 +19,8 @@ interface HomePageProps {
 }
 
 export default function HomePage({ user }: HomePageProps) {
+  // Force rebuild - hero section removed
+  console.log("HomePage component loaded - hero section removed");
   const [value, setValue] = useState("");
   const [selectedImage, setSelectedImage] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,41 +103,6 @@ export default function HomePage({ user }: HomePageProps) {
       <div className="container mx-auto px-4 py-12 relative z-10">
         <div className="max-w-6xl mx-auto">
           <div className="space-y-10">
-            {/* Hero Section with enhanced design */}
-            <motion.div 
-              className="text-center space-y-6 mb-16"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="inline-block mb-4">
-                <div className="relative">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full blur opacity-70"></div>
-                  <div className="relative bg-zinc-900 rounded-full p-4">
-                    <ImageIcon className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-              </div>
-              <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-violet-500 to-pink-500">
-                  AI Image Gallery
-                </span>
-              </h1>
-              <p className="text-zinc-400 max-w-2xl mx-auto text-lg md:text-xl font-light">
-                Explore a collection of AI-generated images or create your own unique artwork with our advanced image generation tools.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                <Link 
-                  href="/generate" 
-                  className="inline-flex items-center px-6 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-medium hover:from-indigo-700 hover:to-violet-700 transition-all shadow-xl shadow-indigo-900/20"
-                >
-                  <ImageIcon className="w-5 h-5 mr-2" />
-                  Create Images
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </Link>
-              </div>
-            </motion.div>
-
             {/* Search Section */}
             <motion.div 
               className="max-w-2xl mx-auto"

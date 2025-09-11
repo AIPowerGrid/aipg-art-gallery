@@ -660,6 +660,11 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                 <div className="bg-zinc-900/60 rounded-xl border border-zinc-800/60 p-5 shadow-md mb-6">
                   <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center">
                     <Sparkles className="w-5 h-5 mr-2 text-indigo-400" /> Style Preset
+                    {selectedStyleName !== "_NONE_" && (
+                      <span className="ml-2 text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded">
+                        Active - Parameters Locked
+                      </span>
+                    )}
                   </h3>
                   <FormField
                     control={form.control}
@@ -919,72 +924,60 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                   
                   <div className="bg-zinc-900/60 rounded-xl border border-zinc-800/60 p-5 shadow-md">
                     <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center">
-                      <span className="mr-2">🧠</span> Model Selection
-                    </h3>
-                    
-                    <div className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="model"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-zinc-300">Model</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="bg-zinc-950/50 border-zinc-800 focus:border-purple-500 transition-colors">
-                                  <SelectValue placeholder="Select a model" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-zinc-950 border-zinc-800">
-                                <SelectGroup>
-                                  <SelectLabel>Available Models</SelectLabel>
-                                  {models?.map((model: Model) => (
-                                    <SelectItem
-                                      key={model.name}
-                                      value={model.name}
-                                      disabled={model.count === 0}
-                                    >
-                                      {model.name} ({model.count} workers)
-                                    </SelectItem>
-                                  ))}
-                                </SelectGroup>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-center">
-                    <Button
-                      type="submit"
-                      disabled={isPending || !form.formState.isValid}
-                      className="w-full md:w-auto px-8 py-6 text-lg font-medium bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
-                    >
-                      {isPending ? (
-                        <div className="flex items-center gap-2">
-                          <LoadingSpinner size="sm" />
-                          <span>Generating...</span>
-                        </div>
-                      ) : (
-                        "Generate Image"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="space-y-6">
-                  <div className="bg-zinc-900/60 rounded-xl border border-zinc-800/60 p-5 shadow-md">
-                    <h3 className="text-lg font-medium text-zinc-200 mb-4 flex items-center">
                       <span className="mr-2">⚙️</span> Advanced Settings
                     </h3>
                     
                     <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="model" className="border-zinc-800">
+                        <AccordionTrigger className="text-zinc-300 hover:text-white">
+                          <span className="mr-2">🧠</span> Model Selection
+                          {selectedStyleName !== "_NONE_" && (
+                            <span className="ml-2 text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded">
+                              Locked by Style
+                            </span>
+                          )}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-4 mt-2">
+                            <FormField
+                              control={form.control}
+                              name="model"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel className="text-zinc-300">Model</FormLabel>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    value={field.value}
+                                    disabled={selectedStyleName !== "_NONE_"}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="bg-zinc-950/50 border-zinc-800 focus:border-purple-500 transition-colors disabled:opacity-50">
+                                        <SelectValue placeholder="Select a model" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent className="bg-zinc-950 border-zinc-800">
+                                      <SelectGroup>
+                                        <SelectLabel>Available Models</SelectLabel>
+                                        {models?.map((model: Model) => (
+                                          <SelectItem
+                                            key={model.name}
+                                            value={model.name}
+                                            disabled={model.count === 0}
+                                          >
+                                            {model.name} ({model.count} workers)
+                                          </SelectItem>
+                                        ))}
+                                      </SelectGroup>
+                                    </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                      
                       <AccordionItem value="dimensions" className="border-zinc-800">
                         <AccordionTrigger className="text-zinc-300 hover:text-white">Dimensions</AccordionTrigger>
                         <AccordionContent>
@@ -1002,9 +995,10 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                       field.onChange(numValue);
                                     }}
                                     value={field.value.toString()}
+                                    disabled={selectedStyleName !== "_NONE_"}
                                   >
                                     <FormControl>
-                                      <SelectTrigger className="bg-zinc-950/50 border-zinc-800">
+                                      <SelectTrigger className="bg-zinc-950/50 border-zinc-800 disabled:opacity-50">
                                         <SelectValue placeholder="Width" />
                                       </SelectTrigger>
                                     </FormControl>
@@ -1028,9 +1022,10 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                   <Select
                                     onValueChange={(value) => field.onChange(parseInt(value, 10))}
                                     value={field.value.toString()}
+                                    disabled={selectedStyleName !== "_NONE_"}
                                   >
                                     <FormControl>
-                                      <SelectTrigger className="bg-zinc-950/50 border-zinc-800">
+                                      <SelectTrigger className="bg-zinc-950/50 border-zinc-800 disabled:opacity-50">
                                         <SelectValue placeholder="Height" />
                                       </SelectTrigger>
                                     </FormControl>
@@ -1068,6 +1063,7 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                       step={1}
                                       value={field.value}
                                       onValueChange={field.onChange}
+                                      disabled={selectedStyleName !== "_NONE_"}
                                     />
                                   </FormControl>
                                   <FormMessage />
@@ -1091,6 +1087,7 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                       step={0.5}
                                       value={field.value}
                                       onValueChange={field.onChange}
+                                      disabled={selectedStyleName !== "_NONE_"}
                                     />
                                   </FormControl>
                                   <FormMessage />
@@ -1114,6 +1111,7 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                       step={1}
                                       value={field.value}
                                       onValueChange={field.onChange}
+                                      disabled={selectedStyleName !== "_NONE_"}
                                     />
                                   </FormControl>
                                   <FormMessage />
@@ -1136,9 +1134,10 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                 <Select
                                   onValueChange={field.onChange}
                                   value={field.value}
+                                  disabled={selectedStyleName !== "_NONE_"}
                                 >
                                   <FormControl>
-                                    <SelectTrigger className="bg-zinc-950/50 border-zinc-800/50 focus:border-indigo-500/50 focus:ring-indigo-500/10 placeholder-zinc-600 text-white">
+                                    <SelectTrigger className="bg-zinc-950/50 border-zinc-800/50 focus:border-indigo-500/50 focus:ring-indigo-500/10 placeholder-zinc-600 text-white disabled:opacity-50">
                                       <SelectValue placeholder="Select a sampler" />
                                     </SelectTrigger>
                                   </FormControl>
@@ -1186,7 +1185,8 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                                     <Switch
                                       checked={field.value}
                                       onCheckedChange={field.onChange}
-                                      className="data-[state=checked]:bg-indigo-500"
+                                      disabled={selectedStyleName !== "_NONE_"}
+                                      className="data-[state=checked]:bg-indigo-500 disabled:opacity-50"
                                     />
                                   </FormControl>
                                 </FormItem>
@@ -1475,6 +1475,23 @@ const ImageGeneratorComponent = ({ user }: { user: User | null }) => {
                         </AccordionContent>
                       </AccordionItem>
                     </Accordion>
+                  </div>
+                  
+                  <div className="flex justify-center mt-8">
+                    <Button
+                      type="submit"
+                      disabled={isPending || !form.formState.isValid}
+                      className="w-full md:w-auto px-8 py-6 text-lg font-medium bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl"
+                    >
+                      {isPending ? (
+                        <div className="flex items-center gap-2">
+                          <LoadingSpinner size="sm" />
+                          <span>Generating...</span>
+                        </div>
+                      ) : (
+                        "Generate Image"
+                      )}
+                    </Button>
                   </div>
                 </div>
               </div>
