@@ -20,7 +20,7 @@ body {
 }
 
 .panel-ghost {
-  @apply border border-white/5 rounded-2xl bg-white/2 backdrop-blur;
+  @apply border border-white/5 rounded-2xl bg-white/5 backdrop-blur;
 }
 
 .text-gradient {
