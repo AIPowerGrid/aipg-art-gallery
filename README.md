@@ -1,75 +1,69 @@
-# AI Image Gallery
+# AIPG Art Gallery
 
-A modern web application for AI image generation and gallery browsing built with Next.js.
+Modern control room for the Comfy Bridge worker stack. The site now mirrors the look/feel of the management UI and gives artists a single surface for text-to-image and text-to-video jobs.
 
-## Features
+## Architecture
 
-- **Multi-Image Generation**: Generate multiple AI images without page refresh
-- **Image History**: Track and browse your previously generated images
-- **Modern UI**: Sleek design with gradient backgrounds and responsive layout
-- **Image Gallery**: Browse and search through AI-generated images
-- **User Authentication**: Secure login and user-specific image collections
+| Layer | Description |
+| --- | --- |
+| `app/` | Next.js 14 App Router UI with Tailwind styling, prompt/parameter controls, job log |
+| `server/` | Go microservice that proxies the AI Power Grid `/v2` API, enriches responses with model presets, and exposes `/api/models`, `/api/jobs`, `/api/jobs/:id` |
+| `comfy-bridge` | Worker container (separate repo) that advertises WAN + Flux workflows and executes jobs |
 
-## Technology Stack
-
-- **Frontend**: Next.js, React, TypeScript, TailwindCSS
-- **State Management**: React Query for server state
-- **Authentication**: Supabase Auth
-- **APIs**: AI Image Generation API
-
-## Getting Started
-
-First, install the dependencies:
-
-```bash
-npm install
-# or
-yarn install
+```
+Next.js (port 3000)  →  Go API (port 4000)  →  https://api.aipowergrid.io/api/v2  →  comfy-bridge
 ```
 
-Then, run the development server:
+## Quick start
+
+### 1. Install dependencies
+
+```bash
+cd aipg-art-gallery
+npm install
+```
+
+### 2. Run the Go API
+
+```bash
+cd server
+go run ./cmd/api
+# or
+GALLERY_SERVER_ADDR=:4000 go run ./cmd/api
+```
+
+Environment variables (optional):
+
+| Name | Default | Purpose |
+| --- | --- | --- |
+| `AIPG_API_URL` | `https://api.aipowergrid.io/api/v2` | Upstream Horde API |
+| `AIPG_API_KEY` | empty | Override API key when the UI does not provide one |
+| `AIPG_CLIENT_AGENT` | `AIPG-Art-Gallery:v2` | Identifies requests to Horde |
+| `MODEL_PRESETS_PATH` | `./server/config/model_presets.json` | Maps model -> default params/limits |
+
+### 3. Run the Next.js UI
 
 ```bash
 npm run dev
-# or
-yarn dev
+# UI will call http://localhost:4000/api by default
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`NEXT_PUBLIC_GALLERY_API` can point to a remote Go deployment if needed.
 
-## Key Components
+## Features
 
-### Image Generation
+- Case-sensitive model cards that show worker count + queue ETA in real time
+- Parameter sliders derived from each workflow’s safe limits (width, height, steps, cfg, frames, fps, denoise, sampler, scheduler, tiling, hires-fix)
+- Prompt + negative prompt editor, seed override, API key override, NSFW/gallery toggles
+- Img2img & inpainting modes with inline file upload
+- Job stream with polling + inline previews for both image (base64) and video outputs
 
-The image generation functionality has been modernized to:
-- Allow multiple image generations without page refresh
-- Track generation history
-- Provide better error handling and user feedback
-- Support downloading of generated images
+## Project structure
 
-### UI Improvements
-
-- Modern gradient backgrounds
-- Responsive design for all screen sizes
-- Improved typography and layout
-- Enhanced image carousel for viewing generated images
-
-## Project Structure
-
-- `/app`: Next.js app router pages and API functions
-- `/components`: React components organized by feature
-- `/types`: TypeScript type definitions
-- `/public`: Static assets
-
-## Environment Variables
-
-Create a `.env.local` file with the following variables:
-
-```
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_BASE_API_URL=your_api_url
-```
+- `app/`: App Router pages and components
+- `lib/api.ts`: Fetch helpers for the Go API
+- `types/models.ts`: Shared contracts between UI and Go service
+- `server/internal/*`: Go packages (config, presets, AIPG client, HTTP handlers)
 
 ## License
 

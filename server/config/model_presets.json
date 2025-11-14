@@ -1,0 +1,115 @@
+[
+  {
+    "id": "flux.1-krea-dev",
+    "displayName": "Flux.1 Krea Dev",
+    "type": "image",
+    "description": "High fidelity Flux model tuned by Krea for stylized general-purpose prompts.",
+    "tags": ["flux", "1024x1024", "creative"],
+    "samplers": ["k_euler", "uni_pc", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 28,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 8, "step": 0.5 }
+    }
+  },
+  {
+    "id": "flux.1-dev",
+    "displayName": "Flux.1 Dev",
+    "type": "image",
+    "description": "Fast experimental Flux checkpoint ideal for drafts and concepting.",
+    "tags": ["flux", "speed"],
+    "samplers": ["k_euler", "ddim"],
+    "schedulers": ["normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 896,
+      "height": 896,
+      "steps": 24,
+      "cfgScale": 4,
+      "sampler": "k_euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 640, "max": 1152, "step": 64 },
+      "height": { "min": 640, "max": 1152, "step": 64 },
+      "steps": { "min": 12, "max": 32, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 7, "step": 0.5 }
+    }
+  },
+  {
+    "id": "wan2.2_ti2v_5b",
+    "displayName": "WAN 2.2 T2V 5B",
+    "type": "video",
+    "description": "WAN 2.2 5B text-to-video workflow producing buttery 640px clips.",
+    "tags": ["wan", "video"],
+    "samplers": ["uni_pc"],
+    "schedulers": ["simple"],
+    "capabilities": ["txt2video"],
+    "defaults": {
+      "width": 640,
+      "height": 640,
+      "steps": 20,
+      "cfgScale": 5,
+      "sampler": "uni_pc",
+      "scheduler": "simple",
+      "denoise": 1,
+      "length": 80,
+      "fps": 16
+    },
+    "limits": {
+      "width": { "min": 512, "max": 960, "step": 64 },
+      "height": { "min": 512, "max": 960, "step": 64 },
+      "steps": { "min": 12, "max": 32, "step": 1 },
+      "cfgScale": { "min": 3, "max": 7, "step": 0.25 },
+      "length": { "min": 48, "max": 120, "step": 8 },
+      "fps": { "min": 12, "max": 24, "step": 1 }
+    }
+  },
+  {
+    "id": "wan2_2_t2v_14b",
+    "displayName": "WAN 2.2 T2V 14B",
+    "type": "video",
+    "description": "Premium 14B WAN pipeline prioritizing cinematic motion and detail.",
+    "tags": ["wan", "video", "high-quality"],
+    "samplers": ["uni_pc"],
+    "schedulers": ["simple"],
+    "capabilities": ["txt2video"],
+    "defaults": {
+      "width": 640,
+      "height": 640,
+      "steps": 24,
+      "cfgScale": 6,
+      "sampler": "uni_pc",
+      "scheduler": "simple",
+      "denoise": 1,
+      "length": 96,
+      "fps": 16
+    },
+    "limits": {
+      "width": { "min": 512, "max": 960, "step": 64 },
+      "height": { "min": 512, "max": 960, "step": 64 },
+      "steps": { "min": 16, "max": 36, "step": 1 },
+      "cfgScale": { "min": 4, "max": 8, "step": 0.25 },
+      "length": { "min": 64, "max": 144, "step": 8 },
+      "fps": { "min": 12, "max": 24, "step": 1 }
+    }
+  }
+]
+
