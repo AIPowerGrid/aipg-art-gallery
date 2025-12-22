@@ -27,6 +27,33 @@
     }
   },
   {
+    "id": "flux1_krea_dev",
+    "displayName": "Flux.1 Krea Dev (Alt)",
+    "type": "image",
+    "description": "Alternative Flux.1 Krea Dev workflow.",
+    "tags": ["flux", "1024x1024", "creative"],
+    "samplers": ["k_euler", "uni_pc", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 28,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 8, "step": 0.5 }
+    }
+  },
+  {
     "id": "flux.1-dev",
     "displayName": "Flux.1 Dev",
     "type": "image",
@@ -54,20 +81,371 @@
     }
   },
   {
-    "id": "wan2.2_ti2v_5b",
-    "displayName": "WAN 2.2 T2V 5B",
+    "id": "flux1.dev",
+    "displayName": "Flux.1 Dev (Alt)",
+    "type": "image",
+    "description": "Alternative Flux.1 Dev workflow.",
+    "tags": ["flux", "speed"],
+    "samplers": ["k_euler", "ddim"],
+    "schedulers": ["normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 896,
+      "height": 896,
+      "steps": 24,
+      "cfgScale": 4,
+      "sampler": "k_euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 640, "max": 1152, "step": 64 },
+      "height": { "min": 640, "max": 1152, "step": 64 },
+      "steps": { "min": 12, "max": 32, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 7, "step": 0.5 }
+    }
+  },
+  {
+    "id": "FLUX.1-dev",
+    "displayName": "FLUX.1 Dev",
+    "type": "image",
+    "description": "FLUX.1 Dev workflow.",
+    "tags": ["flux"],
+    "samplers": ["k_euler", "ddim"],
+    "schedulers": ["normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 896,
+      "height": 896,
+      "steps": 24,
+      "cfgScale": 4,
+      "sampler": "k_euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 640, "max": 1152, "step": 64 },
+      "height": { "min": 640, "max": 1152, "step": 64 },
+      "steps": { "min": 12, "max": 32, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 7, "step": 0.5 }
+    }
+  },
+  {
+    "id": "FLUX.1-dev-Kontext-fp8-scaled",
+    "displayName": "FLUX.1 Dev Kontext FP8",
+    "type": "image",
+    "description": "FLUX.1 Dev Kontext FP8 scaled model for high-quality image generation.",
+    "tags": ["flux", "kontext", "fp8"],
+    "samplers": ["k_euler", "uni_pc", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 28,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 8, "step": 0.5 }
+    }
+  },
+  {
+    "id": "flux_kontext_dev_basic",
+    "displayName": "Flux Kontext Dev Basic",
+    "type": "image",
+    "description": "Basic Flux Kontext Dev workflow.",
+    "tags": ["flux", "kontext"],
+    "samplers": ["k_euler", "uni_pc", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 28,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 8, "step": 0.5 }
+    }
+  },
+  {
+    "id": "Flux.1-Schnell fp16 (Compact)",
+    "displayName": "Flux.1 Schnell FP16 Compact",
+    "type": "image",
+    "description": "Fast Flux.1 Schnell FP16 compact model.",
+    "tags": ["flux", "schnell", "fp16", "speed"],
+    "samplers": ["k_euler", "ddim"],
+    "schedulers": ["normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 896,
+      "height": 896,
+      "steps": 20,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 640, "max": 1152, "step": 64 },
+      "height": { "min": 640, "max": 1152, "step": 64 },
+      "steps": { "min": 10, "max": 30, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 7, "step": 0.5 }
+    }
+  },
+  {
+    "id": "Flux.1-Schnell fp8 (Compact)",
+    "displayName": "Flux.1 Schnell FP8 Compact",
+    "type": "image",
+    "description": "Fast Flux.1 Schnell FP8 compact model.",
+    "tags": ["flux", "schnell", "fp8", "speed"],
+    "samplers": ["k_euler", "ddim"],
+    "schedulers": ["normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 896,
+      "height": 896,
+      "steps": 20,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 640, "max": 1152, "step": 64 },
+      "height": { "min": 640, "max": 1152, "step": 64 },
+      "steps": { "min": 10, "max": 30, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 7, "step": 0.5 }
+    }
+  },
+  {
+    "id": "krea",
+    "displayName": "Krea",
+    "type": "image",
+    "description": "Krea model for creative image generation.",
+    "tags": ["krea", "creative"],
+    "samplers": ["k_euler", "uni_pc", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 28,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 8, "step": 0.5 }
+    }
+  },
+  {
+    "id": "Chroma",
+    "displayName": "Chroma",
+    "type": "image",
+    "description": "Chroma model for vibrant, colorful image generation.",
+    "tags": ["chroma", "colorful"],
+    "samplers": ["k_euler", "uni_pc", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 28,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 8, "step": 0.5 }
+    }
+  },
+  {
+    "id": "chroma_final",
+    "displayName": "Chroma Final",
+    "type": "image",
+    "description": "Chroma Final model variant.",
+    "tags": ["chroma", "colorful"],
+    "samplers": ["k_euler", "uni_pc", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 28,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 8, "step": 0.5 }
+    }
+  },
+  {
+    "id": "SDXL 1.0",
+    "displayName": "SDXL 1.0",
+    "type": "image",
+    "description": "Stable Diffusion XL 1.0 for high-quality image generation.",
+    "tags": ["sdxl", "stable-diffusion"],
+    "samplers": ["k_euler", "k_euler_ancestral", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 30,
+      "cfgScale": 7,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 2048, "step": 64 },
+      "height": { "min": 512, "max": 2048, "step": 64 },
+      "steps": { "min": 10, "max": 50, "step": 1 },
+      "cfgScale": { "min": 1, "max": 20, "step": 0.5 }
+    }
+  },
+  {
+    "id": "sdxl",
+    "displayName": "SDXL",
+    "type": "image",
+    "description": "Stable Diffusion XL model.",
+    "tags": ["sdxl", "stable-diffusion"],
+    "samplers": ["k_euler", "k_euler_ancestral", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 30,
+      "cfgScale": 7,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 2048, "step": 64 },
+      "height": { "min": 512, "max": 2048, "step": 64 },
+      "steps": { "min": 10, "max": 50, "step": 1 },
+      "cfgScale": { "min": 1, "max": 20, "step": 0.5 }
+    }
+  },
+  {
+    "id": "sdxl1",
+    "displayName": "SDXL1",
+    "type": "image",
+    "description": "SDXL1 model variant.",
+    "tags": ["sdxl", "stable-diffusion"],
+    "samplers": ["k_euler", "k_euler_ancestral", "ddim"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 30,
+      "cfgScale": 7,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 2048, "step": 64 },
+      "height": { "min": 512, "max": 2048, "step": 64 },
+      "steps": { "min": 10, "max": 50, "step": 1 },
+      "cfgScale": { "min": 1, "max": 20, "step": 0.5 }
+    }
+  },
+  {
+    "id": "turbovision",
+    "displayName": "TurboVision",
+    "type": "image",
+    "description": "TurboVision model for fast image generation.",
+    "tags": ["turbovision", "speed"],
+    "samplers": ["k_euler", "ddim"],
+    "schedulers": ["normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 20,
+      "cfgScale": 3.5,
+      "sampler": "k_euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 10, "max": 30, "step": 1 },
+      "cfgScale": { "min": 1.5, "max": 7, "step": 0.5 }
+    }
+  },
+  {
+    "id": "wan2.2_ti2v_5B",
+    "displayName": "Standard Quality (Wan 2.2)",
     "type": "video",
-    "description": "WAN 2.2 5B text-to-video workflow producing buttery 640px clips.",
+    "description": "WAN 2.2 5B text-to-video workflow producing buttery 640px clips. Fastest video generation.",
     "tags": ["wan", "video"],
-    "samplers": ["uni_pc"],
-    "schedulers": ["simple"],
+    "samplers": ["dpmsolver", "k_euler"],
+    "schedulers": ["simple", "normal"],
     "capabilities": ["txt2video"],
     "defaults": {
       "width": 640,
       "height": 640,
       "steps": 20,
       "cfgScale": 5,
-      "sampler": "uni_pc",
+      "sampler": "dpmsolver",
       "scheduler": "simple",
       "denoise": 1,
       "length": 80,
@@ -83,20 +461,20 @@
     }
   },
   {
-    "id": "wan2_2_t2v_14b",
-    "displayName": "WAN 2.2 T2V 14B",
+    "id": "wan2.2-t2v-a14b",
+    "displayName": "Better Quality (Wan 2.2)",
     "type": "video",
     "description": "Premium 14B WAN pipeline prioritizing cinematic motion and detail.",
     "tags": ["wan", "video", "high-quality"],
-    "samplers": ["uni_pc"],
-    "schedulers": ["simple"],
+    "samplers": ["dpmsolver", "k_euler"],
+    "schedulers": ["simple", "normal"],
     "capabilities": ["txt2video"],
     "defaults": {
       "width": 640,
       "height": 640,
       "steps": 24,
       "cfgScale": 6,
-      "sampler": "uni_pc",
+      "sampler": "dpmsolver",
       "scheduler": "simple",
       "denoise": 1,
       "length": 96,
@@ -110,6 +488,63 @@
       "length": { "min": 64, "max": 144, "step": 8 },
       "fps": { "min": 12, "max": 24, "step": 1 }
     }
+  },
+  {
+    "id": "wan2.2-t2v-a14b-hq",
+    "displayName": "Best Quality (Wan 2.2)",
+    "type": "video",
+    "description": "High-quality WAN 2.2 14B text-to-video workflow with enhanced settings. Best for cinematic output.",
+    "tags": ["wan", "video", "high-quality", "premium"],
+    "samplers": ["dpmsolver", "k_euler"],
+    "schedulers": ["simple", "normal"],
+    "capabilities": ["txt2video"],
+    "defaults": {
+      "width": 1024,
+      "height": 576,
+      "steps": 38,
+      "cfgScale": 7.5,
+      "sampler": "dpmsolver",
+      "scheduler": "simple",
+      "denoise": 1,
+      "length": 120,
+      "fps": 24
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1280, "step": 64 },
+      "height": { "min": 512, "max": 720, "step": 64 },
+      "steps": { "min": 20, "max": 50, "step": 1 },
+      "cfgScale": { "min": 5, "max": 10, "step": 0.25 },
+      "length": { "min": 80, "max": 160, "step": 8 },
+      "fps": { "min": 16, "max": 30, "step": 1 }
+    }
+  },
+  {
+    "id": "ltxv",
+    "displayName": "LTX-Video",
+    "type": "video",
+    "description": "LTX-Video model for high-quality video generation.",
+    "tags": ["ltxv", "video"],
+    "samplers": ["k_euler", "dpmsolver", "k_dpmpp_2m"],
+    "schedulers": ["karras", "normal"],
+    "capabilities": ["txt2video"],
+    "defaults": {
+      "width": 1216,
+      "height": 704,
+      "steps": 25,
+      "cfgScale": 2,
+      "sampler": "k_euler",
+      "scheduler": "karras",
+      "denoise": 1,
+      "length": 96,
+      "fps": 30
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1920, "step": 64 },
+      "height": { "min": 512, "max": 1080, "step": 64 },
+      "steps": { "min": 15, "max": 40, "step": 1 },
+      "cfgScale": { "min": 1, "max": 5, "step": 0.25 },
+      "length": { "min": 48, "max": 144, "step": 8 },
+      "fps": { "min": 24, "max": 30, "step": 1 }
+    }
   }
 ]
-

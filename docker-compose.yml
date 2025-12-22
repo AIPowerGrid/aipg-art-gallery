@@ -1,0 +1,42 @@
+services:
+  gallery-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: aipg-gallery-server
+    ports:
+      - "4000:4000"
+    environment:
+      - GALLERY_SERVER_ADDR=:4000
+      - AIPG_API_URL=${AIPG_API_URL:-https://api.aipowergrid.io/api/v2}
+      - AIPG_API_KEY=${AIPG_API_KEY:-}
+      - AIPG_CLIENT_AGENT=${AIPG_CLIENT_AGENT:-AIPG-Art-Gallery:v2}
+      - MODEL_PRESETS_PATH=/app/config/model_presets.json
+      - GALLERY_ALLOWED_ORIGINS=${GALLERY_ALLOWED_ORIGINS:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/api/models"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  gallery-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: aipg-gallery-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_GALLERY_API=http://localhost:4000/api
+    depends_on:
+      - gallery-server
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+

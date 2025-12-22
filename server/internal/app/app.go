@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -15,12 +16,14 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/modelvault"
 )
 
 type App struct {
-	cfg     config.Config
-	catalog models.Catalog
-	client  *aipg.Client
+	cfg         config.Config
+	catalog     models.Catalog
+	client      *aipg.Client
+	vaultClient *modelvault.Client
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -28,10 +31,24 @@ func New(cfg config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Initialize ModelVault client for blockchain model registry
+	vaultClient, err := modelvault.NewClient(
+		cfg.ModelVaultRPCURL,
+		cfg.ModelVaultContractAddress,
+		cfg.ModelVaultEnabled,
+	)
+	if err != nil {
+		log.Printf("Warning: ModelVault client initialization failed: %v", err)
+		// Continue without blockchain - use presets only
+		vaultClient, _ = modelvault.NewClient("", "", false)
+	}
+
 	return &App{
-		cfg:     cfg,
-		catalog: catalog,
-		client:  aipg.NewClient(cfg.APIBaseURL, cfg.ClientAgent),
+		cfg:         cfg,
+		catalog:     catalog,
+		client:      aipg.NewClient(cfg.APIBaseURL, cfg.ClientAgent),
+		vaultClient: vaultClient,
 	}, nil
 }
 
@@ -76,20 +93,47 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Debug: log all model stats with queued jobs
+	for _, s := range stats {
+		if s.ParseQueued() > 0 || s.ParseCount() > 0 {
+			log.Printf("Grid API: name=%q workers=%d queued=%d eta=%.1f", s.Name, s.ParseCount(), s.ParseQueued(), s.ParseETA())
+		}
+	}
+
 	byName := make(map[string]aipg.ModelStatus, len(stats))
 	for _, s := range stats {
 		byName[strings.ToLower(s.Name)] = s
+	}
+
+	// Fetch on-chain models if available
+	var chainModels map[string]*modelvault.OnChainModel
+	if a.vaultClient.IsEnabled() {
+		chainModels, err = a.vaultClient.FetchAllModels(ctx)
+		if err != nil {
+			log.Printf("Warning: failed to fetch chain models: %v", err)
+		}
 	}
 
 	presets := a.catalog.List()
 	response := make([]ModelView, 0, len(presets))
 	for _, preset := range presets {
 		stat := byName[strings.ToLower(preset.ID)]
-		response = append(response, buildModelView(preset, stat))
+		
+		// Merge chain data if available
+		var chainModel *modelvault.OnChainModel
+		if chainModels != nil {
+			chainModel = chainModels[preset.ID]
+			if chainModel == nil {
+				chainModel = chainModels[strings.ToLower(preset.ID)]
+			}
+		}
+		
+		response = append(response, buildModelView(preset, stat, chainModel))
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"models": response,
+		"models":      response,
+		"chainSource": a.vaultClient.IsEnabled(),
 	})
 }
 
@@ -118,7 +162,13 @@ func (a *App) handleGetModel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, buildModelView(preset, match))
+	// Fetch chain model data if available
+	var chainModel *modelvault.OnChainModel
+	if a.vaultClient.IsEnabled() {
+		chainModel, _ = a.vaultClient.FindModel(ctx, preset.ID)
+	}
+
+	writeJSON(w, http.StatusOK, buildModelView(preset, match, chainModel))
 }
 
 func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
@@ -199,14 +249,27 @@ type ModelView struct {
 	EstimatedWaitSeconds float64              `json:"estimatedWaitSeconds"`
 	Defaults             models.ModelDefaults `json:"defaults"`
 	Limits               models.ModelLimits   `json:"limits"`
+	// Chain-derived fields
+	OnChain     bool                      `json:"onChain"`
+	Constraints *ChainConstraintsView     `json:"constraints,omitempty"`
 }
 
-func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus) ModelView {
+// ChainConstraintsView represents blockchain-derived generation constraints
+type ChainConstraintsView struct {
+	StepsMin int     `json:"stepsMin,omitempty"`
+	StepsMax int     `json:"stepsMax,omitempty"`
+	CfgMin   float64 `json:"cfgMin,omitempty"`
+	CfgMax   float64 `json:"cfgMax,omitempty"`
+	ClipSkip int     `json:"clipSkip,omitempty"`
+}
+
+func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel *modelvault.OnChainModel) ModelView {
 	status := "offline"
 	if stat.ParseCount() > 0 {
 		status = "online"
 	}
-	return ModelView{
+	
+	view := ModelView{
 		ID:                   preset.ID,
 		DisplayName:          preset.DisplayName,
 		Type:                 preset.Type,
@@ -221,7 +284,47 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus) ModelView 
 		EstimatedWaitSeconds: stat.ParseETA(),
 		Defaults:             preset.Defaults,
 		Limits:               preset.Limits,
+		OnChain:              chainModel != nil,
 	}
+	
+	// Merge chain model data if available
+	if chainModel != nil {
+		// Override description if chain has a better one
+		if chainModel.Description != "" && chainModel.Description != preset.Description {
+			view.Description = chainModel.Description
+		}
+		
+		// Add chain constraints
+		if chainModel.Constraints != nil {
+			view.Constraints = &ChainConstraintsView{
+				StepsMin: int(chainModel.Constraints.StepsMin),
+				StepsMax: int(chainModel.Constraints.StepsMax),
+				CfgMin:   chainModel.Constraints.CfgMin,
+				CfgMax:   chainModel.Constraints.CfgMax,
+				ClipSkip: int(chainModel.Constraints.ClipSkip),
+			}
+			
+			// Update limits from chain constraints if they're more restrictive
+			if view.Limits.Steps != nil && chainModel.Constraints.StepsMax > 0 {
+				if int(chainModel.Constraints.StepsMax) < view.Limits.Steps.Max {
+					view.Limits.Steps.Max = int(chainModel.Constraints.StepsMax)
+				}
+				if int(chainModel.Constraints.StepsMin) > view.Limits.Steps.Min {
+					view.Limits.Steps.Min = int(chainModel.Constraints.StepsMin)
+				}
+			}
+			if view.Limits.CfgScale != nil && chainModel.Constraints.CfgMax > 0 {
+				if chainModel.Constraints.CfgMax < view.Limits.CfgScale.Max {
+					view.Limits.CfgScale.Max = chainModel.Constraints.CfgMax
+				}
+				if chainModel.Constraints.CfgMin > view.Limits.CfgScale.Min {
+					view.Limits.CfgScale.Min = chainModel.Constraints.CfgMin
+				}
+			}
+		}
+	}
+	
+	return view
 }
 
 type CreateJobRequest struct {
@@ -229,6 +332,7 @@ type CreateJobRequest struct {
 	Prompt           string           `json:"prompt"`
 	NegativePrompt   string           `json:"negativePrompt"`
 	APIKey           string           `json:"apiKey"`
+	WalletAddress    string           `json:"walletAddress"`
 	Params           GenerationParams `json:"params"`
 	NSFW             bool             `json:"nsfw"`
 	Public           bool             `json:"public"`
@@ -262,9 +366,62 @@ func (r CreateJobRequest) Validate() error {
 	return nil
 }
 
+// mapSamplerName converts ComfyUI sampler names to Grid API format
+// The Grid API expects specific sampler names with k_ prefix
+func mapSamplerName(sampler string) string {
+	samplerMap := map[string]string{
+		// Direct mappings
+		"uni_pc":           "dpmsolver",
+		"unipc":            "dpmsolver",
+		"uni_pc_bh2":       "dpmsolver",
+		"dpm_2":            "k_dpm_2",
+		"dpm_2_ancestral":  "k_dpm_2_a",
+		"euler":            "k_euler",
+		"euler_ancestral":  "k_euler_a",
+		"heun":             "k_heun",
+		"lms":              "k_lms",
+		"dpm_fast":         "k_dpm_fast",
+		"dpm_adaptive":     "k_dpm_adaptive",
+		"dpmpp_2s_ancestral": "k_dpmpp_2s_a",
+		"dpmpp_2m":         "k_dpmpp_2m",
+		"dpmpp_sde":        "k_dpmpp_sde",
+		"ddim":             "DDIM",
+		// Already in correct format - pass through
+		"k_euler":          "k_euler",
+		"k_euler_a":        "k_euler_a",
+		"k_dpm_2":          "k_dpm_2",
+		"k_dpm_2_a":        "k_dpm_2_a",
+		"k_heun":           "k_heun",
+		"k_lms":            "k_lms",
+		"k_dpm_fast":       "k_dpm_fast",
+		"k_dpm_adaptive":   "k_dpm_adaptive",
+		"k_dpmpp_2s_a":     "k_dpmpp_2s_a",
+		"k_dpmpp_2m":       "k_dpmpp_2m",
+		"k_dpmpp_sde":      "k_dpmpp_sde",
+		"DDIM":             "DDIM",
+		"dpmsolver":        "dpmsolver",
+		"lcm":              "lcm",
+	}
+
+	// Case-insensitive lookup
+	lowerSampler := strings.ToLower(sampler)
+	if mapped, ok := samplerMap[lowerSampler]; ok {
+		return mapped
+	}
+	if mapped, ok := samplerMap[sampler]; ok {
+		return mapped
+	}
+
+	// Default to k_euler if unknown
+	return "k_euler"
+}
+
 func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg.CreateJobPayload {
+	rawSampler := pickString(req.Params.Sampler, preset.Defaults.Sampler)
+	mappedSampler := mapSamplerName(rawSampler)
+
 	params := map[string]any{
-		"sampler_name":       pickString(req.Params.Sampler, preset.Defaults.Sampler),
+		"sampler_name":       mappedSampler,
 		"scheduler":          pickString(req.Params.Scheduler, preset.Defaults.Scheduler),
 		"cfg_scale":          pickFloat(req.Params.CfgScale, preset.Defaults.CfgScale),
 		"steps":              pickInt(req.Params.Steps, preset.Defaults.Steps),
@@ -300,6 +457,7 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 		R2:             true,
 		Shared:         req.Public,
 		Params:         params,
+		WalletAddress:  req.WalletAddress,
 	}
 
 	if req.SourceImage != "" {

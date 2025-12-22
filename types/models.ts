@@ -35,6 +35,18 @@ export interface ModelDefaults {
   hiresFix?: boolean;
 }
 
+/**
+ * Blockchain-derived generation constraints from the ModelVault contract.
+ * These take precedence over preset limits when present.
+ */
+export interface ChainConstraints {
+  stepsMin?: number;
+  stepsMax?: number;
+  cfgMin?: number;
+  cfgMax?: number;
+  clipSkip?: number;
+}
+
 export interface GalleryModel {
   id: string;
   displayName: string;
@@ -50,6 +62,17 @@ export interface GalleryModel {
   estimatedWaitSeconds: number;
   defaults: ModelDefaults;
   limits: ModelLimits;
+  /** Whether this model is registered on the blockchain */
+  onChain: boolean;
+  /** Blockchain-derived constraints (if model is on-chain) */
+  constraints?: ChainConstraints;
+}
+
+/** Response from /api/models endpoint */
+export interface ModelsResponse {
+  models: GalleryModel[];
+  /** Whether models were fetched from blockchain */
+  chainSource: boolean;
 }
 
 export interface CreateJobRequest {
@@ -59,6 +82,8 @@ export interface CreateJobRequest {
   apiKey?: string;
   nsfw?: boolean;
   public?: boolean;
+  /** Wallet address of the user submitting the job */
+  walletAddress?: string;
   params: {
     width?: number;
     height?: number;
