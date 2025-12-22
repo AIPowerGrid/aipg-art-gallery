@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "setup:supabase": "node scripts/setup-supabase.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
@@ -28,13 +29,14 @@
     "@radix-ui/react-tooltip": "^1.0.7",
     "@supabase/ssr": "^0.1.0",
     "@supabase/supabase-js": "^2.39.8",
-    "@tanstack/react-query": "^5.28.6",
+    "@tanstack/react-query": "^5.90.12",
     "@types/file-saver": "^2.0.7",
+    "@web3modal/wagmi": "^5.1.11",
     "browser-image-resizer": "^2.4.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "cmdk": "^1.0.0",
-    "dotenv": "^16.4.7",
+    "dotenv": "^16.6.1",
     "embla-carousel-react": "^8.0.0",
     "file-saver": "^2.0.5",
     "framer-motion": "^11.0.24",
@@ -55,16 +57,19 @@
     "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.0",
     "uuid": "^9.0.1",
+    "viem": "^2.43.2",
+    "wagmi": "^3.1.0",
     "zod": "^3.22.4",
     "zustand": "^4.5.2"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.19.25",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-responsive-masonry": "^2.6.0",
     "@types/uuid": "^9.0.8",
     "autoprefixer": "^10.0.1",
+    "pg": "^8.16.3",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",
     "typescript": "^5"

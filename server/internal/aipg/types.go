@@ -52,6 +52,7 @@ type CreateJobPayload struct {
 	SourceProcessing string         `json:"source_processing,omitempty"`
 	SourceMask       string         `json:"source_mask,omitempty"`
 	Extra            map[string]any `json:"extra,omitempty"`
+	WalletAddress    string         `json:"wallet_address,omitempty"`
 }
 
 type CreateJobResponse struct {

@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   async headers() {
     return [
       {
-        // match your API routes (or “/(.*)” for everything)
         source: "/api/",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
@@ -22,6 +22,15 @@ const nextConfig = {
         pathname: "**",
       },
     ],
+  },
+  webpack: (config) => {
+    // Fix for wagmi porto connector module resolution issue
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      'porto/internal': false,
+    };
+    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    return config;
   },
 };
 

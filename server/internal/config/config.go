@@ -12,6 +12,11 @@ type Config struct {
 	DefaultAPIKey   string
 	ModelPresetPath string
 	AllowedOrigins  []string
+
+	// ModelVault blockchain configuration
+	ModelVaultEnabled         bool
+	ModelVaultRPCURL          string
+	ModelVaultContractAddress string
 }
 
 func Load() Config {
@@ -22,6 +27,11 @@ func Load() Config {
 		DefaultAPIKey:   os.Getenv("AIPG_API_KEY"),
 		ModelPresetPath: getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
 		AllowedOrigins:  splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
+
+		// ModelVault blockchain configuration (enabled by default)
+		ModelVaultEnabled:         getEnv("MODELVAULT_ENABLED", "true") == "true",
+		ModelVaultRPCURL:          getEnv("MODELVAULT_RPC_URL", "https://mainnet.base.org"),
+		ModelVaultContractAddress: getEnv("MODELVAULT_CONTRACT", "0x79F39f2a0eA476f53994812e6a8f3C8CFe08c609"),
 	}
 }
 

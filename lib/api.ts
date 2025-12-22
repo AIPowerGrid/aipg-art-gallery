@@ -1,4 +1,4 @@
-import { CreateJobRequest, GalleryModel, JobStatus } from "@/types/models";
+import { CreateJobRequest, GalleryModel, JobStatus, ModelsResponse } from "@/types/models";
 
 const getApiBase = () =>
   process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
@@ -14,12 +14,19 @@ async function jsonFetch<T>(
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || res.statusText);
+    // Include status code in error for rate limit detection
+    const message = body.error || body.message || res.statusText;
+    throw new Error(`${res.status}: ${message}`);
   }
   return res.json();
 }
 
-export function fetchModels(): Promise<{ models: GalleryModel[] }> {
+/**
+ * Fetch all available models from the API.
+ * Models are sourced from the blockchain ModelVault contract and merged
+ * with local presets for defaults and limits.
+ */
+export function fetchModels(): Promise<ModelsResponse> {
   return jsonFetch("/models", undefined, 30);
 }
 
