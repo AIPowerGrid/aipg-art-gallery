@@ -466,7 +466,7 @@
     "tags": ["wan", "video", "fast", "i2v"],
     "samplers": ["uni_pc", "dpmsolver", "k_euler"],
     "schedulers": ["simple", "normal"],
-    "capabilities": ["txt2video"],
+    "capabilities": ["txt2video", "img2video"],
     "defaults": {
       "width": 640,
       "height": 640,

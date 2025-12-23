@@ -57,7 +57,7 @@ function CreatePageClient() {
   const [uploadImage, setUploadImage] = useState<string | undefined>(undefined);
   const [uploadMask, setUploadMask] = useState<string | undefined>(undefined);
   const [sourceProcessing, setSourceProcessing] = useState<
-    "txt2img" | "img2img" | "inpainting"
+    "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video"
   >("txt2img");
   const [jobs, setJobs] = useState<JobEntry[]>([]);
   const [error, setError] = useState<string>();
@@ -131,6 +131,12 @@ function CreatePageClient() {
     const model = models.find((m) => m.id === modelId);
     if (model) {
       setParams(fromDefaults(model));
+      // Reset sourceProcessing based on model type
+      if (model.type === "video") {
+        setSourceProcessing("txt2video");
+      } else {
+        setSourceProcessing("txt2img");
+      }
     }
   }
 
@@ -154,6 +160,8 @@ function CreatePageClient() {
       nsfw,
       public: sharePublicly,
       walletAddress: address, // Include wallet address if connected
+      mediaType: selectedModel.type,
+      sourceProcessing: sourceProcessing,
       params: {
         width: Number(params.width) || undefined,
         height: Number(params.height) || undefined,
@@ -170,9 +178,10 @@ function CreatePageClient() {
       },
     };
 
-    if (sourceProcessing !== "txt2img" && uploadImage) {
+    // Add source image for img2img/img2video/inpainting modes
+    const needsSourceImage = ["img2img", "img2video", "inpainting"].includes(sourceProcessing);
+    if (needsSourceImage && uploadImage) {
       payload.sourceImage = uploadImage;
-      payload.sourceProcessing = sourceProcessing;
     }
     if (sourceProcessing === "inpainting" && uploadMask) {
       payload.sourceMask = uploadMask;
@@ -549,14 +558,25 @@ function CreatePageClient() {
                       }
                       className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2"
                     >
-                      <option value="txt2img">Text to Image</option>
-                      <option value="img2img">Image to Image</option>
-                      <option value="inpainting">Inpainting</option>
+                      {selectedModel?.type === "video" ? (
+                        <>
+                          <option value="txt2video">Text to Video</option>
+                          {selectedModel.capabilities?.includes("img2video") && (
+                            <option value="img2video">Image to Video</option>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <option value="txt2img">Text to Image</option>
+                          <option value="img2img">Image to Image</option>
+                          <option value="inpainting">Inpainting</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
 
-                {sourceProcessing !== "txt2img" && (
+                {["img2img", "img2video", "inpainting"].includes(sourceProcessing) && (
                   <div className="grid md:grid-cols-2 gap-4">
                     <FileInput
                       label="Reference image"
