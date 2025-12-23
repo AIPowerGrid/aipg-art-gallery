@@ -42,3 +42,63 @@ export function fetchJobStatus(jobId: string) {
   return jsonFetch<JobStatus>(`/jobs/${jobId}`);
 }
 
+// Gallery API
+
+export interface GalleryItem {
+  jobId: string;
+  modelId: string;
+  modelName: string;
+  prompt: string;
+  negativePrompt?: string;
+  type: "image" | "video";
+  isNsfw: boolean;
+  walletAddress?: string;
+  createdAt: number;
+}
+
+export interface GalleryResponse {
+  items: GalleryItem[];
+  count: number;
+}
+
+export function fetchGallery(typeFilter?: string, limit?: number): Promise<GalleryResponse> {
+  const params = new URLSearchParams();
+  if (typeFilter && typeFilter !== "all") params.append("type", typeFilter);
+  if (limit) params.append("limit", String(limit));
+  const query = params.toString();
+  return jsonFetch(`/gallery${query ? `?${query}` : ""}`);
+}
+
+export interface AddToGalleryRequest {
+  jobId: string;
+  modelId: string;
+  modelName: string;
+  prompt: string;
+  negativePrompt?: string;
+  type: "image" | "video";
+  isNsfw: boolean;
+  isPublic: boolean;
+  walletAddress?: string;
+}
+
+export function addToGallery(item: AddToGalleryRequest): Promise<{ success: boolean }> {
+  return jsonFetch("/gallery", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(item),
+  });
+}
+
+export interface WalletGalleryResponse {
+  items: GalleryItem[];
+  count: number;
+  wallet: string;
+}
+
+export function fetchGalleryByWallet(walletAddress: string, limit?: number): Promise<WalletGalleryResponse> {
+  const params = new URLSearchParams();
+  if (limit) params.append("limit", String(limit));
+  const query = params.toString();
+  return jsonFetch(`/gallery/wallet/${walletAddress}${query ? `?${query}` : ""}`);
+}
+

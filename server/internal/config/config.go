@@ -6,12 +6,13 @@ import (
 )
 
 type Config struct {
-	Address         string
-	APIBaseURL      string
-	ClientAgent     string
-	DefaultAPIKey   string
-	ModelPresetPath string
-	AllowedOrigins  []string
+	Address          string
+	APIBaseURL       string
+	ClientAgent      string
+	DefaultAPIKey    string
+	ModelPresetPath  string
+	AllowedOrigins   []string
+	GalleryStorePath string
 
 	// ModelVault blockchain configuration
 	ModelVaultEnabled         bool
@@ -21,12 +22,13 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		Address:         getEnv("GALLERY_SERVER_ADDR", ":4000"),
-		APIBaseURL:      getEnv("AIPG_API_URL", "https://api.aipowergrid.io/api/v2"),
-		ClientAgent:     getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v2"),
-		DefaultAPIKey:   os.Getenv("AIPG_API_KEY"),
-		ModelPresetPath: getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
-		AllowedOrigins:  splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
+		Address:          getEnv("GALLERY_SERVER_ADDR", ":4000"),
+		APIBaseURL:       getEnv("AIPG_API_URL", "https://api.aipowergrid.io/api/v2"),
+		ClientAgent:      getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v2"),
+		DefaultAPIKey:    os.Getenv("AIPG_API_KEY"),
+		ModelPresetPath:  getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
+		AllowedOrigins:   splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
+		GalleryStorePath: getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
 
 		// ModelVault blockchain configuration (enabled by default)
 		ModelVaultEnabled:         getEnv("MODELVAULT_ENABLED", "true") == "true",

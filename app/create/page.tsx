@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { createJob, fetchJobStatus, fetchModels } from "@/lib/api";
-import { supabase } from "@/lib/supabase";
+import { createJob, fetchJobStatus, fetchModels, addToGallery } from "@/lib/api";
+import { saveJob, StoredJob } from "@/lib/storage";
 import { useAccount } from "wagmi";
 import {
   CreateJobRequest,
@@ -20,8 +20,28 @@ type JobEntry = {
 
 type ModelTypeFilter = "all" | "image" | "video";
 
+// Wrapper component to ensure we only use wagmi after mounting
+export default function CreatePage() {
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  
+  if (!mounted) {
+    return (
+      <main className="flex-1 w-full px-4 md:px-10 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-orange-500 rounded-full" />
+        </div>
+      </main>
+    );
+  }
+  
+  return <CreatePageClient />;
+}
 
-export default function HomePage() {
+function CreatePageClient() {
   const { address } = useAccount();
   const [models, setModels] = useState<GalleryModel[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(true);
@@ -207,9 +227,9 @@ export default function HomePage() {
           )
         );
         
-        // Save completed generations to database
-        if (status.status === "completed" && status.generations.length > 0 && sharePublicly) {
-          await saveGenerationsToDatabase(jobId, status, selectedModel!);
+        // Save completed job to local history
+        if (status.status === "completed" && status.generations.length > 0) {
+          saveJobToHistory(jobId, selectedModel!);
         }
         
         if (
@@ -261,44 +281,46 @@ export default function HomePage() {
     poll();
   }
 
-  async function saveGenerationsToDatabase(
+  async function saveJobToHistory(
     jobId: string,
-    status: JobStatus,
     model: GalleryModel
   ) {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      for (const gen of status.generations) {
-        const generationData = {
-          job_id: jobId,
-          model_id: model.id,
-          prompt: prompt,
-          negative_prompt: negativePrompt || null,
-          seed: gen.seed || null,
-          width: params.width || null,
-          height: params.height || null,
-          steps: params.steps || null,
-          cfg_scale: params.cfgScale || null,
-          sampler: model.samplers[Number(params.sampler) || 0] || null,
-          scheduler: model.schedulers[Number(params.scheduler) || 0] || null,
-          length: params.length || null,
-          fps: params.fps || null,
-          generation_type: gen.kind === "video" ? "video" : "image",
-          media_url: gen.url || null,
-          media_base64: gen.base64 || null,
-          is_public: sharePublicly,
-          is_nsfw: nsfw,
-          user_id: user?.id || null,
-        };
-
-        const { error } = await supabase.from("generations").insert(generationData);
-        if (error) {
-          console.error("Error saving generation:", error);
-        }
+    // Save job metadata to localStorage for "My Creations" (local backup)
+    const storedJob: StoredJob = {
+      jobId,
+      modelId: model.id,
+      modelName: model.displayName,
+      prompt,
+      negativePrompt: negativePrompt || undefined,
+      isPublic: sharePublicly,
+      isNsfw: nsfw,
+      createdAt: Date.now(),
+      type: model.type,
+      walletAddress: address,
+    };
+    
+    saveJob(storedJob);
+    console.log("Job saved to local history:", jobId);
+    
+    // If wallet is connected, save to server gallery (with public/private flag)
+    // This enables cross-device access via wallet address
+    if (address) {
+      try {
+        await addToGallery({
+          jobId,
+          modelId: model.id,
+          modelName: model.displayName,
+          prompt,
+          negativePrompt: negativePrompt || undefined,
+          type: model.type,
+          isNsfw: nsfw,
+          isPublic: sharePublicly,
+          walletAddress: address,
+        });
+        console.log("Job saved to gallery:", jobId, sharePublicly ? "(public)" : "(private)");
+      } catch (err) {
+        console.error("Failed to save to gallery:", err);
       }
-    } catch (error) {
-      console.error("Error saving generations to database:", error);
     }
   }
 
