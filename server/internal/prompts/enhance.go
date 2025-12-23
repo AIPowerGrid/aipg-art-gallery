@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-const MaxPromptLength = 255
+const MaxPromptLength = 512
 
 // ModelCategory represents the type of model for prompt optimization
 type ModelCategory int

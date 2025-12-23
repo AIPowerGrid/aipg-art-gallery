@@ -45,7 +45,7 @@ func TestEnhancePrompt(t *testing.T) {
 		},
 		{
 			name:     "long prompt truncated",
-			prompt:   string(make([]byte, 300)), // 300 char prompt
+			prompt:   string(make([]byte, 600)), // 600 char prompt (over 512 limit)
 			category: CategoryFluxImage,
 			maxLen:   MaxPromptLength,
 		},
