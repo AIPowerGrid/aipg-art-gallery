@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -57,6 +58,11 @@ func (c *Client) CreateJob(ctx context.Context, request CreateJobPayload, apiKey
 		return nil, err
 	}
 
+	// Log the payload being sent to Grid API
+	log.Printf("🌐 Grid API request: models=%v, media_type=%s, prompt_len=%d", 
+		request.Models, request.MediaType, len(request.Prompt))
+	log.Printf("🌐 Grid API full payload: %s", string(payload))
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/generate/async", c.baseURL), bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
@@ -74,6 +80,8 @@ func (c *Client) CreateJob(ctx context.Context, request CreateJobPayload, apiKey
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
+	log.Printf("🌐 Grid API response: status=%d, body=%s", resp.StatusCode, string(body))
+	
 	if resp.StatusCode != http.StatusAccepted {
 		return nil, fmt.Errorf("create job failed (%d): %s", resp.StatusCode, body)
 	}

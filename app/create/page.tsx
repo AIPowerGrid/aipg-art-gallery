@@ -141,11 +141,26 @@ function CreatePageClient() {
   }
 
   async function handleSubmit() {
-    if (!selectedModel) return;
+    if (!selectedModel) {
+      console.error("❌ No selectedModel at submit time!");
+      setError("No model selected");
+      return;
+    }
     if (!prompt.trim()) {
       setError("Prompt is required");
       return;
     }
+    
+    // Log the actual model being submitted for debugging
+    console.log("🎯 handleSubmit called with:", {
+      "selectedModel.id": selectedModel.id,
+      "selectedModel.displayName": selectedModel.displayName,
+      "selectedModel.type": selectedModel.type,
+      "selectedModelId state": selectedModelId,
+      "params.steps": params.steps,
+      "params.cfgScale": params.cfgScale,
+      "selectedModel.defaults": selectedModel.defaults,
+    });
 
     setError(undefined);
     setIsSubmitting(true);
@@ -187,11 +202,28 @@ function CreatePageClient() {
       payload.sourceMask = uploadMask;
     }
 
-    console.log("Submitting job:", payload);
+    // Detailed debug logging for job submission
+    console.log("📤 Submitting job:", {
+      modelId: payload.modelId,
+      selectedModelId: selectedModelId,
+      selectedModelDisplayName: selectedModel.displayName,
+      modelType: selectedModel.type,
+      mediaType: payload.mediaType,
+      sourceProcessing: payload.sourceProcessing,
+      params: payload.params,
+      presetDefaults: selectedModel.defaults,
+    });
+    
+    // Verify model ID matches
+    if (payload.modelId !== selectedModelId) {
+      console.error("⚠️ MODEL MISMATCH! payload.modelId:", payload.modelId, "!= selectedModelId:", selectedModelId);
+    }
 
     try {
       const resp = await createJob(payload);
-      console.log("Job created:", resp);
+      console.log("✅ Job created with ID:", resp.jobId);
+      console.log("🔍 VERIFY: If comfy_bridge picks up a different job ID, old jobs are in the queue");
+      console.log("   This job ID:", resp.jobId, "| Model:", payload.modelId, "| Steps:", payload.params.steps);
       const entry: JobEntry = {
         jobId: resp.jobId,
         submittedAt: Date.now(),
@@ -769,13 +801,19 @@ function FileInput({
 function JobCard({ job }: { job: JobEntry }) {
   const status = job.status;
   const outputs = status?.generations ?? [];
+  
+  // Calculate progress info
+  const isQueued = status?.status === "queued" || (!status?.status && !status?.processing);
+  const isProcessing = status?.status === "processing" || (status?.processing ?? 0) > 0;
+  const queuePosition = status?.queuePosition ?? 0;
+  const waitTime = status?.waitTime ?? 0;
 
   return (
     <div className="border border-white/10 rounded-2xl p-4 bg-black/40 space-y-3">
       <div className="flex items-center justify-between text-sm">
         <div>
           <p className="text-xs text-white/40">Job ID</p>
-          <p className="font-mono text-xs text-white/70">{job.jobId}</p>
+          <p className="font-mono text-xs text-white/70">{job.jobId.slice(0, 8)}...</p>
         </div>
         <span
           className={`px-3 py-1 rounded-full text-xs ${
@@ -783,12 +821,50 @@ function JobCard({ job }: { job: JobEntry }) {
               ? "bg-green-500/20 text-green-200"
               : status?.status === "faulted"
               ? "bg-red-500/20 text-red-200"
-              : "bg-yellow-500/20 text-yellow-200 animate-pulse"
+              : isProcessing
+              ? "bg-blue-500/20 text-blue-200 animate-pulse"
+              : "bg-yellow-500/20 text-yellow-200"
           }`}
         >
-          {status?.status ?? "queued"}
+          {status?.status === "completed" ? "✓ Completed" 
+            : status?.status === "faulted" ? "✗ Failed"
+            : isProcessing ? "⚡ Processing"
+            : "⏳ Queued"}
         </span>
       </div>
+      
+      {/* Progress info for queued/processing jobs */}
+      {!status?.status || (status?.status !== "completed" && status?.status !== "faulted") ? (
+        <div className="space-y-2">
+          {isQueued && queuePosition > 0 && (
+            <div className="flex items-center justify-between text-xs text-white/50">
+              <span>Queue Position</span>
+              <span className="text-white/70">#{queuePosition}</span>
+            </div>
+          )}
+          {waitTime > 0 && (
+            <div className="flex items-center justify-between text-xs text-white/50">
+              <span>Est. Wait</span>
+              <span className="text-white/70">{Math.ceil(waitTime)}s</span>
+            </div>
+          )}
+          {isProcessing && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between text-xs text-white/50">
+                <span>Processing</span>
+                <span className="text-blue-300">{status?.processing ?? 1} active</span>
+              </div>
+              <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 rounded-full animate-pulse" 
+                  style={{ width: '60%' }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      ) : null}
+      
       {job.error && (
         <p className="text-xs text-red-300">Error: {job.error}</p>
       )}

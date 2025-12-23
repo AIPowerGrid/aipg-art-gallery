@@ -110,6 +110,12 @@ export interface JobStatus {
   faulted: boolean;
   waitTime: number;
   queuePosition: number;
+  /** Number of jobs currently being processed */
+  processing: number;
+  /** Number of finished generations */
+  finished: number;
+  /** Number of generations still waiting */
+  waiting: number;
   generations: GenerationView[];
 }
 

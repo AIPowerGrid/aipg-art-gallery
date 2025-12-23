@@ -10,16 +10,21 @@ import (
 
 // GalleryItem represents a generation (can be public or private)
 type GalleryItem struct {
-	JobID          string `json:"jobId"`
-	ModelID        string `json:"modelId"`
-	ModelName      string `json:"modelName"`
-	Prompt         string `json:"prompt"`
-	NegativePrompt string `json:"negativePrompt,omitempty"`
-	Type           string `json:"type"` // "image" or "video"
-	IsNSFW         bool   `json:"isNsfw"`
-	IsPublic       bool   `json:"isPublic"`
-	WalletAddress  string `json:"walletAddress,omitempty"`
-	CreatedAt      int64  `json:"createdAt"`
+	JobID          string   `json:"jobId"`
+	ModelID        string   `json:"modelId"`
+	ModelName      string   `json:"modelName"`
+	Prompt         string   `json:"prompt"`
+	NegativePrompt string   `json:"negativePrompt,omitempty"`
+	Type           string   `json:"type"` // "image" or "video"
+	IsNSFW         bool     `json:"isNsfw"`
+	IsPublic       bool     `json:"isPublic"`
+	WalletAddress  string   `json:"walletAddress,omitempty"`
+	CreatedAt      int64    `json:"createdAt"`
+	// GenerationIDs are the R2 object keys for the generated media
+	// Format: {procgen_id}.webp for images, {procgen_id}.mp4 for videos
+	GenerationIDs  []string `json:"generationIds,omitempty"`
+	// MediaURLs are the cached R2 URLs (may be expired)
+	MediaURLs      []string `json:"mediaUrls,omitempty"`
 }
 
 // Store manages the public gallery
@@ -73,16 +78,28 @@ func (s *Store) Add(item GalleryItem) {
 	s.save()
 }
 
-// List returns public gallery items, optionally filtered by type
-func (s *Store) List(typeFilter string, limit int) []GalleryItem {
+// ListResult contains paginated gallery items
+type ListResult struct {
+	Items      []GalleryItem `json:"items"`
+	Total      int           `json:"total"`
+	HasMore    bool          `json:"hasMore"`
+	NextOffset int           `json:"nextOffset"`
+}
+
+// List returns public gallery items, optionally filtered by type, with pagination
+func (s *Store) List(typeFilter string, limit int, offset int) ListResult {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	
 	if limit <= 0 {
-		limit = len(s.items)
+		limit = 25
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	
-	result := make([]GalleryItem, 0, limit)
+	// First, collect all matching items to get total count
+	allMatching := make([]GalleryItem, 0)
 	for _, item := range s.items {
 		// Only include public items in the gallery listing
 		if !item.IsPublic {
@@ -94,13 +111,35 @@ func (s *Store) List(typeFilter string, limit int) []GalleryItem {
 			continue
 		}
 		
-		result = append(result, item)
-		if len(result) >= limit {
-			break
+		allMatching = append(allMatching, item)
+	}
+	
+	total := len(allMatching)
+	
+	// Apply offset
+	if offset >= total {
+		return ListResult{
+			Items:      []GalleryItem{},
+			Total:      total,
+			HasMore:    false,
+			NextOffset: offset,
 		}
 	}
 	
-	return result
+	// Get the page of items
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	
+	result := allMatching[offset:end]
+	
+	return ListResult{
+		Items:      result,
+		Total:      total,
+		HasMore:    end < total,
+		NextOffset: end,
+	}
 }
 
 // ListByWallet returns all items for a specific wallet address
@@ -145,6 +184,36 @@ func (s *Store) Remove(jobID string) bool {
 		}
 	}
 	
+	return false
+}
+
+// Get returns a single item by job ID
+func (s *Store) Get(jobID string) *GalleryItem {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	for i := range s.items {
+		if s.items[i].JobID == jobID {
+			item := s.items[i] // Copy to avoid returning reference
+			return &item
+		}
+	}
+	return nil
+}
+
+// UpdateGenerations updates the generation IDs and media URLs for an item
+func (s *Store) UpdateGenerations(jobID string, generationIDs []string, mediaURLs []string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	for i := range s.items {
+		if s.items[i].JobID == jobID {
+			s.items[i].GenerationIDs = generationIDs
+			s.items[i].MediaURLs = mediaURLs
+			s.save()
+			return true
+		}
+	}
 	return false
 }
 

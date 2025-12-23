@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/modelvault"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/prompts"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/r2"
 )
 
 type App struct {
@@ -28,6 +30,7 @@ type App struct {
 	client       *aipg.Client
 	vaultClient  *modelvault.Client
 	galleryStore *gallery.Store
+	r2Client     *r2.Client
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -50,13 +53,36 @@ func New(cfg config.Config) (*App, error) {
 
 	// Initialize gallery store (persists to file)
 	galleryStore := gallery.NewStore(cfg.GalleryStorePath, 500)
-	log.Printf("Gallery store initialized with %d items", len(galleryStore.List("", 0)))
+	log.Printf("Gallery store initialized with %d items", galleryStore.List("", 1000, 0).Total)
+
+	// Initialize R2 client for direct media access
+	var r2Client *r2.Client
+	if cfg.R2Enabled {
+		var r2Err error
+		r2Client, r2Err = r2.NewClient(
+			cfg.R2TransientEndpoint,
+			cfg.R2TransientBucket,
+			cfg.R2PermanentBucket,
+			cfg.R2AccessKeyID,
+			cfg.R2AccessKeySecret,
+			cfg.R2SharedAccessKeyID,
+			cfg.R2SharedAccessKey,
+		)
+		if r2Err != nil {
+			log.Printf("Warning: R2 client initialization failed: %v", r2Err)
+		} else {
+			log.Printf("R2 client initialized (transient: %s, permanent: %s)", cfg.R2TransientBucket, cfg.R2PermanentBucket)
+		}
+	} else {
+		log.Printf("R2 direct access disabled (set AWS_ACCESS_KEY_ID or SHARED_AWS_ACCESS_ID to enable)")
+	}
 
 	return &App{
 		cfg:          cfg,
 		catalog:      catalog,
 		client:       aipg.NewClient(cfg.APIBaseURL, cfg.ClientAgent),
 		vaultClient:  vaultClient,
+		r2Client:     r2Client,
 		galleryStore: galleryStore,
 	}, nil
 }
@@ -85,6 +111,9 @@ func (a *App) Router() http.Handler {
 		api.Get("/gallery", a.handleListGallery)
 		api.Post("/gallery", a.handleAddToGallery)
 		api.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
+		api.Get("/gallery/{id}", a.handleGetGalleryItem)
+		api.Get("/gallery/{id}/media", a.handleGetGalleryMedia)
+		api.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
 	})
 
 	return r
@@ -106,21 +135,67 @@ var modelNameAliases = map[string][]string{
 	"wan2.2-t2v-a14b-hq": {"wan2_2_t2v_14b_hq", "wan2.2-t2v-14b-hq", "wan2.2_t2v_a14b_hq", "wan2.2-t2v-a14b-hq"},
 	
 	// FLUX models - case and punctuation variations
-	"FLUX.1-dev":                     {"flux.1-dev", "flux1-dev", "flux1.dev", "flux1_dev"},
-	"flux.1-krea-dev":                {"flux1-krea-dev", "flux1_krea_dev", "flux.1_krea_dev", "krea"},
-	"FLUX.1-dev-Kontext-fp8-scaled":  {"flux.1-dev-kontext-fp8-scaled", "flux1-dev-kontext-fp8-scaled", "flux1_dev_kontext_fp8_scaled", "flux_kontext_dev_basic"},
-	"Flux.1-Schnell fp8 (Compact)":   {"flux.1-schnell fp8 (compact)", "flux1-schnell-fp8-compact", "flux.1-schnell"},
+	"FLUX.1-dev":                     {"flux.1-dev", "flux1-dev", "flux1.dev", "flux1_dev", "FLUX.1-dev"},
+	"flux.1-krea-dev":                {"flux1-krea-dev", "flux1_krea_dev", "flux.1_krea_dev", "krea", "flux.1-krea-dev"},
+	"FLUX.1-dev-Kontext-fp8-scaled":  {"flux.1-dev-kontext-fp8-scaled", "flux1-dev-kontext-fp8-scaled", "flux1_dev_kontext_fp8_scaled", "flux_kontext_dev_basic", "FLUX.1-dev-Kontext-fp8-scaled"},
+	"Flux.1-Schnell fp8 (Compact)":   {"flux.1-schnell fp8 (compact)", "flux1-schnell-fp8-compact", "flux.1-schnell", "Flux.1-Schnell fp8 (Compact)"},
 	
 	// Chroma
-	"Chroma": {"chroma", "chroma_final"},
+	"Chroma": {"chroma", "chroma_final", "Chroma"},
 	
 	// SDXL
-	"SDXL 1.0": {"sdxl 1.0", "sdxl1", "sdxl", "sdxl1.0"},
+	"SDXL 1.0": {"sdxl 1.0", "sdxl1", "sdxl", "sdxl1.0", "SDXL 1.0"},
 	
 	// Other models
-	"ltxv": {"ltx-video", "ltxv-13b"},
+	"ltxv": {"ltx-video", "ltxv-13b", "ltxv"},
 	"ICBINP - I Can't Believe It's Not Photography": {"icbinp", "icbinp - i can't believe it's not photography"},
-	"ICBINP XL": {"icbinp xl", "icbinp-xl"},
+	"ICBINP XL": {"icbinp xl", "icbinp-xl", "ICBINP XL"},
+}
+
+// presetToGridName maps our preset IDs to the canonical Grid API model names
+// These names MUST match what workers advertise to the Grid API
+var presetToGridName = map[string]string{
+	// WAN 2.2 video models - Grid API uses underscore format
+	"wan2.2_ti2v_5B":     "wan2_2_ti2v_5b",
+	"wan2.2-t2v-a14b":    "wan2_2_t2v_14b",
+	"wan2.2-t2v-a14b-hq": "wan2_2_t2v_14b_hq",
+	
+	// LTX Video
+	"ltxv": "ltxv",
+	
+	// FLUX models - use exact names that workers advertise
+	"FLUX.1-dev":                    "FLUX.1-dev",
+	"flux.1-krea-dev":               "flux.1-krea-dev",
+	"FLUX.1-dev-Kontext-fp8-scaled": "FLUX.1-dev-Kontext-fp8-scaled",
+	"Flux.1-Schnell fp8 (Compact)":  "Flux.1-Schnell fp8 (Compact)",
+	
+	// Chroma
+	"Chroma": "Chroma",
+	
+	// SDXL and SD models - use exact names
+	"SDXL 1.0":             "SDXL 1.0",
+	"ICBINP XL":            "ICBINP XL",
+	"Juggernaut XL":        "Juggernaut XL",
+	"Animagine XL":         "Animagine XL",
+	"DreamShaper XL":       "DreamShaper XL",
+	"Stable Cascade 1.0":   "Stable Cascade 1.0",
+	"stable_diffusion":     "stable_diffusion",
+	"stable_diffusion_2.1": "stable_diffusion_2.1",
+	"Deliberate":           "Deliberate",
+	"Realistic Vision":     "Realistic Vision",
+	"Anything v3":          "Anything v3",
+	"Epic Diffusion":       "Epic Diffusion",
+	"ICBINP - I Can't Believe It's Not Photography": "ICBINP - I Can't Believe It's Not Photography",
+	"Movie Diffusion":      "Movie Diffusion",
+}
+
+// getGridModelName converts a preset ID to the Grid API model name
+func getGridModelName(presetID string) string {
+	if gridName, ok := presetToGridName[presetID]; ok {
+		return gridName
+	}
+	// Default to preset ID if no mapping exists
+	return presetID
 }
 
 func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
@@ -174,6 +249,11 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 		
 		response = append(response, buildModelView(preset, stat, chainModel))
 	}
+
+	// Sort models by display name for stable ordering
+	sort.Slice(response, func(i, j int) bool {
+		return response[i].DisplayName < response[j].DisplayName
+	})
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"models":      response,
@@ -293,7 +373,13 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 
 	payload := buildCreateJobPayload(req, preset)
 	
-	log.Printf("📤 Creating job: modelId=%s, preset.ID=%s, payload.Models=%v", req.ModelID, preset.ID, payload.Models)
+	log.Printf("📤 Creating job: modelId=%s, preset.ID=%s, preset.Type=%s, gridName=%s, payload.Models=%v, mediaType=%s", 
+		req.ModelID, preset.ID, preset.Type, getGridModelName(preset.ID), payload.Models, payload.MediaType)
+	
+	// Debug: log the full params for troubleshooting
+	if paramsJSON, err := json.Marshal(payload.Params); err == nil {
+		log.Printf("📤 Job params: %s", string(paramsJSON))
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
@@ -530,45 +616,99 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 	
 	rawSampler := pickString(req.Params.Sampler, preset.Defaults.Sampler)
 	mappedSampler := mapSamplerName(rawSampler)
+	
+	// Get final values - validate user input against model limits
+	// User values are used if provided and within range, otherwise clamped to valid range
+	width := pickIntInRange(req.Params.Width, preset.Defaults.Width, preset.Limits.Width)
+	height := pickIntInRange(req.Params.Height, preset.Defaults.Height, preset.Limits.Height)
+	steps := pickIntInRange(req.Params.Steps, preset.Defaults.Steps, preset.Limits.Steps)
+	cfgScale := pickFloatInRange(req.Params.CfgScale, preset.Defaults.CfgScale, preset.Limits.CfgScale)
+	denoise := pickFloat(req.Params.Denoise, preset.Defaults.Denoise) // No limits for denoise
+	scheduler := pickString(req.Params.Scheduler, preset.Defaults.Scheduler)
+	
+	// Video parameters - validate against limits
+	videoLength := pickIntInRange(req.Params.Length, preset.Defaults.Length, preset.Limits.Length)
+	fps := pickIntInRange(req.Params.FPS, preset.Defaults.FPS, preset.Limits.FPS)
+	
+	// Debug log for video models
+	if preset.Type == "video" {
+		log.Printf("🎬 Video params: preset=%s, userLen=%d→%d, userFPS=%d→%d, userSteps=%d→%d, userCfg=%.2f→%.2f",
+			preset.ID, 
+			req.Params.Length, videoLength,
+			req.Params.FPS, fps, 
+			req.Params.Steps, steps,
+			req.Params.CfgScale, cfgScale)
+	}
 
 	params := map[string]any{
 		"sampler_name":       mappedSampler,
-		"scheduler":          pickString(req.Params.Scheduler, preset.Defaults.Scheduler),
-		"cfg_scale":          pickFloat(req.Params.CfgScale, preset.Defaults.CfgScale),
-		"steps":              pickInt(req.Params.Steps, preset.Defaults.Steps),
-		"karras":             strings.EqualFold(pickString(req.Params.Scheduler, preset.Defaults.Scheduler), "karras"),
+		"scheduler":          scheduler,
+		"cfg_scale":          cfgScale,
+		"steps":              steps,
+		"karras":             strings.EqualFold(scheduler, "karras"),
 		"hires_fix":          req.Params.HiresFix,
 		"tiling":             req.Params.Tiling,
-		"denoising_strength": pickFloat(req.Params.Denoise, preset.Defaults.Denoise),
+		"denoising_strength": denoise,
 	}
-	if w := pickInt(req.Params.Width, preset.Defaults.Width); w > 0 {
-		params["width"] = w
+	if width > 0 {
+		params["width"] = width
 	}
-	if h := pickInt(req.Params.Height, preset.Defaults.Height); h > 0 {
-		params["height"] = h
+	if height > 0 {
+		params["height"] = height
 	}
 	if req.Params.Seed != "" {
 		params["seed"] = req.Params.Seed
 	}
-	if l := pickInt(req.Params.Length, preset.Defaults.Length); l > 0 {
-		params["length"] = l
-		params["video_length"] = l
+	
+	// Video-specific parameters - comfy_bridge expects these at top level
+	if videoLength > 0 {
+		params["length"] = videoLength
+		params["video_length"] = videoLength
 	}
-	if fps := pickInt(req.Params.FPS, preset.Defaults.FPS); fps > 0 {
+	if fps > 0 {
 		params["fps"] = fps
 	}
 
+	// Convert preset ID to Grid API model name
+	gridModelName := getGridModelName(preset.ID)
+	
+	// Determine source processing based on model type if not specified
+	sourceProcessing := req.SourceProcessing
+	if sourceProcessing == "" {
+		if preset.Type == "video" {
+			if req.SourceImage != "" {
+				sourceProcessing = "img2video"
+			} else {
+				sourceProcessing = "txt2video"
+			}
+		} else {
+			if req.SourceImage != "" {
+				sourceProcessing = "img2img"
+			} else {
+				sourceProcessing = "txt2img"
+			}
+		}
+	}
+	
+	// Determine media type based on model type if not specified
+	mediaType := req.MediaType
+	if mediaType == "" {
+		mediaType = preset.Type
+	}
+	
 	payload := aipg.CreateJobPayload{
-		Prompt:         enhancedPrompt,
-		NegativePrompt: finalNegative,
-		Models:         []string{preset.ID},
-		NSFW:           req.NSFW,
-		CensorNSFW:     !req.NSFW,
-		TrustedWorkers: true,
-		R2:             true,
-		Shared:         req.Public,
-		Params:         params,
-		WalletAddress:  req.WalletAddress,
+		Prompt:           enhancedPrompt,
+		NegativePrompt:   finalNegative,
+		Models:           []string{gridModelName},
+		NSFW:             req.NSFW,
+		CensorNSFW:       !req.NSFW,
+		TrustedWorkers:   true,
+		R2:               true,
+		Shared:           req.Public,
+		Params:           params,
+		WalletAddress:    req.WalletAddress,
+		SourceProcessing: sourceProcessing,
+		MediaType:        mediaType,
 	}
 
 	if req.SourceImage != "" {
@@ -577,11 +717,12 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 	if req.SourceMask != "" {
 		payload.SourceMask = req.SourceMask
 	}
-	if req.SourceProcessing != "" {
-		payload.SourceProcessing = req.SourceProcessing
-	}
-	if req.MediaType != "" {
-		payload.MediaType = req.MediaType
+	
+	// Log the full payload for video debugging
+	if preset.Type == "video" {
+		paramsJSON, _ := json.Marshal(params)
+		log.Printf("🎬 Video job payload: model=%s, mediaType=%s, sourceProc=%s, params=%s",
+			gridModelName, mediaType, sourceProcessing, string(paramsJSON))
 	}
 
 	return payload
@@ -593,6 +734,9 @@ type JobView struct {
 	Faulted       bool             `json:"faulted"`
 	WaitTime      float64          `json:"waitTime"`
 	QueuePosition int              `json:"queuePosition"`
+	Processing    int              `json:"processing"`
+	Finished      int              `json:"finished"`
+	Waiting       int              `json:"waiting"`
 	Generations   []GenerationView `json:"generations"`
 }
 
@@ -647,6 +791,9 @@ func buildJobView(resp *aipg.JobStatusResponse) JobView {
 		Faulted:       resp.Faulted,
 		WaitTime:      resp.WaitTime,
 		QueuePosition: resp.QueuePosition,
+		Processing:    resp.Processing,
+		Finished:      resp.Finished,
+		Waiting:       resp.Waiting,
 		Generations:   views,
 	}
 }
@@ -669,20 +816,25 @@ func writeError(w http.ResponseWriter, status int, err error) {
 func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 	typeFilter := r.URL.Query().Get("type")
 	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
 	
-	limit := 50
+	limit := 25 // Default page size
 	if limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
 			limit = l
 		}
 	}
 	
-	items := a.galleryStore.List(typeFilter, limit)
+	offset := 0
+	if offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
 	
-	writeJSON(w, http.StatusOK, map[string]any{
-		"items": items,
-		"count": len(items),
-	})
+	result := a.galleryStore.List(typeFilter, limit, offset)
+	
+	writeJSON(w, http.StatusOK, result)
 }
 
 type AddToGalleryRequest struct {
@@ -755,6 +907,149 @@ func (a *App) handleListByWallet(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleGetGalleryItem returns a single gallery item by ID
+func (a *App) handleGetGalleryItem(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
+		return
+	}
+	
+	item := a.galleryStore.Get(jobID)
+	if item == nil {
+		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+	
+	writeJSON(w, http.StatusOK, item)
+}
+
+// handleGetGalleryMedia returns fresh media URLs for a gallery item
+func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
+		return
+	}
+	
+	item := a.galleryStore.Get(jobID)
+	if item == nil {
+		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+	
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	
+	// Try to get media from R2 if we have generation IDs
+	if a.r2Client != nil && len(item.GenerationIDs) > 0 {
+		urls := make([]string, 0, len(item.GenerationIDs))
+		for _, genID := range item.GenerationIDs {
+			url, err := a.r2Client.GenerateMediaURL(ctx, genID, item.Type)
+			if err != nil {
+				log.Printf("Warning: failed to generate R2 URL for %s: %v", genID, err)
+				continue
+			}
+			urls = append(urls, url)
+		}
+		
+		if len(urls) > 0 {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"jobId":    jobID,
+				"mediaUrls": urls,
+				"type":     item.Type,
+				"source":   "r2",
+			})
+			return
+		}
+	}
+	
+	// Fall back to fetching from Grid API job status
+	status, err := a.client.JobStatus(ctx, jobID)
+	if err != nil {
+		log.Printf("Warning: failed to fetch job status for %s: %v", jobID, err)
+		writeJSON(w, http.StatusOK, map[string]any{
+			"jobId":    jobID,
+			"mediaUrls": item.MediaURLs, // Return cached URLs
+			"type":     item.Type,
+			"source":   "cache",
+			"error":    "Job may have expired from Grid API",
+		})
+		return
+	}
+	
+	// Extract media URLs from generations
+	urls := make([]string, 0, len(status.Generations))
+	genIDs := make([]string, 0, len(status.Generations))
+	
+	for _, gen := range status.Generations {
+		var url string
+		switch {
+		case gen.Video != "":
+			url = gen.Video
+		case gen.ImgURL != "":
+			url = gen.ImgURL
+		case gen.Img != "":
+			url = gen.Img
+		}
+		if url != "" {
+			urls = append(urls, url)
+		}
+		if gen.ID != "" {
+			genIDs = append(genIDs, gen.ID)
+		}
+	}
+	
+	// Update the gallery store with the generation IDs and URLs for future use
+	if len(genIDs) > 0 || len(urls) > 0 {
+		a.galleryStore.UpdateGenerations(jobID, genIDs, urls)
+	}
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"jobId":    jobID,
+		"mediaUrls": urls,
+		"type":     item.Type,
+		"source":   "grid-api",
+	})
+}
+
+// handleDeleteGalleryItem removes a gallery item (open capability for now)
+func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
+		return
+	}
+	
+	// Get the item first to log what's being deleted
+	item := a.galleryStore.Get(jobID)
+	if item == nil {
+		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+	
+	// Remove from gallery store
+	removed := a.galleryStore.Remove(jobID)
+	if !removed {
+		writeError(w, http.StatusInternalServerError, errors.New("failed to remove from gallery"))
+		return
+	}
+	
+	log.Printf("Gallery: deleted job %s (model=%s, type=%s, wallet=%s)", 
+		jobID, item.ModelName, item.Type, item.WalletAddress)
+	
+	// Note: We don't delete from R2 here because:
+	// 1. The image may be shared with other systems
+	// 2. The transient R2 bucket auto-expires content
+	// In the future, when ownership is tied, we might want to delete from R2 too
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "Removed from gallery",
+		"jobId":   jobID,
+	})
+}
+
 func pickString(value, fallback string) string {
 	if strings.TrimSpace(value) != "" {
 		return value
@@ -774,6 +1069,57 @@ func pickFloat(value, fallback float64) float64 {
 		return value
 	}
 	return fallback
+}
+
+// pickIntInRange returns user value if within [min, max], otherwise returns fallback
+// If user value is 0/unset, uses fallback. If user value is out of range, clamps to nearest limit.
+func pickIntInRange(userValue, fallback int, limits *models.RangeInt) int {
+	if limits == nil {
+		return pickInt(userValue, fallback)
+	}
+	
+	// If user didn't provide a value, use fallback
+	if userValue <= 0 {
+		return clampInt(fallback, limits.Min, limits.Max)
+	}
+	
+	// User provided value - clamp to valid range
+	return clampInt(userValue, limits.Min, limits.Max)
+}
+
+// pickFloatInRange returns user value if within [min, max], otherwise clamps to range
+func pickFloatInRange(userValue, fallback float64, limits *models.RangeFloat) float64 {
+	if limits == nil {
+		return pickFloat(userValue, fallback)
+	}
+	
+	// If user didn't provide a value, use fallback
+	if userValue <= 0 {
+		return clampFloat(fallback, limits.Min, limits.Max)
+	}
+	
+	// User provided value - clamp to valid range
+	return clampFloat(userValue, limits.Min, limits.Max)
+}
+
+func clampInt(value, min, max int) int {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func clampFloat(value, min, max float64) float64 {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
 }
 
 func firstNonEmpty(values ...string) string {

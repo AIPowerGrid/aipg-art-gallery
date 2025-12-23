@@ -1,64 +1,160 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { fetchGallery, fetchJobStatus, GalleryItem } from "@/lib/api";
-import { JobStatus } from "@/types/models";
+import { fetchGallery, fetchGalleryMedia, deleteGalleryItem, GalleryItem } from "@/lib/api";
 
-interface GalleryItemWithStatus extends GalleryItem {
-  status?: JobStatus;
+const PAGE_SIZE = 25;
+
+interface GalleryItemWithMedia extends GalleryItem {
+  mediaUrls?: string[];
+  mediaSource?: string;
   loading?: boolean;
+  mediaError?: string;
 }
 
 export default function GalleryPage() {
-  const [items, setItems] = useState<GalleryItemWithStatus[]>([]);
+  const [items, setItems] = useState<GalleryItemWithMedia[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "image" | "video">("all");
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [total, setTotal] = useState(0);
+  
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    loadGallery();
-  }, [filter]);
+  // Fetch media for a batch of items
+  const fetchMediaForItems = useCallback(async (itemsToFetch: GalleryItem[]) => {
+    for (const item of itemsToFetch) {
+      try {
+        const media = await fetchGalleryMedia(item.jobId);
+        setItems(prev => prev.map(i => 
+          i.jobId === item.jobId 
+            ? { 
+                ...i, 
+                mediaUrls: media.mediaUrls,
+                mediaSource: media.source,
+                mediaError: media.error,
+                loading: false 
+              }
+            : i
+        ));
+      } catch (err: any) {
+        setItems(prev => prev.map(i => 
+          i.jobId === item.jobId 
+            ? { ...i, loading: false, mediaError: err.message }
+            : i
+        ));
+      }
+    }
+  }, []);
 
-  async function loadGallery() {
+  // Load initial page
+  const loadGallery = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setItems([]);
+    setNextOffset(0);
+    setHasMore(true);
     
     try {
-      const response = await fetchGallery(filter, 50);
+      const response = await fetchGallery(filter, PAGE_SIZE, 0);
       
-      // Initialize with loading state for media
-      const itemsWithLoading: GalleryItemWithStatus[] = response.items.map(item => ({
+      const itemsWithLoading: GalleryItemWithMedia[] = response.items.map(item => ({
         ...item,
         loading: true,
       }));
       
       setItems(itemsWithLoading);
+      setTotal(response.total);
+      setHasMore(response.hasMore);
+      setNextOffset(response.nextOffset);
       setLoading(false);
       
-      // Fetch status for each item (limited to avoid rate limits)
-      const itemsToFetch = response.items.slice(0, 20);
-      
-      for (const item of itemsToFetch) {
-        try {
-          const status = await fetchJobStatus(item.jobId);
-          setItems(prev => prev.map(i => 
-            i.jobId === item.jobId 
-              ? { ...i, status, loading: false }
-              : i
-          ));
-        } catch {
-          setItems(prev => prev.map(i => 
-            i.jobId === item.jobId 
-              ? { ...i, loading: false }
-              : i
-          ));
-        }
-      }
+      // Fetch media for loaded items
+      fetchMediaForItems(response.items);
     } catch (err: any) {
       console.error("Error loading gallery:", err);
       setError(err.message || "Failed to load gallery");
       setLoading(false);
+    }
+  }, [filter, fetchMediaForItems]);
+
+  // Load more items (for infinite scroll)
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    
+    setLoadingMore(true);
+    
+    try {
+      const response = await fetchGallery(filter, PAGE_SIZE, nextOffset);
+      
+      const newItems: GalleryItemWithMedia[] = response.items.map(item => ({
+        ...item,
+        loading: true,
+      }));
+      
+      setItems(prev => [...prev, ...newItems]);
+      setHasMore(response.hasMore);
+      setNextOffset(response.nextOffset);
+      setLoadingMore(false);
+      
+      // Fetch media for new items
+      fetchMediaForItems(response.items);
+    } catch (err: any) {
+      console.error("Error loading more:", err);
+      setLoadingMore(false);
+    }
+  }, [filter, nextOffset, hasMore, loadingMore, fetchMediaForItems]);
+
+  // Initial load
+  useEffect(() => {
+    loadGallery();
+  }, [loadGallery]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" }
+    );
+
+    if (loadMoreRef.current) {
+      observerRef.current.observe(loadMoreRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [hasMore, loadingMore, loading, loadMore]);
+
+  async function handleDelete(jobId: string) {
+    if (!confirm("Are you sure you want to delete this item from the gallery?")) {
+      return;
+    }
+    
+    setDeleting(jobId);
+    try {
+      await deleteGalleryItem(jobId);
+      setItems(prev => prev.filter(i => i.jobId !== jobId));
+    } catch (err: any) {
+      alert(`Failed to delete: ${err.message}`);
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -134,35 +230,82 @@ export default function GalleryPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {items.map((item) => (
-            <GalleryCard key={item.jobId} item={item} />
-          ))}
-        </div>
+        <>
+          {/* Item count */}
+          <div className="text-white/50 text-sm">
+            Showing {items.length} of {total} items
+          </div>
+
+          {/* Gallery grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {items.map((item) => (
+              <GalleryCard 
+                key={item.jobId} 
+                item={item} 
+                onDelete={() => handleDelete(item.jobId)}
+                isDeleting={deleting === item.jobId}
+              />
+            ))}
+          </div>
+
+          {/* Infinite scroll trigger */}
+          <div 
+            ref={loadMoreRef}
+            className="flex justify-center py-8"
+          >
+            {loadingMore ? (
+              <div className="flex items-center gap-3 text-white/50">
+                <div className="animate-spin w-5 h-5 border-2 border-white/30 border-t-white rounded-full" />
+                Loading more...
+              </div>
+            ) : hasMore ? (
+              <button
+                onClick={loadMore}
+                className="px-6 py-2 rounded-full bg-white/10 border border-white/20 text-white/70 hover:text-white hover:bg-white/20 transition"
+              >
+                Load More
+              </button>
+            ) : items.length > 0 ? (
+              <p className="text-white/30 text-sm">No more items to load</p>
+            ) : null}
+          </div>
+        </>
       )}
     </main>
   );
 }
 
-function GalleryCard({ item }: { item: GalleryItemWithStatus }) {
+interface GalleryCardProps {
+  item: GalleryItemWithMedia;
+  onDelete: () => void;
+  isDeleting: boolean;
+}
+
+function GalleryCard({ item, onDelete, isDeleting }: GalleryCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   
-  const generation = item.status?.generations?.[0];
-  const isCompleted = item.status?.status === "completed";
-  const mediaSrc = generation?.base64 || generation?.url;
-  const isVideo = generation?.kind === "video" || item.type === "video";
+  const mediaSrc = item.mediaUrls?.[0];
+  const isVideo = item.type === "video";
+  const hasMedia = !!mediaSrc && !item.mediaError;
 
   return (
-    <div className="panel group hover:scale-[1.02] transition-transform">
+    <div 
+      className="panel group hover:scale-[1.02] transition-transform relative"
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+    >
       <div className="relative aspect-square rounded-xl overflow-hidden bg-black/40">
         {item.loading ? (
           <div className="w-full h-full flex items-center justify-center">
             <div className="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full" />
           </div>
-        ) : !isCompleted || !mediaSrc ? (
+        ) : !hasMedia ? (
           <div className="w-full h-full flex flex-col items-center justify-center text-white/30 p-4">
             <span className="text-3xl mb-2">{isVideo ? "🎬" : "🖼️"}</span>
-            <span className="text-xs">Preview loading...</span>
+            <span className="text-xs text-center">
+              {item.mediaError || "Media unavailable"}
+            </span>
           </div>
         ) : isVideo ? (
           <video
@@ -170,6 +313,7 @@ function GalleryCard({ item }: { item: GalleryItemWithStatus }) {
             className="w-full h-full object-cover"
             controls
             muted
+            playsInline
             onError={() => setImageError(true)}
           />
         ) : imageError ? (
@@ -194,6 +338,34 @@ function GalleryCard({ item }: { item: GalleryItemWithStatus }) {
         {item.isNsfw && (
           <div className="absolute top-2 right-2 px-2 py-0.5 bg-red-500/80 text-white text-xs rounded">
             NSFW
+          </div>
+        )}
+
+        {/* Delete button - visible on hover */}
+        {showControls && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            disabled={isDeleting}
+            className="absolute bottom-2 right-2 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+            title="Delete from gallery"
+          >
+            {isDeleting ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            )}
+          </button>
+        )}
+
+        {/* Media source indicator (for debugging) */}
+        {item.mediaSource && (
+          <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white/50 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity">
+            {item.mediaSource}
           </div>
         )}
       </div>

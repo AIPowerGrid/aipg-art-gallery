@@ -58,13 +58,16 @@ export interface GalleryItem {
 
 export interface GalleryResponse {
   items: GalleryItem[];
-  count: number;
+  total: number;
+  hasMore: boolean;
+  nextOffset: number;
 }
 
-export function fetchGallery(typeFilter?: string, limit?: number): Promise<GalleryResponse> {
+export function fetchGallery(typeFilter?: string, limit?: number, offset?: number): Promise<GalleryResponse> {
   const params = new URLSearchParams();
   if (typeFilter && typeFilter !== "all") params.append("type", typeFilter);
   if (limit) params.append("limit", String(limit));
+  if (offset !== undefined) params.append("offset", String(offset));
   const query = params.toString();
   return jsonFetch(`/gallery${query ? `?${query}` : ""}`);
 }
@@ -100,5 +103,23 @@ export function fetchGalleryByWallet(walletAddress: string, limit?: number): Pro
   if (limit) params.append("limit", String(limit));
   const query = params.toString();
   return jsonFetch(`/gallery/wallet/${walletAddress}${query ? `?${query}` : ""}`);
+}
+
+export interface GalleryMediaResponse {
+  jobId: string;
+  mediaUrls: string[];
+  type: "image" | "video";
+  source: "r2" | "grid-api" | "cache";
+  error?: string;
+}
+
+export function fetchGalleryMedia(jobId: string): Promise<GalleryMediaResponse> {
+  return jsonFetch(`/gallery/${jobId}/media`);
+}
+
+export function deleteGalleryItem(jobId: string): Promise<{ success: boolean; message: string }> {
+  return jsonFetch(`/gallery/${jobId}`, {
+    method: "DELETE",
+  });
 }
 

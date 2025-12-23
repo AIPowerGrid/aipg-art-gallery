@@ -464,8 +464,8 @@
     "type": "video",
     "description": "WAN 2.2 Text/Image-to-Video 5B - Fast video generation supporting both text-to-video and image-to-video. Economy option for RTX 5070Ti or better.",
     "tags": ["wan", "video", "fast", "i2v"],
-    "samplers": ["uni_pc", "dpmsolver", "k_euler"],
-    "schedulers": ["simple", "normal"],
+    "samplers": ["uni_pc", "euler", "k_euler"],
+    "schedulers": ["simple"],
     "capabilities": ["txt2video", "img2video"],
     "defaults": {
       "width": 640,
@@ -475,36 +475,36 @@
       "sampler": "uni_pc",
       "scheduler": "simple",
       "denoise": 1,
-      "length": 80,
-      "fps": 16
+      "length": 121,
+      "fps": 24
     },
     "limits": {
       "width": { "min": 512, "max": 960, "step": 64 },
       "height": { "min": 512, "max": 960, "step": 64 },
       "steps": { "min": 12, "max": 32, "step": 1 },
       "cfgScale": { "min": 3, "max": 7, "step": 0.25 },
-      "length": { "min": 48, "max": 120, "step": 8 },
-      "fps": { "min": 12, "max": 24, "step": 1 }
+      "length": { "min": 49, "max": 161, "step": 8 },
+      "fps": { "min": 16, "max": 30, "step": 1 }
     }
   },
   {
     "id": "wan2.2-t2v-a14b",
     "displayName": "WAN 2.2 Better (14B)",
     "type": "video",
-    "description": "WAN 2.2 Text-to-Video 14B - Premium text-to-video with cinematic motion and detail using separate high/low noise transformers.",
+    "description": "WAN 2.2 Text-to-Video 14B - Premium text-to-video with cinematic motion and detail using separate high/low noise transformers. Uses 4-step LightX2V acceleration.",
     "tags": ["wan", "video", "high-quality", "14b"],
-    "samplers": ["dpmsolver", "k_euler"],
-    "schedulers": ["simple", "normal"],
+    "samplers": ["euler", "k_euler"],
+    "schedulers": ["simple"],
     "capabilities": ["txt2video"],
     "defaults": {
       "width": 640,
       "height": 640,
       "steps": 4,
       "cfgScale": 1,
-      "sampler": "k_euler",
+      "sampler": "euler",
       "scheduler": "simple",
       "denoise": 1,
-      "length": 96,
+      "length": 81,
       "fps": 16
     },
     "limits": {
@@ -512,7 +512,7 @@
       "height": { "min": 512, "max": 960, "step": 64 },
       "steps": { "min": 4, "max": 4, "step": 1 },
       "cfgScale": { "min": 1, "max": 1, "step": 0.25 },
-      "length": { "min": 64, "max": 144, "step": 8 },
+      "length": { "min": 49, "max": 129, "step": 8 },
       "fps": { "min": 12, "max": 24, "step": 1 }
     }
   },
@@ -520,29 +520,29 @@
     "id": "wan2.2-t2v-a14b-hq",
     "displayName": "WAN 2.2 Best (14B HQ)",
     "type": "video",
-    "description": "WAN 2.2 Text-to-Video 14B HQ - Maximum quality text-to-video without lighting LoRAs for cinematic output. Requires high-end hardware.",
+    "description": "WAN 2.2 Text-to-Video 14B HQ - Maximum quality text-to-video without lighting LoRAs for cinematic output. Uses 20 steps for best quality.",
     "tags": ["wan", "video", "premium", "cinematic"],
-    "samplers": ["dpmsolver", "k_euler"],
-    "schedulers": ["simple", "normal"],
+    "samplers": ["euler", "k_euler"],
+    "schedulers": ["simple"],
     "capabilities": ["txt2video"],
     "defaults": {
       "width": 1024,
       "height": 576,
       "steps": 20,
-      "cfgScale": 1,
-      "sampler": "k_euler",
+      "cfgScale": 3.5,
+      "sampler": "euler",
       "scheduler": "simple",
       "denoise": 1,
-      "length": 120,
-      "fps": 24
+      "length": 81,
+      "fps": 16
     },
     "limits": {
       "width": { "min": 512, "max": 1280, "step": 64 },
       "height": { "min": 512, "max": 720, "step": 64 },
       "steps": { "min": 20, "max": 20, "step": 1 },
-      "cfgScale": { "min": 1, "max": 1, "step": 0.25 },
-      "length": { "min": 80, "max": 160, "step": 8 },
-      "fps": { "min": 16, "max": 30, "step": 1 }
+      "cfgScale": { "min": 3.5, "max": 3.5, "step": 0.25 },
+      "length": { "min": 49, "max": 129, "step": 8 },
+      "fps": { "min": 12, "max": 24, "step": 1 }
     }
   },
   {
