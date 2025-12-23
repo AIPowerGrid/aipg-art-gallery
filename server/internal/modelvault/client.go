@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -87,7 +88,8 @@ type Client struct {
 const (
 	DefaultRPCURL          = "https://mainnet.base.org"
 	DefaultContractAddress = "0x79F39f2a0eA476f53994812e6a8f3C8CFe08c609"
-	DefaultCacheTTL        = 5 * time.Minute
+	DefaultCacheTTL        = 30 * time.Minute // Longer cache to reduce RPC calls
+	RPCRateLimit           = 300 * time.Millisecond // Delay between RPC calls
 )
 
 // ABI for the ModelVault contract (Grid proxy)
@@ -237,57 +239,111 @@ func (c *Client) GetModel(ctx context.Context, modelID int64) (*OnChainModel, er
 		return nil, fmt.Errorf("empty result from getModel")
 	}
 
-	// Parse the tuple result - this comes back as a struct
-	modelData, ok := result[0].(struct {
-		ModelHash    [32]byte
-		ModelType    uint8
-		FileName     string
-		Name         string
-		Version      string
-		IpfsCid      string
-		DownloadUrl  string
-		SizeBytes    *big.Int
-		Quantization string
-		Format       string
-		VramMB       uint32
-		BaseModel    string
-		Inpainting   bool
-		Img2img      bool
-		Controlnet   bool
-		Lora         bool
-		IsActive     bool
-		IsNSFW       bool
-		Timestamp    *big.Int
-		Creator      common.Address
-	})
-	if !ok {
-		return nil, fmt.Errorf("unexpected struct format from getModel")
+	// Parse the result using reflection-based approach
+	// The ABI decoder returns anonymous structs that don't match named struct types
+	return parseModelResult(result[0])
+}
+
+// parseModelResult extracts model data from the ABI-decoded result
+// Uses reflection to handle the anonymous struct returned by go-ethereum
+func parseModelResult(data interface{}) (*OnChainModel, error) {
+	// go-ethereum's ABI decoder returns anonymous structs
+	// We need to use reflection to extract fields by name
+	return parseModelViaReflection(data)
+}
+
+// parseModelViaReflection uses reflection to extract struct fields by name
+func parseModelViaReflection(data interface{}) (*OnChainModel, error) {
+	val := reflect.ValueOf(data)
+	if val.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("expected struct, got %T", data)
 	}
 
-	// Skip empty/zero models
+	typ := val.Type()
+
+	// Helper function to get field by name
+	getFieldByName := func(name string) reflect.Value {
+		field := val.FieldByName(name)
+		if field.IsValid() {
+			return field
+		}
+		// Try case-insensitive search
+		for i := 0; i < val.NumField(); i++ {
+			if strings.EqualFold(typ.Field(i).Name, name) {
+				return val.Field(i)
+			}
+		}
+		return reflect.Value{}
+	}
+
+	// Extract ModelHash
+	var modelHash [32]byte
+	modelHashField := getFieldByName("ModelHash")
+	if modelHashField.IsValid() && modelHashField.Kind() == reflect.Array && modelHashField.Len() == 32 {
+		for i := 0; i < 32; i++ {
+			modelHash[i] = byte(modelHashField.Index(i).Uint())
+		}
+	}
+
+	// Check for empty hash
 	emptyHash := [32]byte{}
-	if modelData.ModelHash == emptyHash {
+	if modelHash == emptyHash {
 		return nil, nil
 	}
 
-	model := &OnChainModel{
-		ModelHash:    modelData.ModelHash,
-		ModelType:    ModelType(modelData.ModelType),
-		FileName:     modelData.FileName,
-		DisplayName:  modelData.Name,
-		Description:  generateDescription(modelData.Name),
-		IsNSFW:       modelData.IsNSFW,
-		SizeBytes:    modelData.SizeBytes.Uint64(),
-		Inpainting:   modelData.Inpainting,
-		Img2Img:      modelData.Img2img,
-		Controlnet:   modelData.Controlnet,
-		Lora:         modelData.Lora,
-		BaseModel:    modelData.BaseModel,
-		Architecture: modelData.Format,
-		IsActive:     modelData.IsActive,
+	// Helper functions for type extraction
+	getString := func(name string) string {
+		field := getFieldByName(name)
+		if field.IsValid() && field.Kind() == reflect.String {
+			return field.String()
+		}
+		return ""
 	}
 
-	return model, nil
+	getUint8 := func(name string) uint8 {
+		field := getFieldByName(name)
+		if field.IsValid() && field.CanUint() {
+			return uint8(field.Uint())
+		}
+		return 0
+	}
+
+	getBool := func(name string) bool {
+		field := getFieldByName(name)
+		if field.IsValid() && field.Kind() == reflect.Bool {
+			return field.Bool()
+		}
+		return false
+	}
+
+	getBigInt := func(name string) uint64 {
+		field := getFieldByName(name)
+		if field.IsValid() && field.Kind() == reflect.Ptr && !field.IsNil() {
+			if bigInt, ok := field.Interface().(*big.Int); ok && bigInt != nil {
+				return bigInt.Uint64()
+			}
+		}
+		return 0
+	}
+
+	name := getString("Name")
+	
+	return &OnChainModel{
+		ModelHash:    modelHash,
+		ModelType:    ModelType(getUint8("ModelType")),
+		FileName:     getString("FileName"),
+		DisplayName:  name,
+		Description:  generateDescription(name),
+		IsNSFW:       getBool("IsNSFW"),
+		SizeBytes:    getBigInt("SizeBytes"),
+		Inpainting:   getBool("Inpainting"),
+		Img2Img:      getBool("Img2img"),
+		Controlnet:   getBool("Controlnet"),
+		Lora:         getBool("Lora"),
+		BaseModel:    getString("BaseModel"),
+		Architecture: getString("Format"),
+		IsActive:     getBool("IsActive"),
+	}, nil
 }
 
 // GetConstraints fetches model constraints by hash
@@ -336,7 +392,7 @@ func (c *Client) FetchAllModels(ctx context.Context) (map[string]*OnChainModel, 
 		return nil, nil
 	}
 
-	// Check cache
+	// Check cache first - this avoids rate limiting issues
 	c.mu.RLock()
 	if time.Now().Before(c.cacheExpiry) && len(c.modelCache) > 0 {
 		cache := make(map[string]*OnChainModel, len(c.modelCache))
@@ -344,33 +400,58 @@ func (c *Client) FetchAllModels(ctx context.Context) (map[string]*OnChainModel, 
 			cache[k] = v
 		}
 		c.mu.RUnlock()
+		log.Printf("Using cached blockchain models (%d entries, expires in %v)", len(cache), time.Until(c.cacheExpiry).Round(time.Second))
 		return cache, nil
 	}
 	c.mu.RUnlock()
 
 	count, err := c.GetModelCount(ctx)
 	if err != nil {
+		log.Printf("Warning: failed to get model count from blockchain: %v", err)
 		return nil, err
 	}
 
-	log.Printf("Fetching %d models from blockchain...", count)
+	log.Printf("Fetching %d models from blockchain (with rate limiting)...", count)
 
 	models := make(map[string]*OnChainModel)
+	successCount := 0
+	failCount := 0
+
+	// Rate limit: ~3 requests per second to avoid 429 errors from Base RPC
+	ticker := time.NewTicker(RPCRateLimit)
+	defer ticker.Stop()
+
 	for i := int64(1); i <= count; i++ {
+		// Wait for rate limit ticker (except for first request)
+		if i > 1 {
+			select {
+			case <-ticker.C:
+				// Continue
+			case <-ctx.Done():
+				log.Printf("Context cancelled after %d models", successCount)
+				break
+			}
+		}
+
 		model, err := c.GetModel(ctx, i)
 		if err != nil {
-			log.Printf("Warning: failed to fetch model %d: %v", i, err)
+			failCount++
+			// Only log rate limit errors once
+			if strings.Contains(err.Error(), "429") && failCount == 1 {
+				log.Printf("Warning: rate limited by RPC endpoint, some models may be missing")
+			} else if !strings.Contains(err.Error(), "429") {
+				log.Printf("Warning: failed to fetch model %d: %v", i, err)
+			}
 			continue
 		}
 		if model == nil || !model.IsActive {
 			continue
 		}
 
-		// Fetch constraints for non-video models
-		if model.ModelType != VideoModel {
-			constraints, _ := c.GetConstraints(ctx, model.ModelHash)
-			model.Constraints = constraints
-		}
+		successCount++
+
+		// Skip fetching constraints to reduce RPC calls
+		// Constraints can be fetched on-demand if needed
 
 		models[model.DisplayName] = model
 		// Also index by variations
@@ -380,13 +461,19 @@ func (c *Client) FetchAllModels(ctx context.Context) (map[string]*OnChainModel, 
 		}
 	}
 
-	// Update cache
-	c.mu.Lock()
-	c.modelCache = models
-	c.cacheExpiry = time.Now().Add(c.cacheTTL)
-	c.mu.Unlock()
+	// Update cache even if we got partial results
+	if successCount > 0 {
+		c.mu.Lock()
+		c.modelCache = models
+		c.cacheExpiry = time.Now().Add(c.cacheTTL)
+		c.mu.Unlock()
+	}
 
-	log.Printf("✓ Loaded %d active models from blockchain", len(models)/2) // Divide by 2 for de-duplication
+	if failCount > 0 {
+		log.Printf("✓ Loaded %d active models from blockchain (%d failed)", successCount, failCount)
+	} else {
+		log.Printf("✓ Loaded %d active models from blockchain", successCount)
+	}
 
 	return models, nil
 }

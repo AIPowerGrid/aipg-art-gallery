@@ -13,6 +13,9 @@ services:
       - AIPG_CLIENT_AGENT=${AIPG_CLIENT_AGENT:-AIPG-Art-Gallery:v2}
       - MODEL_PRESETS_PATH=/app/config/model_presets.json
       - GALLERY_ALLOWED_ORIGINS=${GALLERY_ALLOWED_ORIGINS:-}
+      - GALLERY_STORE_PATH=/app/data/gallery.json
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/api/models"]

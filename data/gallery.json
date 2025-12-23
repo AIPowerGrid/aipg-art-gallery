@@ -1,0 +1,101 @@
+[
+  {
+    "jobId": "e1c5fe48-579a-42f5-b5e5-7573f2156a3e",
+    "modelId": "wan2.2-t2v-a14b",
+    "modelName": "WAN 2.2 Better (14B)",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "video",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766496867523
+  },
+  {
+    "jobId": "674b34ed-f464-47a7-94cf-b0b28014091d",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": false,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766496821079
+  },
+  {
+    "jobId": "adc62f8d-1f3d-4361-aad9-1c2e50725c9a",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": false,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766496796667
+  },
+  {
+    "jobId": "06d31326-8dd0-4dfa-b353-84e3eb3fef88",
+    "modelId": "wan2.2-t2v-a14b-hq",
+    "modelName": "WAN 2.2 Best (14B HQ)",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "video",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766496778637
+  },
+  {
+    "jobId": "a1cf4538-8d22-4814-8040-bd2f58da3c86",
+    "modelId": "wan2.2-t2v-a14b-hq",
+    "modelName": "WAN 2.2 Best (14B HQ)",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "video",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766496769845
+  },
+  {
+    "jobId": "d2b8e7d0-7dd3-429f-9584-fc0d77862d4e",
+    "modelId": "wan2.2-t2v-a14b",
+    "modelName": "WAN 2.2 Better (14B)",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "video",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766496744390
+  },
+  {
+    "jobId": "62dd3920-4af7-423f-8dd2-895f7360ec11",
+    "modelId": "wan2.2-t2v-a14b",
+    "modelName": "Better Quality (Wan 2.2)",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "video",
+    "isNsfw": false,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766493828976
+  },
+  {
+    "jobId": "c093c7d6-921f-43ca-b77f-bfbacfc49700",
+    "modelId": "wan2.2-t2v-a14b",
+    "modelName": "Better Quality (Wan 2.2)",
+    "prompt": "cats",
+    "type": "video",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766492931335
+  },
+  {
+    "jobId": "1d026055-cb98-48ab-848a-8b5ae7782c91",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "Flux.1 Krea Dev",
+    "prompt": "cats",
+    "type": "image",
+    "isNsfw": false,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766492518381
+  }
+]

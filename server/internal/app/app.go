@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,15 +16,18 @@ import (
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/gallery"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/modelvault"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/prompts"
 )
 
 type App struct {
-	cfg         config.Config
-	catalog     models.Catalog
-	client      *aipg.Client
-	vaultClient *modelvault.Client
+	cfg          config.Config
+	catalog      models.Catalog
+	client       *aipg.Client
+	vaultClient  *modelvault.Client
+	galleryStore *gallery.Store
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -44,11 +48,16 @@ func New(cfg config.Config) (*App, error) {
 		vaultClient, _ = modelvault.NewClient("", "", false)
 	}
 
+	// Initialize gallery store (persists to file)
+	galleryStore := gallery.NewStore(cfg.GalleryStorePath, 500)
+	log.Printf("Gallery store initialized with %d items", len(galleryStore.List("", 0)))
+
 	return &App{
-		cfg:         cfg,
-		catalog:     catalog,
-		client:      aipg.NewClient(cfg.APIBaseURL, cfg.ClientAgent),
-		vaultClient: vaultClient,
+		cfg:          cfg,
+		catalog:      catalog,
+		client:       aipg.NewClient(cfg.APIBaseURL, cfg.ClientAgent),
+		vaultClient:  vaultClient,
+		galleryStore: galleryStore,
 	}, nil
 }
 
@@ -71,6 +80,11 @@ func (a *App) Router() http.Handler {
 
 		api.Post("/jobs", a.handleCreateJob)
 		api.Get("/jobs/{id}", a.handleJobStatus)
+
+		// Public gallery endpoints
+		api.Get("/gallery", a.handleListGallery)
+		api.Post("/gallery", a.handleAddToGallery)
+		api.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
 	})
 
 	return r
@@ -81,6 +95,32 @@ func (a *App) allowedOrigins() []string {
 		return []string{"*"}
 	}
 	return a.cfg.AllowedOrigins
+}
+
+// modelNameAliases maps preset IDs to possible Grid API model names
+// This handles naming variations between what workers report and our preset IDs
+var modelNameAliases = map[string][]string{
+	// WAN 2.2 models - underscores vs hyphens, case variations
+	"wan2.2_ti2v_5B":     {"wan2.2_ti2v_5b", "wan2_2_ti2v_5b", "wan2.2-ti2v-5b", "wan2.2_ti2v_5B"},
+	"wan2.2-t2v-a14b":    {"wan2_2_t2v_14b", "wan2.2-t2v-14b", "wan2.2_t2v_a14b", "wan2.2-t2v-a14b"},
+	"wan2.2-t2v-a14b-hq": {"wan2_2_t2v_14b_hq", "wan2.2-t2v-14b-hq", "wan2.2_t2v_a14b_hq", "wan2.2-t2v-a14b-hq"},
+	
+	// FLUX models - case and punctuation variations
+	"FLUX.1-dev":                     {"flux.1-dev", "flux1-dev", "flux1.dev", "flux1_dev"},
+	"flux.1-krea-dev":                {"flux1-krea-dev", "flux1_krea_dev", "flux.1_krea_dev", "krea"},
+	"FLUX.1-dev-Kontext-fp8-scaled":  {"flux.1-dev-kontext-fp8-scaled", "flux1-dev-kontext-fp8-scaled", "flux1_dev_kontext_fp8_scaled", "flux_kontext_dev_basic"},
+	"Flux.1-Schnell fp8 (Compact)":   {"flux.1-schnell fp8 (compact)", "flux1-schnell-fp8-compact", "flux.1-schnell"},
+	
+	// Chroma
+	"Chroma": {"chroma", "chroma_final"},
+	
+	// SDXL
+	"SDXL 1.0": {"sdxl 1.0", "sdxl1", "sdxl", "sdxl1.0"},
+	
+	// Other models
+	"ltxv": {"ltx-video", "ltxv-13b"},
+	"ICBINP - I Can't Believe It's Not Photography": {"icbinp", "icbinp - i can't believe it's not photography"},
+	"ICBINP XL": {"icbinp xl", "icbinp-xl"},
 }
 
 func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +142,10 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 
 	byName := make(map[string]aipg.ModelStatus, len(stats))
 	for _, s := range stats {
+		// Index by lowercase name
 		byName[strings.ToLower(s.Name)] = s
+		// Also index by exact name for case-sensitive matches
+		byName[s.Name] = s
 	}
 
 	// Fetch on-chain models if available
@@ -117,7 +160,8 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 	presets := a.catalog.List()
 	response := make([]ModelView, 0, len(presets))
 	for _, preset := range presets {
-		stat := byName[strings.ToLower(preset.ID)]
+		// Look up stats using preset ID and all known aliases
+		stat := lookupModelStats(preset.ID, byName)
 		
 		// Merge chain data if available
 		var chainModel *modelvault.OnChainModel
@@ -137,6 +181,62 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// lookupModelStats finds model stats using the preset ID and all known aliases
+// This handles naming variations between what workers report and our preset IDs
+func lookupModelStats(presetID string, byName map[string]aipg.ModelStatus) aipg.ModelStatus {
+	// Try exact match first
+	if stat, ok := byName[presetID]; ok {
+		return stat
+	}
+	
+	// Try lowercase match
+	presetLower := strings.ToLower(presetID)
+	if stat, ok := byName[presetLower]; ok {
+		return stat
+	}
+	
+	// Try aliases for this preset ID
+	if aliases, ok := modelNameAliases[presetID]; ok {
+		for _, alias := range aliases {
+			if stat, ok := byName[strings.ToLower(alias)]; ok {
+				return stat
+			}
+			if stat, ok := byName[alias]; ok {
+				return stat
+			}
+		}
+	}
+	
+	// Also check if any alias list contains our preset ID (reverse lookup)
+	for _, aliases := range modelNameAliases {
+		for _, alias := range aliases {
+			if strings.EqualFold(alias, presetID) {
+				// Found preset ID as an alias, try the canonical name and other aliases
+				for _, a := range aliases {
+					if stat, ok := byName[strings.ToLower(a)]; ok {
+						return stat
+					}
+					if stat, ok := byName[a]; ok {
+						return stat
+					}
+				}
+			}
+		}
+	}
+	
+	// Try normalized matching (replace hyphens/underscores/dots)
+	normalized := strings.ReplaceAll(strings.ReplaceAll(presetLower, "-", "_"), ".", "_")
+	for name, stat := range byName {
+		nameNorm := strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(name), "-", "_"), ".", "_")
+		if nameNorm == normalized {
+			return stat
+		}
+	}
+	
+	// Return empty stats if not found
+	return aipg.ModelStatus{}
+}
+
 func (a *App) handleGetModel(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	preset, ok := a.catalog.Get(id)
@@ -154,13 +254,15 @@ func (a *App) handleGetModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var match aipg.ModelStatus
+	// Build name lookup map
+	byName := make(map[string]aipg.ModelStatus, len(stats))
 	for _, s := range stats {
-		if strings.EqualFold(s.Name, preset.ID) {
-			match = s
-			break
-		}
+		byName[strings.ToLower(s.Name)] = s
+		byName[s.Name] = s
 	}
+
+	// Use the same lookup logic as handleListModels
+	match := lookupModelStats(preset.ID, byName)
 
 	// Fetch chain model data if available
 	var chainModel *modelvault.OnChainModel
@@ -190,6 +292,8 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := buildCreateJobPayload(req, preset)
+	
+	log.Printf("📤 Creating job: modelId=%s, preset.ID=%s, payload.Models=%v", req.ModelID, preset.ID, payload.Models)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
@@ -417,6 +521,12 @@ func mapSamplerName(sampler string) string {
 }
 
 func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg.CreateJobPayload {
+	// Process prompts: enhance positive, provide default negative
+	enhancedPrompt, finalNegative := prompts.ProcessPrompts(req.Prompt, req.NegativePrompt, preset.ID)
+	
+	log.Printf("Prompt processing: original=%d chars, enhanced=%d chars, negative=%d chars",
+		len(req.Prompt), len(enhancedPrompt), len(finalNegative))
+	
 	rawSampler := pickString(req.Params.Sampler, preset.Defaults.Sampler)
 	mappedSampler := mapSamplerName(rawSampler)
 
@@ -448,8 +558,8 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 	}
 
 	payload := aipg.CreateJobPayload{
-		Prompt:         req.Prompt,
-		NegativePrompt: req.NegativePrompt,
+		Prompt:         enhancedPrompt,
+		NegativePrompt: finalNegative,
 		Models:         []string{preset.ID},
 		NSFW:           req.NSFW,
 		CensorNSFW:     !req.NSFW,
@@ -547,6 +657,97 @@ func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]any{
 		"error":  err.Error(),
 		"status": status,
+	})
+}
+
+// Gallery handlers
+
+func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
+	typeFilter := r.URL.Query().Get("type")
+	limitStr := r.URL.Query().Get("limit")
+	
+	limit := 50
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	
+	items := a.galleryStore.List(typeFilter, limit)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items": items,
+		"count": len(items),
+	})
+}
+
+type AddToGalleryRequest struct {
+	JobID          string `json:"jobId"`
+	ModelID        string `json:"modelId"`
+	ModelName      string `json:"modelName"`
+	Prompt         string `json:"prompt"`
+	NegativePrompt string `json:"negativePrompt,omitempty"`
+	Type           string `json:"type"`
+	IsNSFW         bool   `json:"isNsfw"`
+	IsPublic       bool   `json:"isPublic"`
+	WalletAddress  string `json:"walletAddress,omitempty"`
+}
+
+func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
+	var req AddToGalleryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	
+	if req.JobID == "" || req.Prompt == "" {
+		writeError(w, http.StatusBadRequest, errors.New("jobId and prompt are required"))
+		return
+	}
+	
+	item := gallery.GalleryItem{
+		JobID:          req.JobID,
+		ModelID:        req.ModelID,
+		ModelName:      req.ModelName,
+		Prompt:         req.Prompt,
+		NegativePrompt: req.NegativePrompt,
+		Type:           req.Type,
+		IsNSFW:         req.IsNSFW,
+		IsPublic:       req.IsPublic,
+		WalletAddress:  req.WalletAddress,
+	}
+	
+	a.galleryStore.Add(item)
+	
+	log.Printf("Gallery: added job %s (model=%s, type=%s, wallet=%s, public=%v)", req.JobID, req.ModelName, req.Type, req.WalletAddress, req.IsPublic)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "Added to gallery",
+	})
+}
+
+func (a *App) handleListByWallet(w http.ResponseWriter, r *http.Request) {
+	wallet := chi.URLParam(r, "wallet")
+	if wallet == "" {
+		writeError(w, http.StatusBadRequest, errors.New("wallet address is required"))
+		return
+	}
+	
+	limitStr := r.URL.Query().Get("limit")
+	limit := 100
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	
+	items := a.galleryStore.ListByWallet(wallet, limit)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items":  items,
+		"count":  len(items),
+		"wallet": wallet,
 	})
 }
 
