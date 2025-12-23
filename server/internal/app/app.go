@@ -443,6 +443,7 @@ type CreateJobRequest struct {
 	SourceImage      string           `json:"sourceImage"`
 	SourceMask       string           `json:"sourceMask"`
 	SourceProcessing string           `json:"sourceProcessing"`
+	MediaType        string           `json:"mediaType"` // "image" or "video"
 }
 
 type GenerationParams struct {
@@ -578,6 +579,9 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 	}
 	if req.SourceProcessing != "" {
 		payload.SourceProcessing = req.SourceProcessing
+	}
+	if req.MediaType != "" {
+		payload.MediaType = req.MediaType
 	}
 
 	return payload

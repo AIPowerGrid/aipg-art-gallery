@@ -1,4 +1,4 @@
-export type ModelCapability = "txt2img" | "img2img" | "txt2video";
+export type ModelCapability = "txt2img" | "img2img" | "txt2video" | "img2video";
 
 export interface ModelLimits {
   width?: RangeField;
@@ -100,7 +100,8 @@ export interface CreateJobRequest {
   };
   sourceImage?: string;
   sourceMask?: string;
-  sourceProcessing?: "img2img" | "inpainting";
+  sourceProcessing?: "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video";
+  mediaType?: "image" | "video";
 }
 
 export interface JobStatus {
