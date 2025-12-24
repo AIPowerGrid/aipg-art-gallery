@@ -862,30 +862,23 @@ function JobCard({ job }: { job: JobEntry }) {
 
   return (
     <div className="border border-white/10 rounded-2xl p-4 bg-black/40 space-y-3">
-      {/* Status badge row */}
-      <div className="flex items-center justify-between">
-        <span
-          className={`px-3 py-1 rounded-full text-xs ${
-            status?.status === "completed"
-              ? "bg-green-500/20 text-green-200"
-              : status?.status === "faulted"
-              ? "bg-red-500/20 text-red-200"
-              : isProcessing
-              ? "bg-blue-500/20 text-blue-200 animate-pulse"
-              : "bg-yellow-500/20 text-yellow-200"
-          }`}
-        >
-          {status?.status === "completed" ? "✓ Completed" 
-            : status?.status === "faulted" ? "✗ Failed"
-            : isProcessing ? "⚡ Processing"
-            : "⏳ Queued"}
-        </span>
-        {workerName && (
-          <span className="text-cyan-400 font-mono text-xs truncate max-w-[180px]" title={workerName}>
-            🖥️ {workerName}
-          </span>
-        )}
-      </div>
+      {/* Status badge */}
+      <span
+        className={`inline-block px-3 py-1 rounded-full text-xs ${
+          status?.status === "completed"
+            ? "bg-green-500/20 text-green-200"
+            : status?.status === "faulted"
+            ? "bg-red-500/20 text-red-200"
+            : isProcessing
+            ? "bg-blue-500/20 text-blue-200 animate-pulse"
+            : "bg-yellow-500/20 text-yellow-200"
+        }`}
+      >
+        {status?.status === "completed" ? "✓ Completed" 
+          : status?.status === "faulted" ? "✗ Failed"
+          : isProcessing ? "⚡ Processing"
+          : "⏳ Queued"}
+      </span>
       
       {/* Job ID - always show full */}
       <div className="space-y-1">
@@ -900,6 +893,22 @@ function JobCard({ job }: { job: JobEntry }) {
           {job.jobId}
         </p>
       </div>
+      
+      {/* Worker - always show full */}
+      {workerName && (
+        <div className="space-y-1">
+          <p className="text-xs text-white/40">Worker</p>
+          <p 
+            className="font-mono text-xs text-white/70 break-all bg-black/30 rounded px-2 py-1 select-all cursor-pointer hover:bg-black/50 transition-colors"
+            onClick={() => {
+              navigator.clipboard.writeText(workerName);
+            }}
+            title="Click to copy"
+          >
+            {workerName}
+          </p>
+        </div>
+      )}
       
       {/* Progress info for queued/processing jobs */}
       {!status?.status || (status?.status !== "completed" && status?.status !== "faulted") ? (
