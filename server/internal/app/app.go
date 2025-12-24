@@ -741,12 +741,14 @@ type JobView struct {
 }
 
 type GenerationView struct {
-	ID       string `json:"id"`
-	Seed     string `json:"seed"`
-	Kind     string `json:"kind"`
-	MimeType string `json:"mimeType"`
-	URL      string `json:"url,omitempty"`
-	Base64   string `json:"base64,omitempty"`
+	ID         string `json:"id"`
+	Seed       string `json:"seed"`
+	Kind       string `json:"kind"`
+	MimeType   string `json:"mimeType"`
+	URL        string `json:"url,omitempty"`
+	Base64     string `json:"base64,omitempty"`
+	WorkerID   string `json:"workerId,omitempty"`
+	WorkerName string `json:"workerName,omitempty"`
 }
 
 func buildJobView(resp *aipg.JobStatusResponse) JobView {
@@ -762,9 +764,11 @@ func buildJobView(resp *aipg.JobStatusResponse) JobView {
 	views := make([]GenerationView, 0, len(resp.Generations))
 	for _, gen := range resp.Generations {
 		view := GenerationView{
-			ID:       gen.ID,
-			Seed:     fmt.Sprintf("%v", gen.Seed),
-			MimeType: gen.Mime,
+			ID:         gen.ID,
+			Seed:       fmt.Sprintf("%v", gen.Seed),
+			MimeType:   gen.Mime,
+			WorkerID:   gen.WorkerID,
+			WorkerName: gen.Worker,
 		}
 		switch {
 		case gen.Video != "":

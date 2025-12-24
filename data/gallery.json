@@ -1,5 +1,16 @@
 [
   {
+    "jobId": "0e947dd1-1107-4c2b-bedd-f93eaf96e0fa",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "cats",
+    "type": "image",
+    "isNsfw": false,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766581859730
+  },
+  {
     "jobId": "b36eb7a1-d65e-4859-b836-3a872db832f5",
     "modelId": "FLUX.1-dev",
     "modelName": "FLUX.1 Dev",
@@ -13,7 +24,7 @@
       "dfbb3f36-23ec-409a-b904-1945ab7a53a4"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/dfbb3f36-23ec-409a-b904-1945ab7a53a4.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=b4e49f7fd1242c3850381e3839aac6a038b130c436938093146b6fa78078e7fd"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/dfbb3f36-23ec-409a-b904-1945ab7a53a4.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131019Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=95e4baedd73e1f7cf00b0cb0055a64185b4fb93d597567ad39ce48efea982308"
     ]
   },
   {
@@ -30,7 +41,7 @@
       "d5efa734-c4a2-4ca4-9457-85047ccbf15f"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/d5efa734-c4a2-4ca4-9457-85047ccbf15f.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9ee814c1e00e8b31e8f1194f8e83836889338230d665545c6c2a48e11537b50f"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/d5efa734-c4a2-4ca4-9457-85047ccbf15f.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131019Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=60be8fbc49f9f6ecac63d01f55ce4ce48eea489346a215312a76508d473607bf"
     ]
   },
   {
@@ -47,7 +58,7 @@
       "c4d40cda-c6d2-4196-8244-9e44192ad7e5"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/c4d40cda-c6d2-4196-8244-9e44192ad7e5.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=a2a4cdd42da4db2b0facbdc3eee4cdac6dc00a10bf9f6101ab044037bb17161b"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/c4d40cda-c6d2-4196-8244-9e44192ad7e5.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131019Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=3bab61dcc3d123d883edf46da8dc18d14b869d00171b754592408c99f44b4bd5"
     ]
   },
   {
@@ -64,7 +75,7 @@
       "ea85cee8-885c-44aa-8933-7fd1b3a89057"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/ea85cee8-885c-44aa-8933-7fd1b3a89057.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=a6cf3d18d26ded4669f2bab4afb3fe7dd8875ae374e6a5ac792383ef636a0d9a"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/ea85cee8-885c-44aa-8933-7fd1b3a89057.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131019Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=43bbfc4509b75881895cd2234e4d4cea5eca87a46ac4e95c3256e76348a0014f"
     ]
   },
   {
@@ -81,7 +92,7 @@
       "a1bdf8ea-4b48-4e2d-87ee-af87c05c10ac"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/a1bdf8ea-4b48-4e2d-87ee-af87c05c10ac.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=50f5a0045adbc47dee7346de50587769166e4869c19372cd1768729429d7c3cb"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/a1bdf8ea-4b48-4e2d-87ee-af87c05c10ac.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131019Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=fe22defaaf0e476eb485ed40f92583c9b6c19398b220130c88ede343bd58c779"
     ]
   },
   {
@@ -98,7 +109,7 @@
       "766a5a1b-5186-466f-8a65-a12a2f025c3e"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/766a5a1b-5186-466f-8a65-a12a2f025c3e.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=fe9dc5111676e8e4de4add89d3cc5d6654dd1651347a74da9f59075aff51d8f8"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/766a5a1b-5186-466f-8a65-a12a2f025c3e.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131020Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=d5bc898c836d8ccafe9014616633eb841cd168a51683674073b05e54b8d53649"
     ]
   },
   {
@@ -115,7 +126,7 @@
       "0e33dcc2-5fbc-46b7-97d2-79194ae870a4"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/0e33dcc2-5fbc-46b7-97d2-79194ae870a4.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9f0c98d6f993d0569cf7cb6b78e9a8f4212c32aa5386a7f6cd71941729f6620c"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/0e33dcc2-5fbc-46b7-97d2-79194ae870a4.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131020Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=2d90f15f7e918b4358d86d81af36e92b0660e9c67f7d778cfea43c848ad82736"
     ]
   },
   {
@@ -132,7 +143,7 @@
       "4861d459-5e64-479f-b477-c2323d9d6918"
     ],
     "mediaUrls": [
-      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/4861d459-5e64-479f-b477-c2323d9d6918.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=c7df015174c91d6c73b012aa6585a3743227394ade0806d229eafcbda07b4d4d"
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/4861d459-5e64-479f-b477-c2323d9d6918.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T131021Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=cb0a205a54c5ca8fb4bb2568034d2f056ec998ad3aae5d4238d8fb20e520eda2"
     ]
   },
   {
