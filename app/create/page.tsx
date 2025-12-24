@@ -850,7 +850,6 @@ function FileInput({
 function JobCard({ job }: { job: JobEntry }) {
   const status = job.status;
   const outputs = status?.generations ?? [];
-  const [showFullId, setShowFullId] = useState(false);
   
   // Calculate progress info
   const isQueued = status?.status === "queued" || (!status?.status && !status?.processing);
@@ -863,19 +862,10 @@ function JobCard({ job }: { job: JobEntry }) {
 
   return (
     <div className="border border-white/10 rounded-2xl p-4 bg-black/40 space-y-3">
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs text-white/40">Job ID</p>
-          <button 
-            onClick={() => setShowFullId(!showFullId)}
-            className="font-mono text-xs text-white/70 hover:text-white transition-colors text-left break-all"
-            title={showFullId ? "Click to collapse" : "Click to expand"}
-          >
-            {showFullId ? job.jobId : `${job.jobId.slice(0, 8)}...`}
-          </button>
-        </div>
+      {/* Status badge row */}
+      <div className="flex items-center justify-between">
         <span
-          className={`px-3 py-1 rounded-full text-xs flex-shrink-0 ml-2 ${
+          className={`px-3 py-1 rounded-full text-xs ${
             status?.status === "completed"
               ? "bg-green-500/20 text-green-200"
               : status?.status === "faulted"
@@ -890,17 +880,26 @@ function JobCard({ job }: { job: JobEntry }) {
             : isProcessing ? "⚡ Processing"
             : "⏳ Queued"}
         </span>
+        {workerName && (
+          <span className="text-cyan-400 font-mono text-xs truncate max-w-[180px]" title={workerName}>
+            🖥️ {workerName}
+          </span>
+        )}
       </div>
       
-      {/* Worker info */}
-      {workerName && (
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-white/40">Worker</span>
-          <span className="text-cyan-400 font-mono truncate max-w-[200px]" title={workerName}>
-            {workerName}
-          </span>
-        </div>
-      )}
+      {/* Job ID - always show full */}
+      <div className="space-y-1">
+        <p className="text-xs text-white/40">Job ID</p>
+        <p 
+          className="font-mono text-xs text-white/70 break-all bg-black/30 rounded px-2 py-1 select-all cursor-pointer hover:bg-black/50 transition-colors"
+          onClick={() => {
+            navigator.clipboard.writeText(job.jobId);
+          }}
+          title="Click to copy"
+        >
+          {job.jobId}
+        </p>
+      </div>
       
       {/* Progress info for queued/processing jobs */}
       {!status?.status || (status?.status !== "completed" && status?.status !== "faulted") ? (
