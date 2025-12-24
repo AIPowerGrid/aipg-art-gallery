@@ -91,8 +91,8 @@ func (a *App) Router() http.Handler {
 	r := chi.NewRouter()
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   a.allowedOrigins(),
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Content-Type", "apikey"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Content-Type", "apikey", "X-Wallet-Address"},
 		AllowCredentials: true,
 	}))
 
@@ -1013,7 +1013,7 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleDeleteGalleryItem removes a gallery item (open capability for now)
+// handleDeleteGalleryItem removes a gallery item (only owner can delete)
 func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "id")
 	if jobID == "" {
@@ -1021,10 +1021,27 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get the item first to log what's being deleted
+	// Get wallet address from header
+	requestWallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
+	if requestWallet == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("wallet address required - connect your wallet to delete"))
+		return
+	}
+	
+	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
 		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+	
+	// Check ownership - wallet addresses must match
+	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
+	if itemWallet == "" {
+		// Legacy item with no wallet - allow deletion for now but log it
+		log.Printf("Gallery: deleting legacy item %s with no wallet (requested by %s)", jobID, requestWallet)
+	} else if itemWallet != requestWallet {
+		writeError(w, http.StatusForbidden, errors.New("you can only delete your own gallery items"))
 		return
 	}
 	
@@ -1035,13 +1052,8 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	log.Printf("Gallery: deleted job %s (model=%s, type=%s, wallet=%s)", 
-		jobID, item.ModelName, item.Type, item.WalletAddress)
-	
-	// Note: We don't delete from R2 here because:
-	// 1. The image may be shared with other systems
-	// 2. The transient R2 bucket auto-expires content
-	// In the future, when ownership is tied, we might want to delete from R2 too
+	log.Printf("Gallery: deleted job %s (model=%s, type=%s, owner=%s, requestedBy=%s)", 
+		jobID, item.ModelName, item.Type, item.WalletAddress, requestWallet)
 	
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,

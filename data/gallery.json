@@ -1,5 +1,292 @@
 [
   {
+    "jobId": "b36eb7a1-d65e-4859-b836-3a872db832f5",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532702913,
+    "generationIds": [
+      "dfbb3f36-23ec-409a-b904-1945ab7a53a4"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/dfbb3f36-23ec-409a-b904-1945ab7a53a4.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=b4e49f7fd1242c3850381e3839aac6a038b130c436938093146b6fa78078e7fd"
+    ]
+  },
+  {
+    "jobId": "4db58b0e-08b0-4933-88b8-c902160b468f",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532702070,
+    "generationIds": [
+      "d5efa734-c4a2-4ca4-9457-85047ccbf15f"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/d5efa734-c4a2-4ca4-9457-85047ccbf15f.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9ee814c1e00e8b31e8f1194f8e83836889338230d665545c6c2a48e11537b50f"
+    ]
+  },
+  {
+    "jobId": "05de8a1f-d843-4e24-9fc9-83b3d1f9f655",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532700809,
+    "generationIds": [
+      "c4d40cda-c6d2-4196-8244-9e44192ad7e5"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/c4d40cda-c6d2-4196-8244-9e44192ad7e5.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=a2a4cdd42da4db2b0facbdc3eee4cdac6dc00a10bf9f6101ab044037bb17161b"
+    ]
+  },
+  {
+    "jobId": "e79b0d91-f737-473a-8ce5-3f42a15907bf",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532687633,
+    "generationIds": [
+      "ea85cee8-885c-44aa-8933-7fd1b3a89057"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/ea85cee8-885c-44aa-8933-7fd1b3a89057.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001523Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=a6cf3d18d26ded4669f2bab4afb3fe7dd8875ae374e6a5ac792383ef636a0d9a"
+    ]
+  },
+  {
+    "jobId": "89a99e98-3315-4868-b973-6a1fccf03d39",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532686386,
+    "generationIds": [
+      "a1bdf8ea-4b48-4e2d-87ee-af87c05c10ac"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/a1bdf8ea-4b48-4e2d-87ee-af87c05c10ac.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=50f5a0045adbc47dee7346de50587769166e4869c19372cd1768729429d7c3cb"
+    ]
+  },
+  {
+    "jobId": "0ab9e622-6267-4ce9-a3e8-895b9ab4753f",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532671779,
+    "generationIds": [
+      "766a5a1b-5186-466f-8a65-a12a2f025c3e"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/766a5a1b-5186-466f-8a65-a12a2f025c3e.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=fe9dc5111676e8e4de4add89d3cc5d6654dd1651347a74da9f59075aff51d8f8"
+    ]
+  },
+  {
+    "jobId": "b02ce828-9fe1-4186-ba10-ec272f2103a9",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532669063,
+    "generationIds": [
+      "0e33dcc2-5fbc-46b7-97d2-79194ae870a4"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/0e33dcc2-5fbc-46b7-97d2-79194ae870a4.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9f0c98d6f993d0569cf7cb6b78e9a8f4212c32aa5386a7f6cd71941729f6620c"
+    ]
+  },
+  {
+    "jobId": "258c54e1-5834-42e4-96f2-771014020d9a",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532652022,
+    "generationIds": [
+      "4861d459-5e64-479f-b477-c2323d9d6918"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/4861d459-5e64-479f-b477-c2323d9d6918.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251224%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251224T001524Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=c7df015174c91d6c73b012aa6585a3743227394ade0806d229eafcbda07b4d4d"
+    ]
+  },
+  {
+    "jobId": "0890a0fb-b15d-4128-812f-af66e702224f",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532461340
+  },
+  {
+    "jobId": "3776295c-1cc0-4a62-8e54-20996839410d",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532426969
+  },
+  {
+    "jobId": "6a3cb804-cd43-4f5e-a1fa-68b3c36de0a8",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532412673
+  },
+  {
+    "jobId": "70dd893a-a6c9-44c6-91d6-2af6b3b666b5",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532129058
+  },
+  {
+    "jobId": "c1d5b399-bed0-44ab-a742-40e7be6c2201",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532090509
+  },
+  {
+    "jobId": "b43d7cd4-fe63-4709-9e05-982e6729e3d8",
+    "modelId": "FLUX.1-dev",
+    "modelName": "FLUX.1 Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766532064532
+  },
+  {
+    "jobId": "d01593b7-53d7-4dab-8bae-514c9cb9c78d",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766527599311,
+    "generationIds": [
+      "551f1c5e-0564-428a-bb69-65f894273d52"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/551f1c5e-0564-428a-bb69-65f894273d52.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231951Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=ae2aad05f1063263369e7cdf01a3250cc028c1ae510b92551f5ca1c3eb9c6252"
+    ]
+  },
+  {
+    "jobId": "03977c31-e0b6-4b40-9814-de8ff0868bb9",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766527407520,
+    "generationIds": [
+      "c561614c-a73a-4672-9340-1392666827d8"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/c561614c-a73a-4672-9340-1392666827d8.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231951Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=212baedb389f9eb7be2bc8e02bf9375276bd229ed4c315444a9802a0468a8a1f"
+    ]
+  },
+  {
+    "jobId": "de194416-02ab-495f-9f3b-856d284c44bb",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766527373469,
+    "generationIds": [
+      "ff9ec0e7-c921-48b9-8ee4-afb03c8b428a"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/ff9ec0e7-c921-48b9-8ee4-afb03c8b428a.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231951Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=4545d315e7befae84b24f148360957623afb8408851245165dba368251f91dac"
+    ]
+  },
+  {
+    "jobId": "d15dda5f-3938-4729-addc-bd1684b24332",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766527298135,
+    "generationIds": [
+      "2e0a144c-22f6-4b80-9f94-dbba35ef2a39"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/2e0a144c-22f6-4b80-9f94-dbba35ef2a39.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231951Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=07cb63ea5fc48df422caa473a820d31c6ffe48208a8906caa818f1647fa93a8e"
+    ]
+  },
+  {
+    "jobId": "cd65bd24-77d5-401c-acda-52b48ed982bd",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "full-body cyberpunk woman mid-stride in a neon megacity at night during a torrential rainstorm. Extreme motion realism—wind shear whipping hair and layered fabrics, rain streaks and droplets frozen at different shutter speeds, shallow water splashes interacting with boots. Natural anatomy and weight distribution, subtle asymmetry, believable muscle tone and posture; precise skeletal alignment and ground contact. Skin with true human micro-detail (pores, fine veins, compression at joints, realistic subsurface scattering) under mixed lighting. High-fashion cyberpunk attire with multiple materials (wet latex, leather, technical fabric, metal accents) showing physically accurate reflections, refraction, creasing, tension, and wear. Complex lighting: neon rim lights, volumetric fog, god rays, emissive signage casting colored bounce, global illumination, soft shadows, specular breakup. Environment depth: crowds in bokeh, readable holographic signage, reflective puddles, motion parallax, atmospheric perspective. Sharp subject with cinematic DOF, HDR contrast, accurate color science, zero distortion, no exaggeration—maximum realism and coherence.",
+    "type": "image",
+    "isNsfw": true,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766527279671,
+    "generationIds": [
+      "a15c280f-bcb3-4a41-9678-5ed106d7bdbb"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/a15c280f-bcb3-4a41-9678-5ed106d7bdbb.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231952Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9b699f15572403c86df37366d5da9fc2dbcbe4f7cb54553ebeddc38a9fde6059"
+    ]
+  },
+  {
     "jobId": "9d6fac10-18f3-4938-ad5b-d30a1df25387",
     "modelId": "FLUX.1-dev",
     "modelName": "FLUX.1 Dev",
@@ -8,7 +295,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499518500
+    "createdAt": 1766499518500,
+    "generationIds": [
+      "62c9b8e3-afec-435c-b3a4-2bd395996ac7"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/62c9b8e3-afec-435c-b3a4-2bd395996ac7.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231952Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=a5da5014ebd3df9b4d901d25c40d95b59e4e351e71605c2a7cfa0f05ac77f357"
+    ]
   },
   {
     "jobId": "fa3c2deb-54da-4d39-bf99-0bfe97f5b572",
@@ -19,7 +312,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499494457
+    "createdAt": 1766499494457,
+    "generationIds": [
+      "700ae4b6-0940-4294-b07b-c8ca953916f4"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/700ae4b6-0940-4294-b07b-c8ca953916f4.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231952Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9d10bd33ff01c4d83a6eb0f8f668812627b7dfc99cf839050a32c15e14b0944d"
+    ]
   },
   {
     "jobId": "a631cba1-3934-4a48-bd6b-d6ba96976121",
@@ -30,7 +329,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499491093
+    "createdAt": 1766499491093,
+    "generationIds": [
+      "dcd5caaf-e4c0-4b6e-9a01-2d3d60b19e1e"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/dcd5caaf-e4c0-4b6e-9a01-2d3d60b19e1e.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231952Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9a68ff7fbd4759da5087ca157f371fe4c6e01fe59ddb64d8f8dd5c1f4c19cd82"
+    ]
   },
   {
     "jobId": "6af72094-ff3d-41a6-9812-4ffc230a11f0",
@@ -41,7 +346,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499472419
+    "createdAt": 1766499472419,
+    "generationIds": [
+      "c5244c19-36ef-49b1-8cc4-278e1e965887"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/c5244c19-36ef-49b1-8cc4-278e1e965887.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231952Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9cb3286f06b28629d46c23b0a698a313838d8f002eaef0a092171867f1d51517"
+    ]
   },
   {
     "jobId": "7d73578a-9cbf-4dfa-8c66-9c295c71e096",
@@ -52,7 +363,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499455835
+    "createdAt": 1766499455835,
+    "generationIds": [
+      "fef1d444-2e22-43af-8087-d75fc03fedc9"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/fef1d444-2e22-43af-8087-d75fc03fedc9.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231953Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=f83e2aefcf669ac6d903ad7d6f0cae39a1869901c19c3b617a9b4985a6fa6aeb"
+    ]
   },
   {
     "jobId": "62f1ee68-fc0d-4a63-8d4d-f049ceef7d17",
@@ -63,7 +380,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499180268
+    "createdAt": 1766499180268,
+    "generationIds": [
+      "e2262b86-9347-4bcb-9c20-ca4156abf801"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/e2262b86-9347-4bcb-9c20-ca4156abf801.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231953Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=c3404af8a67b98f726259e7bff064fbf0c8be39f757c7dd28c8b76eeb34a07bb"
+    ]
   },
   {
     "jobId": "e3e0c9bc-ff26-4634-a576-70d508f66fd8",
@@ -74,7 +397,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499169347
+    "createdAt": 1766499169347,
+    "generationIds": [
+      "96df55d5-003b-466e-a1bb-a6112a84c7a8"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/96df55d5-003b-466e-a1bb-a6112a84c7a8.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231953Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=5c859941f1d2c163ca1dd7a0f945087bce5cc46ab1f290d76f514dd045b8f494"
+    ]
   },
   {
     "jobId": "5a0d4953-6c3b-4158-a51b-3aaea4b8167c",
@@ -85,7 +414,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499167455
+    "createdAt": 1766499167455,
+    "generationIds": [
+      "e3a1ffd8-5b97-4ff6-a57c-e63a114102c6"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/e3a1ffd8-5b97-4ff6-a57c-e63a114102c6.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231953Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9acb268d1b9a9f07b873d3f8a64183ba0be03956988369fbabe4b23ecdcbbca6"
+    ]
   },
   {
     "jobId": "746871ac-8426-4fc3-a6b7-4d00f1b62b54",
@@ -96,7 +431,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499150634
+    "createdAt": 1766499150634,
+    "generationIds": [
+      "ac46670f-200b-4408-a7ac-f7da23a69271"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/ac46670f-200b-4408-a7ac-f7da23a69271.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231953Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=abca952d2e8fb29f193c175973b49dd70cfed1801ba140767514365851c83141"
+    ]
   },
   {
     "jobId": "783edc56-52d7-4473-b72c-7b75a485f2eb",
@@ -107,7 +448,13 @@
     "isNsfw": true,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766499137498
+    "createdAt": 1766499137498,
+    "generationIds": [
+      "149b09a1-5b25-43ac-b20a-12d9fa9e0999"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/149b09a1-5b25-43ac-b20a-12d9fa9e0999.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231953Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=cba75c47ea3344b93db8de5cabf71b017aebaa89a86f524c23f6a66a8eede9ea"
+    ]
   },
   {
     "jobId": "27c0be31-8897-4d13-a08a-2424a439ad10",
@@ -118,7 +465,13 @@
     "isNsfw": false,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766498899740
+    "createdAt": 1766498899740,
+    "generationIds": [
+      "a362e53e-a86a-4688-85da-0a9f476f77de"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/a362e53e-a86a-4688-85da-0a9f476f77de.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231954Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=9d9950f3f947b22dbcbe4ba4d73d394176f01a81283671f77524ca03b5af132f"
+    ]
   },
   {
     "jobId": "9c094590-5be9-44c5-a56e-05f06fe9cc38",
@@ -129,7 +482,13 @@
     "isNsfw": false,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766497212312
+    "createdAt": 1766497212312,
+    "generationIds": [
+      "852e470b-3746-4906-ac67-00f541f6428c"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/852e470b-3746-4906-ac67-00f541f6428c.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231954Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=6aa71aa1ae2781b21c7b83073f3b0a51391d93821cf3e05e2cf42c7ecee87f55"
+    ]
   },
   {
     "jobId": "98e3d84d-f1f8-4530-bec9-2e409c59e229",
@@ -140,7 +499,13 @@
     "isNsfw": false,
     "isPublic": true,
     "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
-    "createdAt": 1766497198100
+    "createdAt": 1766497198100,
+    "generationIds": [
+      "b445ab61-55db-42ce-93b9-a1dde8503e89"
+    ],
+    "mediaUrls": [
+      "https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com/aipgcoregen/b445ab61-55db-42ce-93b9-a1dde8503e89.webp?X-Amz-Algorithm=AWS4-HMAC-SHA256\u0026X-Amz-Credential=60692db35d5f2d82657bc34373a9ff47%2F20251223%2Fauto%2Fs3%2Faws4_request\u0026X-Amz-Date=20251223T231954Z\u0026X-Amz-Expires=1800\u0026X-Amz-SignedHeaders=host\u0026X-Amz-Signature=c06b6de57136b882749e25bd8a5e5b54e4a8a642c09458f5396fcff4d0bb0f54"
+    ]
   },
   {
     "jobId": "e1c5fe48-579a-42f5-b5e5-7573f2156a3e",
