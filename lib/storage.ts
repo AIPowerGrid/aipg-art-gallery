@@ -4,7 +4,9 @@
  */
 
 const STORAGE_KEY = 'aipg_job_history';
+const CREATIONS_KEY = 'aipg_creations';
 const MAX_JOBS = 100; // Keep last 100 jobs
+const MAX_CREATIONS = 50; // Keep last 50 creations with media
 
 export interface StoredJob {
   jobId: string;
@@ -16,6 +18,27 @@ export interface StoredJob {
   isNsfw: boolean;
   createdAt: number;
   type: 'image' | 'video';
+  walletAddress?: string;
+}
+
+export interface StoredGeneration {
+  id: string;
+  seed: string;
+  kind: 'image' | 'video';
+  url?: string;
+  base64?: string;
+  workerName?: string;
+}
+
+export interface StoredCreation {
+  jobId: string;
+  modelId: string;
+  modelName: string;
+  prompt: string;
+  type: 'image' | 'video';
+  createdAt: number;
+  generations: StoredGeneration[];
+  tags: string[];
   walletAddress?: string;
 }
 
@@ -97,6 +120,127 @@ export function removeJob(jobId: string): void {
 export function clearJobs(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEY);
+}
+
+// ========== CREATIONS (with media) ==========
+
+/**
+ * Get all stored creations from localStorage
+ */
+export function getStoredCreations(): StoredCreation[] {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const data = localStorage.getItem(CREATIONS_KEY);
+    if (!data) return [];
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save a completed creation with its generations
+ */
+export function saveCreation(creation: StoredCreation): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const creations = getStoredCreations();
+    
+    // Check if creation already exists
+    const existingIndex = creations.findIndex(c => c.jobId === creation.jobId);
+    if (existingIndex >= 0) {
+      creations[existingIndex] = creation;
+    } else {
+      creations.unshift(creation); // Add to beginning
+    }
+    
+    // Trim to max size
+    const trimmed = creations.slice(0, MAX_CREATIONS);
+    
+    localStorage.setItem(CREATIONS_KEY, JSON.stringify(trimmed));
+  } catch (error) {
+    console.error('Failed to save creation to localStorage:', error);
+  }
+}
+
+/**
+ * Update tags for a creation
+ */
+export function updateCreationTags(jobId: string, tags: string[]): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const creations = getStoredCreations();
+    const index = creations.findIndex(c => c.jobId === jobId);
+    if (index >= 0) {
+      creations[index].tags = tags;
+      localStorage.setItem(CREATIONS_KEY, JSON.stringify(creations));
+    }
+  } catch (error) {
+    console.error('Failed to update creation tags:', error);
+  }
+}
+
+/**
+ * Remove a creation from localStorage
+ */
+export function removeCreation(jobId: string): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const creations = getStoredCreations();
+    const filtered = creations.filter(c => c.jobId !== jobId);
+    localStorage.setItem(CREATIONS_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Failed to remove creation from localStorage:', error);
+  }
+}
+
+/**
+ * Search creations by tags or prompt
+ */
+export function searchCreations(query: string): StoredCreation[] {
+  const creations = getStoredCreations();
+  const lowerQuery = query.toLowerCase();
+  
+  return creations.filter(c => 
+    c.prompt.toLowerCase().includes(lowerQuery) ||
+    c.tags.some(tag => tag.toLowerCase().includes(lowerQuery)) ||
+    c.modelName.toLowerCase().includes(lowerQuery)
+  );
+}
+
+/**
+ * Generate tags from prompt using simple keyword extraction
+ */
+export function generateTagsFromPrompt(prompt: string): string[] {
+  // Common stop words to filter out
+  const stopWords = new Set([
+    'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
+    'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need',
+    'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it',
+    'we', 'they', 'what', 'which', 'who', 'whom', 'whose', 'where',
+    'when', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more',
+    'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
+    'same', 'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here',
+    'there', 'then', 'once', 'if', 'because', 'although', 'though',
+    'while', 'where', 'after', 'before', 'above', 'below', 'between',
+    'under', 'over', 'through', 'during', 'against', 'about', 'into',
+  ]);
+  
+  // Extract words, filter, and dedupe
+  const words = prompt
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !stopWords.has(word))
+    .slice(0, 10); // Max 10 tags
+  
+  return [...new Set(words)];
 }
 
 
