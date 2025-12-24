@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createJob, fetchJobStatus, fetchModels, addToGallery } from "@/lib/api";
-import { saveJob, StoredJob } from "@/lib/storage";
+import { 
+  saveJob, 
+  StoredJob, 
+  saveCreation, 
+  getStoredCreations, 
+  removeCreation,
+  StoredCreation,
+  generateTagsFromPrompt 
+} from "@/lib/storage";
 import { useAccount } from "wagmi";
 import {
   CreateJobRequest,
@@ -62,6 +70,12 @@ function CreatePageClient() {
   const [jobs, setJobs] = useState<JobEntry[]>([]);
   const [error, setError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [creations, setCreations] = useState<StoredCreation[]>([]);
+  
+  // Load saved creations on mount
+  useEffect(() => {
+    setCreations(getStoredCreations());
+  }, []);
   
   // Organize models by type
   const imageModels = useMemo(() => models.filter(m => m.type === "image"), [models]);
@@ -268,9 +282,9 @@ function CreatePageClient() {
           )
         );
         
-        // Save completed job to local history
+        // Save completed job to local history and creations
         if (status.status === "completed" && status.generations.length > 0) {
-          saveJobToHistory(jobId, selectedModel!);
+          saveJobToHistory(jobId, selectedModel!, status);
         }
         
         if (
@@ -324,7 +338,8 @@ function CreatePageClient() {
 
   async function saveJobToHistory(
     jobId: string,
-    model: GalleryModel
+    model: GalleryModel,
+    status: JobStatus
   ) {
     // Save job metadata to localStorage for "My Creations" (local backup)
     const storedJob: StoredJob = {
@@ -342,6 +357,31 @@ function CreatePageClient() {
     
     saveJob(storedJob);
     console.log("Job saved to local history:", jobId);
+    
+    // Save creation with media for persistent display
+    const tags = generateTagsFromPrompt(prompt);
+    const creation: StoredCreation = {
+      jobId,
+      modelId: model.id,
+      modelName: model.displayName,
+      prompt,
+      type: model.type,
+      createdAt: Date.now(),
+      generations: status.generations.map(gen => ({
+        id: gen.id,
+        seed: gen.seed,
+        kind: gen.kind,
+        url: gen.url,
+        base64: gen.base64,
+        workerName: gen.workerName,
+      })),
+      tags,
+      walletAddress: address,
+    };
+    
+    saveCreation(creation);
+    setCreations(prev => [creation, ...prev.filter(c => c.jobId !== jobId)]);
+    console.log("Creation saved with tags:", tags);
     
     // If wallet is connected, save to server gallery (with public/private flag)
     // This enables cross-device access via wallet address
@@ -658,7 +698,7 @@ function CreatePageClient() {
             <h3 className="text-sm uppercase tracking-[0.3em] text-white/50">
               Your Jobs
             </h3>
-            <div className="space-y-4 max-h-[520px] overflow-auto pr-2">
+            <div className="space-y-4 max-h-[320px] overflow-auto pr-2">
               {jobs.length === 0 ? (
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-3 text-white/60">
@@ -690,6 +730,15 @@ function CreatePageClient() {
               )}
             </div>
           </div>
+          
+          {/* Your Created Content - persisted thumbnails */}
+          <CreatedContentCard 
+            creations={creations} 
+            onRemove={(jobId) => {
+              removeCreation(jobId);
+              setCreations(prev => prev.filter(c => c.jobId !== jobId));
+            }}
+          />
         </aside>
       </section>
     </main>
@@ -1062,6 +1111,313 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
           </p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ========== Your Created Content Card ==========
+
+interface CreatedContentCardProps {
+  creations: StoredCreation[];
+  onRemove: (jobId: string) => void;
+}
+
+function CreatedContentCard({ creations, onRemove }: CreatedContentCardProps) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Filter creations by search
+  const filteredCreations = useMemo(() => {
+    if (!searchQuery.trim()) return creations;
+    const query = searchQuery.toLowerCase();
+    return creations.filter(c => 
+      c.prompt.toLowerCase().includes(query) ||
+      c.tags.some(tag => tag.toLowerCase().includes(query)) ||
+      c.modelName.toLowerCase().includes(query)
+    );
+  }, [creations, searchQuery]);
+  
+  if (creations.length === 0) {
+    return (
+      <div className="panel space-y-4">
+        <h3 className="text-sm uppercase tracking-[0.3em] text-white/50">
+          Your Created Content
+        </h3>
+        <div className="text-sm text-white/40 flex items-center gap-2">
+          <span className="text-lg">🖼️</span>
+          <span>Completed creations will be saved here</span>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="panel space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm uppercase tracking-[0.3em] text-white/50">
+          Your Created Content
+        </h3>
+        <span className="text-xs text-white/40">{creations.length} items</span>
+      </div>
+      
+      {/* Search bar */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search by prompt, tag, or model..."
+          className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm pr-8"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+          >
+            ×
+          </button>
+        )}
+      </div>
+      
+      {/* Thumbnail grid */}
+      <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-auto pr-1">
+        {filteredCreations.map((creation) => (
+          <CreationThumbnail
+            key={creation.jobId}
+            creation={creation}
+            isExpanded={expandedId === creation.jobId}
+            onToggle={() => setExpandedId(expandedId === creation.jobId ? null : creation.jobId)}
+            onRemove={() => onRemove(creation.jobId)}
+          />
+        ))}
+      </div>
+      
+      {/* Expanded view modal */}
+      {expandedId && (
+        <ExpandedCreationModal
+          creation={creations.find(c => c.jobId === expandedId)!}
+          onClose={() => setExpandedId(null)}
+          onRemove={() => {
+            onRemove(expandedId);
+            setExpandedId(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+interface CreationThumbnailProps {
+  creation: StoredCreation;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onRemove: () => void;
+}
+
+function CreationThumbnail({ creation, onToggle }: CreationThumbnailProps) {
+  const firstGen = creation.generations[0];
+  const imageSrc = firstGen?.base64 || firstGen?.url;
+  const isVideo = creation.type === "video";
+  
+  return (
+    <button
+      onClick={onToggle}
+      className="relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-colors group"
+    >
+      {imageSrc ? (
+        isVideo ? (
+          <video
+            src={firstGen.url}
+            className="w-full h-full object-cover"
+            muted
+          />
+        ) : (
+          <img
+            src={imageSrc}
+            alt={creation.prompt.slice(0, 50)}
+            className="w-full h-full object-cover"
+          />
+        )
+      ) : (
+        <div className="w-full h-full bg-white/5 flex items-center justify-center">
+          <span className="text-2xl">{isVideo ? "🎬" : "🖼️"}</span>
+        </div>
+      )}
+      
+      {/* Type badge */}
+      <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[10px] bg-black/60">
+        {isVideo ? "🎬" : "🖼️"}
+      </div>
+      
+      {/* Hover overlay */}
+      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+        <span className="text-xs text-white">Click to expand</span>
+      </div>
+    </button>
+  );
+}
+
+interface ExpandedCreationModalProps {
+  creation: StoredCreation;
+  onClose: () => void;
+  onRemove: () => void;
+}
+
+function ExpandedCreationModal({ creation, onClose, onRemove }: ExpandedCreationModalProps) {
+  const firstGen = creation.generations[0];
+  const imageSrc = firstGen?.base64 || firstGen?.url;
+  const isVideo = creation.type === "video";
+  
+  // Download handler
+  const handleDownload = async () => {
+    const downloadUrl = firstGen?.url || firstGen?.base64;
+    if (!downloadUrl) return;
+    
+    try {
+      if (downloadUrl.startsWith("data:")) {
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = `${creation.jobId}.${isVideo ? "mp4" : "png"}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${creation.jobId}.${isVideo ? "mp4" : "png"}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+      window.open(downloadUrl, "_blank");
+    }
+  };
+  
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-zinc-900 rounded-2xl border border-white/10 max-w-2xl w-full max-h-[90vh] overflow-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{isVideo ? "🎬" : "🖼️"}</span>
+            <span className="font-medium">{creation.modelName}</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="p-4 space-y-4">
+          {/* Media */}
+          <div className="rounded-xl overflow-hidden border border-white/10">
+            {isVideo ? (
+              <video
+                src={firstGen?.url}
+                controls
+                className="w-full"
+              />
+            ) : imageSrc ? (
+              <img
+                src={imageSrc}
+                alt={creation.prompt}
+                className="w-full"
+              />
+            ) : (
+              <div className="aspect-video bg-white/5 flex items-center justify-center">
+                <span className="text-white/40">No preview available</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Prompt */}
+          <div className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/40">Prompt</p>
+            <p className="text-sm text-white/80 bg-black/30 rounded-lg p-3">
+              {creation.prompt}
+            </p>
+          </div>
+          
+          {/* Tags */}
+          {creation.tags.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/40">Tags</p>
+              <div className="flex flex-wrap gap-1.5">
+                {creation.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="px-2 py-0.5 rounded-full bg-white/10 text-xs text-white/70"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* Metadata */}
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <p className="text-white/40">Job ID</p>
+              <p className="font-mono text-white/70 break-all">{creation.jobId}</p>
+            </div>
+            <div>
+              <p className="text-white/40">Created</p>
+              <p className="text-white/70">{new Date(creation.createdAt).toLocaleString()}</p>
+            </div>
+            {firstGen?.seed && (
+              <div>
+                <p className="text-white/40">Seed</p>
+                <p className="font-mono text-white/70">{firstGen.seed}</p>
+              </div>
+            )}
+            {firstGen?.workerName && (
+              <div>
+                <p className="text-white/40">Worker</p>
+                <p className="font-mono text-cyan-400 truncate">{firstGen.workerName}</p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex gap-3 p-4 border-t border-white/10">
+          <button
+            onClick={handleDownload}
+            className="flex-1 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition-opacity"
+          >
+            Download
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Remove this creation from your local history?")) {
+                onRemove();
+              }
+            }}
+            className="px-4 py-2 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
