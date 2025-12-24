@@ -801,22 +801,32 @@ function FileInput({
 function JobCard({ job }: { job: JobEntry }) {
   const status = job.status;
   const outputs = status?.generations ?? [];
+  const [showFullId, setShowFullId] = useState(false);
   
   // Calculate progress info
   const isQueued = status?.status === "queued" || (!status?.status && !status?.processing);
   const isProcessing = status?.status === "processing" || (status?.processing ?? 0) > 0;
   const queuePosition = status?.queuePosition ?? 0;
   const waitTime = status?.waitTime ?? 0;
+  
+  // Get worker name from first generation (if available)
+  const workerName = outputs.length > 0 ? outputs[0].workerName : undefined;
 
   return (
     <div className="border border-white/10 rounded-2xl p-4 bg-black/40 space-y-3">
       <div className="flex items-center justify-between text-sm">
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="text-xs text-white/40">Job ID</p>
-          <p className="font-mono text-xs text-white/70">{job.jobId.slice(0, 8)}...</p>
+          <button 
+            onClick={() => setShowFullId(!showFullId)}
+            className="font-mono text-xs text-white/70 hover:text-white transition-colors text-left break-all"
+            title={showFullId ? "Click to collapse" : "Click to expand"}
+          >
+            {showFullId ? job.jobId : `${job.jobId.slice(0, 8)}...`}
+          </button>
         </div>
         <span
-          className={`px-3 py-1 rounded-full text-xs ${
+          className={`px-3 py-1 rounded-full text-xs flex-shrink-0 ml-2 ${
             status?.status === "completed"
               ? "bg-green-500/20 text-green-200"
               : status?.status === "faulted"
@@ -832,6 +842,16 @@ function JobCard({ job }: { job: JobEntry }) {
             : "⏳ Queued"}
         </span>
       </div>
+      
+      {/* Worker info */}
+      {workerName && (
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-white/40">Worker</span>
+          <span className="text-cyan-400 font-mono truncate max-w-[200px]" title={workerName}>
+            {workerName}
+          </span>
+        </div>
+      )}
       
       {/* Progress info for queued/processing jobs */}
       {!status?.status || (status?.status !== "completed" && status?.status !== "faulted") ? (
@@ -871,7 +891,7 @@ function JobCard({ job }: { job: JobEntry }) {
       {outputs.length > 0 && (
         <div className="grid gap-2">
           {outputs.map((generation) => (
-            <GenerationPreview key={generation.id} generation={generation} />
+            <GenerationPreview key={generation.id} generation={generation} jobId={job.jobId} />
           ))}
         </div>
       )}
@@ -879,17 +899,52 @@ function JobCard({ job }: { job: JobEntry }) {
   );
 }
 
-function GenerationPreview({ generation }: { generation: GenerationView }) {
+function GenerationPreview({ generation, jobId }: { generation: GenerationView; jobId: string }) {
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Determine the best source for the media
   const imageSrc = generation.base64 || generation.url;
   const isVideo = generation.kind === "video";
+  
+  // Download handler
+  const handleDownload = async () => {
+    const downloadUrl = generation.url || generation.base64;
+    if (!downloadUrl) return;
+    
+    try {
+      // For base64 data, create a blob directly
+      if (downloadUrl.startsWith("data:")) {
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = `${jobId}_${generation.id}.${isVideo ? "mp4" : "png"}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For URLs, fetch and download
+      const response = await fetch(downloadUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${jobId}_${generation.id}.${isVideo ? "mp4" : "png"}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed:", err);
+      // Fallback: open in new tab
+      window.open(downloadUrl, "_blank");
+    }
+  };
 
   if (isVideo) {
     return (
-      <div className="relative rounded-xl border border-white/10 overflow-hidden bg-black/40">
+      <div className="relative rounded-xl border border-white/10 overflow-hidden bg-black/40 group">
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full" />
@@ -910,16 +965,38 @@ function GenerationPreview({ generation }: { generation: GenerationView }) {
             )}
           </div>
         ) : (
-          <video
-            src={generation.url}
-            controls
-            className={`w-full ${loading ? "opacity-0" : "opacity-100"} transition-opacity`}
-            onLoadedData={() => setLoading(false)}
-            onError={() => {
-              setError(true);
-              setLoading(false);
-            }}
-          />
+          <>
+            <video
+              src={generation.url}
+              controls
+              className={`w-full ${loading ? "opacity-0" : "opacity-100"} transition-opacity`}
+              onLoadedData={() => setLoading(false)}
+              onError={() => {
+                setError(true);
+                setLoading(false);
+              }}
+            />
+            {/* Download button overlay */}
+            {!loading && (
+              <button
+                onClick={handleDownload}
+                className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Download video"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </button>
+            )}
+          </>
+        )}
+        {/* Worker info */}
+        {generation.workerName && (
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <p className="text-xs text-cyan-400 font-mono truncate">
+              Worker: {generation.workerName}
+            </p>
+          </div>
         )}
       </div>
     );
@@ -927,7 +1004,7 @@ function GenerationPreview({ generation }: { generation: GenerationView }) {
 
   // Image rendering
   return (
-    <div className="relative rounded-xl border border-white/10 overflow-hidden bg-black/40 min-h-[100px]">
+    <div className="relative rounded-xl border border-white/10 overflow-hidden bg-black/40 min-h-[100px] group">
       {loading && !error && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full" />
@@ -948,19 +1025,41 @@ function GenerationPreview({ generation }: { generation: GenerationView }) {
           )}
         </div>
       ) : imageSrc ? (
-        <img
-          src={imageSrc}
-          alt="Generated content"
-          className={`w-full h-auto ${loading ? "opacity-0" : "opacity-100"} transition-opacity`}
-          onLoad={() => setLoading(false)}
-          onError={() => {
-            setError(true);
-            setLoading(false);
-          }}
-        />
+        <>
+          <img
+            src={imageSrc}
+            alt="Generated content"
+            className={`w-full h-auto ${loading ? "opacity-0" : "opacity-100"} transition-opacity`}
+            onLoad={() => setLoading(false)}
+            onError={() => {
+              setError(true);
+              setLoading(false);
+            }}
+          />
+          {/* Download button overlay */}
+          {!loading && (
+            <button
+              onClick={handleDownload}
+              className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Download image"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+          )}
+        </>
       ) : (
         <div className="p-4 text-center text-white/50">
           <p className="text-sm">No image data available</p>
+        </div>
+      )}
+      {/* Worker info */}
+      {generation.workerName && !loading && !error && (
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <p className="text-xs text-cyan-400 font-mono truncate">
+            Worker: {generation.workerName}
+          </p>
         </div>
       )}
     </div>

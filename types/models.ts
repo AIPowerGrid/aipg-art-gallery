@@ -126,5 +126,7 @@ export interface GenerationView {
   mimeType?: string;
   url?: string;
   base64?: string;
+  workerId?: string;
+  workerName?: string;
 }
 
