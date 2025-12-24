@@ -1,5 +1,16 @@
 [
   {
+    "jobId": "bdddfd75-8a4f-4cb9-92b9-63e655563866",
+    "modelId": "flux.1-krea-dev",
+    "modelName": "FLUX.1 Krea Dev",
+    "prompt": "cats",
+    "type": "image",
+    "isNsfw": false,
+    "isPublic": true,
+    "walletAddress": "0xe2dddDDf4dD22e98265BBf0E6bDC1cB3A4Bb26a8",
+    "createdAt": 1766583986727
+  },
+  {
     "jobId": "0890a0fb-b15d-4128-812f-af66e702224f",
     "modelId": "FLUX.1-dev",
     "modelName": "FLUX.1 Dev",
