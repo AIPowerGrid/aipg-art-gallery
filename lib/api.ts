@@ -117,9 +117,14 @@ export function fetchGalleryMedia(jobId: string): Promise<GalleryMediaResponse> 
   return jsonFetch(`/gallery/${jobId}/media`);
 }
 
-export function deleteGalleryItem(jobId: string): Promise<{ success: boolean; message: string }> {
+export function deleteGalleryItem(jobId: string, walletAddress?: string): Promise<{ success: boolean; message: string }> {
+  const headers: Record<string, string> = {};
+  if (walletAddress) {
+    headers["X-Wallet-Address"] = walletAddress;
+  }
   return jsonFetch(`/gallery/${jobId}`, {
     method: "DELETE",
+    headers,
   });
 }
 

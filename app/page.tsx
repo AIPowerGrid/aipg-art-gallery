@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useAccount } from "wagmi";
 import { fetchGallery, fetchGalleryMedia, deleteGalleryItem, GalleryItem } from "@/lib/api";
 
 const PAGE_SIZE = 25;
@@ -14,6 +15,8 @@ interface GalleryItemWithMedia extends GalleryItem {
 }
 
 export default function GalleryPage() {
+  const { address, isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
   const [items, setItems] = useState<GalleryItemWithMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -26,6 +29,11 @@ export default function GalleryPage() {
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Handle client-side mounting for wagmi
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch media for a batch of items
   const fetchMediaForItems = useCallback(async (itemsToFetch: GalleryItem[]) => {
@@ -142,14 +150,26 @@ export default function GalleryPage() {
     };
   }, [hasMore, loadingMore, loading, loadMore]);
 
-  async function handleDelete(jobId: string) {
+  async function handleDelete(jobId: string, itemWallet?: string) {
+    // Check if wallet is connected
+    if (!isConnected || !address) {
+      alert("Please connect your wallet to delete items");
+      return;
+    }
+    
+    // Check ownership (case-insensitive comparison)
+    if (itemWallet && itemWallet.toLowerCase() !== address.toLowerCase()) {
+      alert("You can only delete your own gallery items");
+      return;
+    }
+    
     if (!confirm("Are you sure you want to delete this item from the gallery?")) {
       return;
     }
     
     setDeleting(jobId);
     try {
-      await deleteGalleryItem(jobId);
+      await deleteGalleryItem(jobId, address);
       setItems(prev => prev.filter(i => i.jobId !== jobId));
     } catch (err: any) {
       alert(`Failed to delete: ${err.message}`);
@@ -242,8 +262,11 @@ export default function GalleryPage() {
               <GalleryCard 
                 key={item.jobId} 
                 item={item} 
-                onDelete={() => handleDelete(item.jobId)}
+                onDelete={() => handleDelete(item.jobId, item.walletAddress)}
                 isDeleting={deleting === item.jobId}
+                canDelete={mounted && isConnected && address ? 
+                  (!item.walletAddress || item.walletAddress.toLowerCase() === address.toLowerCase()) 
+                  : false}
               />
             ))}
           </div>
@@ -279,9 +302,10 @@ interface GalleryCardProps {
   item: GalleryItemWithMedia;
   onDelete: () => void;
   isDeleting: boolean;
+  canDelete: boolean;
 }
 
-function GalleryCard({ item, onDelete, isDeleting }: GalleryCardProps) {
+function GalleryCard({ item, onDelete, isDeleting, canDelete }: GalleryCardProps) {
   const [imageError, setImageError] = useState(false);
   const [showControls, setShowControls] = useState(false);
   
@@ -341,8 +365,8 @@ function GalleryCard({ item, onDelete, isDeleting }: GalleryCardProps) {
           </div>
         )}
 
-        {/* Delete button - visible on hover */}
-        {showControls && (
+        {/* Delete button - visible on hover, only for owner */}
+        {showControls && canDelete && (
           <button
             onClick={(e) => {
               e.stopPropagation();
