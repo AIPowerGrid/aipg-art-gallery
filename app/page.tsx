@@ -34,10 +34,10 @@ function useWalletAddress() {
     
     const checkWallet = async () => {
       try {
-        // @ts-ignore - ethereum is injected by wallet
-        const ethereum = window.ethereum;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ethereum = (window as any).ethereum;
         if (ethereum) {
-          const accounts = await ethereum.request({ method: "eth_accounts" });
+          const accounts: string[] = await ethereum.request({ method: "eth_accounts" });
           if (accounts && accounts.length > 0) {
             setAddress(accounts[0]);
             setIsConnected(true);
@@ -51,8 +51,8 @@ function useWalletAddress() {
     checkWallet();
     
     // Listen for account changes
-    // @ts-ignore
-    const ethereum = window.ethereum;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ethereum = (window as any).ethereum;
     if (ethereum) {
       const handleAccountsChanged = (accounts: string[]) => {
         if (accounts.length > 0) {
