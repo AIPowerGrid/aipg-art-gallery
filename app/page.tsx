@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useAccount } from "wagmi";
 import { fetchGallery, fetchGalleryMedia, deleteGalleryItem, GalleryItem } from "@/lib/api";
 
 const PAGE_SIZE = 25;
@@ -14,9 +13,66 @@ interface GalleryItemWithMedia extends GalleryItem {
   mediaError?: string;
 }
 
-export default function GalleryPage() {
-  const { address, isConnected } = useAccount();
+// SSR-safe hook for wagmi account
+function useWalletAddress() {
+  const [address, setAddress] = useState<string | undefined>(undefined);
+  const [isConnected, setIsConnected] = useState(false);
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    // Dynamic import wagmi to avoid SSR issues
+    import("wagmi").then(({ useAccount }) => {
+      // This won't work - hooks can't be called in useEffect
+      // We need a different approach
+    }).catch(() => {});
+  }, []);
+
+  // Use window.ethereum to check connection status directly
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const checkWallet = async () => {
+      try {
+        // @ts-ignore - ethereum is injected by wallet
+        const ethereum = window.ethereum;
+        if (ethereum) {
+          const accounts = await ethereum.request({ method: "eth_accounts" });
+          if (accounts && accounts.length > 0) {
+            setAddress(accounts[0]);
+            setIsConnected(true);
+          }
+        }
+      } catch (e) {
+        // Wallet not available or user denied
+      }
+    };
+    
+    checkWallet();
+    
+    // Listen for account changes
+    // @ts-ignore
+    const ethereum = window.ethereum;
+    if (ethereum) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setAddress(accounts[0]);
+          setIsConnected(true);
+        } else {
+          setAddress(undefined);
+          setIsConnected(false);
+        }
+      };
+      ethereum.on("accountsChanged", handleAccountsChanged);
+      return () => ethereum.removeListener("accountsChanged", handleAccountsChanged);
+    }
+  }, []);
+
+  return { address, isConnected, mounted };
+}
+
+export default function GalleryPage() {
+  const { address, isConnected, mounted } = useWalletAddress();
   const [items, setItems] = useState<GalleryItemWithMedia[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -29,11 +85,6 @@ export default function GalleryPage() {
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-
-  // Handle client-side mounting for wagmi
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Fetch media for a batch of items
   const fetchMediaForItems = useCallback(async (itemsToFetch: GalleryItem[]) => {
