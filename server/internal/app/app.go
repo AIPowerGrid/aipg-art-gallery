@@ -21,16 +21,18 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/modelvault"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/prompts"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/recipevault"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/r2"
 )
 
 type App struct {
-	cfg          config.Config
-	catalog      models.Catalog
-	client       *aipg.Client
-	vaultClient  *modelvault.Client
-	galleryStore *gallery.Store
-	r2Client     *r2.Client
+	cfg            config.Config
+	catalog        models.Catalog
+	client         *aipg.Client
+	vaultClient    *modelvault.Client
+	recipeVaultClient *recipevault.Client
+	galleryStore   *gallery.Store
+	r2Client       *r2.Client
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -49,6 +51,18 @@ func New(cfg config.Config) (*App, error) {
 		log.Printf("Warning: ModelVault client initialization failed: %v", err)
 		// Continue without blockchain - use presets only
 		vaultClient, _ = modelvault.NewClient("", "", false)
+	}
+
+	// Initialize RecipeVault client for blockchain recipe/workflow registry
+	recipeVaultClient, err := recipevault.NewClient(
+		cfg.RecipeVaultRPCURL,
+		cfg.RecipeVaultContractAddress,
+		cfg.RecipeVaultEnabled,
+	)
+	if err != nil {
+		log.Printf("Warning: RecipeVault client initialization failed: %v", err)
+		// Continue without RecipeVault
+		recipeVaultClient, _ = recipevault.NewClient("", "", false)
 	}
 
 	// Initialize gallery store (persists to file)
@@ -78,12 +92,13 @@ func New(cfg config.Config) (*App, error) {
 	}
 
 	return &App{
-		cfg:          cfg,
-		catalog:      catalog,
-		client:       aipg.NewClient(cfg.APIBaseURL, cfg.ClientAgent),
-		vaultClient:  vaultClient,
-		r2Client:     r2Client,
-		galleryStore: galleryStore,
+		cfg:               cfg,
+		catalog:           catalog,
+		client:            aipg.NewClient(cfg.APIBaseURL, cfg.ClientAgent),
+		vaultClient:       vaultClient,
+		recipeVaultClient: recipeVaultClient,
+		r2Client:          r2Client,
+		galleryStore:      galleryStore,
 	}, nil
 }
 
@@ -232,9 +247,140 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Fetch available models from RecipeVault
+	var recipeVaultModels []string
+	if a.recipeVaultClient.IsEnabled() {
+		recipeVaultModels, err = a.recipeVaultClient.ExtractModelsFromRecipes(ctx)
+		if err != nil {
+			log.Printf("Warning: failed to extract models from RecipeVault: %v", err)
+		} else {
+			log.Printf("RecipeVault: found %d unique models in recipes: %v", len(recipeVaultModels), recipeVaultModels)
+		}
+	}
+
+	// Build a set of available models from RecipeVault for filtering
+	// Normalize model names by removing extensions and normalizing separators
+	recipeVaultModelSet := make(map[string]bool)
+	
+	normalizeModelName := func(name string) string {
+		// Remove file extensions
+		name = strings.TrimSuffix(name, ".safetensors")
+		name = strings.TrimSuffix(name, ".ckpt")
+		name = strings.TrimSuffix(name, ".pt")
+		name = strings.TrimSuffix(name, ".pth")
+		// Normalize separators and case
+		name = strings.ToLower(name)
+		name = strings.ReplaceAll(name, "_", "")
+		name = strings.ReplaceAll(name, "-", "")
+		name = strings.ReplaceAll(name, ".", "")
+		name = strings.ReplaceAll(name, " ", "")
+		return name
+	}
+	
+	for _, model := range recipeVaultModels {
+		recipeVaultModelSet[strings.ToLower(model)] = true
+		recipeVaultModelSet[model] = true
+		// Also add normalized version
+		normalized := normalizeModelName(model)
+		recipeVaultModelSet[normalized] = true
+	}
+
 	presets := a.catalog.List()
+	log.Printf("RecipeVault: total presets in catalog: %d", len(presets))
 	response := make([]ModelView, 0, len(presets))
+	
+	// If RecipeVault is enabled, filter presets to only include models found in recipes
+	// Otherwise, show all presets
 	for _, preset := range presets {
+		// If RecipeVault is enabled and has models, only include models found in recipes
+		if a.recipeVaultClient.IsEnabled() && len(recipeVaultModelSet) > 0 {
+			// Check if this preset's model is in RecipeVault
+			presetLower := strings.ToLower(preset.ID)
+			found := false
+			
+			// Normalize preset ID for comparison (same function as normalizeModelName)
+			normalizePresetID := func(id string) string {
+				id = strings.ToLower(id)
+				id = strings.ReplaceAll(id, "_", "")
+				id = strings.ReplaceAll(id, "-", "")
+				id = strings.ReplaceAll(id, ".", "")
+				id = strings.ReplaceAll(id, " ", "")
+				return id
+			}
+			presetNormalized := normalizePresetID(preset.ID)
+			
+			// Check exact match
+			if recipeVaultModelSet[presetLower] || recipeVaultModelSet[preset.ID] {
+				found = true
+			}
+			
+			// Check normalized match
+			if !found {
+				if recipeVaultModelSet[presetNormalized] {
+					found = true
+				}
+			}
+			
+			// Check aliases
+			if !found {
+				if aliases, ok := modelNameAliases[preset.ID]; ok {
+					for _, alias := range aliases {
+						if recipeVaultModelSet[strings.ToLower(alias)] || recipeVaultModelSet[alias] {
+							found = true
+							break
+						}
+						// Also check normalized alias
+						aliasNormalized := normalizePresetID(alias)
+						if recipeVaultModelSet[aliasNormalized] {
+							found = true
+							break
+						}
+					}
+				}
+			}
+			
+			// Check Grid API name
+			if !found {
+				gridName := getGridModelName(preset.ID)
+				if recipeVaultModelSet[strings.ToLower(gridName)] || recipeVaultModelSet[gridName] {
+					found = true
+				}
+				// Also check normalized Grid name
+				if !found {
+					gridNormalized := normalizePresetID(gridName)
+					if recipeVaultModelSet[gridNormalized] {
+						found = true
+					}
+				}
+			}
+			
+			// Check if any RecipeVault model name contains preset ID or vice versa (fuzzy match)
+			if !found {
+				for _, rvModel := range recipeVaultModels {
+					rvNormalized := normalizeModelName(rvModel)
+					// Check if normalized preset ID is contained in normalized model name or vice versa
+					if strings.Contains(rvNormalized, presetNormalized) || strings.Contains(presetNormalized, rvNormalized) {
+						found = true
+						log.Printf("RecipeVault: matched preset %q to RecipeVault model %q (normalized)", preset.ID, rvModel)
+						break
+					}
+				}
+			}
+			
+			if !found {
+				log.Printf("RecipeVault: preset %q not found in RecipeVault models (presetNormalized=%q, checked %d RecipeVault models)", 
+					preset.ID, presetNormalized, len(recipeVaultModels))
+				// Log all RecipeVault models for debugging
+				for _, rvModel := range recipeVaultModels {
+					rvNormalized := normalizeModelName(rvModel)
+					log.Printf("RecipeVault:   - model %q (normalized: %q)", rvModel, rvNormalized)
+				}
+				continue // Skip this model if not found in RecipeVault
+			} else {
+				log.Printf("RecipeVault: including preset %q (matched to RecipeVault)", preset.ID)
+			}
+		}
+		
 		// Look up stats using preset ID and all known aliases
 		stat := lookupModelStats(preset.ID, byName)
 		
@@ -255,9 +401,12 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 		return response[i].DisplayName < response[j].DisplayName
 	})
 
+	log.Printf("RecipeVault: returning %d models in response (expected %d from RecipeVault)", len(response), len(recipeVaultModels))
+	
 	writeJSON(w, http.StatusOK, map[string]any{
-		"models":      response,
-		"chainSource": a.vaultClient.IsEnabled(),
+		"models":         response,
+		"chainSource":    a.vaultClient.IsEnabled(),
+		"recipeVaultSource": a.recipeVaultClient.IsEnabled(),
 	})
 }
 

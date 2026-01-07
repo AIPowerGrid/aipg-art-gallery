@@ -581,6 +581,7 @@ function CreatePageClient() {
                 </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
+                    <label className="text-xs uppercase tracking-[0.3em] text-white/50">Positive Prompt</label>
                     <textarea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
@@ -590,6 +591,7 @@ function CreatePageClient() {
                     <p className="text-xs text-white/40">Be descriptive — include style, lighting, colors, and mood</p>
                   </div>
                   <div className="space-y-2">
+                    <label className="text-xs uppercase tracking-[0.3em] text-white/50">Negative Prompt</label>
                     <textarea
                       value={negativePrompt}
                       onChange={(e) => setNegativePrompt(e.target.value)}
@@ -600,81 +602,25 @@ function CreatePageClient() {
                   </div>
                 </div>
 
-                <ParamGrid
+                {/* Advanced Options Collapsible */}
+                <AdvancedOptions
                   model={selectedModel}
                   params={params}
                   onParamChange={updateParam}
+                  seed={seed}
+                  setSeed={setSeed}
+                  sourceProcessing={sourceProcessing}
+                  setSourceProcessing={setSourceProcessing}
+                  uploadImage={uploadImage}
+                  setUploadImage={setUploadImage}
+                  uploadMask={uploadMask}
+                  setUploadMask={setUploadMask}
+                  nsfw={nsfw}
+                  setNsfw={setNsfw}
+                  sharePublicly={sharePublicly}
+                  setSharePublicly={setSharePublicly}
+                  handleFileUpload={handleFileUpload}
                 />
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs text-white/60 uppercase tracking-[0.3em]">
-                      Seed
-                    </label>
-                    <input
-                      type="text"
-                      value={seed}
-                      onChange={(e) => setSeed(e.target.value)}
-                      placeholder="Random"
-                      className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs text-white/60 uppercase tracking-[0.3em]">
-                      Mode
-                    </label>
-                    <select
-                      value={sourceProcessing}
-                      onChange={(e) =>
-                        setSourceProcessing(e.target.value as any)
-                      }
-                      className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2"
-                    >
-                      {selectedModel?.type === "video" ? (
-                        <>
-                          <option value="txt2video">Text to Video</option>
-                          {selectedModel.capabilities?.includes("img2video") && (
-                            <option value="img2video">Image to Video</option>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <option value="txt2img">Text to Image</option>
-                          <option value="img2img">Image to Image</option>
-                          <option value="inpainting">Inpainting</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-                </div>
-
-                {["img2img", "img2video", "inpainting"].includes(sourceProcessing) && (
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <FileInput
-                      label="Reference image"
-                      onChange={(e) => handleFileUpload(e, setUploadImage)}
-                    />
-                    {sourceProcessing === "inpainting" && (
-                      <FileInput
-                        label="Mask"
-                        onChange={(e) => handleFileUpload(e, setUploadMask)}
-                      />
-                    )}
-                  </div>
-                )}
-
-                <div className="grid md:grid-cols-2 gap-4 text-white/80">
-                  <Toggle
-                    label="Allow NSFW"
-                    enabled={nsfw}
-                    onChange={setNsfw}
-                  />
-                  <Toggle
-                    label="Share to gallery"
-                    enabled={sharePublicly}
-                    onChange={setSharePublicly}
-                  />
-                </div>
 
                 {/* Step 3: Generate */}
                 <div className="flex items-center gap-2 mt-2">
@@ -751,6 +697,185 @@ type ParamGridProps = {
   params: Record<string, number | boolean>;
   onParamChange: (key: string, value: number | boolean) => void;
 };
+
+function AdvancedOptions({
+  model,
+  params,
+  onParamChange,
+  seed,
+  setSeed,
+  sourceProcessing,
+  setSourceProcessing,
+  uploadImage,
+  setUploadImage,
+  uploadMask,
+  setUploadMask,
+  nsfw,
+  setNsfw,
+  sharePublicly,
+  setSharePublicly,
+  handleFileUpload,
+}: {
+  model: GalleryModel;
+  params: Record<string, number | boolean>;
+  onParamChange: (key: string, value: number | boolean) => void;
+  seed: string;
+  setSeed: (value: string) => void;
+  sourceProcessing: "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video";
+  setSourceProcessing: (value: "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video") => void;
+  uploadImage: string | undefined;
+  setUploadImage: (value: string | undefined) => void;
+  uploadMask: string | undefined;
+  setUploadMask: (value: string | undefined) => void;
+  nsfw: boolean;
+  setNsfw: (value: boolean) => void;
+  sharePublicly: boolean;
+  setSharePublicly: (value: boolean) => void;
+  handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>, setter: (value: string | undefined) => void) => void;
+}) {
+  const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  const slider = (
+    key: string,
+    label: string,
+    range?: { min: number; max: number; step: number },
+    suffix?: string
+  ) => {
+    if (!range) return null;
+    return (
+      <div key={key} className="space-y-2">
+        <div className="flex justify-between text-xs text-white/60">
+          <span className="uppercase tracking-[0.3em]">{label}</span>
+          <span>{params[key] ?? range.min}</span>
+        </div>
+        <input
+          type="range"
+          min={range.min}
+          max={range.max}
+          step={range.step}
+          value={Number(params[key]) ?? range.min}
+          onChange={(e) => onParamChange(key, Number(e.target.value))}
+          className="w-full"
+        />
+        <div className="flex justify-between text-[11px] text-white/40">
+          <span>
+            {range.min}
+            {suffix}
+          </span>
+          <span>
+            {range.max}
+            {suffix}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="border border-white/10 rounded-2xl overflow-hidden bg-black/20 mt-4">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/30 rounded-t-2xl"
+        aria-expanded={isOpen}
+        aria-controls="advanced-options-content"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-white/80">Advanced Options</span>
+          <span className="text-xs text-yellow-400/70 bg-yellow-400/10 px-2 py-0.5 rounded">May cause longer loading times</span>
+        </div>
+        <svg
+          className={`w-5 h-5 text-white/60 transition-transform duration-200 flex-shrink-0 ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      {isOpen ? (
+        <div id="advanced-options-content" className="px-4 pb-4 pt-4 space-y-6 border-t border-white/10">
+          <ParamGrid model={model} params={params} onParamChange={onParamChange} />
+          
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs text-white/60 uppercase tracking-[0.3em]">
+                Seed
+              </label>
+              <input
+                type="text"
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
+                placeholder="Random"
+                className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-white/60 uppercase tracking-[0.3em]">
+                Mode
+              </label>
+              <select
+                value={sourceProcessing}
+                onChange={(e) =>
+                  setSourceProcessing(e.target.value as any)
+                }
+                className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2"
+              >
+                {model?.type === "video" ? (
+                  <>
+                    <option value="txt2video">Text to Video</option>
+                    {model.capabilities?.includes("img2video") && (
+                      <option value="img2video">Image to Video</option>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <option value="txt2img">Text to Image</option>
+                    <option value="img2img">Image to Image</option>
+                    <option value="inpainting">Inpainting</option>
+                  </>
+                )}
+              </select>
+            </div>
+          </div>
+
+          {["img2img", "img2video", "inpainting"].includes(sourceProcessing) && (
+            <div className="grid md:grid-cols-2 gap-4">
+              <FileInput
+                label="Reference image"
+                onChange={(e) => handleFileUpload(e, setUploadImage)}
+              />
+              {sourceProcessing === "inpainting" && (
+                <FileInput
+                  label="Mask"
+                  onChange={(e) => handleFileUpload(e, setUploadMask)}
+                />
+              )}
+            </div>
+          )}
+
+          <div className="grid md:grid-cols-2 gap-4 text-white/80">
+            <Toggle
+              label="Allow NSFW"
+              enabled={nsfw}
+              onChange={setNsfw}
+            />
+            <Toggle
+              label="Share to gallery"
+              enabled={sharePublicly}
+              onChange={setSharePublicly}
+            />
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function ParamGrid({ model, params, onParamChange }: ParamGridProps) {
   const slider = (

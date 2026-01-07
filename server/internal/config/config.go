@@ -19,6 +19,11 @@ type Config struct {
 	ModelVaultRPCURL          string
 	ModelVaultContractAddress string
 
+	// RecipeVault blockchain configuration
+	RecipeVaultEnabled         bool
+	RecipeVaultRPCURL          string
+	RecipeVaultContractAddress string
+
 	// R2 storage configuration for direct media access
 	// Uses same env vars as system-core for consistency
 	R2Enabled            bool
@@ -45,6 +50,11 @@ func Load() Config {
 		ModelVaultEnabled:         getEnv("MODELVAULT_ENABLED", "true") == "true",
 		ModelVaultRPCURL:          getEnv("MODELVAULT_RPC_URL", "https://mainnet.base.org"),
 		ModelVaultContractAddress: getEnv("MODELVAULT_CONTRACT", "0x79F39f2a0eA476f53994812e6a8f3C8CFe08c609"),
+
+		// RecipeVault blockchain configuration (enabled by default, uses same contract as ModelVault - diamond proxy)
+		RecipeVaultEnabled:         getEnv("RECIPESVAULT_ENABLED", "true") == "true",
+		RecipeVaultRPCURL:          getEnv("RECIPESVAULT_RPC_URL", getEnv("MODELVAULT_RPC_URL", "https://mainnet.base.org")),
+		RecipeVaultContractAddress: getEnv("RECIPESVAULT_CONTRACT", getEnv("MODELVAULT_CONTRACT", "0x79F39f2a0eA476f53994812e6a8f3C8CFe08c609")),
 
 		// R2 storage configuration (uses same env vars as system-core)
 		R2Enabled:            os.Getenv("AWS_ACCESS_KEY_ID") != "" || os.Getenv("SHARED_AWS_ACCESS_ID") != "",
