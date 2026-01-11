@@ -5,6 +5,7 @@
 
 const STORAGE_KEY = 'aipg_job_history';
 const CREATIONS_KEY = 'aipg_creations';
+const ACTIVE_JOBS_KEY = 'aipg_active_jobs'; // For queued/processing jobs that survive refresh
 const MAX_JOBS = 100; // Keep last 100 jobs
 const MAX_CREATIONS = 50; // Keep last 50 creations with media
 
@@ -213,34 +214,172 @@ export function searchCreations(query: string): StoredCreation[] {
 }
 
 /**
- * Generate tags from prompt using simple keyword extraction
+ * Generate tags from prompt - only truly key words that provide distinguishable searches
+ * Focuses on distinctive nouns, specific descriptors, and unique identifiers
  */
 export function generateTagsFromPrompt(prompt: string): string[] {
-  // Common stop words to filter out
+  // Extended stop words - includes generic quality descriptors
   const stopWords = new Set([
-    'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-    'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
-    'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would',
-    'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need',
-    'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it',
-    'we', 'they', 'what', 'which', 'who', 'whom', 'whose', 'where',
-    'when', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more',
-    'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
-    'same', 'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here',
-    'there', 'then', 'once', 'if', 'because', 'although', 'though',
-    'while', 'where', 'after', 'before', 'above', 'below', 'between',
-    'under', 'over', 'through', 'during', 'against', 'about', 'into',
+    // Articles and pronouns
+    'a', 'an', 'the', 'this', 'that', 'these', 'those', 'i', 'you', 'he', 'she', 'it', 'we', 'they',
+    // Common verbs
+    'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had', 'do', 'does', 'did', 
+    'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need',
+    // Prepositions and conjunctions
+    'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'as',
+    'if', 'because', 'although', 'though', 'while', 'where', 'when', 'why', 'how',
+    'after', 'before', 'above', 'below', 'between', 'under', 'over', 'through', 'during',
+    'against', 'about', 'into', 'onto', 'upon', 'within', 'without',
+    // Generic qualifiers
+    'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some', 'such',
+    'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very', 'just',
+    'also', 'now', 'here', 'there', 'then', 'once',
+    // Generic quality descriptors (too common to be distinctive)
+    'high', 'quality', 'detailed', 'sharp', 'clear', 'good', 'great', 'excellent',
+    'beautiful', 'nice', 'fine', 'perfect', 'best', 'better', 'amazing', 'wonderful',
+    'smooth', 'clean', 'bright', 'dark', 'light', 'big', 'small', 'large', 'tiny',
+    'long', 'short', 'wide', 'narrow', 'thick', 'thin', 'full', 'empty',
+    // Common style descriptors (unless part of compound)
+    'style', 'art', 'artwork', 'image', 'picture', 'photo', 'photograph', 'drawing',
+    'painting', 'illustration', 'render', 'rendering', 'scene', 'view', 'shot',
   ]);
   
-  // Extract words, filter, and dedupe
+  // Extract potential keywords
   const words = prompt
     .toLowerCase()
     .replace(/[^\w\s-]/g, ' ')
     .split(/\s+/)
-    .filter(word => word.length > 2 && !stopWords.has(word))
-    .slice(0, 10); // Max 10 tags
+    .filter(word => {
+      // Must be at least 3 characters
+      if (word.length < 3) return false;
+      // Must not be a stop word
+      if (stopWords.has(word)) return false;
+      // Must not be purely numeric
+      if (/^\d+$/.test(word)) return false;
+      return true;
+    });
   
-  return [...new Set(words)];
+  // Prioritize distinctive words:
+  // 1. Compound words (hyphenated or common compounds)
+  // 2. Longer words (4+ chars) - more specific
+  // 3. Words that appear less frequently in prompts
+  
+  const scored = words.map(word => {
+    let score = 0;
+    // Longer words are more distinctive
+    score += word.length;
+    // Compound words (with hyphens) are more specific
+    if (word.includes('-')) score += 5;
+    // Prefer words that aren't too common
+    const commonWords = ['portrait', 'landscape', 'background', 'foreground', 'subject', 'object'];
+    if (!commonWords.includes(word)) score += 2;
+    return { word, score };
+  });
+  
+  // Sort by score (highest first) and take top 5
+  const topTags = scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5)
+    .map(item => item.word);
+  
+  return [...new Set(topTags)];
+}
+
+// ========== ACTIVE JOBS (queued/processing) ==========
+
+export interface ActiveJob {
+  jobId: string;
+  submittedAt: number;
+  status: 'queued' | 'processing' | 'completed' | 'faulted' | null;
+  error?: string;
+}
+
+/**
+ * Get all active jobs (queued/processing) from localStorage
+ */
+export function getActiveJobs(): ActiveJob[] {
+  if (typeof window === 'undefined') return [];
+  
+  try {
+    const data = localStorage.getItem(ACTIVE_JOBS_KEY);
+    if (!data) return [];
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Save an active job to localStorage
+ */
+export function saveActiveJob(job: ActiveJob): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const jobs = getActiveJobs();
+    
+    // Check if job already exists
+    const existingIndex = jobs.findIndex(j => j.jobId === job.jobId);
+    if (existingIndex >= 0) {
+      jobs[existingIndex] = job;
+    } else {
+      jobs.unshift(job); // Add to beginning
+    }
+    
+    // Remove completed/faulted jobs older than 1 hour
+    const now = Date.now();
+    const filtered = jobs.filter(j => {
+      if (j.status === 'completed' || j.status === 'faulted') {
+        return (now - j.submittedAt) < 3600000; // Keep for 1 hour
+      }
+      return true; // Keep all queued/processing jobs
+    });
+    
+    localStorage.setItem(ACTIVE_JOBS_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Failed to save active job to localStorage:', error);
+  }
+}
+
+/**
+ * Update an active job's status
+ */
+export function updateActiveJob(jobId: string, updates: Partial<ActiveJob>): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const jobs = getActiveJobs();
+    const index = jobs.findIndex(j => j.jobId === jobId);
+    if (index >= 0) {
+      jobs[index] = { ...jobs[index], ...updates };
+      localStorage.setItem(ACTIVE_JOBS_KEY, JSON.stringify(jobs));
+    }
+  } catch (error) {
+    console.error('Failed to update active job:', error);
+  }
+}
+
+/**
+ * Remove an active job from localStorage (when completed/faulted)
+ */
+export function removeActiveJob(jobId: string): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const jobs = getActiveJobs();
+    const filtered = jobs.filter(j => j.jobId !== jobId);
+    localStorage.setItem(ACTIVE_JOBS_KEY, JSON.stringify(filtered));
+  } catch (error) {
+    console.error('Failed to remove active job from localStorage:', error);
+  }
+}
+
+/**
+ * Clear all active jobs
+ */
+export function clearActiveJobs(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(ACTIVE_JOBS_KEY);
 }
 
 

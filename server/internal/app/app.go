@@ -151,7 +151,7 @@ var modelNameAliases = map[string][]string{
 	
 	// FLUX models - case and punctuation variations
 	"FLUX.1-dev":                     {"flux.1-dev", "flux1-dev", "flux1.dev", "flux1_dev", "FLUX.1-dev"},
-	"flux.1-krea-dev":                {"flux1-krea-dev", "flux1_krea_dev", "flux.1_krea_dev", "krea", "flux.1-krea-dev"},
+	"flux.1-krea-dev":                {"flux1-krea-dev", "flux1_krea_dev", "flux.1_krea_dev", "krea", "flux.1-krea-dev", "flux1-krea-dev_fp8_scaled", "flux1-krea-dev-fp8-scaled", "flux1_krea_dev_fp8_scaled"},
 	"FLUX.1-dev-Kontext-fp8-scaled":  {"flux.1-dev-kontext-fp8-scaled", "flux1-dev-kontext-fp8-scaled", "flux1_dev_kontext_fp8_scaled", "flux_kontext_dev_basic", "FLUX.1-dev-Kontext-fp8-scaled"},
 	"Flux.1-Schnell fp8 (Compact)":   {"flux.1-schnell fp8 (compact)", "flux1-schnell-fp8-compact", "flux.1-schnell", "Flux.1-Schnell fp8 (Compact)"},
 	
@@ -249,6 +249,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 
 	// Fetch available models from RecipeVault
 	var recipeVaultModels []string
+	log.Printf("RecipeVault: IsEnabled() = %v", a.recipeVaultClient.IsEnabled())
 	if a.recipeVaultClient.IsEnabled() {
 		recipeVaultModels, err = a.recipeVaultClient.ExtractModelsFromRecipes(ctx)
 		if err != nil {
@@ -256,6 +257,8 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("RecipeVault: found %d unique models in recipes: %v", len(recipeVaultModels), recipeVaultModels)
 		}
+	} else {
+		log.Printf("RecipeVault: disabled, will show all models from presets")
 	}
 
 	// Build a set of available models from RecipeVault for filtering
@@ -291,6 +294,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 	
 	// If RecipeVault is enabled, filter presets to only include models found in recipes
 	// Otherwise, show all presets
+	log.Printf("RecipeVault: filtering check - IsEnabled=%v, recipeVaultModelSet size=%d", a.recipeVaultClient.IsEnabled(), len(recipeVaultModelSet))
 	for _, preset := range presets {
 		// If RecipeVault is enabled and has models, only include models found in recipes
 		if a.recipeVaultClient.IsEnabled() && len(recipeVaultModelSet) > 0 {
@@ -356,9 +360,32 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 			
 			// Check if any RecipeVault model name contains preset ID or vice versa (fuzzy match)
 			if !found {
+				// Extract core model name by removing common suffixes
+				extractCoreModelName := func(normalized string) string {
+					// Remove common model file suffixes (in order of specificity)
+					suffixes := []string{"fp8scaled", "fp16scaled", "fp32scaled", "fp8", "fp16", "fp32", "scaled", "compact"}
+					core := normalized
+					for _, suffix := range suffixes {
+						if strings.HasSuffix(core, suffix) {
+							core = strings.TrimSuffix(core, suffix)
+						}
+					}
+					return core
+				}
+				
+				presetCore := extractCoreModelName(presetNormalized)
+				
 				for _, rvModel := range recipeVaultModels {
 					rvNormalized := normalizeModelName(rvModel)
-					// Check if normalized preset ID is contained in normalized model name or vice versa
+					rvCore := extractCoreModelName(rvNormalized)
+					
+					// Check if cores match or if one contains the other
+					if presetCore == rvCore || strings.Contains(rvCore, presetCore) || strings.Contains(presetCore, rvCore) {
+						found = true
+						log.Printf("RecipeVault: matched preset %q to RecipeVault model %q (core match: %q == %q)", preset.ID, rvModel, presetCore, rvCore)
+						break
+					}
+					// Also try original normalized match
 					if strings.Contains(rvNormalized, presetNormalized) || strings.Contains(presetNormalized, rvNormalized) {
 						found = true
 						log.Printf("RecipeVault: matched preset %q to RecipeVault model %q (normalized)", preset.ID, rvModel)
@@ -922,17 +949,22 @@ func buildJobView(resp *aipg.JobStatusResponse) JobView {
 		switch {
 		case gen.Video != "":
 			view.Kind = "video"
-			view.URL = gen.Video
+			view.URL = r2.ConvertToCDNURL(gen.Video)
 		case strings.Contains(strings.ToLower(gen.Mime), "video"):
 			view.Kind = "video"
-			view.URL = firstNonEmpty(gen.Video, gen.ImgURL, gen.Img)
+			rawURL := firstNonEmpty(gen.Video, gen.ImgURL, gen.Img)
+			if rawURL != "" {
+				view.URL = r2.ConvertToCDNURL(rawURL)
+			}
 		default:
 			view.Kind = "image"
-			view.URL = firstNonEmpty(gen.ImgURL, gen.Img)
+			rawURL := firstNonEmpty(gen.ImgURL, gen.Img)
 			view.Base64 = normalizeBase64(gen.Image)
-			if view.Base64 == "" && strings.HasPrefix(view.URL, "data:image") {
-				view.Base64 = view.URL
+			if view.Base64 == "" && strings.HasPrefix(rawURL, "data:image") {
+				view.Base64 = rawURL
 				view.URL = ""
+			} else if rawURL != "" {
+				view.URL = r2.ConvertToCDNURL(rawURL)
 			}
 		}
 		views = append(views, view)
@@ -1094,7 +1126,40 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 	
-	// Try to get media from R2 if we have generation IDs
+	// First try to fetch from Grid API to get generation IDs
+	// This ensures we have the correct generation IDs for CDN URLs
+	status, err := a.client.JobStatus(ctx, jobID)
+	if err == nil && len(status.Generations) > 0 {
+		// Extract generation IDs and build CDN URLs
+		urls := make([]string, 0, len(status.Generations))
+		genIDs := make([]string, 0, len(status.Generations))
+		
+		for _, gen := range status.Generations {
+			if gen.ID != "" {
+				genIDs = append(genIDs, gen.ID)
+				// Build CDN URL using generation ID
+				cdnURL := "https://images.aipg.art/" + gen.ID + ".webp"
+				urls = append(urls, cdnURL)
+			}
+		}
+		
+		// Update the gallery store with generation IDs for future use
+		if len(genIDs) > 0 {
+			a.galleryStore.UpdateGenerations(jobID, genIDs, urls)
+		}
+		
+		if len(urls) > 0 {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"jobId":    jobID,
+				"mediaUrls": urls,
+				"type":     item.Type,
+				"source":   "grid-api",
+			})
+			return
+		}
+	}
+	
+	// If Grid API failed or no generation IDs, try using R2 client if available
 	if a.r2Client != nil && len(item.GenerationIDs) > 0 {
 		urls := make([]string, 0, len(item.GenerationIDs))
 		for _, genID := range item.GenerationIDs {
@@ -1117,13 +1182,27 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	// Fall back to fetching from Grid API job status
-	status, err := a.client.JobStatus(ctx, jobID)
+	// Final fallback - use cached URLs or job ID
 	if err != nil {
 		log.Printf("Warning: failed to fetch job status for %s: %v", jobID, err)
+		cachedURLs := make([]string, 0, len(item.MediaURLs))
+		for _, cachedURL := range item.MediaURLs {
+			if cachedURL != "" {
+				// If it's already an R2 presigned URL, preserve it
+				if strings.Contains(cachedURL, ".r2.cloudflarestorage.com") || strings.Contains(cachedURL, "presigned") {
+					cachedURLs = append(cachedURLs, cachedURL)
+				} else {
+					// Otherwise convert to CDN format
+					cdnURL := r2.ConvertToCDNURL(cachedURL)
+					if cdnURL != "" {
+						cachedURLs = append(cachedURLs, cdnURL)
+					}
+				}
+			}
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"jobId":    jobID,
-			"mediaUrls": item.MediaURLs, // Return cached URLs
+			"mediaUrls": cachedURLs,
 			"type":     item.Type,
 			"source":   "cache",
 			"error":    "Job may have expired from Grid API",
@@ -1131,38 +1210,14 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Extract media URLs from generations
-	urls := make([]string, 0, len(status.Generations))
-	genIDs := make([]string, 0, len(status.Generations))
-	
-	for _, gen := range status.Generations {
-		var url string
-		switch {
-		case gen.Video != "":
-			url = gen.Video
-		case gen.ImgURL != "":
-			url = gen.ImgURL
-		case gen.Img != "":
-			url = gen.Img
-		}
-		if url != "" {
-			urls = append(urls, url)
-		}
-		if gen.ID != "" {
-			genIDs = append(genIDs, gen.ID)
-		}
-	}
-	
-	// Update the gallery store with the generation IDs and URLs for future use
-	if len(genIDs) > 0 || len(urls) > 0 {
-		a.galleryStore.UpdateGenerations(jobID, genIDs, urls)
-	}
-	
+	// Absolute fallback - return CDN URL using job ID
+	// This may work for older uploads that used job ID as filename
+	fallbackURL := "https://images.aipg.art/" + jobID + ".webp"
 	writeJSON(w, http.StatusOK, map[string]any{
 		"jobId":    jobID,
-		"mediaUrls": urls,
+		"mediaUrls": []string{fallbackURL},
 		"type":     item.Type,
-		"source":   "grid-api",
+		"source":   "fallback",
 	})
 }
 

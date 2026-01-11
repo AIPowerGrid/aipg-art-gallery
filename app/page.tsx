@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { fetchGallery, fetchGalleryMedia, deleteGalleryItem, GalleryItem } from "@/lib/api";
+import { ImageModal } from "@/components/image-modal";
 
 const PAGE_SIZE = 25;
 
@@ -82,6 +83,7 @@ export default function GalleryPage() {
   const [hasMore, setHasMore] = useState(true);
   const [nextOffset, setNextOffset] = useState(0);
   const [total, setTotal] = useState(0);
+  const [selectedItem, setSelectedItem] = useState<GalleryItemWithMedia | null>(null);
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -222,10 +224,56 @@ export default function GalleryPage() {
     try {
       await deleteGalleryItem(jobId, address);
       setItems(prev => prev.filter(i => i.jobId !== jobId));
+      if (selectedItem?.jobId === jobId) {
+        setSelectedItem(null);
+      }
     } catch (err: any) {
       alert(`Failed to delete: ${err.message}`);
     } finally {
       setDeleting(null);
+    }
+  }
+
+  function handleDownload(item: GalleryItemWithMedia) {
+    const mediaSrc = item.mediaUrls?.[0];
+    if (!mediaSrc) return;
+    
+    const isVideo = item.type === "video";
+    const filename = `${item.jobId}.${isVideo ? "mp4" : "png"}`;
+    
+    try {
+      // For base64 data, create a blob directly
+      if (mediaSrc.startsWith("data:")) {
+        const link = document.createElement("a");
+        link.href = mediaSrc;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For URLs, fetch and download
+      fetch(mediaSrc)
+        .then(response => response.blob())
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        })
+        .catch(err => {
+          console.error("Download failed:", err);
+          // Fallback: open in new tab
+          window.open(mediaSrc, "_blank");
+        });
+    } catch (err) {
+      console.error("Download failed:", err);
+      window.open(mediaSrc, "_blank");
     }
   }
 
@@ -318,6 +366,8 @@ export default function GalleryPage() {
                 canDelete={mounted && isConnected && address ? 
                   (!item.walletAddress || item.walletAddress.toLowerCase() === address.toLowerCase()) 
                   : false}
+                onSelect={() => setSelectedItem(item)}
+                onDownload={() => handleDownload(item)}
               />
             ))}
           </div>
@@ -345,6 +395,18 @@ export default function GalleryPage() {
           </div>
         </>
       )}
+
+      {/* Image Modal */}
+      {selectedItem && (
+        <ImageModal
+          isOpen={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+          mediaSrc={selectedItem.mediaUrls?.[0]}
+          prompt={selectedItem.prompt}
+          isVideo={selectedItem.type === "video"}
+          onDownload={() => handleDownload(selectedItem)}
+        />
+      )}
     </main>
   );
 }
@@ -354,9 +416,11 @@ interface GalleryCardProps {
   onDelete: () => void;
   isDeleting: boolean;
   canDelete: boolean;
+  onSelect: () => void;
+  onDownload: () => void;
 }
 
-function GalleryCard({ item, onDelete, isDeleting, canDelete }: GalleryCardProps) {
+function GalleryCard({ item, onDelete, isDeleting, canDelete, onSelect, onDownload }: GalleryCardProps) {
   const [imageError, setImageError] = useState(false);
   const [showControls, setShowControls] = useState(false);
   
@@ -366,9 +430,10 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete }: GalleryCardProps
 
   return (
     <div 
-      className="panel group hover:scale-[1.02] transition-transform relative"
+      className="panel group hover:scale-[1.02] transition-transform relative cursor-pointer"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
+      onClick={hasMedia ? onSelect : undefined}
     >
       <div className="relative aspect-square rounded-xl overflow-hidden bg-black/40">
         {item.loading ? (
@@ -383,12 +448,15 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete }: GalleryCardProps
             </span>
           </div>
         ) : isVideo ? (
+          // Display videos with proper video element
           <video
             src={mediaSrc}
             className="w-full h-full object-cover"
-            controls
             muted
+            loop
             playsInline
+            onMouseEnter={(e) => e.currentTarget.play()}
+            onMouseLeave={(e) => e.currentTarget.pause()}
             onError={() => setImageError(true)}
           />
         ) : imageError ? (
@@ -416,6 +484,24 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete }: GalleryCardProps
           </div>
         )}
 
+        {/* Download button - visible on hover */}
+        {showControls && hasMedia && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload();
+            }}
+            className={`absolute bottom-2 p-2 bg-green-500/80 hover:bg-green-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 z-10 ${
+              canDelete ? "right-14" : "right-2"
+            }`}
+            title="Download"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
+        )}
+
         {/* Delete button - visible on hover, only for owner */}
         {showControls && canDelete && (
           <button
@@ -424,7 +510,7 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete }: GalleryCardProps
               onDelete();
             }}
             disabled={isDeleting}
-            className="absolute bottom-2 right-2 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+            className="absolute bottom-2 right-2 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50 z-10"
             title="Delete from gallery"
           >
             {isDeleting ? (
@@ -450,6 +536,11 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete }: GalleryCardProps
           <span>{item.modelName}</span>
           <span>{new Date(item.createdAt).toLocaleDateString()}</span>
         </div>
+        {item.walletAddress && (
+          <div className="text-xs text-white/40 font-mono truncate" title={item.walletAddress}>
+            {item.walletAddress.slice(0, 6)}...{item.walletAddress.slice(-4)}
+          </div>
+        )}
       </div>
     </div>
   );

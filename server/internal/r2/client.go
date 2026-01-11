@@ -3,6 +3,8 @@ package r2
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -106,17 +108,80 @@ func (c *Client) GenerateDownloadURL(ctx context.Context, objectKey string, expi
 	return "", fmt.Errorf("no R2 client available")
 }
 
-// GenerateMediaURL returns a URL for accessing the media
+// GenerateMediaURL returns a CDN URL for accessing the media
+// Always returns CDN URL since presigned URLs have permission issues
 func (c *Client) GenerateMediaURL(ctx context.Context, procgenID string, mediaType string) (string, error) {
-	// Determine the file extension based on media type
-	ext := ".webp"
-	if mediaType == "video" {
-		ext = ".mp4"
-	}
-	objectKey := procgenID + ext
+	// All media files (images and videos) use .webp extension
+	// Videos are stored as MP4 with .webp extension for CDN compatibility
+	filename := procgenID + ".webp"
+	
+	// Always return CDN URL - presigned URLs have permission issues
+	// The CDN handles Content-Type headers correctly for video playback
+	return "https://images.aipg.art/" + filename, nil
+}
 
-	// Generate a presigned URL (valid for 30 minutes)
-	return c.GenerateDownloadURL(ctx, objectKey, 30*time.Minute)
+// ConvertToCDNURL converts any R2 URL to the CDN format
+// Extracts the filename from the URL and returns https://images.aipg.art/{filename}
+func ConvertToCDNURL(mediaURL string) string {
+	// Return empty string if input is empty
+	if mediaURL == "" {
+		return ""
+	}
+	
+	// If already a CDN URL, return as-is
+	if strings.HasPrefix(mediaURL, "https://images.aipg.art/") {
+		return mediaURL
+	}
+	
+	// Skip data URLs (base64 encoded images)
+	if strings.HasPrefix(mediaURL, "data:") {
+		return mediaURL
+	}
+	
+	// Extract filename from R2 URL
+	// R2 URLs typically look like: https://...r2.cloudflarestorage.com/bucket/{filename}?...
+	// Or: https://.../{filename}.webp?...
+	u, err := url.Parse(mediaURL)
+	if err != nil {
+		// If parsing fails, try to extract filename manually
+		parts := strings.Split(mediaURL, "/")
+		if len(parts) > 0 {
+			filename := parts[len(parts)-1]
+			// Remove query params if present
+			if idx := strings.Index(filename, "?"); idx != -1 {
+				filename = filename[:idx]
+			}
+			// If no extension, add .webp
+			if !strings.Contains(filename, ".") {
+				filename = filename + ".webp"
+			}
+			return "https://images.aipg.art/" + filename
+		}
+		return mediaURL // Fallback to original URL
+	}
+	
+	// Extract filename from path
+	path := strings.Trim(u.Path, "/")
+	if path == "" {
+		// If path is empty, try to extract from the last part of the host or use the original URL
+		return mediaURL
+	}
+	
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		filename := parts[len(parts)-1]
+		// Skip if filename is empty
+		if filename == "" {
+			return mediaURL
+		}
+		// If filename has no extension, add .webp
+		if !strings.Contains(filename, ".") {
+			filename = filename + ".webp"
+		}
+		return "https://images.aipg.art/" + filename
+	}
+	
+	return mediaURL // Fallback to original URL
 }
 
 // ObjectExists checks if an object exists in either bucket

@@ -1,32 +1,40 @@
-/**
- * Supabase stub - this file exists for backwards compatibility
- * The app now uses localStorage + Grid API instead of Supabase
- */
+import { createClient } from '@supabase/supabase-js';
 
-// Stub client that does nothing
-export const supabase = {
-  auth: {
-    getUser: async () => ({ data: { user: null }, error: null }),
-    signOut: async () => ({ error: null }),
-    signInWithOAuth: async () => ({ error: null }),
-  },
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        order: () => ({
-          limit: async () => ({ data: [], error: null }),
+// Initialize Supabase client for OAuth authentication
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : {
+      // Fallback stub if Supabase is not configured
+      auth: {
+        getUser: async () => ({ data: { user: null }, error: null }),
+        getSession: async () => ({ data: { session: null }, error: null }),
+        signOut: async () => ({ error: null }),
+        signInWithOAuth: async (options: { provider: string; options?: any }) => {
+          console.warn('Supabase not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY');
+          return { error: new Error('Supabase not configured') };
+        },
+        onAuthStateChange: () => ({ data: { subscription: null }, error: null }),
+      },
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            order: () => ({
+              limit: async () => ({ data: [], error: null }),
+            }),
+          }),
+        }),
+        insert: async () => ({ error: null }),
+        update: () => ({
+          eq: async () => ({ error: null }),
+        }),
+        delete: () => ({
+          eq: async () => ({ error: null }),
         }),
       }),
-    }),
-    insert: async () => ({ error: null }),
-    update: () => ({
-      eq: async () => ({ error: null }),
-    }),
-    delete: () => ({
-      eq: async () => ({ error: null }),
-    }),
-  }),
-};
+    };
 
 // Type definitions kept for compatibility
 export interface Generation {
