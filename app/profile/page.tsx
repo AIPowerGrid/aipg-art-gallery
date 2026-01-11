@@ -6,6 +6,7 @@ import Link from "next/link";
 import { fetchGalleryByWallet, fetchJobStatus, fetchGalleryMedia, GalleryItem } from "@/lib/api";
 import { JobStatus } from "@/types/models";
 import { ImageModal } from "@/components/image-modal";
+import { WalletButton } from "@/components/wallet-button";
 
 interface ItemWithStatus extends GalleryItem {
   status?: JobStatus;
@@ -66,26 +67,53 @@ function ProfilePageClient() {
       setItems(itemsWithLoading);
       setLoading(false);
       
-      // Fetch status and media for each item
-      for (const item of response.items.slice(0, 20)) {
-        try {
-          // Fetch job status
-          const status = await fetchJobStatus(item.jobId);
-          
-          // Fetch media URLs
-          const media = await fetchGalleryMedia(item.jobId);
-          
-          setItems(prev => prev.map(i => 
-            i.jobId === item.jobId 
-              ? { ...i, status, mediaUrls: media.mediaUrls, mediaError: media.error, loading: false }
-              : i
-          ));
-        } catch {
-          setItems(prev => prev.map(i => 
-            i.jobId === item.jobId 
-              ? { ...i, loading: false }
-              : i
-          ));
+      // Fetch media for items (non-blocking, in batches)
+      // Job status is optional - we prioritize media URLs from the gallery
+      const itemsToProcess = response.items;
+      const batchSize = 10; // Increased batch size since we're not fetching job status
+      
+      for (let i = 0; i < itemsToProcess.length; i += batchSize) {
+        const batch = itemsToProcess.slice(i, i + batchSize);
+        
+        // Process batch in parallel - only fetch media, skip job status to avoid 502 errors
+        Promise.allSettled(
+          batch.map(async (item) => {
+            try {
+              // Only fetch media URLs - job status is optional and often unavailable
+              const media = await fetchGalleryMedia(item.jobId).catch((err) => {
+                // Silently handle errors - don't log expected failures
+                return { mediaUrls: item.mediaUrls || [], error: undefined };
+              });
+              
+              setItems(prev => prev.map(i => 
+                i.jobId === item.jobId 
+                  ? { 
+                      ...i, 
+                      mediaUrls: media.mediaUrls || item.mediaUrls || [],
+                      mediaError: media.error,
+                      loading: false 
+                    }
+                  : i
+              ));
+            } catch (err) {
+              // Silently handle errors - use existing mediaUrls if available
+              setItems(prev => prev.map(i => 
+                i.jobId === item.jobId 
+                  ? { 
+                      ...i, 
+                      loading: false, 
+                      mediaUrls: item.mediaUrls || [],
+                      mediaError: undefined
+                    }
+                  : i
+              ));
+            }
+          })
+        );
+        
+        // Small delay between batches to avoid overwhelming the server
+        if (i + batchSize < itemsToProcess.length) {
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
     } catch (err: any) {
@@ -142,34 +170,67 @@ function ProfilePageClient() {
   // Not connected
   if (!isConnected) {
     return (
-      <main className="flex-1 w-full px-4 md:px-10 py-8 space-y-8">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-gradient">
-              My Creations
-            </h1>
-            <p className="text-white/50 text-sm mt-1">
-              Connect your wallet to view your creations
-            </p>
+      <main className="flex-1 w-full min-h-screen bg-black">
+        {/* Header with navigation and wallet */}
+        <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5">
+          <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
+            <Link href="/" className="text-white text-xl font-semibold">
+              AIPG Art Gallery
+            </Link>
+            <div className="flex items-center gap-6">
+              <Link
+                href="/"
+                className="text-white/80 hover:text-white text-sm transition"
+              >
+                Gallery
+              </Link>
+              <Link
+                href="/create"
+                className="text-white/80 hover:text-white text-sm transition"
+              >
+                Create
+              </Link>
+              <Link
+                href="/profile"
+                className="text-white/80 hover:text-white text-sm transition"
+              >
+                My Creations
+              </Link>
+            </div>
+            <div className="flex items-center gap-3">
+              <WalletButton />
+            </div>
           </div>
         </header>
 
-        <div className="text-center py-20">
-          <div className="panel max-w-md mx-auto space-y-4">
-            <div className="text-4xl">🔗</div>
-            <h2 className="text-xl font-semibold text-white">Connect Your Wallet</h2>
-            <p className="text-white/70">
-              Your wallet address is used to identify your creations across devices.
-            </p>
+        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-8 space-y-8">
+          {/* Title */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+              AIPG Art Gallery
+            </h1>
             <p className="text-white/50 text-sm">
-              Connect your wallet using the button in the top right corner.
+              My Creations
             </p>
-            <Link
-              href="/create"
-              className="inline-block px-6 py-2 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
-            >
-              Start Creating
-            </Link>
+          </div>
+
+          <div className="text-center py-20">
+            <div className="panel max-w-md mx-auto space-y-4">
+              <div className="text-4xl">🔗</div>
+              <h2 className="text-xl font-semibold text-white">Connect Your Wallet</h2>
+              <p className="text-white/70">
+                Your wallet address is used to identify your creations across devices.
+              </p>
+              <p className="text-white/50 text-sm">
+                Connect your wallet using the button in the top right corner.
+              </p>
+              <Link
+                href="/create"
+                className="inline-block px-6 py-2 rounded-md bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
+              >
+                Start Creating
+              </Link>
+            </div>
           </div>
         </div>
       </main>
@@ -177,97 +238,153 @@ function ProfilePageClient() {
   }
 
   return (
-    <main className="flex-1 w-full px-4 md:px-10 py-8 space-y-8">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-gradient">
-            My Creations
-          </h1>
-          <p className="text-white/50 text-sm mt-1 font-mono">
-            {address?.slice(0, 6)}...{address?.slice(-4)}
-          </p>
+    <main className="flex-1 w-full min-h-screen bg-black">
+      {/* Header with navigation and wallet */}
+      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5">
+        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="text-white text-xl font-semibold">
+            AIPG Art Gallery
+          </Link>
+          <div className="flex items-center gap-6">
+            <Link
+              href="/"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              Gallery
+            </Link>
+            <Link
+              href="/create"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              Create
+            </Link>
+            <Link
+              href="/profile"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              My Creations
+            </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <WalletButton />
+          </div>
         </div>
       </header>
 
-      {/* Info panel */}
-      <div className="panel bg-white/5 border-white/10">
-        <div className="flex items-start gap-4 text-sm">
-          <span className="text-xl">💡</span>
-          <div className="space-y-1 text-white/70">
-            <p>These are creations linked to your wallet address. They're accessible from any device when you connect the same wallet.</p>
+      {/* Prominent search bar in center */}
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-12">
+        <div className="max-w-2xl mx-auto">
+          {/* Header */}
+          <h1 className="text-center text-3xl md:text-4xl font-bold text-white mb-8">
+            My Creations
+          </h1>
+          
+          {/* Search bar */}
+          <div className="relative mb-6">
+            <input
+              type="text"
+              placeholder="Search for an image..."
+              className="w-full px-6 py-4 bg-white/10 border-2 border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-orange-500/50 transition text-lg"
+            />
+            <button
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white transition"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center text-white/50 py-20">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" />
-          Loading your creations...
-        </div>
-      ) : error ? (
-        <div className="text-center py-20">
-          <div className="panel max-w-md mx-auto space-y-4">
-            <div className="text-4xl">⚠️</div>
-            <h2 className="text-xl font-semibold text-white">Error</h2>
-            <p className="text-white/70">{error}</p>
-            <button
-              onClick={() => address && loadCreations(address)}
-              className="inline-block px-6 py-2 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
-            >
-              Try Again
-            </button>
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-8">
+        {loading ? (
+          <div className="text-center text-white/50 py-20">
+            <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" />
+            Loading your creations...
           </div>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="panel max-w-md mx-auto space-y-4">
-            <div className="text-4xl">🎨</div>
-            <h2 className="text-xl font-semibold text-white">No creations yet</h2>
-            <p className="text-white/70">
-              When you generate images or videos with your wallet connected, they'll appear here.
-            </p>
-            <Link
-              href="/create"
-              className="inline-block px-6 py-2 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
-            >
-              Start Creating
-            </Link>
+        ) : error ? (
+          <div className="text-center py-40">
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="text-4xl">⚠️</div>
+              <h2 className="text-xl font-semibold text-white">Could not load creations</h2>
+              <p className="text-white/70">{error}</p>
+              <button
+                onClick={() => address && loadCreations(address)}
+                className="inline-block px-6 py-2 rounded-md bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
+              >
+                Try Again
+              </button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {items.map((item) => (
-              <CreationCard 
-                key={item.jobId} 
-                item={item}
-                onSelect={() => setSelectedItem(item)}
-                onDownload={() => handleDownload(item)}
-              />
-            ))}
+        ) : items.length === 0 ? (
+          <div className="text-center py-40">
+            <div className="max-w-md mx-auto space-y-4">
+              <div className="text-4xl">🎨</div>
+              <h2 className="text-xl font-semibold text-white">No creations yet</h2>
+              <p className="text-white/70">
+                When you generate images or videos with your wallet connected, they'll appear here.
+              </p>
+              <Link
+                href="/create"
+                className="inline-block px-6 py-2 rounded-md bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
+              >
+                Start Creating
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Gallery grid - lexica style masonry layout */}
+            <div className="max-w-[1920px] mx-auto px-6 md:px-12 pb-12">
+              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-0">
+              {items.map((item) => (
+                <CreationCard 
+                  key={item.jobId} 
+                  item={item}
+                  onSelect={() => setSelectedItem(item)}
+                  onDownload={() => handleDownload(item)}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Image Modal */}
           {selectedItem && (() => {
             const generation = selectedItem.status?.generations?.[0];
-            const mediaSrc = generation?.base64 || generation?.url;
-            const isVideo = generation?.kind === "video" || selectedItem.type === "video";
+            const mediaSrc = generation?.base64 || generation?.url || selectedItem.mediaUrls?.[0];
             
             if (!mediaSrc) return null;
+            
+            // Construct a GalleryItem for the modal with mediaUrls
+            const modalItem: GalleryItem = {
+              jobId: selectedItem.jobId,
+              modelId: selectedItem.modelId,
+              modelName: selectedItem.modelName,
+              prompt: selectedItem.prompt,
+              negativePrompt: selectedItem.negativePrompt,
+              type: selectedItem.type,
+              isNsfw: selectedItem.isNsfw,
+              walletAddress: selectedItem.walletAddress,
+              createdAt: selectedItem.createdAt,
+              params: selectedItem.params,
+              mediaUrls: mediaSrc.startsWith('data:') || mediaSrc.startsWith('http') 
+                ? [mediaSrc] 
+                : selectedItem.mediaUrls || [],
+            };
             
             return (
               <ImageModal
                 isOpen={!!selectedItem}
                 onClose={() => setSelectedItem(null)}
-                mediaSrc={mediaSrc}
-                prompt={selectedItem.prompt}
-                isVideo={isVideo}
+                item={modalItem}
                 onDownload={() => handleDownload(selectedItem)}
               />
             );
           })()}
         </>
-      )}
+        )}
+      </div>
     </main>
   );
 }
@@ -282,113 +399,89 @@ function CreationCard({ item, onSelect, onDownload }: CreationCardProps) {
   const [imageError, setImageError] = useState(false);
   const [showControls, setShowControls] = useState(false);
   
+  // Use mediaUrls if available, otherwise fall back to generation data from job status
   const generation = item.status?.generations?.[0];
-  const isCompleted = item.status?.status === "completed";
   const isFaulted = item.status?.status === "faulted";
-  // Use mediaUrls if available, otherwise fall back to generation data
   const mediaSrc = item.mediaUrls?.[0] || generation?.base64 || generation?.url;
   const isVideo = item.type === "video";
-  const hasMedia = !!mediaSrc && (isCompleted || (item.mediaUrls?.length ?? 0) > 0) && !isFaulted;
+  // Don't require job status - if we have mediaUrls, show the media
+  const hasMedia = !!mediaSrc && !isFaulted && (item.mediaUrls?.length ?? 0) > 0;
 
   return (
     <div 
-      className="panel group cursor-pointer"
+      className="group relative cursor-pointer break-inside-avoid mb-0 rounded-none overflow-hidden bg-black/20 hover:bg-black/30 transition-all"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
       onClick={hasMedia ? onSelect : undefined}
     >
-      <div className="relative aspect-square rounded-xl overflow-hidden bg-black/40">
+      <div className="relative w-full overflow-hidden bg-black/40">
         {item.loading ? (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full min-h-[200px] flex items-center justify-center">
             <div className="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full" />
           </div>
         ) : isFaulted ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-red-400/70 p-4 text-center">
-            <span className="text-2xl mb-2">❌</span>
-            <span className="text-xs">Generation failed</span>
+          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/30 p-4">
+            <span className="text-3xl mb-2">❌</span>
+            <span className="text-xs text-center">Generation failed</span>
           </div>
-        ) : !isCompleted ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-yellow-400/70 p-4 text-center">
-            <div className="animate-spin w-6 h-6 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full mb-2" />
-            <span className="text-xs">Processing...</span>
-          </div>
-        ) : !mediaSrc ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-white/30 p-4 text-center">
-            <span className="text-2xl mb-2">{isVideo ? "🎬" : "🖼️"}</span>
-            <span className="text-xs">Preview unavailable</span>
+        ) : !hasMedia ? (
+          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/30 p-4">
+            <span className="text-3xl mb-2">{isVideo ? "🎬" : "🖼️"}</span>
+            <span className="text-xs text-center">Media unavailable</span>
           </div>
         ) : isVideo ? (
+          // Display videos with proper video element
           <video
             src={mediaSrc}
-            className="w-full h-full object-cover"
-            controls
+            className="w-full h-auto object-contain"
             muted
+            loop
+            playsInline
+            onMouseEnter={(e) => e.currentTarget.play()}
+            onMouseLeave={(e) => e.currentTarget.pause()}
             onError={() => setImageError(true)}
           />
         ) : imageError ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-white/50 p-4 text-center">
+          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/50 p-4">
             <span className="text-2xl mb-2">🖼️</span>
             <span className="text-xs">Image unavailable</span>
-            {generation?.url && (
-              <a 
-                href={generation.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-400 text-xs mt-1 hover:underline"
-              >
-                Open link
-              </a>
-            )}
           </div>
         ) : (
           <img
             src={mediaSrc}
             alt={item.prompt}
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
+            loading="lazy"
             onError={() => setImageError(true)}
           />
         )}
         
-        {/* Type badge */}
-        <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white/80 text-xs rounded">
-          {item.type === "video" ? "🎬 Video" : "🖼️ Image"}
-        </div>
-        
-        {item.isNsfw && (
-          <div className="absolute top-2 right-2 px-2 py-0.5 bg-red-500/80 text-white text-xs rounded">
-            NSFW
+        {/* Overlay with controls - visible on hover */}
+        {showControls && hasMedia && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-10">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload();
+              }}
+              className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full transition-all"
+              title="Download"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
           </div>
         )}
 
-        {/* Download button - visible on hover */}
-        {showControls && hasMedia && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownload();
-            }}
-            className="absolute bottom-2 right-2 p-2 bg-green-500/80 hover:bg-green-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
-            title="Download"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </button>
-        )}
-      </div>
-      
-      <div className="p-4 space-y-3">
-        <p className="text-sm text-white/90 line-clamp-2">{item.prompt}</p>
-        <div className="flex items-center justify-between text-xs text-white/50">
-          <span>{item.modelName}</span>
-          <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-        </div>
-        {item.walletAddress && (
-          <div className="text-xs text-white/40 font-mono truncate" title={item.walletAddress}>
-            {item.walletAddress.slice(0, 6)}...{item.walletAddress.slice(-4)}
+        {/* NSFW badge */}
+        {item.isNsfw && (
+          <div className="absolute top-2 right-2 px-2 py-1 bg-red-500/90 text-white text-xs rounded backdrop-blur-sm">
+            NSFW
           </div>
         )}
       </div>
+      {/* No metadata shown on card - clean lexica style */}
     </div>
   );
 }

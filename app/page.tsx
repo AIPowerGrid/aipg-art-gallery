@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { fetchGallery, fetchGalleryMedia, deleteGalleryItem, GalleryItem } from "@/lib/api";
 import { ImageModal } from "@/components/image-modal";
+import { WalletButton } from "@/components/wallet-button";
+import { NetworkSelector } from "@/components/network-selector";
 
 const PAGE_SIZE = 25;
 
@@ -278,39 +280,98 @@ export default function GalleryPage() {
   }
 
   return (
-    <main className="flex-1 w-full px-4 md:px-10 py-8 space-y-8">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-gradient">
-            Gallery
-          </h1>
-          <p className="text-white/50 text-sm mt-1">
-            Browse community creations
-          </p>
+    <main className="flex-1 w-full min-h-screen bg-black">
+      {/* Header with navigation and wallet */}
+      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5">
+        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="text-white text-xl font-semibold">
+            AIPG Art Gallery
+          </Link>
+          <div className="flex items-center gap-6">
+            <Link
+              href="/"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              Gallery
+            </Link>
+            <Link
+              href="/create"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              Create
+            </Link>
+            <Link
+              href="/profile"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              My Creations
+            </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <WalletButton />
+          </div>
         </div>
-        <Link
-          href="/create"
-          className="px-6 py-2 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
-        >
-          Create
-        </Link>
       </header>
 
-      {/* Filters */}
-      <div className="flex gap-2">
-        {(["all", "image", "video"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-full border transition text-sm ${
-              filter === f
-                ? "border-white text-white bg-white/10"
-                : "border-white/20 text-white/70 hover:text-white"
-            }`}
-          >
-            {f === "all" ? "All" : f === "image" ? "🖼️ Images" : "🎬 Videos"}
-          </button>
-        ))}
+      {/* Prominent search bar in center */}
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-12">
+        <div className="max-w-2xl mx-auto">
+          {/* Title */}
+          <h1 className="text-center text-3xl md:text-4xl font-bold text-white mb-8">
+            AIPG Art Gallery
+          </h1>
+          
+          {/* Search bar */}
+          <div className="relative mb-6">
+            <input
+              type="text"
+              placeholder="Search for an image..."
+              className="w-full px-6 py-4 bg-white/10 border-2 border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-orange-500/50 transition text-lg"
+              disabled
+            />
+            <button
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white transition"
+              disabled
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex gap-4 justify-center mb-8">
+            <button
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
+              disabled
+            >
+              Search
+            </button>
+            <Link
+              href="/create"
+              className="px-6 py-3 rounded-xl bg-white/10 border border-white/20 text-white font-semibold hover:bg-white/20 transition"
+            >
+              Create
+            </Link>
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-2 justify-center">
+            {(["all", "image", "video"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-lg text-sm transition ${
+                  filter === f
+                    ? "bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold"
+                    : "bg-white/5 text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                }`}
+              >
+                {f === "all" ? "All" : f === "image" ? "Images" : "Videos"}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -319,22 +380,22 @@ export default function GalleryPage() {
           Loading gallery...
         </div>
       ) : error ? (
-        <div className="text-center py-20">
-          <div className="panel max-w-md mx-auto space-y-4">
+        <div className="text-center py-40">
+          <div className="max-w-md mx-auto space-y-4">
             <div className="text-4xl">⚠️</div>
             <h2 className="text-xl font-semibold text-white">Could not load gallery</h2>
             <p className="text-white/70">{error}</p>
             <button
               onClick={loadGallery}
-              className="inline-block px-6 py-2 rounded-full bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
+              className="inline-block px-6 py-2 rounded-md bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
             >
               Try Again
             </button>
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="panel max-w-md mx-auto space-y-4">
+        <div className="text-center py-40">
+          <div className="max-w-md mx-auto space-y-4">
             <div className="text-4xl">🖼️</div>
             <h2 className="text-xl font-semibold text-white">No shared creations yet</h2>
             <p className="text-white/70">
@@ -342,7 +403,7 @@ export default function GalleryPage() {
             </p>
             <Link
               href="/create"
-              className="inline-block px-6 py-2 rounded-full bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
+              className="inline-block px-6 py-2 rounded-md bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
             >
               Start Creating
             </Link>
@@ -350,32 +411,29 @@ export default function GalleryPage() {
         </div>
       ) : (
         <>
-          {/* Item count */}
-          <div className="text-white/50 text-sm">
-            Showing {items.length} of {total} items
-          </div>
-
-          {/* Gallery grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {items.map((item) => (
-              <GalleryCard 
-                key={item.jobId} 
-                item={item} 
-                onDelete={() => handleDelete(item.jobId, item.walletAddress)}
-                isDeleting={deleting === item.jobId}
-                canDelete={mounted && isConnected && address ? 
-                  (!item.walletAddress || item.walletAddress.toLowerCase() === address.toLowerCase()) 
-                  : false}
-                onSelect={() => setSelectedItem(item)}
-                onDownload={() => handleDownload(item)}
-              />
-            ))}
+          {/* Gallery grid - lexica style masonry layout */}
+          <div className="max-w-[1920px] mx-auto px-6 md:px-12 pb-12">
+            <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-0">
+              {items.map((item) => (
+                <GalleryCard 
+                  key={item.jobId} 
+                  item={item} 
+                  onDelete={() => handleDelete(item.jobId, item.walletAddress)}
+                  isDeleting={deleting === item.jobId}
+                  canDelete={mounted && isConnected && address ? 
+                    (!item.walletAddress || item.walletAddress.toLowerCase() === address.toLowerCase()) 
+                    : false}
+                  onSelect={() => setSelectedItem(item)}
+                  onDownload={() => handleDownload(item)}
+                />
+              ))}
+            </div>
           </div>
 
           {/* Infinite scroll trigger */}
           <div 
             ref={loadMoreRef}
-            className="flex justify-center py-8"
+            className="flex justify-center py-12"
           >
             {loadingMore ? (
               <div className="flex items-center gap-3 text-white/50">
@@ -385,7 +443,7 @@ export default function GalleryPage() {
             ) : hasMore ? (
               <button
                 onClick={loadMore}
-                className="px-6 py-2 rounded-full bg-white/10 border border-white/20 text-white/70 hover:text-white hover:bg-white/20 transition"
+                className="px-6 py-2 rounded-md bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 transition"
               >
                 Load More
               </button>
@@ -401,9 +459,7 @@ export default function GalleryPage() {
         <ImageModal
           isOpen={!!selectedItem}
           onClose={() => setSelectedItem(null)}
-          mediaSrc={selectedItem.mediaUrls?.[0]}
-          prompt={selectedItem.prompt}
-          isVideo={selectedItem.type === "video"}
+          item={selectedItem}
           onDownload={() => handleDownload(selectedItem)}
         />
       )}
@@ -430,18 +486,18 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete, onSelect, onDownlo
 
   return (
     <div 
-      className="panel group hover:scale-[1.02] transition-transform relative cursor-pointer"
+      className="group relative cursor-pointer break-inside-avoid mb-0 rounded-none overflow-hidden bg-black/20 hover:bg-black/30 transition-all"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
       onClick={hasMedia ? onSelect : undefined}
     >
-      <div className="relative aspect-square rounded-xl overflow-hidden bg-black/40">
+      <div className="relative w-full overflow-hidden bg-black/40">
         {item.loading ? (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full min-h-[200px] flex items-center justify-center">
             <div className="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full" />
           </div>
         ) : !hasMedia ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-white/30 p-4">
+          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/30 p-4">
             <span className="text-3xl mb-2">{isVideo ? "🎬" : "🖼️"}</span>
             <span className="text-xs text-center">
               {item.mediaError || "Media unavailable"}
@@ -451,7 +507,7 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete, onSelect, onDownlo
           // Display videos with proper video element
           <video
             src={mediaSrc}
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
             muted
             loop
             playsInline
@@ -460,7 +516,7 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete, onSelect, onDownlo
             onError={() => setImageError(true)}
           />
         ) : imageError ? (
-          <div className="w-full h-full flex flex-col items-center justify-center text-white/50 p-4">
+          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/50 p-4">
             <span className="text-2xl mb-2">🖼️</span>
             <span className="text-xs">Image unavailable</span>
           </div>
@@ -468,80 +524,57 @@ function GalleryCard({ item, onDelete, isDeleting, canDelete, onSelect, onDownlo
           <img
             src={mediaSrc}
             alt={item.prompt}
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
+            loading="lazy"
             onError={() => setImageError(true)}
           />
         )}
         
-        {/* Type badge */}
-        <div className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white/80 text-xs rounded">
-          {item.type === "video" ? "🎬" : "🖼️"}
-        </div>
-        
+        {/* Overlay with controls - visible on hover */}
+        {showControls && hasMedia && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-10">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload();
+              }}
+              className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full transition-all"
+              title="Download"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+            </button>
+            {canDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete();
+                }}
+                disabled={isDeleting}
+                className="p-2 bg-red-500/80 hover:bg-red-600 backdrop-blur-sm text-white rounded-full transition-all disabled:opacity-50"
+                title="Delete from gallery"
+              >
+                {isDeleting ? (
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* NSFW badge */}
         {item.isNsfw && (
-          <div className="absolute top-2 right-2 px-2 py-0.5 bg-red-500/80 text-white text-xs rounded">
+          <div className="absolute top-2 right-2 px-2 py-1 bg-red-500/90 text-white text-xs rounded backdrop-blur-sm">
             NSFW
           </div>
         )}
-
-        {/* Download button - visible on hover */}
-        {showControls && hasMedia && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDownload();
-            }}
-            className={`absolute bottom-2 p-2 bg-green-500/80 hover:bg-green-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 z-10 ${
-              canDelete ? "right-14" : "right-2"
-            }`}
-            title="Download"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-          </button>
-        )}
-
-        {/* Delete button - visible on hover, only for owner */}
-        {showControls && canDelete && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            disabled={isDeleting}
-            className="absolute bottom-2 right-2 p-2 bg-red-500/80 hover:bg-red-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50 z-10"
-            title="Delete from gallery"
-          >
-            {isDeleting ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            )}
-          </button>
-        )}
-
-        {/* Media source indicator (for debugging) */}
-        {item.mediaSource && (
-          <div className="absolute bottom-2 left-2 px-1.5 py-0.5 bg-black/60 text-white/50 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity">
-            {item.mediaSource}
-          </div>
-        )}
       </div>
-      <div className="p-4 space-y-2">
-        <p className="text-sm text-white/90 line-clamp-2">{item.prompt}</p>
-        <div className="flex items-center justify-between text-xs text-white/50">
-          <span>{item.modelName}</span>
-          <span>{new Date(item.createdAt).toLocaleDateString()}</span>
-        </div>
-        {item.walletAddress && (
-          <div className="text-xs text-white/40 font-mono truncate" title={item.walletAddress}>
-            {item.walletAddress.slice(0, 6)}...{item.walletAddress.slice(-4)}
-          </div>
-        )}
-      </div>
+      {/* No metadata shown on card - clean lexica style */}
     </div>
   );
 }

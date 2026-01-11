@@ -44,6 +44,21 @@ export function fetchJobStatus(jobId: string) {
 
 // Gallery API
 
+export interface JobParams {
+  width?: number;
+  height?: number;
+  steps?: number;
+  cfgScale?: number;
+  sampler?: string;
+  scheduler?: string;
+  seed?: string;
+  denoise?: number;
+  length?: number;
+  fps?: number;
+  tiling?: boolean;
+  hiresFix?: boolean;
+}
+
 export interface GalleryItem {
   jobId: string;
   modelId: string;
@@ -54,6 +69,8 @@ export interface GalleryItem {
   isNsfw: boolean;
   walletAddress?: string;
   createdAt: number;
+  params?: JobParams;
+  mediaUrls?: string[];
 }
 
 export interface GalleryResponse {
@@ -82,6 +99,7 @@ export interface AddToGalleryRequest {
   isNsfw: boolean;
   isPublic: boolean;
   walletAddress?: string;
+  params?: JobParams;
 }
 
 export function addToGallery(item: AddToGalleryRequest): Promise<{ success: boolean }> {

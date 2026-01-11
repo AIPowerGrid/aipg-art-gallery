@@ -47,34 +47,6 @@ export default function RootLayout({
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(255,215,0,0.08),_transparent_60%)]" />
           </div>
           <div className="min-h-screen flex flex-col">
-            <nav className="border-b border-white/10 px-4 md:px-10 py-4">
-              <div className="flex items-center justify-between">
-                <Link href="/" className="text-xl font-semibold text-gradient">
-                  AIPG Art Gallery
-                </Link>
-                <div className="flex items-center gap-6">
-                  <Link
-                    href="/"
-                    className="text-white/70 hover:text-white transition"
-                  >
-                    Gallery
-                  </Link>
-                  <Link
-                    href="/create"
-                    className="text-white/70 hover:text-white transition"
-                  >
-                    Create
-                  </Link>
-                  <Link
-                    href="/profile"
-                    className="text-white/70 hover:text-white transition"
-                  >
-                    My Creations
-                  </Link>
-                  <NavWallet />
-                </div>
-              </div>
-            </nav>
             {children}
           </div>
         </Providers>

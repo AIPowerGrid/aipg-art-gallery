@@ -1022,16 +1022,32 @@ func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+type JobParamsRequest struct {
+	Width      *int     `json:"width,omitempty"`
+	Height     *int     `json:"height,omitempty"`
+	Steps      *int     `json:"steps,omitempty"`
+	CfgScale   *float64 `json:"cfgScale,omitempty"`
+	Sampler    *string  `json:"sampler,omitempty"`
+	Scheduler  *string  `json:"scheduler,omitempty"`
+	Seed       *string  `json:"seed,omitempty"`
+	Denoise    *float64 `json:"denoise,omitempty"`
+	Length     *int     `json:"length,omitempty"`
+	Fps        *int     `json:"fps,omitempty"`
+	Tiling     *bool    `json:"tiling,omitempty"`
+	HiresFix   *bool    `json:"hiresFix,omitempty"`
+}
+
 type AddToGalleryRequest struct {
-	JobID          string `json:"jobId"`
-	ModelID        string `json:"modelId"`
-	ModelName      string `json:"modelName"`
-	Prompt         string `json:"prompt"`
-	NegativePrompt string `json:"negativePrompt,omitempty"`
-	Type           string `json:"type"`
-	IsNSFW         bool   `json:"isNsfw"`
-	IsPublic       bool   `json:"isPublic"`
-	WalletAddress  string `json:"walletAddress,omitempty"`
+	JobID          string          `json:"jobId"`
+	ModelID        string          `json:"modelId"`
+	ModelName      string          `json:"modelName"`
+	Prompt         string          `json:"prompt"`
+	NegativePrompt string          `json:"negativePrompt,omitempty"`
+	Type           string          `json:"type"`
+	IsNSFW         bool            `json:"isNsfw"`
+	IsPublic       bool            `json:"isPublic"`
+	WalletAddress  string          `json:"walletAddress,omitempty"`
+	Params         *JobParamsRequest `json:"params,omitempty"`
 }
 
 func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
@@ -1046,6 +1062,25 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// Convert request params to gallery params
+	var galleryParams *gallery.JobParams
+	if req.Params != nil {
+		galleryParams = &gallery.JobParams{
+			Width:     req.Params.Width,
+			Height:    req.Params.Height,
+			Steps:     req.Params.Steps,
+			CfgScale:  req.Params.CfgScale,
+			Sampler:   req.Params.Sampler,
+			Scheduler: req.Params.Scheduler,
+			Seed:      req.Params.Seed,
+			Denoise:   req.Params.Denoise,
+			Length:    req.Params.Length,
+			Fps:       req.Params.Fps,
+			Tiling:    req.Params.Tiling,
+			HiresFix:  req.Params.HiresFix,
+		}
+	}
+	
 	item := gallery.GalleryItem{
 		JobID:          req.JobID,
 		ModelID:        req.ModelID,
@@ -1056,6 +1091,7 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		IsNSFW:         req.IsNSFW,
 		IsPublic:       req.IsPublic,
 		WalletAddress:  req.WalletAddress,
+		Params:         galleryParams,
 	}
 	
 	a.galleryStore.Add(item)
