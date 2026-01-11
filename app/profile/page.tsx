@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import Link from "next/link";
-import { fetchGalleryByWallet, fetchJobStatus, GalleryItem } from "@/lib/api";
+import { fetchGalleryByWallet, fetchJobStatus, fetchGalleryMedia, GalleryItem } from "@/lib/api";
 import { JobStatus } from "@/types/models";
+import { ImageModal } from "@/components/image-modal";
 
 interface ItemWithStatus extends GalleryItem {
   status?: JobStatus;
   loading?: boolean;
+  mediaUrls?: string[];
+  mediaError?: string;
 }
 
 // Wrapper component to ensure we only use wagmi after mounting
@@ -36,6 +39,7 @@ function ProfilePageClient() {
   const [items, setItems] = useState<ItemWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ItemWithStatus | null>(null);
   const { address, isConnected } = useAccount();
 
   useEffect(() => {
@@ -62,13 +66,18 @@ function ProfilePageClient() {
       setItems(itemsWithLoading);
       setLoading(false);
       
-      // Fetch status for each item
+      // Fetch status and media for each item
       for (const item of response.items.slice(0, 20)) {
         try {
+          // Fetch job status
           const status = await fetchJobStatus(item.jobId);
+          
+          // Fetch media URLs
+          const media = await fetchGalleryMedia(item.jobId);
+          
           setItems(prev => prev.map(i => 
             i.jobId === item.jobId 
-              ? { ...i, status, loading: false }
+              ? { ...i, status, mediaUrls: media.mediaUrls, mediaError: media.error, loading: false }
               : i
           ));
         } catch {
@@ -83,6 +92,50 @@ function ProfilePageClient() {
       console.error("Error loading creations:", err);
       setError(err.message || "Failed to load your creations");
       setLoading(false);
+    }
+  }
+
+  function handleDownload(item: ItemWithStatus) {
+    const generation = item.status?.generations?.[0];
+    const mediaSrc = generation?.base64 || generation?.url;
+    if (!mediaSrc) return;
+    
+    const isVideo = generation?.kind === "video" || item.type === "video";
+    const filename = `${item.jobId}.${isVideo ? "mp4" : "png"}`;
+    
+    try {
+      // For base64 data, create a blob directly
+      if (mediaSrc.startsWith("data:")) {
+        const link = document.createElement("a");
+        link.href = mediaSrc;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // For URLs, fetch and download
+      fetch(mediaSrc)
+        .then(response => response.blob())
+        .then(blob => {
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(url);
+        })
+        .catch(err => {
+          console.error("Download failed:", err);
+          // Fallback: open in new tab
+          window.open(mediaSrc, "_blank");
+        });
+    } catch (err) {
+      console.error("Download failed:", err);
+      window.open(mediaSrc, "_blank");
     }
   }
 
@@ -182,27 +235,68 @@ function ProfilePageClient() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {items.map((item) => (
-            <CreationCard key={item.jobId} item={item} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {items.map((item) => (
+              <CreationCard 
+                key={item.jobId} 
+                item={item}
+                onSelect={() => setSelectedItem(item)}
+                onDownload={() => handleDownload(item)}
+              />
+            ))}
+          </div>
+
+          {/* Image Modal */}
+          {selectedItem && (() => {
+            const generation = selectedItem.status?.generations?.[0];
+            const mediaSrc = generation?.base64 || generation?.url;
+            const isVideo = generation?.kind === "video" || selectedItem.type === "video";
+            
+            if (!mediaSrc) return null;
+            
+            return (
+              <ImageModal
+                isOpen={!!selectedItem}
+                onClose={() => setSelectedItem(null)}
+                mediaSrc={mediaSrc}
+                prompt={selectedItem.prompt}
+                isVideo={isVideo}
+                onDownload={() => handleDownload(selectedItem)}
+              />
+            );
+          })()}
+        </>
       )}
     </main>
   );
 }
 
-function CreationCard({ item }: { item: ItemWithStatus }) {
+interface CreationCardProps {
+  item: ItemWithStatus;
+  onSelect: () => void;
+  onDownload: () => void;
+}
+
+function CreationCard({ item, onSelect, onDownload }: CreationCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   
   const generation = item.status?.generations?.[0];
   const isCompleted = item.status?.status === "completed";
   const isFaulted = item.status?.status === "faulted";
-  const mediaSrc = generation?.base64 || generation?.url;
-  const isVideo = generation?.kind === "video" || item.type === "video";
+  // Use mediaUrls if available, otherwise fall back to generation data
+  const mediaSrc = item.mediaUrls?.[0] || generation?.base64 || generation?.url;
+  const isVideo = item.type === "video";
+  const hasMedia = !!mediaSrc && (isCompleted || (item.mediaUrls?.length ?? 0) > 0) && !isFaulted;
 
   return (
-    <div className="panel group">
+    <div 
+      className="panel group cursor-pointer"
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+      onClick={hasMedia ? onSelect : undefined}
+    >
       <div className="relative aspect-square rounded-xl overflow-hidden bg-black/40">
         {item.loading ? (
           <div className="w-full h-full flex items-center justify-center">
@@ -265,6 +359,22 @@ function CreationCard({ item }: { item: ItemWithStatus }) {
             NSFW
           </div>
         )}
+
+        {/* Download button - visible on hover */}
+        {showControls && hasMedia && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload();
+            }}
+            className="absolute bottom-2 right-2 p-2 bg-green-500/80 hover:bg-green-600 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 z-10"
+            title="Download"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+          </button>
+        )}
       </div>
       
       <div className="p-4 space-y-3">
@@ -273,6 +383,11 @@ function CreationCard({ item }: { item: ItemWithStatus }) {
           <span>{item.modelName}</span>
           <span>{new Date(item.createdAt).toLocaleDateString()}</span>
         </div>
+        {item.walletAddress && (
+          <div className="text-xs text-white/40 font-mono truncate" title={item.walletAddress}>
+            {item.walletAddress.slice(0, 6)}...{item.walletAddress.slice(-4)}
+          </div>
+        )}
       </div>
     </div>
   );

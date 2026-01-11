@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createJob, fetchJobStatus, fetchModels, addToGallery } from "@/lib/api";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { createJob, fetchJobStatus, fetchModels, addToGallery, fetchGalleryMedia } from "@/lib/api";
 import { 
   saveJob, 
   StoredJob, 
@@ -9,7 +9,12 @@ import {
   getStoredCreations, 
   removeCreation,
   StoredCreation,
-  generateTagsFromPrompt 
+  generateTagsFromPrompt,
+  getActiveJobs,
+  saveActiveJob,
+  updateActiveJob,
+  removeActiveJob,
+  ActiveJob
 } from "@/lib/storage";
 import { useAccount } from "wagmi";
 import {
@@ -282,9 +287,17 @@ function CreatePageClient() {
           )
         );
         
+        // Update active job status in localStorage
+        updateActiveJob(jobId, {
+          status: status.status,
+          error: undefined,
+        });
+        
         // Save completed job to local history and creations
         if (status.status === "completed" && status.generations.length > 0) {
           saveJobToHistory(jobId, selectedModel!, status);
+          // Remove from active jobs once completed
+          removeActiveJob(jobId);
         }
         
         if (
@@ -292,6 +305,10 @@ function CreatePageClient() {
           status.status === "faulted" ||
           attempts > 60
         ) {
+          // Remove from active jobs if faulted or max attempts reached
+          if (status.status === "faulted" || attempts > 60) {
+            removeActiveJob(jobId);
+          }
           return;
         }
         setTimeout(poll, BASE_INTERVAL);
@@ -330,11 +347,49 @@ function CreatePageClient() {
                 : job
             )
           );
+          
+          // Update active job error in localStorage
+          updateActiveJob(jobId, {
+            error: err.message,
+          });
         }
       }
     };
     poll();
   }
+
+  // Load active jobs on mount and resume polling
+  useEffect(() => {
+    const activeJobs = getActiveJobs();
+    if (activeJobs.length > 0) {
+      // Convert ActiveJob[] to JobEntry[] and resume polling
+      const jobEntries: JobEntry[] = activeJobs.map(aj => ({
+        jobId: aj.jobId,
+        submittedAt: aj.submittedAt,
+        status: aj.status ? {
+          jobId: aj.jobId,
+          status: aj.status,
+          faulted: aj.status === 'faulted',
+          waitTime: 0,
+          queuePosition: 0,
+          processing: aj.status === 'processing' ? 1 : 0,
+          finished: aj.status === 'completed' ? 1 : 0,
+          waiting: aj.status === 'queued' ? 1 : 0,
+          generations: [],
+        } : null,
+        error: aj.error,
+      }));
+      setJobs(jobEntries);
+      
+      // Resume polling for incomplete jobs
+      activeJobs.forEach(aj => {
+        if (aj.status !== 'completed' && aj.status !== 'faulted') {
+          pollStatus(aj.jobId);
+        }
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount
 
   async function saveJobToHistory(
     jobId: string,
@@ -982,8 +1037,14 @@ function JobCard({ job }: { job: JobEntry }) {
   const queuePosition = status?.queuePosition ?? 0;
   const waitTime = status?.waitTime ?? 0;
   
-  // Get worker name from first generation (if available)
-  const workerName = outputs.length > 0 ? outputs[0].workerName : undefined;
+  // Get worker name from any generation that has it (check all generations, not just first)
+  // Worker info may be available during processing even before generation completes
+  const workerName = outputs.find(gen => gen.workerName)?.workerName;
+  const workerId = outputs.find(gen => gen.workerId)?.workerId;
+  
+  // For now, VRAM is not available in the API response
+  // This can be populated later if the API provides worker details
+  const workerVram = undefined; // TODO: Fetch from worker details API if available
 
   return (
     <div className="border border-white/10 rounded-2xl p-4 bg-black/40 space-y-3">
@@ -1019,8 +1080,8 @@ function JobCard({ job }: { job: JobEntry }) {
         </p>
       </div>
       
-      {/* Worker - always show full */}
-      {workerName && (
+      {/* Worker - show prominently, especially during processing */}
+      {workerName ? (
         <div className="space-y-1">
           <p className="text-xs text-white/40">Worker</p>
           <p 
@@ -1033,7 +1094,12 @@ function JobCard({ job }: { job: JobEntry }) {
             {workerName}
           </p>
         </div>
-      )}
+      ) : isProcessing ? (
+        <div className="space-y-1">
+          <p className="text-xs text-white/40">Worker</p>
+          <p className="text-xs text-white/50 italic">Assigning worker...</p>
+        </div>
+      ) : null}
       
       {/* Progress info for queued/processing jobs */}
       {!status?.status || (status?.status !== "completed" && status?.status !== "faulted") ? (
@@ -1056,6 +1122,16 @@ function JobCard({ job }: { job: JobEntry }) {
                 <span>Processing</span>
                 <span className="text-blue-300">{status?.processing ?? 1} active</span>
               </div>
+              {/* Show worker info prominently during processing */}
+              {workerName && (
+                <div className="flex items-center justify-between text-xs text-white/60 bg-blue-500/10 rounded px-2 py-1 mt-1">
+                  <span className="text-cyan-400">Worker:</span>
+                  <span className="font-mono text-cyan-300">{workerName}</span>
+                  {workerVram && (
+                    <span className="text-white/50 ml-2">({workerVram}GB VRAM)</span>
+                  )}
+                </div>
+              )}
               <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-blue-500 rounded-full animate-pulse" 
@@ -1258,6 +1334,33 @@ interface CreatedContentCardProps {
 function CreatedContentCard({ creations, onRemove }: CreatedContentCardProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [mediaUrls, setMediaUrls] = useState<Record<string, string[]>>({});
+  
+  // Fetch media URLs for video creations
+  useEffect(() => {
+    const fetchMediaForVideos = async () => {
+      for (const creation of creations) {
+        if (creation.type === "video" && !mediaUrls[creation.jobId]) {
+          try {
+            const media = await fetchGalleryMedia(creation.jobId);
+            if (media.mediaUrls?.length > 0) {
+              setMediaUrls(prev => ({
+                ...prev,
+                [creation.jobId]: media.mediaUrls
+              }));
+              // Update the creation's URL if we got a better one
+              if (creation.generations[0]) {
+                creation.generations[0].url = media.mediaUrls[0];
+              }
+            }
+          } catch (err) {
+            // Ignore errors - use existing URLs
+          }
+        }
+      }
+    };
+    fetchMediaForVideos();
+  }, [creations]);
   
   // Filter creations by search
   const filteredCreations = useMemo(() => {
@@ -1314,15 +1417,25 @@ function CreatedContentCard({ creations, onRemove }: CreatedContentCardProps) {
       
       {/* Thumbnail grid */}
       <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-auto pr-1">
-        {filteredCreations.map((creation) => (
-          <CreationThumbnail
-            key={creation.jobId}
-            creation={creation}
-            isExpanded={expandedId === creation.jobId}
-            onToggle={() => setExpandedId(expandedId === creation.jobId ? null : creation.jobId)}
-            onRemove={() => onRemove(creation.jobId)}
-          />
-        ))}
+        {filteredCreations.map((creation) => {
+          // Use fetched media URL for videos if available
+          const enhancedCreation = {...creation};
+          if (mediaUrls[creation.jobId]?.length > 0 && creation.generations[0]) {
+            enhancedCreation.generations = [{
+              ...creation.generations[0],
+              url: mediaUrls[creation.jobId][0]
+            }, ...creation.generations.slice(1)];
+          }
+          return (
+            <CreationThumbnail
+              key={creation.jobId}
+              creation={enhancedCreation}
+              isExpanded={expandedId === creation.jobId}
+              onToggle={() => setExpandedId(expandedId === creation.jobId ? null : creation.jobId)}
+              onRemove={() => onRemove(creation.jobId)}
+            />
+          );
+        })}
       </div>
       
       {/* Expanded view modal */}
@@ -1348,6 +1461,7 @@ interface CreationThumbnailProps {
 }
 
 function CreationThumbnail({ creation, onToggle }: CreationThumbnailProps) {
+  const [mediaError, setMediaError] = useState(false);
   const firstGen = creation.generations[0];
   const imageSrc = firstGen?.base64 || firstGen?.url;
   const isVideo = creation.type === "video";
@@ -1357,18 +1471,26 @@ function CreationThumbnail({ creation, onToggle }: CreationThumbnailProps) {
       onClick={onToggle}
       className="relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-colors group"
     >
-      {imageSrc ? (
+      {imageSrc && !mediaError ? (
         isVideo ? (
           <video
-            src={firstGen.url}
+            src={imageSrc}
             className="w-full h-full object-cover"
             muted
+            playsInline
+            loop
+            onError={() => setMediaError(true)}
+            onLoadedData={(e) => {
+              // Try to play on load for preview
+              e.currentTarget.play().catch(() => {});
+            }}
           />
         ) : (
           <img
             src={imageSrc}
             alt={creation.prompt.slice(0, 50)}
             className="w-full h-full object-cover"
+            onError={() => setMediaError(true)}
           />
         )
       ) : (
@@ -1462,18 +1584,23 @@ function ExpandedCreationModal({ creation, onClose, onRemove }: ExpandedCreation
         <div className="p-4 space-y-4">
           {/* Media */}
           <div className="rounded-xl overflow-hidden border border-white/10">
-            {isVideo ? (
-              <video
-                src={firstGen?.url}
-                controls
-                className="w-full"
-              />
-            ) : imageSrc ? (
-              <img
-                src={imageSrc}
-                alt={creation.prompt}
-                className="w-full"
-              />
+            {imageSrc ? (
+              isVideo ? (
+                <video
+                  src={imageSrc}
+                  controls
+                  autoPlay
+                  loop
+                  muted
+                  className="w-full"
+                />
+              ) : (
+                <img
+                  src={imageSrc}
+                  alt={creation.prompt}
+                  className="w-full"
+                />
+              )
             ) : (
               <div className="aspect-video bg-white/5 flex items-center justify-center">
                 <span className="text-white/40">No preview available</span>

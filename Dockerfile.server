@@ -4,10 +4,16 @@ WORKDIR /app
 
 RUN apk add --no-cache git
 
-COPY server/go.mod server/go.sum ./
-RUN go mod download
+# Copy go.mod and go.sum (go.sum may be missing entries for new dependencies)
+COPY server/go.mod server/go.sum* ./
 
+# Copy source code first so go mod tidy can resolve imports
 COPY server/ ./
+
+# Update go.sum with any missing dependencies and ensure everything is tidy
+RUN go mod tidy
+
+# Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/api ./cmd/api
 
 FROM alpine:latest
