@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { createJob, fetchJobStatus, fetchModels, addToGallery, fetchGalleryMedia } from "@/lib/api";
-import { WalletButton } from "@/components/wallet-button";
+import { Header } from "@/components/header";
 import { 
   saveJob, 
   StoredJob, 
@@ -19,6 +19,7 @@ import {
   ActiveJob
 } from "@/lib/storage";
 import { useAccount } from "wagmi";
+import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import {
   CreateJobRequest,
   GalleryModel,
@@ -34,6 +35,9 @@ type JobEntry = {
 };
 
 type ModelTypeFilter = "all" | "image" | "video";
+
+// Disable SSR for this page since it uses wagmi hooks
+export const dynamic = 'force-dynamic';
 
 // Wrapper component to ensure we only use wagmi after mounting
 export default function CreatePage() {
@@ -163,7 +167,6 @@ function CreatePageClient() {
 
   async function handleSubmit() {
     if (!selectedModel) {
-      console.error("❌ No selectedModel at submit time!");
       setError("No model selected");
       return;
     }
@@ -172,16 +175,6 @@ function CreatePageClient() {
       return;
     }
     
-    // Log the actual model being submitted for debugging
-    console.log("🎯 handleSubmit called with:", {
-      "selectedModel.id": selectedModel.id,
-      "selectedModel.displayName": selectedModel.displayName,
-      "selectedModel.type": selectedModel.type,
-      "selectedModelId state": selectedModelId,
-      "params.steps": params.steps,
-      "params.cfgScale": params.cfgScale,
-      "selectedModel.defaults": selectedModel.defaults,
-    });
 
     setError(undefined);
     setIsSubmitting(true);
@@ -223,28 +216,9 @@ function CreatePageClient() {
       payload.sourceMask = uploadMask;
     }
 
-    // Detailed debug logging for job submission
-    console.log("📤 Submitting job:", {
-      modelId: payload.modelId,
-      selectedModelId: selectedModelId,
-      selectedModelDisplayName: selectedModel.displayName,
-      modelType: selectedModel.type,
-      mediaType: payload.mediaType,
-      sourceProcessing: payload.sourceProcessing,
-      params: payload.params,
-      presetDefaults: selectedModel.defaults,
-    });
-    
-    // Verify model ID matches
-    if (payload.modelId !== selectedModelId) {
-      console.error("⚠️ MODEL MISMATCH! payload.modelId:", payload.modelId, "!= selectedModelId:", selectedModelId);
-    }
 
     try {
       const resp = await createJob(payload);
-      console.log("✅ Job created with ID:", resp.jobId);
-      console.log("🔍 VERIFY: If comfy_bridge picks up a different job ID, old jobs are in the queue");
-      console.log("   This job ID:", resp.jobId, "| Model:", payload.modelId, "| Steps:", payload.params.steps);
       const entry: JobEntry = {
         jobId: resp.jobId,
         submittedAt: Date.now(),
@@ -413,7 +387,6 @@ function CreatePageClient() {
     };
     
     saveJob(storedJob);
-    console.log("Job saved to local history:", jobId);
     
     // Save creation with media for persistent display
     const tags = generateTagsFromPrompt(prompt);
@@ -469,9 +442,8 @@ function CreatePageClient() {
             hiresFix: typeof params.hiresFix === 'boolean' ? params.hiresFix : undefined,
           },
         });
-        console.log("Job saved to gallery:", jobId, sharePublicly ? "(public)" : "(private)");
       } catch (err) {
-        console.error("Failed to save to gallery:", err);
+        // Silently fail - gallery save is optional
       }
     }
   }
@@ -501,37 +473,7 @@ function CreatePageClient() {
 
   return (
     <main className="flex-1 w-full min-h-screen bg-black">
-      {/* Header with navigation and wallet */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5">
-        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
-          <Link href="/" className="text-white text-xl font-semibold">
-            AIPG Art Gallery
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link
-              href="/"
-              className="text-white/80 hover:text-white text-sm transition"
-            >
-              Gallery
-            </Link>
-            <Link
-              href="/create"
-              className="text-white/80 hover:text-white text-sm transition"
-            >
-              Create
-            </Link>
-            <Link
-              href="/profile"
-              className="text-white/80 hover:text-white text-sm transition"
-            >
-              My Creations
-            </Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <WalletButton />
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-8 space-y-8">
         {/* Title */}
@@ -1205,44 +1147,12 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
   const imageSrc = generation.base64 || generation.url;
   const isVideo = generation.kind === "video";
   
-  // Debug: log generation data
-  if (typeof window !== 'undefined' && !isVideo && !imageSrc) {
-    console.warn('GenerationPreview: Image missing data', { generation, imageSrc, isVideo });
-  }
   
-  // Download handler
-  const handleDownload = async () => {
+  const handleDownload = () => {
     const downloadUrl = generation.url || generation.base64;
     if (!downloadUrl) return;
-    
-    try {
-      // For base64 data, create a blob directly
-      if (downloadUrl.startsWith("data:")) {
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = `${jobId}_${generation.id}.${isVideo ? "mp4" : "png"}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return;
-      }
-      
-      // For URLs, fetch and download
-      const response = await fetch(downloadUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${jobId}_${generation.id}.${isVideo ? "mp4" : "png"}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Download failed:", err);
-      // Fallback: open in new tab
-      window.open(downloadUrl, "_blank");
-    }
+    const filename = getMediaFilename(jobId, generation.id, isVideo);
+    downloadMedia(downloadUrl, filename);
   };
 
   // Only render video if explicitly marked as video AND has video URL
@@ -1338,8 +1248,7 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
             alt="Generated content"
             className={`w-full h-auto ${loading ? "opacity-0" : "opacity-100"} transition-opacity`}
             onLoad={() => setLoading(false)}
-            onError={(e) => {
-              console.error('Image load error:', e, { src: validImageSrc, generation });
+            onError={() => {
               setError(true);
               setLoading(false);
             }}
@@ -1573,36 +1482,11 @@ function ExpandedCreationModal({ creation, onClose, onRemove }: ExpandedCreation
   const imageSrc = firstGen?.base64 || firstGen?.url;
   const isVideo = creation.type === "video";
   
-  // Download handler
-  const handleDownload = async () => {
+  const handleDownload = () => {
     const downloadUrl = firstGen?.url || firstGen?.base64;
     if (!downloadUrl) return;
-    
-    try {
-      if (downloadUrl.startsWith("data:")) {
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = `${creation.jobId}.${isVideo ? "mp4" : "png"}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return;
-      }
-      
-      const response = await fetch(downloadUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${creation.jobId}.${isVideo ? "mp4" : "png"}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Download failed:", err);
-      window.open(downloadUrl, "_blank");
-    }
+    const filename = getMediaFilename(creation.jobId, undefined, isVideo);
+    downloadMedia(downloadUrl, filename);
   };
   
   return (

@@ -7,6 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:go": "cd server && go test ./...",
+    "test:all": "npm run test && npm run test:go",
     "setup:supabase": "node scripts/setup-supabase.js"
   },
   "dependencies": {
@@ -63,12 +67,17 @@
     "zustand": "^4.5.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@types/jest": "^29.5.11",
     "@types/node": "^20.19.25",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/react-responsive-masonry": "^2.6.0",
     "@types/uuid": "^9.0.8",
     "autoprefixer": "^10.0.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "pg": "^8.16.3",
     "postcss": "^8",
     "tailwindcss": "^3.3.0",

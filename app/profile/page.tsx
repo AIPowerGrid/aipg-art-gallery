@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
 import Link from "next/link";
-import { fetchGalleryByWallet, fetchJobStatus, fetchGalleryMedia, GalleryItem } from "@/lib/api";
+import { fetchGalleryByWallet, fetchGalleryMedia, GalleryItem } from "@/lib/api";
 import { JobStatus } from "@/types/models";
 import { ImageModal } from "@/components/image-modal";
-import { WalletButton } from "@/components/wallet-button";
+import { Header } from "@/components/header";
+import { MediaCard } from "@/components/media-card";
+import { useWalletAddress } from "@/lib/hooks/use-wallet-address";
+import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 
 interface ItemWithStatus extends GalleryItem {
   status?: JobStatus;
@@ -15,33 +17,15 @@ interface ItemWithStatus extends GalleryItem {
   mediaError?: string;
 }
 
-// Wrapper component to ensure we only use wagmi after mounting
-export default function ProfilePage() {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  if (!mounted) {
-    return (
-      <main className="flex-1 w-full px-4 md:px-10 py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-orange-500 rounded-full" />
-        </div>
-      </main>
-    );
-  }
-  
-  return <ProfilePageClient />;
-}
+// Disable SSR for this page since it uses wagmi hooks
+export const dynamic = 'force-dynamic';
 
-function ProfilePageClient() {
+export default function ProfilePage() {
   const [items, setItems] = useState<ItemWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<ItemWithStatus | null>(null);
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, mounted } = useWalletAddress();
 
   useEffect(() => {
     if (isConnected && address) {
@@ -80,8 +64,7 @@ function ProfilePageClient() {
           batch.map(async (item) => {
             try {
               // Only fetch media URLs - job status is optional and often unavailable
-              const media = await fetchGalleryMedia(item.jobId).catch((err) => {
-                // Silently handle errors - don't log expected failures
+              const media = await fetchGalleryMedia(item.jobId).catch(() => {
                 return { mediaUrls: item.mediaUrls || [], error: undefined };
               });
               
@@ -117,91 +100,33 @@ function ProfilePageClient() {
         }
       }
     } catch (err: any) {
-      console.error("Error loading creations:", err);
       setError(err.message || "Failed to load your creations");
       setLoading(false);
     }
   }
 
   function handleDownload(item: ItemWithStatus) {
-    const generation = item.status?.generations?.[0];
-    const mediaSrc = generation?.base64 || generation?.url;
+    const mediaSrc = item.mediaUrls?.[0] || item.status?.generations?.[0]?.base64 || item.status?.generations?.[0]?.url;
     if (!mediaSrc) return;
-    
-    const isVideo = generation?.kind === "video" || item.type === "video";
-    const filename = `${item.jobId}.${isVideo ? "mp4" : "png"}`;
-    
-    try {
-      // For base64 data, create a blob directly
-      if (mediaSrc.startsWith("data:")) {
-        const link = document.createElement("a");
-        link.href = mediaSrc;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return;
-      }
-      
-      // For URLs, fetch and download
-      fetch(mediaSrc)
-        .then(response => response.blob())
-        .then(blob => {
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          window.URL.revokeObjectURL(url);
-        })
-        .catch(err => {
-          console.error("Download failed:", err);
-          // Fallback: open in new tab
-          window.open(mediaSrc, "_blank");
-        });
-    } catch (err) {
-      console.error("Download failed:", err);
-      window.open(mediaSrc, "_blank");
-    }
+    const filename = getMediaFilename(item.jobId, undefined, item.type === "video");
+    downloadMedia(mediaSrc, filename);
   }
 
-  // Not connected
+  if (!mounted) {
+    return (
+      <main className="flex-1 w-full min-h-screen bg-black">
+        <Header />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-orange-500 rounded-full" />
+        </div>
+      </main>
+    );
+  }
+
   if (!isConnected) {
     return (
       <main className="flex-1 w-full min-h-screen bg-black">
-        {/* Header with navigation and wallet */}
-        <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5">
-          <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
-            <Link href="/" className="text-white text-xl font-semibold">
-              AIPG Art Gallery
-            </Link>
-            <div className="flex items-center gap-6">
-              <Link
-                href="/"
-                className="text-white/80 hover:text-white text-sm transition"
-              >
-                Gallery
-              </Link>
-              <Link
-                href="/create"
-                className="text-white/80 hover:text-white text-sm transition"
-              >
-                Create
-              </Link>
-              <Link
-                href="/profile"
-                className="text-white/80 hover:text-white text-sm transition"
-              >
-                My Creations
-              </Link>
-            </div>
-            <div className="flex items-center gap-3">
-              <WalletButton />
-            </div>
-          </div>
-        </header>
+        <Header />
 
         <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-8 space-y-8">
           {/* Title */}
@@ -239,37 +164,7 @@ function ProfilePageClient() {
 
   return (
     <main className="flex-1 w-full min-h-screen bg-black">
-      {/* Header with navigation and wallet */}
-      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5">
-        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
-          <Link href="/" className="text-white text-xl font-semibold">
-            AIPG Art Gallery
-          </Link>
-          <div className="flex items-center gap-6">
-            <Link
-              href="/"
-              className="text-white/80 hover:text-white text-sm transition"
-            >
-              Gallery
-            </Link>
-            <Link
-              href="/create"
-              className="text-white/80 hover:text-white text-sm transition"
-            >
-              Create
-            </Link>
-            <Link
-              href="/profile"
-              className="text-white/80 hover:text-white text-sm transition"
-            >
-              My Creations
-            </Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <WalletButton />
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {/* Prominent search bar in center */}
       <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-12">
@@ -339,8 +234,8 @@ function ProfilePageClient() {
             <div className="max-w-[1920px] mx-auto px-6 md:px-12 pb-12">
               <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-0">
               {items.map((item) => (
-                <CreationCard 
-                  key={item.jobId} 
+                <MediaCard
+                  key={item.jobId}
                   item={item}
                   onSelect={() => setSelectedItem(item)}
                   onDownload={() => handleDownload(item)}
@@ -389,99 +284,3 @@ function ProfilePageClient() {
   );
 }
 
-interface CreationCardProps {
-  item: ItemWithStatus;
-  onSelect: () => void;
-  onDownload: () => void;
-}
-
-function CreationCard({ item, onSelect, onDownload }: CreationCardProps) {
-  const [imageError, setImageError] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  
-  // Use mediaUrls if available, otherwise fall back to generation data from job status
-  const generation = item.status?.generations?.[0];
-  const isFaulted = item.status?.status === "faulted";
-  const mediaSrc = item.mediaUrls?.[0] || generation?.base64 || generation?.url;
-  const isVideo = item.type === "video";
-  // Don't require job status - if we have mediaUrls, show the media
-  const hasMedia = !!mediaSrc && !isFaulted && (item.mediaUrls?.length ?? 0) > 0;
-
-  return (
-    <div 
-      className="group relative cursor-pointer break-inside-avoid mb-0 rounded-none overflow-hidden bg-black/20 hover:bg-black/30 transition-all"
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
-      onClick={hasMedia ? onSelect : undefined}
-    >
-      <div className="relative w-full overflow-hidden bg-black/40">
-        {item.loading ? (
-          <div className="w-full min-h-[200px] flex items-center justify-center">
-            <div className="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full" />
-          </div>
-        ) : isFaulted ? (
-          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/30 p-4">
-            <span className="text-3xl mb-2">❌</span>
-            <span className="text-xs text-center">Generation failed</span>
-          </div>
-        ) : !hasMedia ? (
-          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/30 p-4">
-            <span className="text-3xl mb-2">{isVideo ? "🎬" : "🖼️"}</span>
-            <span className="text-xs text-center">Media unavailable</span>
-          </div>
-        ) : isVideo ? (
-          // Display videos with proper video element
-          <video
-            src={mediaSrc}
-            className="w-full h-auto object-contain"
-            muted
-            loop
-            playsInline
-            onMouseEnter={(e) => e.currentTarget.play()}
-            onMouseLeave={(e) => e.currentTarget.pause()}
-            onError={() => setImageError(true)}
-          />
-        ) : imageError ? (
-          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/50 p-4">
-            <span className="text-2xl mb-2">🖼️</span>
-            <span className="text-xs">Image unavailable</span>
-          </div>
-        ) : (
-          <img
-            src={mediaSrc}
-            alt={item.prompt}
-            className="w-full h-auto object-contain"
-            loading="lazy"
-            onError={() => setImageError(true)}
-          />
-        )}
-        
-        {/* Overlay with controls - visible on hover */}
-        {showControls && hasMedia && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-10">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDownload();
-              }}
-              className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full transition-all"
-              title="Download"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-            </button>
-          </div>
-        )}
-
-        {/* NSFW badge */}
-        {item.isNsfw && (
-          <div className="absolute top-2 right-2 px-2 py-1 bg-red-500/90 text-white text-xs rounded backdrop-blur-sm">
-            NSFW
-          </div>
-        )}
-      </div>
-      {/* No metadata shown on card - clean lexica style */}
-    </div>
-  );
-}

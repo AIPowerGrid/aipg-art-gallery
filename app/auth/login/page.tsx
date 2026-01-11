@@ -8,6 +8,9 @@ import { ConnectWalletCard } from "@/components/wallet-button";
 import { SocialAuth } from "@/components/social-auth";
 import { supabase } from "@/lib/supabase";
 
+// Disable SSR for this page since it uses wagmi hooks
+export const dynamic = 'force-dynamic';
+
 // Wrapper component to ensure we only use wagmi after mounting
 export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
