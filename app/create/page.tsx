@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import { createJob, fetchJobStatus, fetchModels, addToGallery, fetchGalleryMedia } from "@/lib/api";
+import { WalletButton } from "@/components/wallet-button";
 import { 
   saveJob, 
   StoredJob, 
@@ -452,6 +454,20 @@ function CreatePageClient() {
           isNsfw: nsfw,
           isPublic: sharePublicly,
           walletAddress: address,
+          params: {
+            width: typeof params.width === 'number' ? params.width : undefined,
+            height: typeof params.height === 'number' ? params.height : undefined,
+            steps: typeof params.steps === 'number' ? params.steps : undefined,
+            cfgScale: typeof params.cfgScale === 'number' ? params.cfgScale : undefined,
+            sampler: typeof params.sampler === 'number' ? (model.samplers[params.sampler] || undefined) : undefined,
+            scheduler: typeof params.scheduler === 'number' ? (model.schedulers[params.scheduler] || undefined) : undefined,
+            seed: params.seed && typeof params.seed === 'number' ? String(params.seed) : undefined,
+            denoise: typeof params.denoise === 'number' ? params.denoise : undefined,
+            length: typeof params.length === 'number' ? params.length : undefined,
+            fps: typeof params.fps === 'number' ? params.fps : undefined,
+            tiling: typeof params.tiling === 'boolean' ? params.tiling : undefined,
+            hiresFix: typeof params.hiresFix === 'boolean' ? params.hiresFix : undefined,
+          },
         });
         console.log("Job saved to gallery:", jobId, sharePublicly ? "(public)" : "(private)");
       } catch (err) {
@@ -484,35 +500,58 @@ function CreatePageClient() {
   }
 
   return (
-    <main className="flex-1 w-full px-4 md:px-10 py-8 space-y-8">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-semibold text-gradient">
-            Create
-          </h1>
-          <p className="text-white/50 text-sm mt-1">
-            Generate AI images and videos
-          </p>
-        </div>
-        {/* Chain connection indicator */}
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs ${
-          chainSource 
-            ? 'bg-green-500/10 text-green-400 border border-green-500/20' 
-            : 'bg-white/5 text-white/40 border border-white/10'
-        }`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${chainSource ? 'bg-green-400' : 'bg-white/30'}`} />
-          {chainSource ? 'Chain Connected' : 'Chain Offline'}
+    <main className="flex-1 w-full min-h-screen bg-black">
+      {/* Header with navigation and wallet */}
+      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/5">
+        <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
+          <Link href="/" className="text-white text-xl font-semibold">
+            AIPG Art Gallery
+          </Link>
+          <div className="flex items-center gap-6">
+            <Link
+              href="/"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              Gallery
+            </Link>
+            <Link
+              href="/create"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              Create
+            </Link>
+            <Link
+              href="/profile"
+              className="text-white/80 hover:text-white text-sm transition"
+            >
+              My Creations
+            </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <WalletButton />
+          </div>
         </div>
       </header>
 
-      {error && (
-        <div className="panel border border-red-500/40 text-red-200">
-          {error}
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-8 space-y-8">
+        {/* Title */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+            AIPG Art Gallery
+          </h1>
+          <p className="text-white/50 text-sm">
+            Create
+          </p>
         </div>
-      )}
 
-      {/* Quick Start Guide */}
-      <div className="panel bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border-orange-500/20">
+        {error && (
+          <div className="panel border border-red-500/40 text-red-200">
+            {error}
+          </div>
+        )}
+
+        {/* Quick Start Guide */}
+        <div className="panel bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border-orange-500/20">
         <div className="flex items-start gap-4">
           <span className="text-2xl">💡</span>
           <div className="space-y-2 text-sm">
@@ -742,6 +781,7 @@ function CreatePageClient() {
           />
         </aside>
       </section>
+      </div>
     </main>
   );
 }
@@ -1165,6 +1205,11 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
   const imageSrc = generation.base64 || generation.url;
   const isVideo = generation.kind === "video";
   
+  // Debug: log generation data
+  if (typeof window !== 'undefined' && !isVideo && !imageSrc) {
+    console.warn('GenerationPreview: Image missing data', { generation, imageSrc, isVideo });
+  }
+  
   // Download handler
   const handleDownload = async () => {
     const downloadUrl = generation.url || generation.base64;
@@ -1200,7 +1245,8 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
     }
   };
 
-  if (isVideo) {
+  // Only render video if explicitly marked as video AND has video URL
+  if (isVideo && generation.url) {
     return (
       <div className="relative rounded-xl border border-white/10 overflow-hidden bg-black/40 group">
         {loading && (
@@ -1261,6 +1307,9 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
   }
 
   // Image rendering
+  // Ensure we have a valid image source
+  const validImageSrc = imageSrc && !isVideo ? imageSrc : null;
+  
   return (
     <div className="relative rounded-xl border border-white/10 overflow-hidden bg-black/40 min-h-[100px] group">
       {loading && !error && (
@@ -1282,14 +1331,15 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
             </a>
           )}
         </div>
-      ) : imageSrc ? (
+      ) : validImageSrc ? (
         <>
           <img
-            src={imageSrc}
+            src={validImageSrc}
             alt="Generated content"
             className={`w-full h-auto ${loading ? "opacity-0" : "opacity-100"} transition-opacity`}
             onLoad={() => setLoading(false)}
-            onError={() => {
+            onError={(e) => {
+              console.error('Image load error:', e, { src: validImageSrc, generation });
               setError(true);
               setLoading(false);
             }}

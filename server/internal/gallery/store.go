@@ -8,6 +8,22 @@ import (
 	"time"
 )
 
+// JobParams represents the parameters used to create a generation
+type JobParams struct {
+	Width      *int     `json:"width,omitempty"`
+	Height     *int     `json:"height,omitempty"`
+	Steps      *int     `json:"steps,omitempty"`
+	CfgScale   *float64 `json:"cfgScale,omitempty"`
+	Sampler    *string  `json:"sampler,omitempty"`
+	Scheduler  *string  `json:"scheduler,omitempty"`
+	Seed       *string  `json:"seed,omitempty"`
+	Denoise    *float64 `json:"denoise,omitempty"`
+	Length     *int     `json:"length,omitempty"`
+	Fps        *int     `json:"fps,omitempty"`
+	Tiling     *bool    `json:"tiling,omitempty"`
+	HiresFix   *bool    `json:"hiresFix,omitempty"`
+}
+
 // GalleryItem represents a generation (can be public or private)
 type GalleryItem struct {
 	JobID          string   `json:"jobId"`
@@ -25,6 +41,8 @@ type GalleryItem struct {
 	GenerationIDs  []string `json:"generationIds,omitempty"`
 	// MediaURLs are the cached R2 URLs (may be expired)
 	MediaURLs      []string `json:"mediaUrls,omitempty"`
+	// Parameters used to create this generation
+	Params         *JobParams `json:"params,omitempty"`
 }
 
 // Store manages the public gallery
