@@ -115,7 +115,7 @@ export function NetworkSelector({ compact = false }: NetworkSelectorProps) {
   // Prevent hydration mismatch
   if (!mounted) {
     return (
-      <div className={`px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 ${compact ? 'text-xs' : 'text-sm'}`}>
+      <div className={`px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 ${compact ? 'text-xs' : 'text-sm'}`}>
         <span className="text-white/50">Network</span>
       </div>
     );
@@ -141,7 +141,7 @@ export function NetworkSelector({ compact = false }: NetworkSelectorProps) {
           setShowDropdown(!showDropdown);
         }}
         disabled={switching}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all ${networkBgColor} ${networkBorderColor} hover:border-white/30 ${compact ? 'text-xs' : 'text-sm'} ${switching ? 'opacity-50 cursor-wait' : ''}`}
+        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${networkBgColor} ${networkBorderColor} hover:border-white/30 ${compact ? 'text-xs' : 'text-sm'} ${switching ? 'opacity-50 cursor-wait' : ''}`}
       >
         <span className={`w-2 h-2 rounded-full ${networkColor} ${switching ? 'animate-pulse' : ''}`} />
         <span className="text-white/90 font-medium">
@@ -178,9 +178,9 @@ export function NetworkSelector({ compact = false }: NetworkSelectorProps) {
                 key={item.type}
                 onClick={() => handleNetworkSwitch(item.type)}
                 disabled={switching}
-                className={`w-full px-3 py-3 text-left text-sm rounded-lg transition flex items-center gap-3 ${
+                className={`w-full px-3 py-3 text-left text-sm rounded-xl transition flex items-center gap-3 ${
                   isActive 
-                    ? 'bg-gradient-to-r from-orange-500/20 to-yellow-500/20 border border-orange-500/30 text-white' 
+                    ? 'bg-gradient-to-r from-zinc-500/20 to-zinc-400/20 border border-zinc-500/30 text-white' 
                     : 'text-white/80 hover:bg-white/10'
                 }`}
               >
@@ -192,7 +192,7 @@ export function NetworkSelector({ compact = false }: NetworkSelectorProps) {
                   </div>
                 </div>
                 {isActive && (
-                  <svg className="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="w-4 h-4 text-zinc-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 )}

@@ -24,7 +24,7 @@ export default function LoginPage() {
       <main className="flex-1 w-full px-4 md:px-10 py-8 flex items-center justify-center">
         <div className="panel max-w-md w-full">
           <div className="flex items-center justify-center h-32">
-            <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-orange-500 rounded-full" />
+            <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-zinc-400 rounded-full" />
           </div>
         </div>
       </main>

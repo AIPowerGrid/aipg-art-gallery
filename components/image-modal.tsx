@@ -90,7 +90,7 @@ export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProp
         </button>
 
         {/* Media container */}
-        <div className="flex-1 flex items-center justify-center min-h-[400px] bg-black/40 rounded-lg overflow-hidden">
+        <div className="flex-1 flex items-center justify-center min-h-[400px] bg-black/40 rounded-xl overflow-hidden">
           {isVideo ? (
             <video
               src={mediaSrc}
@@ -114,11 +114,19 @@ export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProp
           {/* Prompt */}
           <div>
             <h2 className="text-white font-semibold text-lg mb-2">Prompt</h2>
-            <p className="text-white/90 text-sm leading-relaxed">{item.prompt}</p>
+            <p className="text-white/90 text-sm leading-relaxed">
+              {item.prompt.length > 300 
+                ? item.prompt.slice(0, 300) + '...' 
+                : item.prompt}
+            </p>
             {item.negativePrompt && (
               <>
                 <h3 className="text-white/70 font-medium text-sm mt-3 mb-1">Negative Prompt</h3>
-                <p className="text-white/70 text-sm leading-relaxed">{item.negativePrompt}</p>
+                <p className="text-white/70 text-sm leading-relaxed">
+                  {item.negativePrompt.length > 200 
+                    ? item.negativePrompt.slice(0, 200) + '...' 
+                    : item.negativePrompt}
+                </p>
               </>
             )}
           </div>
@@ -143,7 +151,7 @@ export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProp
               <h2 className="text-white font-semibold text-lg mb-3">Parameters</h2>
               <div className="grid grid-cols-2 gap-3">
                 {paramEntries.map(([key, value]) => (
-                  <div key={key} className="bg-white/5 rounded-lg p-3">
+                  <div key={key} className="bg-white/5 rounded-xl p-3">
                     <div className="text-white/60 text-xs mb-1">{key}</div>
                     <div className="text-white/90 text-sm font-medium">{formatParamValue(key.toLowerCase(), value)}</div>
                   </div>
@@ -159,7 +167,7 @@ export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProp
                 e.stopPropagation();
                 onDownload();
               }}
-              className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold rounded-lg hover:opacity-90 transition flex items-center justify-center gap-2"
+              className="w-full px-4 py-3 bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-semibold rounded-xl hover:opacity-90 transition flex items-center justify-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -170,7 +178,7 @@ export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProp
               href={mediaSrc}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm rounded-lg transition text-center"
+              className="w-full px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm rounded-xl transition text-center"
               onClick={(e) => e.stopPropagation()}
             >
               Open in new tab
