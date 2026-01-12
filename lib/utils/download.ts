@@ -47,7 +47,7 @@ export function getMediaFilename(
   generationId?: string,
   isVideo = false
 ): string {
-  const extension = isVideo ? "mp4" : "png";
+  const extension = isVideo ? "mp4" : "webp";
   const id = generationId ? `${jobId}_${generationId}` : jobId;
-  return `${id}.${extension}`;
+  return `aipg-${id}.${extension}`;
 }

@@ -117,7 +117,7 @@ export default function ProfilePage() {
       <main className="flex-1 w-full min-h-screen bg-black">
         <Header />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-orange-500 rounded-full" />
+          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-zinc-400 rounded-full" />
         </div>
       </main>
     );
@@ -151,7 +151,7 @@ export default function ProfilePage() {
               </p>
               <Link
                 href="/create"
-                className="inline-block px-6 py-2 rounded-md bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
+                className="inline-block px-6 py-2 rounded-xl bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-semibold hover:opacity-90 transition"
               >
                 Start Creating
               </Link>
@@ -179,7 +179,7 @@ export default function ProfilePage() {
             <input
               type="text"
               placeholder="Search for an image..."
-              className="w-full px-6 py-4 bg-white/10 border-2 border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-orange-500/50 transition text-lg"
+              className="w-full px-6 py-4 bg-white/10 border-2 border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-zinc-500/50 transition text-lg"
             />
             <button
               className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white transition"
@@ -206,7 +206,7 @@ export default function ProfilePage() {
               <p className="text-white/70">{error}</p>
               <button
                 onClick={() => address && loadCreations(address)}
-                className="inline-block px-6 py-2 rounded-md bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
+                className="inline-block px-6 py-2 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
               >
                 Try Again
               </button>
@@ -222,7 +222,7 @@ export default function ProfilePage() {
               </p>
               <Link
                 href="/create"
-                className="inline-block px-6 py-2 rounded-md bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition"
+                className="inline-block px-6 py-2 rounded-xl bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-semibold hover:opacity-90 transition"
               >
                 Start Creating
               </Link>

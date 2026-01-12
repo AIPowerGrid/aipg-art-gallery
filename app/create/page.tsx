@@ -51,7 +51,7 @@ export default function CreatePage() {
     return (
       <main className="flex-1 w-full px-4 md:px-10 py-8">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-orange-500 rounded-full" />
+          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-zinc-400 rounded-full" />
         </div>
       </main>
     );
@@ -475,13 +475,13 @@ function CreatePageClient() {
     <main className="flex-1 w-full min-h-screen bg-black">
       <Header />
 
-      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-8 space-y-8">
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-6 space-y-6">
         {/* Title */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-1">
             AIPG Art Gallery
           </h1>
-          <p className="text-white/50 text-sm">
+          <p className="text-white/90 text-base font-medium">
             Create
           </p>
         </div>
@@ -493,42 +493,42 @@ function CreatePageClient() {
         )}
 
         {/* Quick Start Guide */}
-        <div className="panel bg-gradient-to-r from-orange-500/10 to-yellow-500/10 border-orange-500/20">
-        <div className="flex items-start gap-4">
-          <span className="text-2xl">💡</span>
-          <div className="space-y-2 text-sm">
-            <p className="font-medium text-white">How to create</p>
-            <ol className="list-decimal list-inside space-y-1 text-white/70">
-              <li><strong>Choose a model</strong> — Image models (🖼️) create still images, Video models (🎬) create short clips</li>
-              <li><strong>Describe what you want</strong> — Be specific: "a cyberpunk city at night with neon lights" works better than "city"</li>
-              <li><strong>Click Generate</strong> — Your job joins the queue and workers will process it</li>
+        <div className="rounded-xl border border-zinc-500/20 bg-gradient-to-r from-zinc-500/10 to-zinc-400/10 p-3">
+        <div className="flex items-start gap-3">
+          <span className="text-xl">💡</span>
+          <div className="space-y-1.5 text-sm">
+            <p className="font-semibold text-white text-sm">How to create</p>
+            <ol className="list-decimal list-inside space-y-1 text-white/95">
+              <li><strong className="text-white">Choose a model</strong> — Image models (🖼️) create still images, Video models (🎬) create short clips</li>
+              <li><strong className="text-white">Describe what you want</strong> — Be specific: "a cyberpunk city at night with neon lights" works better than "city"</li>
+              <li><strong className="text-white">Click Generate</strong> — Your job joins the queue and workers will process it</li>
             </ol>
-            <p className="text-white/50 text-xs mt-2">
-              Tip: Models with more workers ({selectedModel?.onlineWorkers || 0} for current selection) process faster. Check the model description for best results.
+            <p className="text-white/80 text-xs mt-1">
+              💡 Tip: Models with more workers ({selectedModel?.onlineWorkers || 0} for current selection) process faster. Check the model description for best results.
             </p>
           </div>
         </div>
       </div>
 
-      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
-          <div className="panel space-y-6">
+      <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-4 space-y-4">
             {/* Step 1: Model Selection */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold">1</span>
-                <span className="text-sm font-medium text-white/80">Choose a Model</span>
+                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-zinc-500/30 text-white text-xs font-bold">1</span>
+                <span className="text-sm font-semibold text-white">Choose a Model</span>
               </div>
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-2 gap-3">
                 {/* Model Type Filter */}
-                <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
+                <div className="space-y-1.5">
+                  <label className="text-xs uppercase tracking-[0.3em] text-white/80 font-medium">
                     Type
                   </label>
                   <select
                     value={modelTypeFilter}
                     onChange={(e) => setModelTypeFilter(e.target.value as ModelTypeFilter)}
-                    className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5"
+                    className="w-full rounded-full bg-[#1a1a1a] border border-[#333] px-4 py-1.5 text-white text-sm"
                   >
                     <option value="all">All Models ({models.length})</option>
                     <option value="image">🖼️ Image Models ({imageModels.length})</option>
@@ -537,16 +537,16 @@ function CreatePageClient() {
                 </div>
 
                 {/* Model Dropdown */}
-                <div className="space-y-2">
-                  <label className="text-xs uppercase tracking-[0.3em] text-white/50">
+                <div className="space-y-1.5">
+                  <label className="text-xs uppercase tracking-[0.3em] text-white/80 font-medium">
                     Model
                   </label>
                   {isLoadingModels ? (
-                    <div className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white/50">
+                    <div className="w-full rounded-full bg-black/30 border border-white/10 px-4 py-1.5 text-white/50 text-sm">
                       Loading models…
                     </div>
                   ) : filteredModels.length === 0 ? (
-                    <div className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 text-white/50">
+                    <div className="w-full rounded-full bg-black/30 border border-white/10 px-4 py-1.5 text-white/50 text-sm">
                       {models.length === 0 
                         ? "No models available"
                         : `No ${modelTypeFilter} models`
@@ -556,7 +556,7 @@ function CreatePageClient() {
                     <select
                       value={selectedModelId ?? ""}
                       onChange={(e) => handleModelChange(e.target.value)}
-                      className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2.5"
+                      className="w-full rounded-full bg-[#1a1a1a] border border-[#333] px-4 py-1.5 text-white text-sm"
                     >
                       {sortedFilteredModels.map((model) => (
                         <option key={model.id} value={model.id}>
@@ -574,9 +574,9 @@ function CreatePageClient() {
 
             {selectedModel && (
               <>
-                <div className="rounded-2xl border border-white/10 p-4 bg-white/5">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs uppercase tracking-[0.5em] text-white/50">
+                <div className="rounded-xl border border-white/10 p-3 bg-white/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs uppercase tracking-[0.5em] text-white/80 font-medium">
                       {capabilityHint}
                     </p>
                     {selectedModel.onChain && (
@@ -586,20 +586,20 @@ function CreatePageClient() {
                       </span>
                     )}
                   </div>
-                  <p className="text-white/90">{selectedModel.description}</p>
-                  <div className="flex flex-wrap gap-2 mt-3 text-xs text-white/60">
+                  <p className="text-white text-sm leading-relaxed">{selectedModel.description}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-2 text-xs text-white/80">
                     {selectedModel.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="px-3 py-1 rounded-full border border-white/10"
+                        className="px-3 py-0.5 rounded-full bg-[#1a1a1a] border border-[#333] text-white/80"
                       >
                         {tag}
                       </span>
                     ))}
                   </div>
                   {selectedModel.constraints && (
-                    <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/50">
-                      <span className="uppercase tracking-[0.2em]">Chain Limits: </span>
+                    <div className="mt-2 pt-2 border-t border-white/10 text-xs text-white/80">
+                      <span className="uppercase tracking-[0.2em] font-medium">Chain Limits: </span>
                       {selectedModel.constraints.stepsMax && (
                         <span className="mr-3">Steps: {selectedModel.constraints.stepsMin}-{selectedModel.constraints.stepsMax}</span>
                       )}
@@ -611,30 +611,30 @@ function CreatePageClient() {
                 </div>
 
                 {/* Step 2: Prompt */}
-                <div className="flex items-center gap-2 mt-4">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold">2</span>
-                  <span className="text-sm font-medium text-white/80">Describe What You Want</span>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-zinc-500/30 text-white text-xs font-bold">2</span>
+                  <span className="text-sm font-semibold text-white">Describe What You Want</span>
                 </div>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-[0.3em] text-white/50">Positive Prompt</label>
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs uppercase tracking-[0.3em] text-white/80 font-medium">Positive Prompt</label>
                     <textarea
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                       placeholder="Example: A majestic mountain landscape at golden hour, with snow-capped peaks reflecting in a crystal clear lake..."
-                      className="min-h-[140px] w-full rounded-2xl bg-black/30 border border-white/10 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                      className="min-h-[100px] w-full rounded-2xl bg-[#1a1a1a] border border-[#333] px-4 py-2 text-white text-sm placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-[#444]"
                     />
-                    <p className="text-xs text-white/40">Be descriptive — include style, lighting, colors, and mood</p>
+                    <p className="text-xs text-white/75">Be descriptive — include style, lighting, colors, and mood</p>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs uppercase tracking-[0.3em] text-white/50">Negative Prompt</label>
+                  <div className="space-y-1.5">
+                    <label className="text-xs uppercase tracking-[0.3em] text-white/80 font-medium">Negative Prompt</label>
                     <textarea
                       value={negativePrompt}
                       onChange={(e) => setNegativePrompt(e.target.value)}
                       placeholder="Things to avoid: blurry, low quality, distorted..."
-                      className="min-h-[140px] w-full rounded-2xl bg-black/30 border border-white/10 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/30"
+                      className="min-h-[100px] w-full rounded-2xl bg-[#1a1a1a] border border-[#333] px-4 py-2 text-white text-sm placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-[#444]"
                     />
-                    <p className="text-xs text-white/40">Optional — exclude unwanted elements</p>
+                    <p className="text-xs text-white/75">Optional — exclude unwanted elements</p>
                   </div>
                 </div>
 
@@ -659,14 +659,14 @@ function CreatePageClient() {
                 />
 
                 {/* Step 3: Generate */}
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold">3</span>
-                  <span className="text-sm font-medium text-white/80">Generate</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-zinc-500/30 text-white text-xs font-bold">3</span>
+                  <span className="text-sm font-semibold text-white">Generate</span>
                 </div>
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting || !selectedModel || !prompt.trim()}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold shadow-lg hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  className="w-full px-8 py-2 rounded-full bg-[#2a2a2a] border border-[#444] text-white text-sm font-medium hover:bg-[#333] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {isSubmitting ? "Submitting…" : prompt.trim() ? "Generate" : "Enter a prompt to generate"}
                 </button>
@@ -675,32 +675,32 @@ function CreatePageClient() {
           </div>
         </div>
 
-        <aside className="space-y-6">
-          <div className="panel space-y-4">
-            <h3 className="text-sm uppercase tracking-[0.3em] text-white/50">
+        <aside className="space-y-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-4 space-y-3">
+            <h3 className="text-sm uppercase tracking-[0.3em] text-white/90 font-semibold">
               Your Jobs
             </h3>
-            <div className="space-y-4 max-h-[320px] overflow-auto pr-2">
+            <div className="space-y-3 max-h-[320px] overflow-auto pr-2">
               {jobs.length === 0 ? (
                 <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-3 text-white/60">
+                  <div className="flex items-center gap-3 text-white/90">
                     <span className="text-lg">📋</span>
                     <span>Your generations will appear here</span>
                   </div>
-                  <div className="space-y-2 text-xs text-white/40 border-t border-white/10 pt-3">
-                    <p className="font-medium text-white/50">What to expect:</p>
+                  <div className="space-y-2 text-xs text-white/80 border-t border-white/10 pt-3">
+                    <p className="font-semibold text-white/95">What to expect:</p>
                     <ul className="space-y-1">
                       <li className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-yellow-500/50" />
-                        <span><strong className="text-yellow-400/70">Queued</strong> — Waiting for a worker</span>
+                        <span><strong className="text-yellow-300">Queued</strong> — Waiting for a worker</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-blue-500/50 animate-pulse" />
-                        <span><strong className="text-blue-400/70">Processing</strong> — Being generated</span>
+                        <span><strong className="text-blue-300">Processing</strong> — Being generated</span>
                       </li>
                       <li className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-green-500/50" />
-                        <span><strong className="text-green-400/70">Completed</strong> — Ready to view</span>
+                        <span><strong className="text-green-300">Completed</strong> — Ready to view</span>
                       </li>
                     </ul>
                   </div>
@@ -781,9 +781,9 @@ function AdvancedOptions({
     if (!range) return null;
     return (
       <div key={key} className="space-y-2">
-        <div className="flex justify-between text-xs text-white/60">
+        <div className="flex justify-between text-xs text-white/85 font-medium">
           <span className="uppercase tracking-[0.3em]">{label}</span>
-          <span>{params[key] ?? range.min}</span>
+          <span className="text-white">{params[key] ?? range.min}</span>
         </div>
         <input
           type="range"
@@ -794,7 +794,7 @@ function AdvancedOptions({
           onChange={(e) => onParamChange(key, Number(e.target.value))}
           className="w-full"
         />
-        <div className="flex justify-between text-[11px] text-white/40">
+        <div className="flex justify-between text-[11px] text-white/70">
           <span>
             {range.min}
             {suffix}
@@ -809,7 +809,7 @@ function AdvancedOptions({
   };
 
   return (
-    <div className="border border-white/10 rounded-2xl overflow-hidden bg-black/20 mt-4">
+    <div className="border border-white/10 rounded-xl overflow-hidden bg-black/20 mt-2">
       <button
         type="button"
         onClick={(e) => {
@@ -817,13 +817,13 @@ function AdvancedOptions({
           e.stopPropagation();
           setIsOpen(!isOpen);
         }}
-        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/30 rounded-t-2xl"
+        className="w-full flex items-center justify-between p-3 hover:bg-white/5 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-500/30 rounded-t-xl"
         aria-expanded={isOpen}
         aria-controls="advanced-options-content"
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-white/80">Advanced Options</span>
-          <span className="text-xs text-yellow-400/70 bg-yellow-400/10 px-2 py-0.5 rounded">May cause longer loading times</span>
+          <span className="text-sm font-semibold text-white">Advanced Options</span>
+          <span className="text-xs text-yellow-300 bg-yellow-400/10 px-2 py-0.5 rounded">May cause longer loading times</span>
         </div>
         <svg
           className={`w-5 h-5 text-white/60 transition-transform duration-200 flex-shrink-0 ${isOpen ? "rotate-180" : ""}`}
@@ -836,12 +836,12 @@ function AdvancedOptions({
       </button>
       
       {isOpen ? (
-        <div id="advanced-options-content" className="px-4 pb-4 pt-4 space-y-6 border-t border-white/10">
+        <div id="advanced-options-content" className="px-3 pb-3 pt-3 space-y-4 border-t border-white/10">
           <ParamGrid model={model} params={params} onParamChange={onParamChange} />
           
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs text-white/60 uppercase tracking-[0.3em]">
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/85 uppercase tracking-[0.3em] font-medium">
                 Seed
               </label>
               <input
@@ -849,11 +849,11 @@ function AdvancedOptions({
                 value={seed}
                 onChange={(e) => setSeed(e.target.value)}
                 placeholder="Random"
-                className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2"
+                className="w-full rounded-full bg-[#1a1a1a] border border-[#333] px-4 py-1.5 text-white text-sm placeholder:text-white/50"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs text-white/60 uppercase tracking-[0.3em]">
+            <div className="space-y-1.5">
+              <label className="text-xs text-white/85 uppercase tracking-[0.3em] font-medium">
                 Mode
               </label>
               <select
@@ -861,7 +861,7 @@ function AdvancedOptions({
                 onChange={(e) =>
                   setSourceProcessing(e.target.value as any)
                 }
-                className="w-full rounded-xl bg-black/30 border border-white/10 px-3 py-2"
+                className="w-full rounded-full bg-[#1a1a1a] border border-[#333] px-4 py-1.5 text-white text-sm"
               >
                 {model?.type === "video" ? (
                   <>
@@ -882,7 +882,7 @@ function AdvancedOptions({
           </div>
 
           {["img2img", "img2video", "inpainting"].includes(sourceProcessing) && (
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-2 gap-3">
               <FileInput
                 label="Reference image"
                 onChange={(e) => handleFileUpload(e, setUploadImage)}
@@ -896,7 +896,7 @@ function AdvancedOptions({
             </div>
           )}
 
-          <div className="grid md:grid-cols-2 gap-4 text-white/80">
+          <div className="grid md:grid-cols-2 gap-3 text-white/80">
             <Toggle
               label="Allow NSFW"
               enabled={nsfw}
@@ -924,9 +924,9 @@ function ParamGrid({ model, params, onParamChange }: ParamGridProps) {
     if (!range) return null;
     return (
       <div key={key} className="space-y-2">
-        <div className="flex justify-between text-xs text-white/60">
+        <div className="flex justify-between text-xs text-white/85 font-medium">
           <span className="uppercase tracking-[0.3em]">{label}</span>
-          <span>{params[key] ?? range.min}</span>
+          <span className="text-white">{params[key] ?? range.min}</span>
         </div>
         <input
           type="range"
@@ -937,7 +937,7 @@ function ParamGrid({ model, params, onParamChange }: ParamGridProps) {
           onChange={(e) => onParamChange(key, Number(e.target.value))}
           className="w-full"
         />
-        <div className="flex justify-between text-[11px] text-white/40">
+        <div className="flex justify-between text-[11px] text-white/70">
           <span>
             {range.min}
             {suffix}
@@ -952,7 +952,7 @@ function ParamGrid({ model, params, onParamChange }: ParamGridProps) {
   };
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-4 md:grid-cols-2">
       {slider("width", "WIDTH", model.limits.width, "px")}
       {slider("height", "HEIGHT", model.limits.height, "px")}
       {slider("steps", "STEPS", model.limits.steps)}
@@ -976,10 +976,10 @@ function Toggle({
     <button
       type="button"
       onClick={() => onChange(!enabled)}
-      className={`p-4 rounded-2xl border text-left transition ${
+      className={`px-6 py-1.5 rounded-full text-sm transition-colors ${
         enabled
-          ? "border-white/40 bg-white/10 text-white"
-          : "border-white/10 text-white/60 hover:text-white"
+          ? "bg-[#2a2a2a] text-white font-medium border border-[#444]"
+          : "text-[#666] hover:text-white hover:bg-[#1a1a1a] border border-transparent"
       }`}
     >
       {label}
@@ -995,15 +995,15 @@ function FileInput({
   onChange: React.ChangeEventHandler<HTMLInputElement>;
 }) {
   return (
-    <label className="space-y-2">
-      <span className="text-xs uppercase tracking-[0.3em] text-white/60">
+    <label className="space-y-1.5">
+      <span className="text-xs uppercase tracking-[0.3em] text-white/85 font-medium">
         {label}
       </span>
       <input
         type="file"
         accept="image/*"
         onChange={onChange}
-        className="w-full rounded-xl bg-black/30 border border-dashed border-white/20 px-3 py-6 text-center"
+        className="w-full rounded-2xl bg-[#1a1a1a] border border-dashed border-[#333] px-4 py-3 text-center text-sm text-white/70"
       />
     </label>
   );
@@ -1029,16 +1029,16 @@ function JobCard({ job }: { job: JobEntry }) {
   const workerVram = undefined; // TODO: Fetch from worker details API if available
 
   return (
-    <div className="border border-white/10 rounded-2xl p-4 bg-black/40 space-y-3">
+    <div className="border border-white/10 rounded-lg p-3 bg-black/40 space-y-2">
       {/* Status badge */}
       <span
-        className={`inline-block px-3 py-1 rounded-full text-xs ${
+        className={`inline-block px-4 py-1 rounded-full text-xs ${
           status?.status === "completed"
             ? "bg-green-500/20 text-green-200"
             : status?.status === "faulted"
             ? "bg-red-500/20 text-red-200"
             : isProcessing
-            ? "bg-blue-500/20 text-blue-200 animate-pulse"
+            ? "bg-zinc-500/20 text-blue-200 animate-pulse"
             : "bg-yellow-500/20 text-yellow-200"
         }`}
       >
@@ -1050,9 +1050,9 @@ function JobCard({ job }: { job: JobEntry }) {
       
       {/* Job ID - always show full */}
       <div className="space-y-1">
-        <p className="text-xs text-white/40">Job ID</p>
+        <p className="text-xs text-white/75 font-medium">Job ID</p>
         <p 
-          className="font-mono text-xs text-white/70 break-all bg-black/30 rounded px-2 py-1 select-all cursor-pointer hover:bg-black/50 transition-colors"
+          className="font-mono text-xs text-white/90 break-all bg-black/30 rounded px-2 py-1 select-all cursor-pointer hover:bg-black/50 transition-colors"
           onClick={() => {
             navigator.clipboard.writeText(job.jobId);
           }}
@@ -1065,9 +1065,9 @@ function JobCard({ job }: { job: JobEntry }) {
       {/* Worker - show prominently, especially during processing */}
       {workerName ? (
         <div className="space-y-1">
-          <p className="text-xs text-white/40">Worker</p>
+          <p className="text-xs text-white/75 font-medium">Worker</p>
           <p 
-            className="font-mono text-xs text-white/70 break-all bg-black/30 rounded px-2 py-1 select-all cursor-pointer hover:bg-black/50 transition-colors"
+            className="font-mono text-xs text-white/90 break-all bg-black/30 rounded px-2 py-1 select-all cursor-pointer hover:bg-black/50 transition-colors"
             onClick={() => {
               navigator.clipboard.writeText(workerName);
             }}
@@ -1078,8 +1078,8 @@ function JobCard({ job }: { job: JobEntry }) {
         </div>
       ) : isProcessing ? (
         <div className="space-y-1">
-          <p className="text-xs text-white/40">Worker</p>
-          <p className="text-xs text-white/50 italic">Assigning worker...</p>
+          <p className="text-xs text-white/75 font-medium">Worker</p>
+          <p className="text-xs text-white/80 italic">Assigning worker...</p>
         </div>
       ) : null}
       
@@ -1087,22 +1087,22 @@ function JobCard({ job }: { job: JobEntry }) {
       {!status?.status || (status?.status !== "completed" && status?.status !== "faulted") ? (
         <div className="space-y-2">
           {isQueued && queuePosition > 0 && (
-            <div className="flex items-center justify-between text-xs text-white/50">
+            <div className="flex items-center justify-between text-xs text-white/80">
               <span>Queue Position</span>
-              <span className="text-white/70">#{queuePosition}</span>
+              <span className="text-white font-semibold">#{queuePosition}</span>
             </div>
           )}
           {waitTime > 0 && (
-            <div className="flex items-center justify-between text-xs text-white/50">
+            <div className="flex items-center justify-between text-xs text-white/80">
               <span>Est. Wait</span>
-              <span className="text-white/70">{Math.ceil(waitTime)}s</span>
+              <span className="text-white font-semibold">{Math.ceil(waitTime)}s</span>
             </div>
           )}
           {isProcessing && (
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs text-white/50">
+              <div className="flex items-center justify-between text-xs text-white/80">
                 <span>Processing</span>
-                <span className="text-blue-300">{status?.processing ?? 1} active</span>
+                <span className="text-blue-300 font-semibold">{status?.processing ?? 1} active</span>
               </div>
               {/* Show worker info prominently during processing */}
               {workerName && (
@@ -1172,7 +1172,7 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
                 href={generation.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-blue-400 hover:underline mt-1 block"
+                className="text-xs text-zinc-400 hover:underline mt-1 block"
               >
                 Open video URL
               </a>
@@ -1235,7 +1235,7 @@ function GenerationPreview({ generation, jobId }: { generation: GenerationView; 
               href={generation.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-400 hover:underline mt-1 block"
+              className="text-xs text-zinc-400 hover:underline mt-1 block"
             >
               Open image URL
             </a>
@@ -1334,11 +1334,11 @@ function CreatedContentCard({ creations, onRemove }: CreatedContentCardProps) {
   
   if (creations.length === 0) {
     return (
-      <div className="panel space-y-4">
-        <h3 className="text-sm uppercase tracking-[0.3em] text-white/50">
+      <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-4 space-y-3">
+        <h3 className="text-sm uppercase tracking-[0.3em] text-white/90 font-semibold">
           Your Created Content
         </h3>
-        <div className="text-sm text-white/40 flex items-center gap-2">
+        <div className="text-sm text-white/80 flex items-center gap-2">
           <span className="text-lg">🖼️</span>
           <span>Completed creations will be saved here</span>
         </div>
@@ -1347,12 +1347,12 @@ function CreatedContentCard({ creations, onRemove }: CreatedContentCardProps) {
   }
   
   return (
-    <div className="panel space-y-4">
+    <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.35)] p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm uppercase tracking-[0.3em] text-white/50">
+        <h3 className="text-sm uppercase tracking-[0.3em] text-white/90 font-semibold">
           Your Created Content
         </h3>
-        <span className="text-xs text-white/40">{creations.length} items</span>
+        <span className="text-xs text-white/75 font-medium">{creations.length} items</span>
       </div>
       
       {/* Search bar */}
@@ -1362,12 +1362,12 @@ function CreatedContentCard({ creations, onRemove }: CreatedContentCardProps) {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by prompt, tag, or model..."
-          className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm pr-8"
+          className="w-full rounded-full bg-[#1a1a1a] border border-[#333] px-4 py-1.5 text-sm pr-10 text-white placeholder:text-white/50"
         />
         {searchQuery && (
           <button
             onClick={() => setSearchQuery("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white text-lg"
           >
             ×
           </button>
@@ -1428,7 +1428,7 @@ function CreationThumbnail({ creation, onToggle }: CreationThumbnailProps) {
   return (
     <button
       onClick={onToggle}
-      className="relative aspect-square rounded-lg overflow-hidden border border-white/10 hover:border-white/30 transition-colors group"
+      className="relative aspect-square rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors group"
     >
       {imageSrc && !mediaError ? (
         isVideo ? (
@@ -1495,27 +1495,27 @@ function ExpandedCreationModal({ creation, onClose, onRemove }: ExpandedCreation
       onClick={onClose}
     >
       <div 
-        className="bg-zinc-900 rounded-2xl border border-white/10 max-w-2xl w-full max-h-[90vh] overflow-auto"
+        className="bg-zinc-900 rounded-xl border border-white/10 max-w-2xl w-full max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="flex items-center justify-between p-3 border-b border-white/10">
           <div className="flex items-center gap-2">
             <span className="text-lg">{isVideo ? "🎬" : "🖼️"}</span>
             <span className="font-medium">{creation.modelName}</span>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
         
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-3 space-y-3">
           {/* Media */}
           <div className="rounded-xl overflow-hidden border border-white/10">
             {imageSrc ? (
@@ -1537,28 +1537,28 @@ function ExpandedCreationModal({ creation, onClose, onRemove }: ExpandedCreation
               )
             ) : (
               <div className="aspect-video bg-white/5 flex items-center justify-center">
-                <span className="text-white/40">No preview available</span>
+                <span className="text-white/75">No preview available</span>
               </div>
             )}
           </div>
           
           {/* Prompt */}
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-white/40">Prompt</p>
-            <p className="text-sm text-white/80 bg-black/30 rounded-lg p-3">
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-[0.2em] text-white/75 font-medium">Prompt</p>
+            <p className="text-sm text-white bg-black/30 rounded-lg p-2.5">
               {creation.prompt}
             </p>
           </div>
           
           {/* Tags */}
           {creation.tags.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/40">Tags</p>
+            <div className="space-y-1.5">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/75 font-medium">Tags</p>
               <div className="flex flex-wrap gap-1.5">
                 {creation.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="px-2 py-0.5 rounded-full bg-white/10 text-xs text-white/70"
+                    className="px-3 py-0.5 rounded-full bg-[#1a1a1a] border border-[#333] text-xs text-white/80"
                   >
                     {tag}
                   </span>
@@ -1570,33 +1570,33 @@ function ExpandedCreationModal({ creation, onClose, onRemove }: ExpandedCreation
           {/* Metadata */}
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div>
-              <p className="text-white/40">Job ID</p>
-              <p className="font-mono text-white/70 break-all">{creation.jobId}</p>
+              <p className="text-white/75 font-medium">Job ID</p>
+              <p className="font-mono text-white/90 break-all">{creation.jobId}</p>
             </div>
             <div>
-              <p className="text-white/40">Created</p>
-              <p className="text-white/70">{new Date(creation.createdAt).toLocaleString()}</p>
+              <p className="text-white/75 font-medium">Created</p>
+              <p className="text-white/90">{new Date(creation.createdAt).toLocaleString()}</p>
             </div>
             {firstGen?.seed && (
               <div>
-                <p className="text-white/40">Seed</p>
-                <p className="font-mono text-white/70">{firstGen.seed}</p>
+                <p className="text-white/75 font-medium">Seed</p>
+                <p className="font-mono text-white/90">{firstGen.seed}</p>
               </div>
             )}
             {firstGen?.workerName && (
               <div>
-                <p className="text-white/40">Worker</p>
-                <p className="font-mono text-cyan-400 truncate">{firstGen.workerName}</p>
+                <p className="text-white/75 font-medium">Worker</p>
+                <p className="font-mono text-cyan-300 truncate">{firstGen.workerName}</p>
               </div>
             )}
           </div>
         </div>
         
         {/* Actions */}
-        <div className="flex gap-3 p-4 border-t border-white/10">
+        <div className="flex gap-2 p-3 border-t border-white/10">
           <button
             onClick={handleDownload}
-            className="flex-1 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-yellow-400 text-black font-semibold hover:opacity-90 transition-opacity"
+            className="flex-1 py-2 rounded-full bg-[#2a2a2a] border border-[#444] text-white text-sm font-medium hover:bg-[#333] transition-colors"
           >
             Download
           </button>
@@ -1606,7 +1606,7 @@ function ExpandedCreationModal({ creation, onClose, onRemove }: ExpandedCreation
                 onRemove();
               }
             }}
-            className="px-4 py-2 rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors"
+            className="px-6 py-2 rounded-full border border-[#333] text-red-400 text-sm hover:bg-[#1a1a1a] transition-colors"
           >
             Remove
           </button>

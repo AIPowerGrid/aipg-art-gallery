@@ -4,11 +4,8 @@ import { useState } from "react";
 import { GalleryItem } from "@/lib/api";
 
 interface MediaCardProps {
-  item: GalleryItem & {
-    mediaUrls?: string[];
-    loading?: boolean;
-    mediaError?: string;
-  };
+  item: GalleryItem;
+  thumbnailUrl?: string; // Optimized thumbnail URL for grid view
   onSelect?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
@@ -18,6 +15,7 @@ interface MediaCardProps {
 
 export function MediaCard({
   item,
+  thumbnailUrl,
   onSelect,
   onDownload,
   onDelete,
@@ -25,34 +23,30 @@ export function MediaCard({
   isDeleting = false,
 }: MediaCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
-  const mediaSrc = item.mediaUrls?.[0];
+  // Use thumbnail URL if provided, otherwise fall back to full URL
+  const mediaSrc = thumbnailUrl || item.mediaUrls?.[0];
   const isVideo = item.type === "video";
-  const hasMedia = !!mediaSrc && !item.mediaError;
+  const hasMedia = !!mediaSrc;
+
+  // Hide completely if no media or failed to load
+  if (!hasMedia || imageError) {
+    return null;
+  }
 
   return (
     <div
-      className="group relative cursor-pointer break-inside-avoid mb-0 rounded-none overflow-hidden bg-black/20 hover:bg-black/30 transition-all"
+      className="group relative cursor-pointer break-inside-avoid mb-0 overflow-hidden bg-neutral-900"
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
-      onClick={hasMedia ? onSelect : undefined}
+      onClick={hasMedia && !imageError ? onSelect : undefined}
     >
-      <div className="relative w-full overflow-hidden bg-black/40">
-        {item.loading ? (
-          <div className="w-full min-h-[200px] flex items-center justify-center">
-            <div className="animate-spin w-6 h-6 border-2 border-white/30 border-t-white rounded-full" />
-          </div>
-        ) : !hasMedia ? (
-          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/30 p-4">
-            <span className="text-3xl mb-2">{isVideo ? "🎬" : "🖼️"}</span>
-            <span className="text-xs text-center">
-              {item.mediaError || "Media unavailable"}
-            </span>
-          </div>
-        ) : isVideo ? (
+      <div className="relative w-full overflow-hidden">
+        {isVideo ? (
           <video
-            src={mediaSrc}
+            src={item.mediaUrls?.[0]} // Use full URL for video
             className="w-full h-auto object-contain"
             muted
             loop
@@ -61,35 +55,45 @@ export function MediaCard({
             onMouseLeave={(e) => e.currentTarget.pause()}
             onError={() => setImageError(true)}
           />
-        ) : imageError ? (
-          <div className="w-full min-h-[200px] flex flex-col items-center justify-center text-white/50 p-4">
-            <span className="text-2xl mb-2">🖼️</span>
-            <span className="text-xs">Image unavailable</span>
-          </div>
         ) : (
+          <>
+            {/* Placeholder while loading */}
+            {!imageLoaded && (
+              <div className="absolute inset-0 bg-neutral-800 animate-pulse" />
+            )}
           <img
             src={mediaSrc}
             alt={item.prompt}
-            className="w-full h-auto object-contain"
+              className={`w-full h-auto object-contain transition-opacity duration-300 ${
+                imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
             loading="lazy"
+              onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
           />
+          </>
         )}
 
-        {showControls && hasMedia && (
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 z-10">
+        {/* Hover overlay with controls */}
+        {showControls && hasMedia && !imageError && (
+          <>
+            {/* Gradient overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            
+            {/* Top right action buttons */}
+            <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
             {onDownload && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDownload();
                 }}
-                className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white rounded-full transition-all"
+                  className="p-2 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full transition-all"
                 title="Download"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
+                    className="h-4 w-4"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -114,11 +118,11 @@ export function MediaCard({
                 title="Delete from gallery"
               >
                 {isDeleting ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
+                      className="h-4 w-4"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -134,10 +138,19 @@ export function MediaCard({
               </button>
             )}
           </div>
+
+            {/* Bottom prompt overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+              <p className="text-white text-sm line-clamp-2 leading-snug">
+                {item.prompt}
+              </p>
+            </div>
+          </>
         )}
 
+        {/* NSFW badge - always visible */}
         {item.isNsfw && (
-          <div className="absolute top-2 right-2 px-2 py-1 bg-red-500/90 text-white text-xs rounded backdrop-blur-sm">
+          <div className="absolute top-2 left-2 px-2 py-1 bg-red-500/90 text-white text-xs rounded backdrop-blur-sm z-20">
             NSFW
           </div>
         )}

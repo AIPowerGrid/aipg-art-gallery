@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  --radius: 0.75rem;
   color-scheme: dark;
 }
 
@@ -16,7 +17,7 @@ body {
 }
 
 .panel {
-  @apply card-glass p-6 md:p-8;
+  @apply card-glass p-4;
 }
 
 .panel-ghost {
@@ -35,3 +36,47 @@ body {
   background-size: 60px 60px;
 }
 
+
+/* Lexica-style corner rounding for top gallery images */
+.masonry-grid > div:first-child > div:first-child {
+  border-top-left-radius: 12px;
+}
+
+.masonry-grid > div:last-child > div:first-child {
+  border-top-right-radius: 12px;
+}
+
+/* Rounded UI elements throughout site */
+button, 
+input:not([type="file"]), 
+select,
+[role="button"] {
+  border-radius: 9999px !important; /* rounded-full */
+}
+
+/* Textareas stay moderately rounded */
+textarea {
+  border-radius: 16px !important; /* rounded-2xl */
+}
+
+/* File inputs stay moderately rounded */
+input[type="file"] {
+  border-radius: 16px !important; /* rounded-2xl */
+}
+
+/* Improve form element contrast */
+select,
+input,
+textarea {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+select option {
+  background-color: rgb(24, 24, 27);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
