@@ -76,16 +76,22 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 			job_id, model, prompt, negative_prompt,
 			media_url, is_public, wallet_address,
 			width, height, steps, cfg_scale, sampler, scheduler, seed,
-			created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+			type, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		ON CONFLICT (job_id) DO UPDATE SET
 			media_url = EXCLUDED.media_url,
-			is_public = EXCLUDED.is_public
+			is_public = EXCLUDED.is_public,
+			type = EXCLUDED.type
 	`
 
 	createdAt := time.UnixMilli(item.CreatedAt)
 	if item.CreatedAt == 0 {
 		createdAt = time.Now()
+	}
+
+	itemType := item.Type
+	if itemType == "" {
+		itemType = "image"
 	}
 
 	_, err := s.db.Exec(query,
@@ -97,6 +103,7 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 		item.IsPublic,
 		strings.ToLower(item.WalletAddress),
 		width, height, steps, cfgScale, sampler, scheduler, seed,
+		itemType,
 		createdAt,
 	)
 
@@ -195,6 +202,12 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 	// Build WHERE clause
 	whereClauses := []string{"is_public = true"}
 
+	if typeFilter != "" && typeFilter != "all" {
+		whereClauses = append(whereClauses, fmt.Sprintf("type = $%d", argNum))
+		args = append(args, typeFilter)
+		argNum++
+	}
+
 	if searchQuery != "" {
 		// Use word boundary regex for better matching
 		whereClauses = append(whereClauses, fmt.Sprintf("prompt ~* $%d", argNum))
@@ -215,7 +228,7 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 		SELECT job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
 			   width, height, steps, cfg_scale, sampler, scheduler, seed,
-			   created_at
+			   type, created_at
 		FROM gallery_items
 		WHERE %s
 		ORDER BY RANDOM()
@@ -235,6 +248,7 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 		var item GalleryItem
 		var mediaURL string
 		var walletAddr, prompt, negPrompt, model sql.NullString
+		var itemType sql.NullString
 		var createdAt time.Time
 		var width, height, steps sql.NullInt64
 		var cfgScale sql.NullFloat64
@@ -249,6 +263,7 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 			&item.IsPublic,
 			&walletAddr,
 			&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed,
+			&itemType,
 			&createdAt,
 		)
 
@@ -269,7 +284,13 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 		}
 		item.MediaURLs = []string{mediaURL}
 		item.CreatedAt = createdAt.UnixMilli()
-		item.Type = "image"
+		
+		// Set type from database, defaulting to "image" if not set
+		if itemType.Valid && itemType.String != "" {
+			item.Type = itemType.String
+		} else {
+			item.Type = "image"
+		}
 
 		if walletAddr.Valid {
 			item.WalletAddress = walletAddr.String
