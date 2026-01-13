@@ -153,7 +153,7 @@ function CreatePageContent() {
   const [prompt, setPrompt] = useState("");
   const [dimensionId, setDimensionId] = useState(3); // Default to square
   const [isGenerating, setIsGenerating] = useState(false);
-  const [currentJob, setCurrentJob] = useState<{ jobId: string; status: string } | null>(null);
+  const [currentJob, setCurrentJob] = useState<{ jobId: string; status: string; waitTime?: number; queuePosition?: number } | null>(null);
   const [creations, setCreations] = useState<StoredCreation[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -250,7 +250,12 @@ function CreatePageContent() {
       attempts++;
       try {
         const status: JobStatus = await fetchJobStatus(jobId);
-        setCurrentJob({ jobId, status: status.status });
+        setCurrentJob({ 
+          jobId, 
+          status: status.status, 
+          waitTime: status.waitTime,
+          queuePosition: status.queuePosition 
+        });
 
         if (status.status === "completed" && status.generations.length > 0) {
           const creation: StoredCreation = {
@@ -426,20 +431,41 @@ function CreatePageContent() {
                     style={{ backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} 
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-3xl opacity-40">🎨</span>
+                    <svg className="w-8 h-8 text-zinc-500" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18 20H4V6h9V4H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-9h-2v9zm-7.79-3.17l-1.96-2.36L5.5 18h11l-3.54-4.71zM20 4V1h-2v3h-3c.01.01 0 2 0 2h3v2.99c.01.01 2 0 2 0V6h3V4h-3z"/>
+                    </svg>
                   </div>
                 </div>
                 
                 {/* Job Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate mb-1">{prompt || 'Generating...'}</p>
-                  <div className="flex items-center gap-2">
-                    <span className="animate-spin w-4 h-4 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full" />
-                    <span className="text-sm text-zinc-400">
-                      {currentJob.status === 'queued' && 'Waiting in queue...'}
+                  <p className="text-white text-sm font-medium truncate mb-2">{prompt || 'Generating...'}</p>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-2">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        currentJob.status === 'processing' ? 'bg-indigo-500 animate-pulse' : 'bg-amber-500'
+                      }`}
+                      style={{ 
+                        width: currentJob.status === 'processing' ? '60%' : '20%'
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <span>
+                      {currentJob.status === 'queued' && (
+                        <>Queue position: {currentJob.queuePosition || '...'}</>
+                      )}
                       {currentJob.status === 'processing' && 'Creating your image...'}
                       {currentJob.status === 'completed' && 'Finalizing...'}
                     </span>
+                    {currentJob.waitTime && currentJob.waitTime > 0 && (
+                      <span className="text-zinc-500">
+                        ~{Math.ceil(currentJob.waitTime)}s remaining
+                      </span>
+                    )}
                   </div>
                 </div>
                 
