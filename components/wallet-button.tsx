@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useAccount, useConnect, useDisconnect, useEnsName, useSignMessage } from "wagmi";
 import { base } from 'wagmi/chains';
 import { MODELVAULT_CONTRACTS } from "@/lib/wagmi";
@@ -42,6 +43,7 @@ export function WalletButton() {
 }
 
 function WalletButtonClient() {
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const { connectors, connect, isPending } = useConnect();
   const { disconnect } = useDisconnect();
@@ -50,6 +52,7 @@ function WalletButtonClient() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   // Auto sign-in when wallet connects
   const handleSignIn = useCallback(async () => {
@@ -68,12 +71,14 @@ function WalletButtonClient() {
         chainId: BASE_NETWORK.chainId,
       });
       console.log('Successfully signed in with wallet');
+      return true; // Return success
     } catch (error: any) {
       console.error('Sign-in failed:', error);
       // Don't show error if user rejected signature
       if (!error.message?.includes('User rejected')) {
         setAuthError('Sign-in failed. Please try again.');
       }
+      return false; // Return failure
     } finally {
       setIsSigningIn(false);
     }
@@ -85,6 +90,17 @@ function WalletButtonClient() {
       handleSignIn();
     }
   }, [isConnected, address, handleSignIn]);
+
+  // Redirect to create page after successful authentication
+  useEffect(() => {
+    if (isConnected && address && isAuthenticated() && !hasRedirected) {
+      setHasRedirected(true);
+      router.push('/create');
+    } else if (!isConnected && hasRedirected) {
+      // Reset redirect flag when disconnected
+      setHasRedirected(false);
+    }
+  }, [isConnected, address, hasRedirected, router]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
