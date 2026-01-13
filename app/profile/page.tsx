@@ -29,6 +29,7 @@ export default function ProfilePage() {
   const [selectedItem, setSelectedItem] = useState<ItemWithStatus | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [showPublishConfirm, setShowPublishConfirm] = useState<string | null>(null);
+  const [showUnfavoriteConfirm, setShowUnfavoriteConfirm] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { address, isConnected, mounted } = useWalletAddress();
 
@@ -80,8 +81,13 @@ export default function ProfilePage() {
     }
   }
 
+  function showRemoveFavoriteConfirm(jobId: string) {
+    setShowUnfavoriteConfirm(jobId);
+  }
+
   async function handleRemoveFavorite(jobId: string) {
     if (!address) return;
+    setShowUnfavoriteConfirm(null);
     
     try {
       await removeFavorite(jobId, address);
@@ -327,7 +333,7 @@ export default function ProfilePage() {
                       item={item}
                       onSelect={() => setSelectedItem(item)}
                       onDownload={() => handleDownload(item)}
-                      onToggleFavorite={() => handleRemoveFavorite(item.jobId)}
+                      onToggleFavorite={() => showRemoveFavoriteConfirm(item.jobId)}
                       isFavorited={true}
                       isLoggedIn={true}
                     />
@@ -379,6 +385,32 @@ export default function ProfilePage() {
         </>
         )}
       </div>
+
+      {/* Unfavorite confirmation modal */}
+      {showUnfavoriteConfirm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 rounded-xl p-6 max-w-sm w-full border border-zinc-700">
+            <h3 className="text-white text-lg font-semibold mb-3">Remove from Favorites?</h3>
+            <p className="text-white/70 text-sm mb-6">
+              This image will be removed from your favorites.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowUnfavoriteConfirm(null)}
+                className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRemoveFavorite(showUnfavoriteConfirm)}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-sm rounded-lg transition-colors"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
