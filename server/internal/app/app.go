@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +19,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/gallery"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
@@ -25,6 +28,11 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/recipevault"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/r2"
 )
+
+// Context key for wallet address
+type contextKey string
+
+const walletContextKey contextKey = "wallet_address"
 
 type App struct {
 	cfg               config.Config
@@ -137,7 +145,7 @@ func (a *App) Router() http.Handler {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   a.allowedOrigins(),
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Content-Type", "apikey", "X-Wallet-Address"},
+		AllowedHeaders:   []string{"Accept", "Content-Type", "apikey", "Authorization"},
 		AllowCredentials: true,
 	}))
 
@@ -146,6 +154,10 @@ func (a *App) Router() http.Handler {
 	})
 
 	r.Route("/api", func(api chi.Router) {
+		// Auth endpoints (no authentication required)
+		api.Post("/auth/nonce", a.handleGetNonce)
+		api.Post("/auth/verify", a.handleVerifySignature)
+
 		api.Get("/models", a.handleListModels)
 		api.Get("/models/{id}", a.handleGetModel)
 		api.Get("/styles", a.handleGetStyles)
@@ -153,20 +165,24 @@ func (a *App) Router() http.Handler {
 		api.Post("/jobs", a.handleCreateJob)
 		api.Get("/jobs/{id}", a.handleJobStatus)
 
-		// Public gallery endpoints
+		// Public gallery endpoints (read-only, no auth required)
 		api.Get("/gallery", a.handleListGallery)
-		api.Post("/gallery", a.handleAddToGallery)
 		api.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
 		api.Get("/gallery/{id}", a.handleGetGalleryItem)
 		api.Get("/gallery/{id}/media", a.handleGetGalleryMedia)
-		api.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
-		api.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
-		
-		// Favorites
-		api.Post("/favorites/{jobId}", a.handleAddFavorite)
-		api.Delete("/favorites/{jobId}", a.handleRemoveFavorite)
 		api.Get("/favorites/wallet/{wallet}", a.handleGetFavorites)
 		api.Get("/favorites/check/{wallet}/{jobId}", a.handleCheckFavorite)
+
+		// Protected routes (JWT authentication required)
+		api.Group(func(protected chi.Router) {
+			protected.Use(a.authMiddleware)
+
+			protected.Post("/gallery", a.handleAddToGallery)
+			protected.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
+			protected.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
+			protected.Post("/favorites/{jobId}", a.handleAddFavorite)
+			protected.Delete("/favorites/{jobId}", a.handleRemoveFavorite)
+		})
 	})
 
 	return r
@@ -177,6 +193,113 @@ func (a *App) allowedOrigins() []string {
 		return []string{"*"}
 	}
 	return a.cfg.AllowedOrigins
+}
+
+// ============================================================================
+// Authentication handlers and middleware
+// ============================================================================
+
+// authMiddleware extracts and verifies JWT from Authorization header
+func (a *App) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			writeError(w, http.StatusUnauthorized, errors.New("missing authorization header - please sign in"))
+			return
+		}
+
+		// Extract token (format: "Bearer <token>")
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			writeError(w, http.StatusUnauthorized, errors.New("invalid authorization format"))
+			return
+		}
+
+		// Verify JWT
+		walletAddress, err := auth.VerifyJWT(parts[1])
+		if err != nil {
+			log.Printf("Auth: JWT verification failed: %v", err)
+			writeError(w, http.StatusUnauthorized, errors.New("invalid or expired token - please sign in again"))
+			return
+		}
+
+		// Add wallet address to context
+		ctx := context.WithValue(r.Context(), walletContextKey, walletAddress)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// getWalletFromContext retrieves the authenticated wallet address from request context
+func getWalletFromContext(r *http.Request) string {
+	if addr, ok := r.Context().Value(walletContextKey).(string); ok {
+		return addr
+	}
+	return ""
+}
+
+// handleGetNonce generates a nonce for SIWE authentication
+func (a *App) handleGetNonce(w http.ResponseWriter, r *http.Request) {
+	// Generate a random nonce
+	nonceBytes := make([]byte, 16)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		writeError(w, http.StatusInternalServerError, errors.New("failed to generate nonce"))
+		return
+	}
+	nonce := hex.EncodeToString(nonceBytes)
+
+	// In production, you'd store this nonce with expiry in Redis
+	// For now, we rely on timestamp validation in the SIWE message
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"nonce": nonce,
+	})
+}
+
+// handleVerifySignature verifies SIWE signature and returns JWT
+func (a *App) handleVerifySignature(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Message   string `json:"message"`
+		Signature string `json:"signature"`
+		Address   string `json:"address"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid request body"))
+		return
+	}
+
+	if req.Message == "" || req.Signature == "" || req.Address == "" {
+		writeError(w, http.StatusBadRequest, errors.New("message, signature, and address are required"))
+		return
+	}
+
+	// Verify the signature cryptographically
+	valid, err := auth.VerifySignature(req.Message, req.Signature, req.Address)
+	if err != nil {
+		log.Printf("Auth: Signature verification error: %v", err)
+		writeError(w, http.StatusUnauthorized, errors.New("signature verification failed"))
+		return
+	}
+
+	if !valid {
+		writeError(w, http.StatusUnauthorized, errors.New("invalid signature - address mismatch"))
+		return
+	}
+
+	// Generate JWT
+	token, err := auth.GenerateJWT(req.Address)
+	if err != nil {
+		log.Printf("Auth: JWT generation error: %v", err)
+		writeError(w, http.StatusInternalServerError, errors.New("failed to generate token"))
+		return
+	}
+
+	log.Printf("Auth: Wallet %s authenticated successfully", strings.ToLower(req.Address))
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"token":   token,
+		"address": strings.ToLower(req.Address),
+	})
 }
 
 // modelNameAliases maps preset IDs to possible Grid API model names
@@ -1321,12 +1444,8 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get wallet address from header
-	requestWallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
-	if requestWallet == "" {
-		writeError(w, http.StatusUnauthorized, errors.New("wallet address required - connect your wallet to delete"))
-		return
-	}
+	// Get wallet address from JWT (set by authMiddleware)
+	requestWallet := getWalletFromContext(r)
 	
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -1370,12 +1489,8 @@ func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get wallet address from header - required for publishing
-	requestWallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
-	if requestWallet == "" {
-		writeError(w, http.StatusUnauthorized, errors.New("wallet address required - connect your wallet to publish"))
-		return
-	}
+	// Get wallet address from JWT (set by authMiddleware)
+	requestWallet := getWalletFromContext(r)
 	
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -1411,10 +1526,10 @@ func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
 // Favorites handlers
 func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	wallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
+	wallet := getWalletFromContext(r) // From JWT
 	
-	if jobID == "" || wallet == "" {
-		writeError(w, http.StatusBadRequest, errors.New("jobId and wallet address required"))
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
 		return
 	}
 	
@@ -1437,10 +1552,10 @@ func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	wallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
+	wallet := getWalletFromContext(r) // From JWT
 	
-	if jobID == "" || wallet == "" {
-		writeError(w, http.StatusBadRequest, errors.New("jobId and wallet address required"))
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
 		return
 	}
 	
