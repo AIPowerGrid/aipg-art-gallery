@@ -195,6 +195,7 @@ function WalletButtonClient() {
   return (
     <div className="relative">
       <button
+        data-wallet-button
         onClick={(e) => {
           e.stopPropagation();
           setShowDropdown(!showDropdown);
