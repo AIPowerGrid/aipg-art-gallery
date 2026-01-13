@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Masonry from "react-masonry-css";
 import { Header } from "@/components/header";
 import { createJob, fetchJobStatus, fetchGalleryByWallet, addToGallery, GalleryItem } from "@/lib/api";
+import { JobStatus } from "@/types/models";
 import { useAccount } from "wagmi";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { 
@@ -112,14 +113,6 @@ interface StylesConfig {
   defaults: { steps: number; cfgScale: number; sampler: string; scheduler: string };
 }
 
-interface JobStatus {
-  jobId: string;
-  status: string;
-  generations: { id: string; url?: string; base64?: string; seed?: string; kind?: string }[];
-  queuePosition?: number;
-  waitTime?: number;
-}
-
 // Cloudflare Image Resizing
 function getThumbnailUrl(url: string, width = 300): string {
   if (!url?.includes('images.aipg.art')) return url;
@@ -153,7 +146,7 @@ function CreatePageContent() {
   const [prompt, setPrompt] = useState("");
   const [dimensionId, setDimensionId] = useState(3); // Default to square
   const [isGenerating, setIsGenerating] = useState(false);
-  const [currentJob, setCurrentJob] = useState<{ jobId: string; status: string; waitTime?: number; queuePosition?: number } | null>(null);
+  const [currentJob, setCurrentJob] = useState<JobStatus | null>(null);
   const [creations, setCreations] = useState<StoredCreation[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -235,7 +228,17 @@ function CreatePageContent() {
         },
       });
 
-      setCurrentJob({ jobId: resp.jobId, status: "queued" });
+      setCurrentJob({ 
+        jobId: resp.jobId, 
+        status: "queued",
+        faulted: false,
+        waitTime: 0,
+        queuePosition: 0,
+        processing: 0,
+        finished: 0,
+        waiting: 0,
+        generations: []
+      } as JobStatus);
       pollJob(resp.jobId);
     } catch (err: any) {
       setError(err.message || "Failed to create job");
@@ -250,12 +253,7 @@ function CreatePageContent() {
       attempts++;
       try {
         const status: JobStatus = await fetchJobStatus(jobId);
-        setCurrentJob({ 
-          jobId, 
-          status: status.status, 
-          waitTime: status.waitTime,
-          queuePosition: status.queuePosition 
-        });
+        setCurrentJob(status);
 
         if (status.status === "completed" && status.generations.length > 0) {
           const creation: StoredCreation = {
@@ -467,11 +465,20 @@ function CreatePageContent() {
                       {currentJob.status === 'processing' && 'Creating your image...'}
                       {currentJob.status === 'completed' && 'Finalizing...'}
                     </span>
-                    {currentJob.waitTime && currentJob.waitTime > 0 && (
-                      <span className="text-zinc-500">
-                        ~{Math.ceil(currentJob.waitTime)}s remaining
-                      </span>
-                    )}
+                    <div className="text-right">
+                      {/* Worker info */}
+                      {currentJob.generations?.[0]?.workerName && (
+                        <div className="text-zinc-500 text-[10px] mb-0.5">
+                          Worker: {currentJob.generations[0].workerName}
+                        </div>
+                      )}
+                      {/* Time remaining */}
+                      {currentJob.waitTime && currentJob.waitTime > 0 && (
+                        <span className="text-zinc-500">
+                          ~{Math.ceil(currentJob.waitTime)}s remaining
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
