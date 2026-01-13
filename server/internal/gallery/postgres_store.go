@@ -209,12 +209,21 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 	}
 
 	if searchQuery != "" {
-		// Use word boundary regex for whole word matching
-		// \m = word start boundary, \M = word end boundary
-		whereClauses = append(whereClauses, fmt.Sprintf("prompt ~* $%d", argNum))
-		pattern := fmt.Sprintf("\\m%s\\M", strings.ToLower(searchQuery))
-		args = append(args, pattern)
-		argNum++
+		// Split search query into words and match each with word boundaries
+		// This allows "man woman" to match prompts containing either "man" OR "woman"
+		words := strings.Fields(strings.ToLower(searchQuery))
+		if len(words) > 0 {
+			// Create OR pattern: \m(word1|word2|word3)\M
+			escapedWords := make([]string, len(words))
+			for i, word := range words {
+				// Escape special regex characters
+				escapedWords[i] = strings.ReplaceAll(word, ".", "\\.")
+			}
+			pattern := fmt.Sprintf("\\m(%s)\\M", strings.Join(escapedWords, "|"))
+			whereClauses = append(whereClauses, fmt.Sprintf("prompt ~* $%d", argNum))
+			args = append(args, pattern)
+			argNum++
+		}
 	}
 
 	whereClause := strings.Join(whereClauses, " AND ")
