@@ -278,6 +278,11 @@ function CreatePageContent() {
           
           // Save to database if wallet connected, otherwise localStorage
           if (address) {
+            // Extract media URLs from generations
+            const mediaUrls = status.generations
+              .map(g => g.url)
+              .filter((url): url is string => !!url);
+            
             try {
               await addToGallery({
                 jobId,
@@ -294,6 +299,7 @@ function CreatePageContent() {
                   steps: styles?.defaults.steps,
                   cfgScale: styles?.defaults.cfgScale,
                 } : undefined,
+                mediaUrls,
               });
             } catch (err) {
               console.error("Failed to save to gallery:", err);

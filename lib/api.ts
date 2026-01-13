@@ -101,6 +101,7 @@ export interface AddToGalleryRequest {
   isPublic: boolean;
   walletAddress?: string;
   params?: JobParams;
+  mediaUrls?: string[];
 }
 
 export function addToGallery(item: AddToGalleryRequest): Promise<{ success: boolean }> {

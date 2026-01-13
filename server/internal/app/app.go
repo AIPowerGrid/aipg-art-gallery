@@ -1084,16 +1084,17 @@ type JobParamsRequest struct {
 }
 
 type AddToGalleryRequest struct {
-	JobID          string          `json:"jobId"`
-	ModelID        string          `json:"modelId"`
-	ModelName      string          `json:"modelName"`
-	Prompt         string          `json:"prompt"`
-	NegativePrompt string          `json:"negativePrompt,omitempty"`
-	Type           string          `json:"type"`
-	IsNSFW         bool            `json:"isNsfw"`
-	IsPublic       bool            `json:"isPublic"`
-	WalletAddress  string          `json:"walletAddress,omitempty"`
+	JobID          string            `json:"jobId"`
+	ModelID        string            `json:"modelId"`
+	ModelName      string            `json:"modelName"`
+	Prompt         string            `json:"prompt"`
+	NegativePrompt string            `json:"negativePrompt,omitempty"`
+	Type           string            `json:"type"`
+	IsNSFW         bool              `json:"isNsfw"`
+	IsPublic       bool              `json:"isPublic"`
+	WalletAddress  string            `json:"walletAddress,omitempty"`
 	Params         *JobParamsRequest `json:"params,omitempty"`
+	MediaURLs      []string          `json:"mediaUrls,omitempty"`
 }
 
 func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
@@ -1138,6 +1139,7 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		IsPublic:       req.IsPublic,
 		WalletAddress:  req.WalletAddress,
 		Params:         galleryParams,
+		MediaURLs:      req.MediaURLs,
 	}
 	
 	a.galleryStore.Add(item)
