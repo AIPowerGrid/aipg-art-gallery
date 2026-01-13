@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -143,6 +144,7 @@ func (a *App) Router() http.Handler {
 	r.Route("/api", func(api chi.Router) {
 		api.Get("/models", a.handleListModels)
 		api.Get("/models/{id}", a.handleGetModel)
+		api.Get("/styles", a.handleGetStyles)
 
 		api.Post("/jobs", a.handleCreateJob)
 		api.Get("/jobs/{id}", a.handleJobStatus)
@@ -516,6 +518,21 @@ func lookupModelStats(presetID string, byName map[string]aipg.ModelStatus) aipg.
 	
 	// Return empty stats if not found
 	return aipg.ModelStatus{}
+}
+
+// handleGetStyles returns the curated styles/models configuration
+func (a *App) handleGetStyles(w http.ResponseWriter, r *http.Request) {
+	// Read styles.json from config directory
+	stylesPath := "config/styles.json"
+	data, err := os.ReadFile(stylesPath)
+	if err != nil {
+		log.Printf("Error reading styles.json: %v", err)
+		writeError(w, http.StatusInternalServerError, fmt.Errorf("styles config not found"))
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(data)
 }
 
 func (a *App) handleGetModel(w http.ResponseWriter, r *http.Request) {

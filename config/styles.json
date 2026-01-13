@@ -1,0 +1,70 @@
+{
+  "models": [
+    {
+      "id": "flux.1-krea-dev",
+      "name": "FLUX Krea",
+      "description": "High-quality image generation model",
+      "type": "image",
+      "enabled": true,
+      "default": true
+    }
+  ],
+  "dimensions": [
+    {
+      "id": 0,
+      "width": 1536,
+      "height": 640,
+      "label": "Ultra Wide",
+      "aspectRatio": "2.4:1"
+    },
+    {
+      "id": 1,
+      "width": 1344,
+      "height": 768,
+      "label": "Wide",
+      "aspectRatio": "16:9"
+    },
+    {
+      "id": 2,
+      "width": 1152,
+      "height": 896,
+      "label": "Landscape",
+      "aspectRatio": "4:3"
+    },
+    {
+      "id": 3,
+      "width": 1024,
+      "height": 1024,
+      "label": "Square",
+      "aspectRatio": "1:1"
+    },
+    {
+      "id": 4,
+      "width": 896,
+      "height": 1152,
+      "label": "Portrait",
+      "aspectRatio": "3:4"
+    },
+    {
+      "id": 5,
+      "width": 768,
+      "height": 1344,
+      "label": "Tall",
+      "aspectRatio": "9:16"
+    },
+    {
+      "id": 6,
+      "width": 640,
+      "height": 1536,
+      "label": "Ultra Tall",
+      "aspectRatio": "1:2.4"
+    }
+  ],
+  "defaultDimensionId": 3,
+  "defaults": {
+    "steps": 28,
+    "cfgScale": 3.5,
+    "sampler": "euler",
+    "scheduler": "normal"
+  }
+}
