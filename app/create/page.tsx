@@ -389,19 +389,19 @@ function CreatePageContent() {
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
         {/* Anonymous User Warning */}
         {!authenticated && (
-          <div className="mb-6 bg-gradient-to-r from-indigo-600/20 via-purple-600/20 to-pink-600/20 border border-indigo-500/30 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 mt-0.5">
-                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
+          <div className="mb-6 bg-[#1a1a1a] border border-[#333] rounded-xl p-4">
+            <div className="flex items-center justify-between">
               <div className="flex-1">
-                <h3 className="text-white font-medium text-sm mb-1">
-                  Guest Mode: {remainingGens} of {GENERATION_LIMIT} Free Generations Remaining
-                </h3>
-                <p className="text-white/70 text-xs leading-relaxed">
-                  Connect your Base wallet to unlock unlimited generations, video creation, and the ability to save your work across devices.
+                <p className="text-white/80 text-sm">
+                  <span className="font-medium">{remainingGens} of {GENERATION_LIMIT} free generations remaining.</span>
+                  {' '}
+                  <button
+                    onClick={() => document.querySelector<HTMLButtonElement>('[data-wallet-button]')?.click()}
+                    className="text-white hover:underline"
+                  >
+                    Connect wallet
+                  </button>
+                  {' '}for unlimited access.
                 </p>
               </div>
             </div>
