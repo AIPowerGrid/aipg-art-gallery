@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchGalleryByWallet, fetchGalleryMedia, GalleryItem, getFavorites, publishGalleryItem } from "@/lib/api";
+import { fetchGalleryByWallet, fetchGalleryMedia, GalleryItem, getFavorites, publishGalleryItem, removeFavorite } from "@/lib/api";
 import { JobStatus } from "@/types/models";
 import { ImageModal } from "@/components/image-modal";
 import { Header } from "@/components/header";
@@ -77,6 +77,18 @@ export default function ProfilePage() {
       alert(`Failed to publish: ${err.message}`);
     } finally {
       setPublishingId(null);
+    }
+  }
+
+  async function handleRemoveFavorite(jobId: string) {
+    if (!address) return;
+    
+    try {
+      await removeFavorite(jobId, address);
+      // Remove from favorites list
+      setFavorites(prev => prev.filter(item => item.jobId !== jobId));
+    } catch (err: any) {
+      alert(`Failed to remove favorite: ${err.message}`);
     }
   }
 
@@ -315,6 +327,9 @@ export default function ProfilePage() {
                       item={item}
                       onSelect={() => setSelectedItem(item)}
                       onDownload={() => handleDownload(item)}
+                      onToggleFavorite={() => handleRemoveFavorite(item.jobId)}
+                      isFavorited={true}
+                      isLoggedIn={true}
                     />
                   ))}
                 </div>

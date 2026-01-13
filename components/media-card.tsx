@@ -10,10 +10,13 @@ interface MediaCardProps {
   onDownload?: () => void;
   onDelete?: () => void;
   onPublish?: () => void;
+  onToggleFavorite?: () => void;
   canDelete?: boolean;
   isDeleting?: boolean;
   isPublishing?: boolean;
   showPublishButton?: boolean;
+  isFavorited?: boolean;
+  isLoggedIn?: boolean;
 }
 
 export function MediaCard({
@@ -23,10 +26,13 @@ export function MediaCard({
   onDownload,
   onDelete,
   onPublish,
+  onToggleFavorite,
   canDelete = false,
   isDeleting = false,
   isPublishing = false,
   showPublishButton = false,
+  isFavorited = false,
+  isLoggedIn = false,
 }: MediaCardProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -89,6 +95,25 @@ export function MediaCard({
             
             {/* Top right action buttons */}
             <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+              {/* Favorite star - only for logged in users */}
+              {isLoggedIn && onToggleFavorite && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite();
+                  }}
+                  className={`p-1.5 rounded-full transition-colors ${
+                    isFavorited 
+                      ? 'bg-yellow-500/80 text-white hover:bg-yellow-500' 
+                      : 'bg-black/60 hover:bg-black/80 text-white/80 hover:text-white'
+                  }`}
+                  title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                >
+                  <svg className="w-4 h-4" fill={isFavorited ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                </button>
+              )}
               {/* Publish button - P icon */}
               {showPublishButton && onPublish && !item.isPublic && (
                 <button
