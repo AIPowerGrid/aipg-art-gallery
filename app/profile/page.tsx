@@ -43,7 +43,7 @@ export default function ProfilePage() {
   );
 
   useEffect(() => {
-    if (isConnected && address) {
+    if (isConnected && address && isAuthenticated()) {
       loadCreations(address);
       loadFavorites(address);
     } else {
@@ -190,7 +190,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!isConnected) {
+  if (!isConnected || !isAuthenticated()) {
     return (
       <main className="flex-1 w-full min-h-screen bg-black">
         <Header />
