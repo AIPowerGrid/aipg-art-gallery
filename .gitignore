@@ -34,3 +34,41 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Build artifacts
+bin/
+server/api
+server/api.backup
+server/api.exe
+*.exe
+
+# Logs
+*.log
+build.log
+fix-dimensions.log
+import*.log
+prompt-generation.log
+vision-poc.log
+
+# Backups
+*.backup
+*.backup-*
+
+# Archives
+*.tar.gz
+*.zip
+
+# Temp files
+*.patch
+ecosystem.config.js
+nginx*.conf
+
+# Python
+__pycache__/
+*.pyc
+
+# Scripts (dev only)
+scripts/generate-*.js
+scripts/generate-*.py
+scripts/scrape-*.mjs
+scripts/lexica-source.html
