@@ -4,7 +4,16 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: "/api/",
+        source: "/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:;",
+          },
+        ],
+      },
+      {
+        source: "/api/:path*",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
           { key: "Access-Control-Allow-Methods", value: "GET,POST,PUT,DELETE,OPTIONS" },
