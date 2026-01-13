@@ -47,17 +47,8 @@ export function Providers({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Show a loading state while mounting to avoid hydration mismatch
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-black">
-        {children}
-      </div>
-    );
-  }
-
   return (
-    <WagmiProvider config={config} reconnectOnMount={true}>
+    <WagmiProvider config={config} reconnectOnMount={mounted}>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>
