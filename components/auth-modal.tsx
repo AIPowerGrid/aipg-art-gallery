@@ -28,8 +28,12 @@ export function AuthModal({ isOpen, onClose, title, message }: AuthModalProps) {
         
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => {
-              document.querySelector<HTMLButtonElement>('[data-wallet-button]')?.click();
+            onClick={(e) => {
+              e.preventDefault();
+              const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
+              if (walletBtn) {
+                walletBtn.click();
+              }
               onClose();
             }}
             className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"

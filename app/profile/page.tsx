@@ -199,15 +199,19 @@ export default function ProfilePage() {
           {/* Hero Section */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              My Images
+              Unlock Unlimited Access
             </h1>
             <p className="text-white/60 text-lg max-w-2xl mx-auto mb-8">
               Connect your Base wallet to save your creations and access unlimited generations.
             </p>
             <div className="flex items-center justify-center gap-4 flex-wrap">
               <button
-                onClick={() => {
-                  document.querySelector<HTMLButtonElement>('[data-wallet-button]')?.click();
+                onClick={(e) => {
+                  e.preventDefault();
+                  const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
+                  if (walletBtn) {
+                    walletBtn.click();
+                  }
                 }}
                 className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
               >
@@ -337,8 +341,12 @@ export default function ProfilePage() {
           {/* CTA */}
           <div className="text-center">
             <button
-              onClick={() => {
-                document.querySelector<HTMLButtonElement>('[data-wallet-button]')?.click();
+              onClick={(e) => {
+                e.preventDefault();
+                const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
+                if (walletBtn) {
+                  walletBtn.click();
+                }
               }}
               className="px-10 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
             >
