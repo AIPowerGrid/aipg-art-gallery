@@ -311,7 +311,8 @@ function CreatePageContent() {
           
           setCreations(prev => [creation, ...prev]);
           setIsGenerating(false);
-          setCurrentJob(null);
+          // Keep job info visible for 3 seconds to show worker name
+          setTimeout(() => setCurrentJob(null), 3000);
           setPrompt("");
           return;
         }
