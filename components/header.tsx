@@ -3,10 +3,16 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useAccount } from "wagmi";
 import { WalletButton } from "./wallet-button";
+import { isAuthenticated } from "@/lib/auth";
 
 export function Header() {
   const pathname = usePathname();
+  const { isConnected } = useAccount();
+  
+  const authenticated = isConnected && isAuthenticated();
+  const profileLabel = authenticated ? "My Images" : "Join";
   
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
@@ -44,7 +50,7 @@ export function Header() {
               Create
             </Link>
             <Link href="/profile" className={`text-sm transition ${isActive("/profile") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
-              My Images
+              {profileLabel}
             </Link>
           </nav>
 
@@ -57,7 +63,7 @@ export function Header() {
               Create
             </Link>
             <Link href="/profile" className={`text-xs sm:text-sm transition hidden sm:block ${isActive("/profile") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
-              My Images
+              {profileLabel}
             </Link>
           </nav>
 

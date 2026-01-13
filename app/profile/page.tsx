@@ -47,6 +47,9 @@ export default function ProfilePage() {
       loadCreations(address);
       loadFavorites(address);
     } else {
+      // Clear items when not authenticated
+      setItems([]);
+      setFavorites([]);
       setLoading(false);
       setLoadingFavorites(false);
     }
