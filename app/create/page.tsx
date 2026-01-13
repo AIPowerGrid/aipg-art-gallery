@@ -13,6 +13,14 @@ import {
   StoredCreation,
   generateTagsFromPrompt 
 } from "@/lib/storage";
+import { 
+  canGenerateAnon, 
+  getRemainingGenerations, 
+  recordAnonGeneration,
+  GENERATION_LIMIT 
+} from "@/lib/generation-limits";
+import { isAuthenticated } from "@/lib/auth";
+import { AuthModal } from "@/components/auth-modal";
 
 const MASONRY_BREAKPOINTS = {
   default: 5,
@@ -141,7 +149,7 @@ export default function CreatePage() {
 }
 
 function CreatePageContent() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const [styles, setStyles] = useState<StylesConfig | null>(null);
   const [prompt, setPrompt] = useState("");
   const [dimensionId, setDimensionId] = useState(3); // Default to square
@@ -149,6 +157,15 @@ function CreatePageContent() {
   const [currentJob, setCurrentJob] = useState<JobStatus | null>(null);
   const [creations, setCreations] = useState<StoredCreation[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [remainingGens, setRemainingGens] = useState(GENERATION_LIMIT);
+
+  // Update remaining generations count
+  useEffect(() => {
+    if (!isConnected || !isAuthenticated()) {
+      setRemainingGens(getRemainingGenerations());
+    }
+  }, [isConnected, creations]);
 
   // Fetch styles config
   useEffect(() => {
@@ -204,6 +221,22 @@ function CreatePageContent() {
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || !selectedModel || !selectedDimension) return;
     
+    // Check authentication status
+    const authenticated = isConnected && isAuthenticated();
+    
+    // Check if trying to generate video without authentication
+    if (!authenticated && selectedModel.type === "video") {
+      setError("Video generation is only available for members. Please connect your wallet.");
+      setShowAuthModal(true);
+      return;
+    }
+    
+    // Check generation limit for non-authenticated users
+    if (!authenticated && !canGenerateAnon()) {
+      setShowAuthModal(true);
+      return;
+    }
+    
     setIsGenerating(true);
     setError(null);
     setCurrentJob(null);
@@ -228,6 +261,12 @@ function CreatePageContent() {
         },
       });
 
+      // Record generation for non-authenticated users
+      if (!authenticated) {
+        recordAnonGeneration(resp.jobId);
+        setRemainingGens(getRemainingGenerations());
+      }
+
       setCurrentJob({ 
         jobId: resp.jobId, 
         status: "queued",
@@ -244,7 +283,7 @@ function CreatePageContent() {
       setError(err.message || "Failed to create job");
       setIsGenerating(false);
     }
-  }, [prompt, selectedModel, selectedDimension, styles, address]);
+  }, [prompt, selectedModel, selectedDimension, styles, address, isConnected]);
 
   // Poll job status
   const pollJob = useCallback(async (jobId: string) => {
@@ -341,11 +380,34 @@ function CreatePageContent() {
     poll();
   }, [selectedModel, selectedDimension, styles, prompt, address]);
 
+  const authenticated = isConnected && isAuthenticated();
+
   return (
     <main className="min-h-screen bg-black">
       <Header />
       
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
+        {/* Anonymous User Warning */}
+        {!authenticated && (
+          <div className="mb-6 bg-gradient-to-r from-indigo-600/20 via-purple-600/20 to-pink-600/20 border border-indigo-500/30 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white font-medium text-sm mb-1">
+                  Guest Mode: {remainingGens} of {GENERATION_LIMIT} Free Generations Remaining
+                </h3>
+                <p className="text-white/70 text-xs leading-relaxed">
+                  Connect your Base wallet to unlock unlimited generations, video creation, and the ability to save your work across devices.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Generate Section */}
         <div className="flex flex-col md:flex-row gap-6 mb-12">
           {/* Prompt Input */}
@@ -519,6 +581,14 @@ function CreatePageContent() {
           </div>
         )}
       </div>
+
+      {/* Auth Modal for Generation Limit */}
+      <AuthModal 
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        title="Generation Limit Reached"
+        message={`You've used all ${GENERATION_LIMIT} free generations. Connect your Base wallet to unlock unlimited image generations, access to video creation, and the ability to save and manage your creations across all your devices!`}
+      />
     </main>
   );
 }
