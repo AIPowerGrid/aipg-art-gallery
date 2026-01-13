@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Masonry from "react-masonry-css";
 import { Header } from "@/components/header";
-import { createJob, fetchJobStatus, fetchGalleryByWallet, GalleryItem } from "@/lib/api";
+import { createJob, fetchJobStatus, fetchGalleryByWallet, addToGallery, GalleryItem } from "@/lib/api";
 import { useAccount } from "wagmi";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { 
@@ -168,14 +168,13 @@ function CreatePageContent() {
       .catch(() => setError('Failed to load configuration'));
   }, []);
 
-  // Load creations from server (if wallet) + localStorage
+  // Load creations: DB for logged-in users, localStorage for anonymous
   useEffect(() => {
     async function loadCreations() {
-      const localCreations = getStoredCreations();
-      
       if (address) {
+        // Logged in - fetch from database only
         try {
-          const serverData = await fetchGalleryByWallet(address, 50);
+          const serverData = await fetchGalleryByWallet(address, 100);
           const serverCreations: StoredCreation[] = serverData.items.map((item: GalleryItem) => ({
             jobId: item.jobId,
             modelId: item.modelId,
@@ -192,16 +191,14 @@ function CreatePageContent() {
             tags: generateTagsFromPrompt(item.prompt),
             walletAddress: item.walletAddress,
           }));
-          
-          // Merge: server + unique local
-          const serverJobIds = new Set(serverCreations.map(c => c.jobId));
-          const uniqueLocal = localCreations.filter(c => !serverJobIds.has(c.jobId));
-          setCreations([...serverCreations, ...uniqueLocal]);
-        } catch {
-          setCreations(localCreations);
+          setCreations(serverCreations);
+        } catch (err) {
+          console.error("Failed to load creations from server:", err);
+          setCreations([]);
         }
       } else {
-        setCreations(localCreations);
+        // Anonymous - use localStorage
+        setCreations(getStoredCreations());
       }
     }
     loadCreations();
@@ -256,7 +253,6 @@ function CreatePageContent() {
         setCurrentJob({ jobId, status: status.status });
 
         if (status.status === "completed" && status.generations.length > 0) {
-          // Save creation
           const creation: StoredCreation = {
             jobId,
             modelId: selectedModel?.id || "",
@@ -274,7 +270,36 @@ function CreatePageContent() {
             tags: generateTagsFromPrompt(prompt),
             walletAddress: address,
           };
-          saveCreation(creation);
+          
+          // Save to database if wallet connected, otherwise localStorage
+          if (address) {
+            try {
+              await addToGallery({
+                jobId,
+                modelId: selectedModel?.id || "",
+                modelName: selectedModel?.name || "",
+                prompt,
+                type: "image",
+                isNsfw: false,
+                isPublic: true,
+                walletAddress: address,
+                params: selectedDimension ? {
+                  width: selectedDimension.width,
+                  height: selectedDimension.height,
+                  steps: styles?.defaults.steps,
+                  cfgScale: styles?.defaults.cfgScale,
+                } : undefined,
+              });
+            } catch (err) {
+              console.error("Failed to save to gallery:", err);
+              // Fallback to localStorage
+              saveCreation(creation);
+            }
+          } else {
+            // Anonymous user - use localStorage
+            saveCreation(creation);
+          }
+          
           setCreations(prev => [creation, ...prev]);
           setIsGenerating(false);
           setCurrentJob(null);
@@ -304,7 +329,7 @@ function CreatePageContent() {
       }
     };
     poll();
-  }, [selectedModel, prompt, address]);
+  }, [selectedModel, selectedDimension, styles, prompt, address]);
 
   return (
     <main className="min-h-screen bg-black">
