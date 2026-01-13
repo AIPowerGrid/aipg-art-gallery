@@ -76,10 +76,13 @@ export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xl overflow-y-auto"
       onClick={onClose}
     >
-      <div className="relative max-w-[95vw] max-w-7xl w-full my-8 flex flex-col lg:flex-row gap-6 p-6" onClick={(e) => e.stopPropagation()}>
+      <div 
+        className="relative max-w-[95vw] max-w-7xl w-full my-8 flex flex-col lg:flex-row gap-6 p-6 bg-zinc-900/95 backdrop-blur-sm rounded-2xl border border-white/10 shadow-2xl" 
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Close button */}
         <button
           onClick={onClose}

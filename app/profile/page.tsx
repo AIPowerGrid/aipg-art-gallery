@@ -9,6 +9,7 @@ import { Header } from "@/components/header";
 import { MediaCard } from "@/components/media-card";
 import { useWalletAddress } from "@/lib/hooks/use-wallet-address";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
+import { isAuthenticated } from "@/lib/auth";
 
 interface ItemWithStatus extends GalleryItem {
   status?: JobStatus;
@@ -64,12 +65,15 @@ export default function ProfilePage() {
   }
 
   async function handlePublish(jobId: string) {
-    if (!address) return;
+    if (!address || !isAuthenticated()) {
+      alert("Please sign in with your wallet first");
+      return;
+    }
     setPublishingId(jobId);
     setShowPublishConfirm(null);
     
     try {
-      await publishGalleryItem(jobId, address);
+      await publishGalleryItem(jobId);
       // Update item in state
       setItems(prev => prev.map(item => 
         item.jobId === jobId ? { ...item, isPublic: true } : item
@@ -86,11 +90,11 @@ export default function ProfilePage() {
   }
 
   async function handleRemoveFavorite(jobId: string) {
-    if (!address) return;
+    if (!address || !isAuthenticated()) return;
     setShowUnfavoriteConfirm(null);
     
     try {
-      await removeFavorite(jobId, address);
+      await removeFavorite(jobId);
       // Remove from favorites list
       setFavorites(prev => prev.filter(item => item.jobId !== jobId));
     } catch (err: any) {
