@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { createJob, fetchJobStatus, fetchModels, addToGallery, fetchGalleryMedia } from "@/lib/api";
+import { createJob, fetchJobStatus, fetchModels, addToGallery, fetchGalleryMedia, fetchGalleryByWallet, GalleryItem } from "@/lib/api";
 import { Header } from "@/components/header";
 import { 
   saveJob, 
@@ -35,6 +35,20 @@ type JobEntry = {
 };
 
 type ModelTypeFilter = "all" | "image" | "video";
+
+// Cloudflare Image Resizing for thumbnails
+function getThumbnailUrl(fullUrl: string, width: number = 200): string {
+  if (!fullUrl || !fullUrl.includes('images.aipg.art')) {
+    return fullUrl;
+  }
+  try {
+    const url = new URL(fullUrl);
+    const path = url.pathname;
+    return `https://images.aipg.art/cdn-cgi/image/width=${width},quality=80,format=auto${path}`;
+  } catch {
+    return fullUrl;
+  }
+}
 
 // Disable SSR for this page since it uses wagmi hooks
 export const dynamic = 'force-dynamic';
@@ -83,10 +97,53 @@ function CreatePageClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [creations, setCreations] = useState<StoredCreation[]>([]);
   
-  // Load saved creations on mount
+  // Load saved creations on mount - from server if wallet connected, else localStorage
   useEffect(() => {
-    setCreations(getStoredCreations());
-  }, []);
+    async function loadCreations() {
+      // Start with localStorage creations
+      const localCreations = getStoredCreations();
+      
+      if (address) {
+        // Fetch from server for cross-device sync
+        try {
+          const serverData = await fetchGalleryByWallet(address, 50);
+          
+          // Convert GalleryItems to StoredCreations format
+          const serverCreations: StoredCreation[] = serverData.items.map((item: GalleryItem) => ({
+            jobId: item.jobId,
+            modelId: item.modelId,
+            modelName: item.modelName,
+            prompt: item.prompt,
+            type: item.type,
+            createdAt: new Date(item.createdAt).getTime(),
+            generations: item.mediaUrls?.map((url, idx) => ({
+              id: `${item.jobId}-${idx}`,
+              seed: item.params?.seed || '',
+              kind: item.type,
+              url: url,
+            })) || [],
+            tags: generateTagsFromPrompt(item.prompt),
+            walletAddress: item.walletAddress,
+          }));
+          
+          // Merge: server items + local items not on server
+          const serverJobIds = new Set(serverCreations.map(c => c.jobId));
+          const uniqueLocalCreations = localCreations.filter(c => !serverJobIds.has(c.jobId));
+          
+          // Server creations first (most recent), then unique local ones
+          setCreations([...serverCreations, ...uniqueLocalCreations]);
+        } catch (err) {
+          console.error('Failed to fetch server creations:', err);
+          // Fall back to localStorage only
+          setCreations(localCreations);
+        }
+      } else {
+        setCreations(localCreations);
+      }
+    }
+    
+    loadCreations();
+  }, [address]);
   
   // Organize models by type
   const imageModels = useMemo(() => models.filter(m => m.type === "image"), [models]);
@@ -1422,8 +1479,12 @@ interface CreationThumbnailProps {
 function CreationThumbnail({ creation, onToggle }: CreationThumbnailProps) {
   const [mediaError, setMediaError] = useState(false);
   const firstGen = creation.generations[0];
-  const imageSrc = firstGen?.base64 || firstGen?.url;
+  const fullSrc = firstGen?.base64 || firstGen?.url;
   const isVideo = creation.type === "video";
+  // Use thumbnail URL for images (smaller/faster), full URL for videos and base64
+  const imageSrc = fullSrc && !fullSrc.startsWith('data:') && !isVideo 
+    ? getThumbnailUrl(fullSrc, 200) 
+    : fullSrc;
   
   return (
     <button
@@ -1433,7 +1494,7 @@ function CreationThumbnail({ creation, onToggle }: CreationThumbnailProps) {
       {imageSrc && !mediaError ? (
         isVideo ? (
           <video
-            src={imageSrc}
+            src={fullSrc}
             className="w-full h-full object-cover"
             muted
             playsInline
@@ -1449,6 +1510,7 @@ function CreationThumbnail({ creation, onToggle }: CreationThumbnailProps) {
             src={imageSrc}
             alt={creation.prompt.slice(0, 50)}
             className="w-full h-full object-cover"
+            loading="lazy"
             onError={() => setMediaError(true)}
           />
         )

@@ -48,9 +48,12 @@ export default function GalleryPage() {
   const [hasMore, setHasMore] = useState(true);
   const [nextOffset, setNextOffset] = useState(0);
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const loadGallery = useCallback(async () => {
     setLoading(true);
@@ -60,7 +63,7 @@ export default function GalleryPage() {
     setHasMore(true);
     
     try {
-      const response = await fetchGallery(filter, INITIAL_PAGE_SIZE, 0);
+      const response = await fetchGallery(filter, INITIAL_PAGE_SIZE, 0, debouncedSearch || undefined);
       const validItems = response.items.filter(item => 
         item.mediaUrls && item.mediaUrls.length > 0 && item.mediaUrls[0]
       );
@@ -72,14 +75,14 @@ export default function GalleryPage() {
       setError(err.message || "Failed to load gallery");
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, debouncedSearch]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     
     try {
-      const response = await fetchGallery(filter, PAGE_SIZE, nextOffset);
+      const response = await fetchGallery(filter, PAGE_SIZE, nextOffset, debouncedSearch || undefined);
       const validItems = response.items.filter(item => 
         item.mediaUrls && item.mediaUrls.length > 0 && item.mediaUrls[0]
       );
@@ -90,7 +93,22 @@ export default function GalleryPage() {
     } catch {
       setLoadingMore(false);
     }
-  }, [filter, nextOffset, hasMore, loadingMore]);
+  }, [filter, nextOffset, hasMore, loadingMore, debouncedSearch]);
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
 
   useEffect(() => {
     loadGallery();
@@ -153,31 +171,39 @@ export default function GalleryPage() {
       <Header />
 
       {/* Search header - Lexica style */}
-      <div className="w-full px-4 md:px-7 pt-6 sm:pt-10 pb-4 sm:pb-6">
+      <div className="w-full px-4 md:px-7 pt-2 sm:pt-4 pb-3 sm:pb-4">
         <div className="max-w-xl mx-auto">
-          {/* Search box */}
-          <div className="relative mb-4">
-            <div className="flex items-center bg-[#1a1a1a] border border-[#333] rounded-2xl overflow-hidden focus-within:border-[#555] transition-colors">
+          {/* Search box with arrow button */}
+          <div className="relative">
+            <div className="flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
               <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
                 type="text"
-                placeholder="Search for an image"
+                placeholder="Search images"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-3 bg-transparent text-white placeholder-[#666] focus:outline-none"
-                disabled
               />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="mr-1 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+              <button 
+                className="mr-2 p-2 rounded-full bg-[#2a2a2a] hover:bg-[#333] text-white/70 hover:text-white transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
             </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-3 justify-center">
-            <button className="px-8 py-2 rounded-full bg-[#1a1a1a] border border-[#333] text-white/70 text-sm font-medium hover:bg-[#222] hover:text-white transition-colors" disabled>
-              Search
-            </button>
-            <Link href="/create" className="px-8 py-2 rounded-full bg-[#2a2a2a] border border-[#444] text-white/80 text-sm font-medium hover:bg-[#333] hover:text-white transition-colors">
-              Generate
-            </Link>
           </div>
 
           {/* Filters */}
@@ -348,21 +374,6 @@ function GalleryCard({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
           </button>
-          {canDelete && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              disabled={isDeleting}
-              className="p-1.5 bg-red-600/80 hover:bg-red-600 rounded-full text-white transition-colors disabled:opacity-50"
-            >
-              {isDeleting ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              )}
-            </button>
-          )}
         </div>        {/* Bottom prompt */}
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <p className="text-white text-sm leading-snug line-clamp-2">{item.prompt}</p>

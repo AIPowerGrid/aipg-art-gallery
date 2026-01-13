@@ -80,11 +80,12 @@ export interface GalleryResponse {
   nextOffset: number;
 }
 
-export function fetchGallery(typeFilter?: string, limit?: number, offset?: number): Promise<GalleryResponse> {
+export function fetchGallery(typeFilter?: string, limit?: number, offset?: number, searchQuery?: string): Promise<GalleryResponse> {
   const params = new URLSearchParams();
   if (typeFilter && typeFilter !== "all") params.append("type", typeFilter);
   if (limit) params.append("limit", String(limit));
   if (offset !== undefined) params.append("offset", String(offset));
+  if (searchQuery) params.append("q", searchQuery);
   const query = params.toString();
   return jsonFetch(`/gallery${query ? `?${query}` : ""}`);
 }
@@ -145,4 +146,3 @@ export function deleteGalleryItem(jobId: string, walletAddress?: string): Promis
     headers,
   });
 }
-

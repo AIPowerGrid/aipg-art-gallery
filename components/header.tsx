@@ -37,57 +37,27 @@ export function Header() {
 
           {/* Nav - centered with search box on desktop */}
           <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
-            <Link href="/" className="relative pb-1 group">
-              <span className={`text-sm transition ${isActive("/") ? "text-white" : "text-white/80 hover:text-white"}`}>
-                Gallery
-              </span>
-              {isActive("/") && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              )}
+            <Link href="/" className={`text-sm transition ${isActive("/") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
+              Gallery
             </Link>
-            <Link href="/create" className="relative pb-1 group">
-              <span className={`text-sm transition ${isActive("/create") ? "text-white" : "text-white/80 hover:text-white"}`}>
-                Create
-              </span>
-              {isActive("/create") && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              )}
+            <Link href="/create" className={`text-sm transition ${isActive("/create") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
+              Create
             </Link>
-            <Link href="/profile" className="relative pb-1 group">
-              <span className={`text-sm transition ${isActive("/profile") ? "text-white" : "text-white/80 hover:text-white"}`}>
-                My Creations
-              </span>
-              {isActive("/profile") && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              )}
+            <Link href="/profile" className={`text-sm transition ${isActive("/profile") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
+              My Creations
             </Link>
           </nav>
 
-          {/* Nav mobile - hidden on very small screens */}
-          <nav className="flex md:hidden xs:flex items-center gap-2 sm:gap-4">
-            <Link href="/" className="relative pb-1">
-              <span className={`text-xs sm:text-sm transition ${isActive("/") ? "text-white" : "text-white/80 hover:text-white"}`}>
-                Gallery
-              </span>
-              {isActive("/") && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              )}
+          {/* Nav mobile */}
+          <nav className="flex md:hidden items-center gap-3 sm:gap-4">
+            <Link href="/" className={`text-xs sm:text-sm transition ${isActive("/") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
+              Gallery
             </Link>
-            <Link href="/create" className="relative pb-1">
-              <span className={`text-xs sm:text-sm transition ${isActive("/create") ? "text-white" : "text-white/80 hover:text-white"}`}>
-                Create
-              </span>
-              {isActive("/create") && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              )}
+            <Link href="/create" className={`text-xs sm:text-sm transition ${isActive("/create") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
+              Create
             </Link>
-            <Link href="/profile" className="relative pb-1 hidden sm:block">
-              <span className={`text-xs sm:text-sm transition ${isActive("/profile") ? "text-white" : "text-white/80 hover:text-white"}`}>
-                My Creations
-              </span>
-              {isActive("/profile") && (
-                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-              )}
+            <Link href="/profile" className={`text-xs sm:text-sm transition hidden sm:block ${isActive("/profile") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
+              My Creations
             </Link>
           </nav>
 
