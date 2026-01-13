@@ -70,6 +70,13 @@ function WalletButtonClient() {
           }}
           className="flex items-center gap-2 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full bg-[#1a1a1a] border border-[#333] text-white/80 hover:bg-[#222] hover:text-white hover:border-[#444] transition-colors"
         >
+          <Image 
+            src="/base-logo.svg" 
+            alt="Base" 
+            width={16} 
+            height={16}
+            className="w-4 h-4"
+          />
           <span className="w-2 h-2 rounded-full bg-green-400"></span>
           <span className="font-mono text-xs sm:text-sm">
             {ensName || formatAddress(address)}
@@ -89,15 +96,6 @@ function WalletButtonClient() {
             <div className="px-3 py-2 mb-2 rounded-xl bg-white/5">
               <div className="text-xs text-white/50 mb-1">Address</div>
               <div className="font-mono text-sm text-white break-all">{address}</div>
-            </div>
-            
-            {/* Network Info */}
-            <div className="px-3 py-2 mb-2 rounded-xl bg-white/5">
-              <div className="text-xs text-white/50 mb-1">Network</div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-400"></span>
-                <span className="text-sm text-white">Base</span>
-              </div>
             </div>
             
             {/* Disconnect Button */}
