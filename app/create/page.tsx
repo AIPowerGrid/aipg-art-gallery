@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Masonry from "react-masonry-css";
 import { Header } from "@/components/header";
-import { createJob, fetchJobStatus } from "@/lib/api";
+import { createJob, fetchJobStatus, fetchGalleryByWallet, GalleryItem } from "@/lib/api";
 import { useAccount } from "wagmi";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { 
@@ -11,6 +12,15 @@ import {
   StoredCreation,
   generateTagsFromPrompt 
 } from "@/lib/storage";
+
+const MASONRY_BREAKPOINTS = {
+  default: 5,
+  1536: 4,
+  1280: 4,
+  1024: 3,
+  768: 2,
+  640: 2,
+};
 
 // Types
 interface StylesConfig {
@@ -76,10 +86,44 @@ function CreatePageContent() {
       .catch(() => setError('Failed to load configuration'));
   }, []);
 
-  // Load creations
+  // Load creations from server (if wallet) + localStorage
   useEffect(() => {
-    setCreations(getStoredCreations());
-  }, []);
+    async function loadCreations() {
+      const localCreations = getStoredCreations();
+      
+      if (address) {
+        try {
+          const serverData = await fetchGalleryByWallet(address, 50);
+          const serverCreations: StoredCreation[] = serverData.items.map((item: GalleryItem) => ({
+            jobId: item.jobId,
+            modelId: item.modelId,
+            modelName: item.modelName,
+            prompt: item.prompt,
+            type: item.type as "image" | "video",
+            createdAt: item.createdAt,
+            generations: item.mediaUrls?.map((url, idx) => ({
+              id: `${item.jobId}-${idx}`,
+              seed: item.params?.seed || '',
+              kind: item.type as "image" | "video",
+              url: url,
+            })) || [],
+            tags: generateTagsFromPrompt(item.prompt),
+            walletAddress: item.walletAddress,
+          }));
+          
+          // Merge: server + unique local
+          const serverJobIds = new Set(serverCreations.map(c => c.jobId));
+          const uniqueLocal = localCreations.filter(c => !serverJobIds.has(c.jobId));
+          setCreations([...serverCreations, ...uniqueLocal]);
+        } catch {
+          setCreations(localCreations);
+        }
+      } else {
+        setCreations(localCreations);
+      }
+    }
+    loadCreations();
+  }, [address]);
 
   const selectedDimension = styles?.dimensions.find(d => d.id === dimensionId);
   const selectedModel = styles?.models.find(m => m.default) || styles?.models[0];
@@ -262,16 +306,6 @@ function CreatePageContent() {
                 </svg>
               </div>
               
-              {/* Aspect Ratio Box Preview */}
-              <div className="flex justify-center mt-4">
-                <div 
-                  className="border-2 border-zinc-600 rounded bg-zinc-700/30 transition-all duration-200"
-                  style={{
-                    width: selectedDimension ? Math.min(80, 80 * (selectedDimension.width / selectedDimension.height)) : 80,
-                    height: selectedDimension ? Math.min(80, 80 * (selectedDimension.height / selectedDimension.width)) : 80,
-                  }}
-                />
-              </div>
             </div>
 
             {/* Model */}
@@ -303,11 +337,15 @@ function CreatePageContent() {
         {creations.length > 0 && (
           <div>
             <h2 className="text-lg font-semibold text-white mb-4">Your Creations</h2>
-            <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-3 space-y-3">
+            <Masonry
+              breakpointCols={MASONRY_BREAKPOINTS}
+              className="masonry-grid flex w-auto -ml-1"
+              columnClassName="pl-1 bg-clip-padding"
+            >
               {creations.map((creation) => (
                 <CreationCard key={creation.jobId} creation={creation} />
               ))}
-            </div>
+            </Masonry>
           </div>
         )}
 
@@ -325,9 +363,13 @@ function CreatePageContent() {
 // Creation Card Component
 function CreationCard({ creation }: { creation: StoredCreation }) {
   const [showModal, setShowModal] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const firstGen = creation.generations[0];
   const imageUrl = firstGen?.url || firstGen?.base64;
-  const thumbnailUrl = imageUrl ? getThumbnailUrl(imageUrl, 400) : null;
+  // Use thumbnail for grid, full URL for modal
+  const thumbnailUrl = imageUrl && !imageUrl.startsWith('data:') 
+    ? getThumbnailUrl(imageUrl, 400) 
+    : imageUrl;
 
   const handleDownload = () => {
     if (!imageUrl) return;
@@ -338,20 +380,21 @@ function CreationCard({ creation }: { creation: StoredCreation }) {
   return (
     <>
       <div 
-        className="break-inside-avoid group cursor-pointer"
+        className="mb-1 group cursor-pointer"
         onClick={() => setShowModal(true)}
       >
         <div className="relative rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
-          {thumbnailUrl ? (
+          {thumbnailUrl && !imgError ? (
             <img
               src={thumbnailUrl}
               alt={creation.prompt.slice(0, 50)}
-              className="w-full h-auto"
+              className="w-full h-auto block"
               loading="lazy"
+              onError={() => setImgError(true)}
             />
           ) : (
-            <div className="aspect-square flex items-center justify-center text-zinc-600">
-              <span className="text-4xl">🖼️</span>
+            <div className="aspect-square flex items-center justify-center bg-zinc-800/50">
+              <span className="text-4xl opacity-50">🖼️</span>
             </div>
           )}
           
