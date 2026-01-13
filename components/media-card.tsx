@@ -9,8 +9,11 @@ interface MediaCardProps {
   onSelect?: () => void;
   onDownload?: () => void;
   onDelete?: () => void;
+  onPublish?: () => void;
   canDelete?: boolean;
   isDeleting?: boolean;
+  isPublishing?: boolean;
+  showPublishButton?: boolean;
 }
 
 export function MediaCard({
@@ -19,12 +22,16 @@ export function MediaCard({
   onSelect,
   onDownload,
   onDelete,
+  onPublish,
   canDelete = false,
   isDeleting = false,
+  isPublishing = false,
+  showPublishButton = false,
 }: MediaCardProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
 
   // Use thumbnail URL if provided, otherwise fall back to full URL
   const mediaSrc = thumbnailUrl || item.mediaUrls?.[0];
@@ -82,47 +89,45 @@ export function MediaCard({
             
             {/* Top right action buttons */}
             <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-            {onDownload && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDownload();
-                }}
-                  className="p-2 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full transition-all"
-                title="Download"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
+              {/* Publish button - P icon */}
+              {showPublishButton && onPublish && !item.isPublic && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPublishConfirm(true);
+                  }}
+                  disabled={isPublishing}
+                  className="w-7 h-7 flex items-center justify-center bg-black/50 hover:bg-purple-600 backdrop-blur-sm text-white rounded-full transition-all text-xs font-bold"
+                  title="Publish to gallery"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-              </button>
-            )}
-            {canDelete && onDelete && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                disabled={isDeleting}
-                className="p-2 bg-red-500/80 hover:bg-red-600 backdrop-blur-sm text-white rounded-full transition-all disabled:opacity-50"
-                title="Delete from gallery"
-              >
-                {isDeleting ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
+                  {isPublishing ? (
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    "P"
+                  )}
+                </button>
+              )}
+              {/* Published indicator - purple P */}
+              {item.isPublic && (
+                <div 
+                  className="w-7 h-7 flex items-center justify-center bg-purple-600 backdrop-blur-sm text-white rounded-full text-xs font-bold"
+                  title="Published to gallery"
+                >
+                  P
+                </div>
+              )}
+              {onDownload && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDownload();
+                  }}
+                  className="p-2 bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white rounded-full transition-all"
+                  title="Download"
+                >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4"
+                    className="h-4 w-4"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -131,13 +136,77 @@ export function MediaCard({
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                     />
                   </svg>
-                )}
-              </button>
+                </button>
+              )}
+              {canDelete && onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  disabled={isDeleting}
+                  className="p-2 bg-red-500/80 hover:bg-red-600 backdrop-blur-sm text-white rounded-full transition-all disabled:opacity-50"
+                  title="Delete from gallery"
+                >
+                  {isDeleting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
+            
+            {/* Publish confirmation popup */}
+            {showPublishConfirm && (
+              <div 
+                className="absolute inset-0 bg-black/80 backdrop-blur-sm z-30 flex items-center justify-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="bg-zinc-900 rounded-xl p-4 mx-4 max-w-xs text-center border border-zinc-700">
+                  <p className="text-white text-sm mb-4">
+                    Publish this image to the public gallery?
+                  </p>
+                  <div className="flex gap-2 justify-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPublishConfirm(false);
+                      }}
+                      className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowPublishConfirm(false);
+                        onPublish?.();
+                      }}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg transition-colors"
+                    >
+                      Publish
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
-          </div>
 
             {/* Bottom prompt overlay */}
             <div className="absolute bottom-0 left-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">

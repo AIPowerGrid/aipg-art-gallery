@@ -7,6 +7,7 @@ type GalleryStore interface {
 	List(typeFilter string, limit, offset int, searchQuery string) ListResult
 	ListByWallet(wallet string, limit int) []GalleryItem
 	Delete(jobID string) error
+	SetPublic(jobID string, isPublic bool) error
 	Count() int
 }
 
@@ -34,6 +35,11 @@ func (a *FileStoreAdapter) ListByWallet(wallet string, limit int) []GalleryItem 
 
 func (a *FileStoreAdapter) Delete(jobID string) error {
 	return a.Store.Delete(jobID)
+}
+
+func (a *FileStoreAdapter) SetPublic(jobID string, isPublic bool) error {
+	// File store doesn't support this operation
+	return nil
 }
 
 func (a *FileStoreAdapter) Count() int {

@@ -17,6 +17,11 @@ type PostgresStore struct {
 	JobStore  *JobStore
 }
 
+// DB returns the underlying database connection
+func (s *PostgresStore) DB() *sql.DB {
+	return s.db
+}
+
 // NewPostgresStore creates a new PostgreSQL-backed gallery store
 func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	db, err := sql.Open("postgres", connStr)
@@ -409,6 +414,12 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 // Delete removes a gallery item
 func (s *PostgresStore) Delete(jobID string) error {
 	_, err := s.db.Exec("DELETE FROM gallery_items WHERE job_id = $1", jobID)
+	return err
+}
+
+// SetPublic updates the is_public flag for a gallery item
+func (s *PostgresStore) SetPublic(jobID string, isPublic bool) error {
+	_, err := s.db.Exec("UPDATE gallery_items SET is_public = $1 WHERE job_id = $2", isPublic, jobID)
 	return err
 }
 

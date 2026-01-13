@@ -35,6 +35,7 @@ type App struct {
 	galleryStore      gallery.GalleryStore
 	userStore         *gallery.UserStore
 	jobStore          *gallery.JobStore
+	favoritesStore    *gallery.FavoritesStore
 	r2Client          *r2.Client
 }
 
@@ -72,6 +73,7 @@ func New(cfg config.Config) (*App, error) {
 	var galleryStore gallery.GalleryStore
 	var userStore *gallery.UserStore
 	var jobStore *gallery.JobStore
+	var favoritesStore *gallery.FavoritesStore
 
 	if cfg.PostgresEnabled {
 		// Use PostgreSQL
@@ -84,6 +86,7 @@ func New(cfg config.Config) (*App, error) {
 			galleryStore = pgStore
 			userStore = pgStore.UserStore
 			jobStore = pgStore.JobStore
+			favoritesStore = gallery.NewFavoritesStore(pgStore.DB())
 			log.Printf("PostgreSQL gallery store connected, %d items", pgStore.Count())
 		}
 	} else {
@@ -125,6 +128,7 @@ func New(cfg config.Config) (*App, error) {
 		galleryStore:      galleryStore,
 		userStore:         userStore,
 		jobStore:          jobStore,
+		favoritesStore:    favoritesStore,
 	}, nil
 }
 
@@ -156,6 +160,13 @@ func (a *App) Router() http.Handler {
 		api.Get("/gallery/{id}", a.handleGetGalleryItem)
 		api.Get("/gallery/{id}/media", a.handleGetGalleryMedia)
 		api.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
+		api.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
+		
+		// Favorites
+		api.Post("/favorites/{jobId}", a.handleAddFavorite)
+		api.Delete("/favorites/{jobId}", a.handleRemoveFavorite)
+		api.Get("/favorites/wallet/{wallet}", a.handleGetFavorites)
+		api.Get("/favorites/check/{wallet}/{jobId}", a.handleCheckFavorite)
 	})
 
 	return r
@@ -1348,6 +1359,156 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		"success": true,
 		"message": "Removed from gallery",
 		"jobId":   jobID,
+	})
+}
+
+// handlePublishGalleryItem allows a logged-in user to publish their image to the public gallery
+func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
+		return
+	}
+	
+	// Get wallet address from header - required for publishing
+	requestWallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
+	if requestWallet == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("wallet address required - connect your wallet to publish"))
+		return
+	}
+	
+	// Get the item first to check ownership
+	item := a.galleryStore.Get(jobID)
+	if item == nil {
+		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+	
+	// Check ownership
+	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
+	if itemWallet != requestWallet {
+		writeError(w, http.StatusForbidden, errors.New("you can only publish your own images"))
+		return
+	}
+	
+	// Update to public
+	err := a.galleryStore.SetPublic(jobID, true)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, errors.New("failed to publish image"))
+		return
+	}
+	
+	log.Printf("Gallery: published job %s by wallet %s", jobID, requestWallet)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":  true,
+		"message":  "Image published to gallery",
+		"jobId":    jobID,
+		"isPublic": true,
+	})
+}
+
+// Favorites handlers
+func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "jobId")
+	wallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
+	
+	if jobID == "" || wallet == "" {
+		writeError(w, http.StatusBadRequest, errors.New("jobId and wallet address required"))
+		return
+	}
+	
+	if a.favoritesStore == nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("favorites not available"))
+		return
+	}
+	
+	err := a.favoritesStore.Add(wallet, jobID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"jobId":   jobID,
+	})
+}
+
+func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "jobId")
+	wallet := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Wallet-Address")))
+	
+	if jobID == "" || wallet == "" {
+		writeError(w, http.StatusBadRequest, errors.New("jobId and wallet address required"))
+		return
+	}
+	
+	if a.favoritesStore == nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("favorites not available"))
+		return
+	}
+	
+	err := a.favoritesStore.Remove(wallet, jobID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"jobId":   jobID,
+	})
+}
+
+func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
+	wallet := chi.URLParam(r, "wallet")
+	if wallet == "" {
+		writeError(w, http.StatusBadRequest, errors.New("wallet address required"))
+		return
+	}
+	
+	if a.favoritesStore == nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("favorites not available"))
+		return
+	}
+	
+	limitStr := r.URL.Query().Get("limit")
+	limit := 100
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	
+	items := a.favoritesStore.GetFavoritedItems(wallet, limit)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items":  items,
+		"count":  len(items),
+		"wallet": wallet,
+	})
+}
+
+func (a *App) handleCheckFavorite(w http.ResponseWriter, r *http.Request) {
+	wallet := chi.URLParam(r, "wallet")
+	jobID := chi.URLParam(r, "jobId")
+	
+	if wallet == "" || jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("wallet and jobId required"))
+		return
+	}
+	
+	if a.favoritesStore == nil {
+		writeJSON(w, http.StatusOK, map[string]any{"favorited": false})
+		return
+	}
+	
+	favorited := a.favoritesStore.IsFavorited(wallet, jobID)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"favorited": favorited,
+		"jobId":     jobID,
 	})
 }
 
