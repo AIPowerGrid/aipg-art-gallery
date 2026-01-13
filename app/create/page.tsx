@@ -396,7 +396,13 @@ function CreatePageContent() {
                   <span className="font-medium">{remainingGens} of {GENERATION_LIMIT} free generations remaining.</span>
                   {' '}
                   <button
-                    onClick={() => document.querySelector<HTMLButtonElement>('[data-wallet-button]')?.click()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
+                      if (walletBtn) {
+                        walletBtn.click();
+                      }
+                    }}
                     className="text-white hover:underline"
                   >
                     Connect wallet
