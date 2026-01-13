@@ -2,7 +2,6 @@ package gallery
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -46,23 +45,36 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 
 // Add inserts a new gallery item
 func (s *PostgresStore) Add(item GalleryItem) error {
-	paramsJSON, err := json.Marshal(item.Params)
-	if err != nil {
-		paramsJSON = []byte("{}")
+	// Convert media URLs array to single URL
+	mediaURL := ""
+	if len(item.MediaURLs) > 0 {
+		mediaURL = item.MediaURLs[0]
 	}
 
-	mediaURLsJSON, err := json.Marshal(item.MediaURLs)
-	if err != nil {
-		mediaURLsJSON = []byte("[]")
+	// Extract params
+	var width, height, steps *int
+	var cfgScale *float64
+	var sampler, scheduler, seed *string
+
+	if item.Params != nil {
+		width = item.Params.Width
+		height = item.Params.Height
+		steps = item.Params.Steps
+		cfgScale = item.Params.CfgScale
+		sampler = item.Params.Sampler
+		scheduler = item.Params.Scheduler
+		seed = item.Params.Seed
 	}
 
 	query := `
 		INSERT INTO gallery_items (
-			job_id, model_id, model_name, prompt, negative_prompt,
-			type, is_nsfw, is_public, wallet_address, params, media_urls, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+			job_id, model, prompt, negative_prompt,
+			media_url, is_public, wallet_address,
+			width, height, steps, cfg_scale, sampler, scheduler, seed,
+			created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		ON CONFLICT (job_id) DO UPDATE SET
-			media_urls = EXCLUDED.media_urls,
+			media_url = EXCLUDED.media_url,
 			is_public = EXCLUDED.is_public
 	`
 
@@ -71,18 +83,15 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 		createdAt = time.Now()
 	}
 
-	_, err = s.db.Exec(query,
+	_, err := s.db.Exec(query,
 		item.JobID,
-		item.ModelID,
-		item.ModelName,
+		item.ModelName, // Use ModelName as 'model'
 		item.Prompt,
 		item.NegativePrompt,
-		item.Type,
-		item.IsNSFW,
+		mediaURL,
 		item.IsPublic,
 		strings.ToLower(item.WalletAddress),
-		paramsJSON,
-		mediaURLsJSON,
+		width, height, steps, cfgScale, sampler, scheduler, seed,
 		createdAt,
 	)
 
@@ -92,29 +101,31 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 // Get retrieves a single gallery item by job ID
 func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	query := `
-		SELECT job_id, model_id, model_name, prompt, negative_prompt,
-			   type, is_nsfw, is_public, wallet_address, params, media_urls, created_at
+		SELECT job_id, model, prompt, negative_prompt,
+			   media_url, is_public, wallet_address,
+			   width, height, steps, cfg_scale, sampler, scheduler, seed,
+			   created_at
 		FROM gallery_items
 		WHERE job_id = $1
 	`
 
 	var item GalleryItem
-	var paramsJSON, mediaURLsJSON []byte
-	var walletAddr sql.NullString
+	var mediaURL string
+	var walletAddr, model, prompt, negPrompt sql.NullString
 	var createdAt time.Time
+	var width, height, steps sql.NullInt64
+	var cfgScale sql.NullFloat64
+	var sampler, scheduler, seed sql.NullString
 
 	err := s.db.QueryRow(query, jobID).Scan(
 		&item.JobID,
-		&item.ModelID,
-		&item.ModelName,
-		&item.Prompt,
-		&item.NegativePrompt,
-		&item.Type,
-		&item.IsNSFW,
+		&model,
+		&prompt,
+		&negPrompt,
+		&mediaURL,
 		&item.IsPublic,
 		&walletAddr,
-		&paramsJSON,
-		&mediaURLsJSON,
+		&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed,
 		&createdAt,
 	)
 
@@ -122,36 +133,66 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 		return nil
 	}
 
+	if model.Valid {
+		item.ModelName = model.String
+		item.ModelID = model.String
+	}
+	if prompt.Valid {
+		item.Prompt = prompt.String
+	}
+	if negPrompt.Valid {
+		item.NegativePrompt = negPrompt.String
+	}
+	item.MediaURLs = []string{mediaURL}
 	item.CreatedAt = createdAt.UnixMilli()
+	item.Type = "image" // Default to image
+
 	if walletAddr.Valid {
 		item.WalletAddress = walletAddr.String
 	}
 
-	json.Unmarshal(paramsJSON, &item.Params)
-	json.Unmarshal(mediaURLsJSON, &item.MediaURLs)
+	// Build params struct
+	item.Params = &JobParams{}
+	if width.Valid {
+		w := int(width.Int64)
+		item.Params.Width = &w
+	}
+	if height.Valid {
+		h := int(height.Int64)
+		item.Params.Height = &h
+	}
+	if steps.Valid {
+		st := int(steps.Int64)
+		item.Params.Steps = &st
+	}
+	if cfgScale.Valid {
+		item.Params.CfgScale = &cfgScale.Float64
+	}
+	if sampler.Valid {
+		item.Params.Sampler = &sampler.String
+	}
+	if scheduler.Valid {
+		item.Params.Scheduler = &scheduler.String
+	}
+	if seed.Valid {
+		item.Params.Seed = &seed.String
+	}
 
 	return &item
 }
 
 // List returns paginated gallery items with optional filtering
 func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery string) ListResult {
-	var items []GalleryItem
+	items := make([]GalleryItem, 0) // Initialize to empty array, not nil
 	var args []interface{}
 	argNum := 1
 
 	// Build WHERE clause
 	whereClauses := []string{"is_public = true"}
 
-	if typeFilter != "" && typeFilter != "all" {
-		whereClauses = append(whereClauses, fmt.Sprintf("type = $%d", argNum))
-		args = append(args, typeFilter)
-		argNum++
-	}
-
 	if searchQuery != "" {
 		// Use word boundary regex for better matching
 		whereClauses = append(whereClauses, fmt.Sprintf("prompt ~* $%d", argNum))
-		// Match word boundaries: \m = start of word, \M = end of word
 		pattern := fmt.Sprintf("\\m%s", strings.ToLower(searchQuery))
 		args = append(args, pattern)
 		argNum++
@@ -166,8 +207,10 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 
 	// Get items with random ordering
 	query := fmt.Sprintf(`
-		SELECT job_id, model_id, model_name, prompt, negative_prompt,
-			   type, is_nsfw, is_public, wallet_address, params, media_urls, created_at
+		SELECT job_id, model, prompt, negative_prompt,
+			   media_url, is_public, wallet_address,
+			   width, height, steps, cfg_scale, sampler, scheduler, seed,
+			   created_at
 		FROM gallery_items
 		WHERE %s
 		ORDER BY RANDOM()
@@ -185,22 +228,22 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 
 	for rows.Next() {
 		var item GalleryItem
-		var paramsJSON, mediaURLsJSON []byte
-		var walletAddr sql.NullString
+		var mediaURL string
+		var walletAddr, prompt, negPrompt, model sql.NullString
 		var createdAt time.Time
+		var width, height, steps sql.NullInt64
+		var cfgScale sql.NullFloat64
+		var sampler, scheduler, seed sql.NullString
 
 		err := rows.Scan(
 			&item.JobID,
-			&item.ModelID,
-			&item.ModelName,
-			&item.Prompt,
-			&item.NegativePrompt,
-			&item.Type,
-			&item.IsNSFW,
+			&model,
+			&prompt,
+			&negPrompt,
+			&mediaURL,
 			&item.IsPublic,
 			&walletAddr,
-			&paramsJSON,
-			&mediaURLsJSON,
+			&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed,
 			&createdAt,
 		)
 
@@ -209,13 +252,50 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 			continue
 		}
 
+		if model.Valid {
+			item.ModelName = model.String
+			item.ModelID = model.String
+		}
+		if prompt.Valid {
+			item.Prompt = prompt.String
+		}
+		if negPrompt.Valid {
+			item.NegativePrompt = negPrompt.String
+		}
+		item.MediaURLs = []string{mediaURL}
 		item.CreatedAt = createdAt.UnixMilli()
+		item.Type = "image"
+
 		if walletAddr.Valid {
 			item.WalletAddress = walletAddr.String
 		}
 
-		json.Unmarshal(paramsJSON, &item.Params)
-		json.Unmarshal(mediaURLsJSON, &item.MediaURLs)
+		// Build params struct
+		item.Params = &JobParams{}
+		if width.Valid {
+			w := int(width.Int64)
+			item.Params.Width = &w
+		}
+		if height.Valid {
+			h := int(height.Int64)
+			item.Params.Height = &h
+		}
+		if steps.Valid {
+			st := int(steps.Int64)
+			item.Params.Steps = &st
+		}
+		if cfgScale.Valid {
+			item.Params.CfgScale = &cfgScale.Float64
+		}
+		if sampler.Valid {
+			item.Params.Sampler = &sampler.String
+		}
+		if scheduler.Valid {
+			item.Params.Scheduler = &scheduler.String
+		}
+		if seed.Valid {
+			item.Params.Seed = &seed.String
+		}
 
 		items = append(items, item)
 	}
@@ -230,11 +310,13 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 
 // ListByWallet returns gallery items for a specific wallet address
 func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
-	var items []GalleryItem
+	items := make([]GalleryItem, 0) // Initialize to empty array, not nil
 
 	query := `
-		SELECT job_id, model_id, model_name, prompt, negative_prompt,
-			   type, is_nsfw, is_public, wallet_address, params, media_urls, created_at
+		SELECT job_id, model, prompt, negative_prompt,
+			   media_url, is_public, wallet_address,
+			   width, height, steps, cfg_scale, sampler, scheduler, seed,
+			   created_at
 		FROM gallery_items
 		WHERE LOWER(wallet_address) = LOWER($1)
 		ORDER BY created_at DESC
@@ -250,22 +332,22 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 
 	for rows.Next() {
 		var item GalleryItem
-		var paramsJSON, mediaURLsJSON []byte
-		var walletAddr sql.NullString
+		var mediaURL string
+		var walletAddr, model, prompt, negPrompt sql.NullString
 		var createdAt time.Time
+		var width, height, steps sql.NullInt64
+		var cfgScale sql.NullFloat64
+		var sampler, scheduler, seed sql.NullString
 
 		err := rows.Scan(
 			&item.JobID,
-			&item.ModelID,
-			&item.ModelName,
-			&item.Prompt,
-			&item.NegativePrompt,
-			&item.Type,
-			&item.IsNSFW,
+			&model,
+			&prompt,
+			&negPrompt,
+			&mediaURL,
 			&item.IsPublic,
 			&walletAddr,
-			&paramsJSON,
-			&mediaURLsJSON,
+			&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed,
 			&createdAt,
 		)
 
@@ -273,13 +355,50 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 			continue
 		}
 
+		if model.Valid {
+			item.ModelName = model.String
+			item.ModelID = model.String
+		}
+		if prompt.Valid {
+			item.Prompt = prompt.String
+		}
+		if negPrompt.Valid {
+			item.NegativePrompt = negPrompt.String
+		}
+		item.MediaURLs = []string{mediaURL}
 		item.CreatedAt = createdAt.UnixMilli()
+		item.Type = "image"
+
 		if walletAddr.Valid {
 			item.WalletAddress = walletAddr.String
 		}
 
-		json.Unmarshal(paramsJSON, &item.Params)
-		json.Unmarshal(mediaURLsJSON, &item.MediaURLs)
+		// Build params struct
+		item.Params = &JobParams{}
+		if width.Valid {
+			w := int(width.Int64)
+			item.Params.Width = &w
+		}
+		if height.Valid {
+			h := int(height.Int64)
+			item.Params.Height = &h
+		}
+		if steps.Valid {
+			st := int(steps.Int64)
+			item.Params.Steps = &st
+		}
+		if cfgScale.Valid {
+			item.Params.CfgScale = &cfgScale.Float64
+		}
+		if sampler.Valid {
+			item.Params.Sampler = &sampler.String
+		}
+		if scheduler.Valid {
+			item.Params.Scheduler = &scheduler.String
+		}
+		if seed.Valid {
+			item.Params.Seed = &seed.String
+		}
 
 		items = append(items, item)
 	}
