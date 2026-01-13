@@ -104,8 +104,8 @@ type ListResult struct {
 	NextOffset int           `json:"nextOffset"`
 }
 
-// List returns public gallery items, optionally filtered by type, with pagination
-func (s *Store) List(typeFilter string, limit int, offset int) ListResult {
+// List returns public gallery items, optionally filtered by type and search, with pagination
+func (s *Store) List(typeFilter string, limit int, offset int, searchQuery string) ListResult {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	
@@ -115,6 +115,8 @@ func (s *Store) List(typeFilter string, limit int, offset int) ListResult {
 	if offset < 0 {
 		offset = 0
 	}
+	
+	searchLower := strings.ToLower(searchQuery)
 	
 	// First, collect all matching items to get total count
 	allMatching := make([]GalleryItem, 0)
@@ -126,6 +128,11 @@ func (s *Store) List(typeFilter string, limit int, offset int) ListResult {
 		
 		// Apply type filter
 		if typeFilter != "" && typeFilter != "all" && item.Type != typeFilter {
+			continue
+		}
+		
+		// Apply search filter
+		if searchQuery != "" && !strings.Contains(strings.ToLower(item.Prompt), searchLower) {
 			continue
 		}
 		
@@ -203,6 +210,14 @@ func (s *Store) Remove(jobID string) bool {
 	}
 	
 	return false
+}
+
+// Delete removes an item by job ID (implements GalleryStore interface)
+func (s *Store) Delete(jobID string) error {
+	if s.Remove(jobID) {
+		return nil
+	}
+	return nil // Item not found is not an error
 }
 
 // Get returns a single item by job ID

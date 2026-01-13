@@ -34,6 +34,10 @@ type Config struct {
 	R2AccessKeySecret    string
 	R2SharedAccessKeyID  string
 	R2SharedAccessKey    string
+
+	// PostgreSQL configuration
+	PostgresEnabled bool
+	PostgresConnStr string
 }
 
 func Load() Config {
@@ -65,6 +69,10 @@ func Load() Config {
 		R2AccessKeySecret:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		R2SharedAccessKeyID:  os.Getenv("SHARED_AWS_ACCESS_ID"),
 		R2SharedAccessKey:    os.Getenv("SHARED_AWS_ACCESS_KEY"),
+
+		// PostgreSQL configuration
+		PostgresEnabled: getEnv("POSTGRES_ENABLED", "true") == "true",
+		PostgresConnStr: getEnv("POSTGRES_CONN_STR", "host=localhost port=5432 user=aipg_user password=aipg_gallery_2024 dbname=aipg_gallery sslmode=disable"),
 	}
 }
 
