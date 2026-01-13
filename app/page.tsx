@@ -8,6 +8,7 @@ import { ImageModal } from "@/components/image-modal";
 import { Header } from "@/components/header";
 import { useWalletAddress } from "@/lib/hooks/use-wallet-address";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
+import { isAuthenticated } from "@/lib/auth";
 
 const INITIAL_PAGE_SIZE = 50; // Load many initially like Lexica
 const PAGE_SIZE = 50; // Then load more on scroll
@@ -139,6 +140,10 @@ export default function GalleryPage() {
       alert("Please connect your wallet to delete items");
       return;
     }
+    if (!isAuthenticated()) {
+      alert("Please sign in with your wallet first");
+      return;
+    }
     if (itemWallet && itemWallet.toLowerCase() !== address.toLowerCase()) {
       alert("You can only delete your own gallery items");
       return;
@@ -147,7 +152,7 @@ export default function GalleryPage() {
     
     setDeleting(jobId);
     try {
-      await deleteGalleryItem(jobId, address);
+      await deleteGalleryItem(jobId);
       setItems(prev => prev.filter(i => i.jobId !== jobId));
       if (selectedItem?.jobId === jobId) setSelectedItem(null);
     } catch (err: any) {
@@ -164,7 +169,7 @@ export default function GalleryPage() {
   }
 
   async function handleToggleFavorite(jobId: string) {
-    if (!isConnected || !address) return;
+    if (!isConnected || !address || !isAuthenticated()) return;
     
     const wasFavorited = favorites.has(jobId);
     
@@ -181,9 +186,9 @@ export default function GalleryPage() {
     
     try {
       if (wasFavorited) {
-        await removeFavorite(jobId, address);
+        await removeFavorite(jobId);
       } else {
-        await addFavorite(jobId, address);
+        await addFavorite(jobId);
       }
     } catch (err) {
       // Revert on error

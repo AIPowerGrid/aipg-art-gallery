@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { useAccount, useConnect, useDisconnect, useEnsName } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useEnsName, useSignMessage } from "wagmi";
 import { base } from 'wagmi/chains';
 import { MODELVAULT_CONTRACTS } from "@/lib/wagmi";
+import { signIn, signOut, isAuthenticated, clearAuthToken } from "@/lib/auth";
 
 // Always use Base mainnet
 const BASE_NETWORK = {
@@ -45,7 +46,45 @@ function WalletButtonClient() {
   const { connectors, connect, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { data: ensName } = useEnsName({ address });
+  const { signMessageAsync } = useSignMessage();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Auto sign-in when wallet connects
+  const handleSignIn = useCallback(async () => {
+    if (!address || !signMessageAsync) return;
+    
+    // Skip if already authenticated
+    if (isAuthenticated()) return;
+    
+    setIsSigningIn(true);
+    setAuthError(null);
+    
+    try {
+      await signIn({
+        address,
+        signMessageAsync,
+        chainId: BASE_NETWORK.chainId,
+      });
+      console.log('Successfully signed in with wallet');
+    } catch (error: any) {
+      console.error('Sign-in failed:', error);
+      // Don't show error if user rejected signature
+      if (!error.message?.includes('User rejected')) {
+        setAuthError('Sign-in failed. Please try again.');
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
+  }, [address, signMessageAsync]);
+
+  // Sign in when wallet connects
+  useEffect(() => {
+    if (isConnected && address && !isAuthenticated()) {
+      handleSignIn();
+    }
+  }, [isConnected, address, handleSignIn]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -60,7 +99,15 @@ function WalletButtonClient() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  const handleDisconnect = () => {
+    signOut(); // Clear JWT token
+    disconnect();
+    setShowDropdown(false);
+  };
+
   if (isConnected && address) {
+    const authenticated = isAuthenticated();
+    
     return (
       <div className="relative">
         <button
@@ -77,9 +124,15 @@ function WalletButtonClient() {
             height={16}
             className="w-4 h-4"
           />
-          <span className="w-2 h-2 rounded-full bg-green-400"></span>
+          {isSigningIn ? (
+            <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+          ) : authenticated ? (
+            <span className="w-2 h-2 rounded-full bg-green-400"></span>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+          )}
           <span className="font-mono text-xs sm:text-sm">
-            {ensName || formatAddress(address)}
+            {isSigningIn ? 'Signing...' : (ensName || formatAddress(address))}
           </span>
         </button>
         
@@ -89,7 +142,7 @@ function WalletButtonClient() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-3 py-2 text-xs text-white/50 border-b border-white/10 mb-2">
-              Connected Wallet
+              {authenticated ? 'Authenticated ✓' : 'Connected (not signed in)'}
             </div>
             
             {/* Wallet Address */}
@@ -97,13 +150,30 @@ function WalletButtonClient() {
               <div className="text-xs text-white/50 mb-1">Address</div>
               <div className="font-mono text-sm text-white break-all">{address}</div>
             </div>
+
+            {/* Auth error */}
+            {authError && (
+              <div className="px-3 py-2 mb-2 text-xs text-red-400 bg-red-500/10 rounded-xl">
+                {authError}
+              </div>
+            )}
+            
+            {/* Sign In button if not authenticated */}
+            {!authenticated && !isSigningIn && (
+              <button
+                onClick={handleSignIn}
+                className="w-full px-3 py-2 mb-2 text-left text-sm text-blue-400 hover:bg-blue-500/10 rounded-xl transition flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                </svg>
+                Sign In with Wallet
+              </button>
+            )}
             
             {/* Disconnect Button */}
             <button
-              onClick={() => {
-                disconnect();
-                setShowDropdown(false);
-              }}
+              onClick={handleDisconnect}
               className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

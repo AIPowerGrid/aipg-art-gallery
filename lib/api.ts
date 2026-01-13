@@ -1,4 +1,5 @@
 import { CreateJobRequest, GalleryModel, JobStatus, ModelsResponse } from "@/types/models";
+import { getAuthToken } from "./auth";
 
 const getApiBase = () =>
   process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
@@ -8,8 +9,20 @@ async function jsonFetch<T>(
   init?: RequestInit,
   revalidate?: number
 ): Promise<T> {
+  // Build headers with JWT auth if available
+  const headers: Record<string, string> = {
+    ...(init?.headers as Record<string, string>),
+  };
+  
+  // Add JWT token for authenticated requests
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
+    headers,
     next: revalidate ? { revalidate } : undefined,
   });
   if (!res.ok) {
@@ -138,36 +151,30 @@ export function fetchGalleryMedia(jobId: string): Promise<GalleryMediaResponse> 
   return jsonFetch(`/gallery/${jobId}/media`);
 }
 
-export function deleteGalleryItem(jobId: string, walletAddress?: string): Promise<{ success: boolean; message: string }> {
-  const headers: Record<string, string> = {};
-  if (walletAddress) {
-    headers["X-Wallet-Address"] = walletAddress;
-  }
+// Protected endpoints - require JWT authentication (handled automatically by jsonFetch)
+
+export function deleteGalleryItem(jobId: string): Promise<{ success: boolean; message: string }> {
   return jsonFetch(`/gallery/${jobId}`, {
     method: "DELETE",
-    headers,
   });
 }
 
-export function publishGalleryItem(jobId: string, walletAddress: string): Promise<{ success: boolean; isPublic: boolean }> {
+export function publishGalleryItem(jobId: string): Promise<{ success: boolean; isPublic: boolean }> {
   return jsonFetch(`/gallery/${jobId}/publish`, {
     method: "POST",
-    headers: { "X-Wallet-Address": walletAddress },
   });
 }
 
-// Favorites API
-export function addFavorite(jobId: string, walletAddress: string): Promise<{ success: boolean }> {
+// Favorites API - JWT authenticated
+export function addFavorite(jobId: string): Promise<{ success: boolean }> {
   return jsonFetch(`/favorites/${jobId}`, {
     method: "POST",
-    headers: { "X-Wallet-Address": walletAddress },
   });
 }
 
-export function removeFavorite(jobId: string, walletAddress: string): Promise<{ success: boolean }> {
+export function removeFavorite(jobId: string): Promise<{ success: boolean }> {
   return jsonFetch(`/favorites/${jobId}`, {
     method: "DELETE",
-    headers: { "X-Wallet-Address": walletAddress },
   });
 }
 
