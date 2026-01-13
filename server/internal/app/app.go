@@ -26,13 +26,15 @@ import (
 )
 
 type App struct {
-	cfg            config.Config
-	catalog        models.Catalog
-	client         *aipg.Client
-	vaultClient    *modelvault.Client
+	cfg               config.Config
+	catalog           models.Catalog
+	client            *aipg.Client
+	vaultClient       *modelvault.Client
 	recipeVaultClient *recipevault.Client
-	galleryStore   *gallery.Store
-	r2Client       *r2.Client
+	galleryStore      gallery.GalleryStore
+	userStore         *gallery.UserStore
+	jobStore          *gallery.JobStore
+	r2Client          *r2.Client
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -65,9 +67,30 @@ func New(cfg config.Config) (*App, error) {
 		recipeVaultClient, _ = recipevault.NewClient("", "", false)
 	}
 
-	// Initialize gallery store (persists to file)
-	galleryStore := gallery.NewStore(cfg.GalleryStorePath, 500)
-	log.Printf("Gallery store initialized with %d items", galleryStore.List("", 1000, 0).Total)
+	// Initialize gallery store
+	var galleryStore gallery.GalleryStore
+	var userStore *gallery.UserStore
+	var jobStore *gallery.JobStore
+
+	if cfg.PostgresEnabled {
+		// Use PostgreSQL
+		pgStore, err := gallery.NewPostgresStore(cfg.PostgresConnStr)
+		if err != nil {
+			log.Printf("Warning: PostgreSQL initialization failed, falling back to file store: %v", err)
+			fileStore := gallery.NewStore(cfg.GalleryStorePath, 5000)
+			galleryStore = &gallery.FileStoreAdapter{Store: fileStore}
+		} else {
+			galleryStore = pgStore
+			userStore = pgStore.UserStore
+			jobStore = pgStore.JobStore
+			log.Printf("PostgreSQL gallery store connected, %d items", pgStore.Count())
+		}
+	} else {
+		// Use file-based store
+		fileStore := gallery.NewStore(cfg.GalleryStorePath, 5000)
+		galleryStore = &gallery.FileStoreAdapter{Store: fileStore}
+		log.Printf("File-based gallery store initialized with %d items", fileStore.List("", 1000, 0, "").Total)
+	}
 
 	// Initialize R2 client for direct media access
 	var r2Client *r2.Client
@@ -99,6 +122,8 @@ func New(cfg config.Config) (*App, error) {
 		recipeVaultClient: recipeVaultClient,
 		r2Client:          r2Client,
 		galleryStore:      galleryStore,
+		userStore:         userStore,
+		jobStore:          jobStore,
 	}, nil
 }
 
@@ -1000,6 +1025,7 @@ func writeError(w http.ResponseWriter, status int, err error) {
 
 func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 	typeFilter := r.URL.Query().Get("type")
+	searchQuery := r.URL.Query().Get("q")
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	
@@ -1017,7 +1043,7 @@ func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	result := a.galleryStore.List(typeFilter, limit, offset)
+	result := a.galleryStore.List(typeFilter, limit, offset, searchQuery)
 	
 	writeJSON(w, http.StatusOK, result)
 }
@@ -1179,10 +1205,7 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		
-		// Update the gallery store with generation IDs for future use
-		if len(genIDs) > 0 {
-			a.galleryStore.UpdateGenerations(jobID, genIDs, urls)
-		}
+		// Note: UpdateGenerations removed - media URLs are fetched dynamically
 		
 		if len(urls) > 0 {
 			writeJSON(w, http.StatusOK, map[string]any{
@@ -1290,8 +1313,8 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Remove from gallery store
-	removed := a.galleryStore.Remove(jobID)
-	if !removed {
+	err := a.galleryStore.Delete(jobID)
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("failed to remove from gallery"))
 		return
 	}
