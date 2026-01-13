@@ -209,9 +209,10 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 	}
 
 	if searchQuery != "" {
-		// Use word boundary regex for better matching
+		// Use word boundary regex for whole word matching
+		// \m = word start boundary, \M = word end boundary
 		whereClauses = append(whereClauses, fmt.Sprintf("prompt ~* $%d", argNum))
-		pattern := fmt.Sprintf("\\m%s", strings.ToLower(searchQuery))
+		pattern := fmt.Sprintf("\\m%s\\M", strings.ToLower(searchQuery))
 		args = append(args, pattern)
 		argNum++
 	}
