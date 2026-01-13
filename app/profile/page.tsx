@@ -135,7 +135,7 @@ export default function ProfilePage() {
               AIPG Art Gallery
             </h1>
             <p className="text-white/50 text-sm">
-              My Creations
+              My Images
             </p>
           </div>
 
@@ -171,7 +171,7 @@ export default function ProfilePage() {
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <h1 className="text-center text-3xl md:text-4xl font-bold text-white mb-8">
-            My Creations
+            My Images
           </h1>
           
           {/* Search bar */}

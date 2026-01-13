@@ -65,12 +65,14 @@ function DimensionSlider({
           className="w-full h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-indigo-500"
         />
         
-        {/* Popup tooltip with aspect ratio box */}
+        {/* Popup tooltip with aspect ratio box - below slider */}
         {isDragging && (
           <div 
-            className="absolute -top-24 left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-600 rounded-xl p-3 shadow-xl z-50"
+            className="absolute top-6 left-1/2 -translate-x-1/2 bg-zinc-800 border border-zinc-600 rounded-xl p-3 shadow-xl z-50"
             style={{ minWidth: '100px' }}
           >
+            {/* Arrow pointing up */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-zinc-600" />
             <div className="flex flex-col items-center gap-2">
               {/* Aspect ratio box */}
               <div 
@@ -82,8 +84,6 @@ function DimensionSlider({
                 {selected ? `${selected.width} × ${selected.height}` : '1024 × 1024'}
               </div>
             </div>
-            {/* Arrow */}
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-zinc-600" />
           </div>
         )}
       </div>
@@ -135,7 +135,7 @@ export default function CreatePage() {
   
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-zinc-900">
+      <main className="min-h-screen bg-black">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white rounded-full" />
@@ -307,7 +307,7 @@ function CreatePageContent() {
   }, [selectedModel, prompt, address]);
 
   return (
-    <main className="min-h-screen bg-zinc-900">
+    <main className="min-h-screen bg-black">
       <Header />
       
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
@@ -321,7 +321,7 @@ function CreatePageContent() {
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Describe your image..."
                 disabled={isGenerating}
-                className="w-full min-h-[120px] bg-zinc-800/60 border border-zinc-700 rounded-2xl px-5 py-4 text-white text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 resize-none disabled:opacity-50"
+                className="w-full min-h-[160px] bg-zinc-800/60 border border-zinc-700 rounded-2xl px-5 py-4 text-white text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 resize-none disabled:opacity-50"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey && prompt.trim()) {
                     e.preventDefault();
@@ -388,6 +388,48 @@ function CreatePageContent() {
             </div>
           </div>
         </div>
+
+        {/* Active Job Panel */}
+        {currentJob && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-white mb-4">In Progress</h2>
+            <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
+              <div className="flex items-center gap-4">
+                {/* Animated Preview Box */}
+                <div className="relative w-20 h-20 rounded-xl bg-zinc-700/50 overflow-hidden flex-shrink-0">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-zinc-600/30 to-transparent animate-shimmer" 
+                    style={{ backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-3xl opacity-40">🎨</span>
+                  </div>
+                </div>
+                
+                {/* Job Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium truncate mb-1">{prompt || 'Generating...'}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="animate-spin w-4 h-4 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full" />
+                    <span className="text-sm text-zinc-400">
+                      {currentJob.status === 'queued' && 'Waiting in queue...'}
+                      {currentJob.status === 'processing' && 'Creating your image...'}
+                      {currentJob.status === 'completed' && 'Finalizing...'}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Status Badge */}
+                <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 ${
+                  currentJob.status === 'processing' 
+                    ? 'bg-indigo-500/20 text-indigo-300' 
+                    : 'bg-amber-500/20 text-amber-300'
+                }`}>
+                  {currentJob.status === 'queued' ? 'Queued' : 'Processing'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Creations Grid - Masonry Style */}
         {creations.length > 0 && (

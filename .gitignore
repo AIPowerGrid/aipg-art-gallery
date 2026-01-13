@@ -72,3 +72,4 @@ scripts/generate-*.js
 scripts/generate-*.py
 scripts/scrape-*.mjs
 scripts/lexica-source.html
+firecrawl-mcp-server/
