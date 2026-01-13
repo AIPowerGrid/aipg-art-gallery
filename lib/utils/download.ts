@@ -16,8 +16,16 @@ export function downloadMedia(
       return;
     }
 
-    fetch(mediaSrc)
-      .then((response) => response.blob())
+    // Use proxy to bypass CORS for R2/CDN URLs
+    const proxyUrl = `/api/download?url=${encodeURIComponent(mediaSrc)}`;
+    
+    fetch(proxyUrl)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Download failed: ${response.status}`);
+        }
+        return response.blob();
+      })
       .then((blob) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
