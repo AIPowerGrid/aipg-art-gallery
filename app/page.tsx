@@ -276,9 +276,11 @@ export default function GalleryPage() {
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-32">
-          <p className="text-[#666] mb-4">No images yet</p>
+          <p className="text-[#666] mb-4">
+            {filter === "video" ? "No videos yet" : "No images yet"}
+          </p>
           <Link href="/create" className="px-4 py-2 rounded-xl bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-medium">
-            Create First Image
+            {filter === "video" ? "Create First Video" : "Create First Image"}
           </Link>
         </div>
       ) : (

@@ -13,6 +13,7 @@ type Config struct {
 	ModelPresetPath  string
 	AllowedOrigins   []string
 	GalleryStorePath string
+	JWTSecret        string
 
 	// ModelVault blockchain configuration
 	ModelVaultEnabled         bool
@@ -49,6 +50,7 @@ func Load() Config {
 		ModelPresetPath:  getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
 		AllowedOrigins:   splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
 		GalleryStorePath: getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
+		JWTSecret:        os.Getenv("JWT_SECRET"),
 
 		// ModelVault blockchain configuration (enabled by default)
 		ModelVaultEnabled:         getEnv("MODELVAULT_ENABLED", "true") == "true",
