@@ -44,7 +44,7 @@ export function Header() {
               Create
             </Link>
             <Link href="/profile" className={`text-sm transition ${isActive("/profile") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
-              My Creations
+              My Images
             </Link>
           </nav>
 
@@ -57,7 +57,7 @@ export function Header() {
               Create
             </Link>
             <Link href="/profile" className={`text-xs sm:text-sm transition hidden sm:block ${isActive("/profile") ? "text-white font-medium" : "text-white/60 hover:text-white"}`}>
-              My Creations
+              My Images
             </Link>
           </nav>
 

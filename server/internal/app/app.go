@@ -1007,6 +1007,9 @@ func buildJobView(resp *aipg.JobStatusResponse) JobView {
 				view.URL = ""
 			} else if rawURL != "" {
 				view.URL = r2.ConvertToCDNURL(rawURL)
+			} else if gen.ID != "" && view.Base64 == "" {
+				// Fallback: construct R2 URL from generation ID when Grid API returns empty URL
+				view.URL = fmt.Sprintf("https://images.aipg.art/%s.webp", gen.ID)
 			}
 		}
 		views = append(views, view)
