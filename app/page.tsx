@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Masonry from "react-masonry-css";
-import { fetchGallery, deleteGalleryItem, GalleryItem } from "@/lib/api";
+import { fetchGallery, deleteGalleryItem, GalleryItem, addFavorite, removeFavorite } from "@/lib/api";
 import { ImageModal } from "@/components/image-modal";
 import { Header } from "@/components/header";
 import { useWalletAddress } from "@/lib/hooks/use-wallet-address";
@@ -50,6 +50,7 @@ export default function GalleryPage() {
   const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   
   const observerRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -162,6 +163,42 @@ export default function GalleryPage() {
     downloadMedia(mediaSrc, getMediaFilename(item.jobId, undefined, item.type === "video"));
   }
 
+  async function handleToggleFavorite(jobId: string) {
+    if (!isConnected || !address) return;
+    
+    const wasFavorited = favorites.has(jobId);
+    
+    // Optimistic update
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (wasFavorited) {
+        next.delete(jobId);
+      } else {
+        next.add(jobId);
+      }
+      return next;
+    });
+    
+    try {
+      if (wasFavorited) {
+        await removeFavorite(jobId, address);
+      } else {
+        await addFavorite(jobId, address);
+      }
+    } catch (err) {
+      // Revert on error
+      setFavorites(prev => {
+        const next = new Set(prev);
+        if (wasFavorited) {
+          next.add(jobId);
+        } else {
+          next.delete(jobId);
+        }
+        return next;
+      });
+    }
+  }
+
   const canDelete = (item: GalleryItem) => 
     mounted && isConnected && address && 
     (!item.walletAddress || item.walletAddress.toLowerCase() === address.toLowerCase());
@@ -265,8 +302,11 @@ export default function GalleryPage() {
                     onSelect={() => setSelectedItem(item)}
                     onDelete={() => handleDelete(item.jobId, item.walletAddress)}
                     onDownload={() => handleDownload(item)}
+                    onToggleFavorite={() => handleToggleFavorite(item.jobId)}
                     canDelete={!!canDelete(item)}
                     isDeleting={deleting === item.jobId}
+                    isFavorited={favorites.has(item.jobId)}
+                    isLoggedIn={isConnected}
                   />
                 );
               })}
@@ -303,8 +343,11 @@ function GalleryCard({
   onSelect,
   onDelete,
   onDownload,
+  onToggleFavorite,
   canDelete,
   isDeleting,
+  isFavorited,
+  isLoggedIn,
 }: {
   item: GalleryItem;
   index: number;
@@ -312,8 +355,11 @@ function GalleryCard({
   onSelect: () => void;
   onDelete: () => void;
   onDownload: () => void;
+  onToggleFavorite: () => void;
   canDelete: boolean;
   isDeleting: boolean;
+  isFavorited: boolean;
+  isLoggedIn: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -362,10 +408,27 @@ function GalleryCard({
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
         />
-      )}      {/* Hover overlay - Lexica style */}
+      )}
+      
+      {/* Hover overlay - Lexica style */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
         {/* Top actions */}
         <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Favorite star - only for logged in users */}
+          {isLoggedIn && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+              className={`p-1.5 rounded-full transition-colors ${
+                isFavorited 
+                  ? 'bg-yellow-500/80 text-white hover:bg-yellow-500' 
+                  : 'bg-black/60 hover:bg-black/80 text-white/80 hover:text-white'
+              }`}
+            >
+              <svg className="w-4 h-4" fill={isFavorited ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); onDownload(); }}
             className="p-1.5 bg-black/60 hover:bg-black/80 rounded-full text-white/80 hover:text-white transition-colors"
@@ -374,11 +437,15 @@ function GalleryCard({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
           </button>
-        </div>        {/* Bottom prompt */}
+        </div>
+        
+        {/* Bottom prompt */}
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <p className="text-white text-sm leading-snug line-clamp-2">{item.prompt}</p>
         </div>
-      </div>      {/* NSFW badge */}
+      </div>
+      
+      {/* NSFW badge */}
       {item.isNsfw && (
         <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-red-600 text-white text-xs font-medium rounded">
           NSFW

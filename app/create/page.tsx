@@ -291,7 +291,7 @@ function CreatePageContent() {
                 prompt,
                 type: "image",
                 isNsfw: false,
-                isPublic: true,
+                isPublic: false, // Private by default, user can publish later
                 walletAddress: address,
                 params: selectedDimension ? {
                   width: selectedDimension.width,

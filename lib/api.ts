@@ -67,6 +67,7 @@ export interface GalleryItem {
   negativePrompt?: string;
   type: "image" | "video";
   isNsfw: boolean;
+  isPublic?: boolean;
   walletAddress?: string;
   createdAt: number;
   params?: JobParams;
@@ -146,4 +147,37 @@ export function deleteGalleryItem(jobId: string, walletAddress?: string): Promis
     method: "DELETE",
     headers,
   });
+}
+
+export function publishGalleryItem(jobId: string, walletAddress: string): Promise<{ success: boolean; isPublic: boolean }> {
+  return jsonFetch(`/gallery/${jobId}/publish`, {
+    method: "POST",
+    headers: { "X-Wallet-Address": walletAddress },
+  });
+}
+
+// Favorites API
+export function addFavorite(jobId: string, walletAddress: string): Promise<{ success: boolean }> {
+  return jsonFetch(`/favorites/${jobId}`, {
+    method: "POST",
+    headers: { "X-Wallet-Address": walletAddress },
+  });
+}
+
+export function removeFavorite(jobId: string, walletAddress: string): Promise<{ success: boolean }> {
+  return jsonFetch(`/favorites/${jobId}`, {
+    method: "DELETE",
+    headers: { "X-Wallet-Address": walletAddress },
+  });
+}
+
+export function getFavorites(walletAddress: string, limit?: number): Promise<{ items: GalleryItem[]; count: number }> {
+  const params = new URLSearchParams();
+  if (limit) params.append("limit", String(limit));
+  const query = params.toString();
+  return jsonFetch(`/favorites/wallet/${walletAddress}${query ? `?${query}` : ""}`);
+}
+
+export function checkFavorite(walletAddress: string, jobId: string): Promise<{ favorited: boolean }> {
+  return jsonFetch(`/favorites/check/${walletAddress}/${jobId}`);
 }
