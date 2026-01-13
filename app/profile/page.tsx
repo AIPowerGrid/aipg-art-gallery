@@ -29,7 +29,16 @@ export default function ProfilePage() {
   const [selectedItem, setSelectedItem] = useState<ItemWithStatus | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const [showPublishConfirm, setShowPublishConfirm] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { address, isConnected, mounted } = useWalletAddress();
+
+  // Filter items based on search query
+  const filteredItems = items.filter(item => 
+    !searchQuery || item.prompt?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const filteredFavorites = favorites.filter(item => 
+    !searchQuery || item.prompt?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     if (isConnected && address) {
@@ -202,33 +211,37 @@ export default function ProfilePage() {
     <main className="flex-1 w-full min-h-screen bg-black">
       <Header />
 
-      {/* Prominent search bar in center */}
-      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-12">
-        <div className="max-w-2xl mx-auto">
-          {/* Header */}
-          <h1 className="text-center text-3xl md:text-4xl font-bold text-white mb-8">
-            My Images
-          </h1>
-          
-          {/* Search bar */}
-          <div className="relative mb-6">
-            <input
-              type="text"
-              placeholder="Search for an image..."
-              className="w-full px-6 py-4 bg-white/10 border-2 border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:border-zinc-500/50 transition text-lg"
-            />
-            <button
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-white/70 hover:text-white transition"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      {/* Search bar - matches main gallery */}
+      <div className="w-full px-4 md:px-7 pt-2 sm:pt-4 pb-2">
+        <div className="max-w-xl mx-auto">
+          <div className="relative">
+            <div className="flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
+              <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            </button>
+              <input
+                type="text"
+                placeholder="Search my images"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-3 bg-transparent text-white placeholder-[#666] focus:outline-none"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="mr-1 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-8">
+      <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4">
         {loading ? (
           <div className="text-center text-white/50 py-20">
             <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" />
@@ -267,25 +280,27 @@ export default function ProfilePage() {
         ) : (
           <>
             {/* Gallery grid - lexica style masonry layout */}
-            <div className="max-w-[1920px] mx-auto px-6 md:px-12 pb-12">
-              <h2 className="text-xl font-semibold text-white mb-4">My Creations</h2>
-              <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-0">
-                {items.map((item) => (
-                  <MediaCard
-                    key={item.jobId}
-                    item={item}
-                    onSelect={() => setSelectedItem(item)}
-                    onDownload={() => handleDownload(item)}
-                    onPublish={() => handlePublish(item.jobId)}
-                    showPublishButton={true}
-                    isPublishing={publishingId === item.jobId}
-                  />
-                ))}
+            {filteredItems.length > 0 && (
+              <div className="max-w-[1920px] mx-auto px-6 md:px-12 pb-12">
+                <h2 className="text-xl font-semibold text-white mb-4">My Creations</h2>
+                <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-0">
+                  {filteredItems.map((item) => (
+                    <MediaCard
+                      key={item.jobId}
+                      item={item}
+                      onSelect={() => setSelectedItem(item)}
+                      onDownload={() => handleDownload(item)}
+                      onPublish={() => handlePublish(item.jobId)}
+                      showPublishButton={true}
+                      isPublishing={publishingId === item.jobId}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Favorites section */}
-            {!loadingFavorites && favorites.length > 0 && (
+            {!loadingFavorites && filteredFavorites.length > 0 && (
               <div className="max-w-[1920px] mx-auto px-6 md:px-12 pb-12">
                 <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
                   <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
@@ -294,7 +309,7 @@ export default function ProfilePage() {
                   Favorites
                 </h2>
                 <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-0">
-                  {favorites.map((item) => (
+                  {filteredFavorites.map((item) => (
                     <MediaCard
                       key={`fav-${item.jobId}`}
                       item={item}
@@ -303,6 +318,13 @@ export default function ProfilePage() {
                     />
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* No results message */}
+            {searchQuery && filteredItems.length === 0 && filteredFavorites.length === 0 && (
+              <div className="text-center py-20">
+                <p className="text-white/50">No images found matching "{searchQuery}"</p>
               </div>
             )}
 
