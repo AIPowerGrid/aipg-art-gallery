@@ -1,12 +1,25 @@
 {
   "models": [
     {
+      "id": "z-image-turbo",
+      "name": "Z-Image Turbo",
+      "description": "Fast turbo image generation",
+      "type": "image",
+      "enabled": true,
+      "default": true,
+      "settings": {
+        "steps": 5,
+        "cfgScale": 1.5,
+        "sampler": "euler"
+      }
+    },
+    {
       "id": "flux.1-krea-dev",
       "name": "FLUX Krea",
       "description": "High-quality image generation model",
       "type": "image",
       "enabled": true,
-      "default": true
+      "default": false
     }
   ],
   "dimensions": [
@@ -60,7 +73,7 @@
       "aspectRatio": "1:2.4"
     }
   ],
-  "defaultDimensionId": 3,
+  "defaultDimensionId": 4,
   "defaults": {
     "steps": 28,
     "cfgScale": 3.5,

@@ -34,10 +34,11 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 		return nil, fmt.Errorf("failed to ping postgres: %w", err)
 	}
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+	// Set connection pool settings (scaled for production)
+	db.SetMaxOpenConns(100)      // Max connections (up from 25)
+	db.SetMaxIdleConns(25)       // Keep 25 ready to go (up from 5)
 	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetConnMaxIdleTime(2 * time.Minute) // Close idle connections after 2 min
 
 	store := &PostgresStore{
 		db:        db,
@@ -193,8 +194,37 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	return &item
 }
 
+// ListModels returns unique model names from the gallery
+func (s *PostgresStore) ListModels() []string {
+	models := make([]string, 0)
+	rows, err := s.db.Query(`
+		SELECT DISTINCT model 
+		FROM gallery_items 
+		WHERE is_public = true AND model IS NOT NULL AND model != ''
+		ORDER BY model
+	`)
+	if err != nil {
+		log.Printf("Error querying models: %v", err)
+		return models
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var model string
+		if err := rows.Scan(&model); err == nil {
+			models = append(models, model)
+		}
+	}
+	return models
+}
+
 // List returns paginated gallery items with optional filtering
 func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery string) ListResult {
+	return s.ListAdvanced(typeFilter, limit, offset, searchQuery, nil, "", "")
+}
+
+// ListAdvanced returns paginated gallery items with advanced filtering options
+func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searchQuery string, models []string, aspectRatio string, nsfwFilter string) ListResult {
 	items := make([]GalleryItem, 0) // Initialize to empty array, not nil
 	var args []interface{}
 	argNum := 1
@@ -226,6 +256,39 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 		}
 	}
 
+	// Model filter (multi-select)
+	if len(models) > 0 {
+		placeholders := make([]string, len(models))
+		for i, model := range models {
+			placeholders[i] = fmt.Sprintf("$%d", argNum)
+			args = append(args, model)
+			argNum++
+		}
+		whereClauses = append(whereClauses, fmt.Sprintf("model IN (%s)", strings.Join(placeholders, ", ")))
+	}
+
+	// Aspect ratio filter
+	if aspectRatio != "" {
+		switch aspectRatio {
+		case "square":
+			whereClauses = append(whereClauses, "width = height")
+		case "landscape":
+			whereClauses = append(whereClauses, "width > height")
+		case "portrait":
+			whereClauses = append(whereClauses, "width < height")
+		}
+	}
+
+	// NSFW filter
+	if nsfwFilter != "" {
+		switch nsfwFilter {
+		case "sfw":
+			whereClauses = append(whereClauses, "(is_nsfw = false OR is_nsfw IS NULL)")
+		case "nsfw":
+			whereClauses = append(whereClauses, "is_nsfw = true")
+		}
+	}
+
 	whereClause := strings.Join(whereClauses, " AND ")
 
 	// Get total count
@@ -233,7 +296,7 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 	var total int
 	s.db.QueryRow(countQuery, args...).Scan(&total)
 
-	// Get items with random ordering
+	// Get items ordered by pre-computed random sort (shuffled every 5 min via cron)
 	query := fmt.Sprintf(`
 		SELECT job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
@@ -241,7 +304,7 @@ func (s *PostgresStore) List(typeFilter string, limit, offset int, searchQuery s
 			   type, created_at
 		FROM gallery_items
 		WHERE %s
-		ORDER BY RANDOM()
+		ORDER BY random_sort
 		LIMIT $%d OFFSET $%d
 	`, whereClause, argNum, argNum+1)
 

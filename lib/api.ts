@@ -94,14 +94,41 @@ export interface GalleryResponse {
   nextOffset: number;
 }
 
-export function fetchGallery(typeFilter?: string, limit?: number, offset?: number, searchQuery?: string): Promise<GalleryResponse> {
+export interface GalleryFilters {
+  type?: string;
+  models?: string[];
+  aspect?: "square" | "landscape" | "portrait";
+  nsfw?: "sfw" | "nsfw" | "all";
+}
+
+export function fetchGallery(
+  typeFilter?: string, 
+  limit?: number, 
+  offset?: number, 
+  searchQuery?: string,
+  filters?: GalleryFilters
+): Promise<GalleryResponse> {
   const params = new URLSearchParams();
-  if (typeFilter && typeFilter !== "all") params.append("type", typeFilter);
+  const effectiveType = filters?.type || typeFilter;
+  if (effectiveType && effectiveType !== "all") params.append("type", effectiveType);
   if (limit) params.append("limit", String(limit));
   if (offset !== undefined) params.append("offset", String(offset));
   if (searchQuery) params.append("q", searchQuery);
+  if (filters?.models && filters.models.length > 0) {
+    params.append("models", filters.models.join(","));
+  }
+  if (filters?.aspect) params.append("aspect", filters.aspect);
+  if (filters?.nsfw && filters.nsfw !== "all") params.append("nsfw", filters.nsfw);
   const query = params.toString();
   return jsonFetch(`/gallery${query ? `?${query}` : ""}`);
+}
+
+export interface GalleryModelsResponse {
+  models: string[];
+}
+
+export function fetchGalleryModels(): Promise<GalleryModelsResponse> {
+  return jsonFetch("/gallery/models");
 }
 
 export interface AddToGalleryRequest {

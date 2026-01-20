@@ -47,8 +47,13 @@ export function Providers({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Don't render until mounted to avoid hydration mismatch
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <WagmiProvider config={config} reconnectOnMount={mounted}>
+    <WagmiProvider config={config} reconnectOnMount={true}>
       <QueryClientProvider client={queryClient}>
         {children}
       </QueryClientProvider>

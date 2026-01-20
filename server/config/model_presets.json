@@ -1,5 +1,32 @@
 [
   {
+    "id": "z-image-turbo",
+    "displayName": "Z-Image Turbo",
+    "type": "image",
+    "description": "Z-Image Turbo - Fast turbo image generation model optimized for speed with minimal steps.",
+    "tags": ["turbo", "fast", "generalist"],
+    "samplers": ["k_euler", "ddim"],
+    "schedulers": ["normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 896,
+      "height": 1152,
+      "steps": 5,
+      "cfgScale": 1.5,
+      "sampler": "k_euler",
+      "scheduler": "normal",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 3, "max": 8, "step": 1 },
+      "cfgScale": { "min": 1, "max": 3, "step": 0.5 }
+    }
+  },
+  {
     "id": "SDXL 1.0",
     "displayName": "SDXL 1.0",
     "type": "image",

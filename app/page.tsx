@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Masonry from "react-masonry-css";
-import { fetchGallery, deleteGalleryItem, GalleryItem, addFavorite, removeFavorite } from "@/lib/api";
+import { fetchGallery, deleteGalleryItem, GalleryItem, addFavorite, removeFavorite, GalleryFilters } from "@/lib/api";
+import { GalleryFilter } from "@/components/gallery-filter";
 import { ImageModal } from "@/components/image-modal";
 import { Header } from "@/components/header";
 import { useWalletAddress } from "@/lib/hooks/use-wallet-address";
@@ -26,8 +27,8 @@ const MASONRY_BREAKPOINTS = {
 function getThumbnailUrl(fullUrl: string, width: number = 400): string {
   if (!fullUrl || !fullUrl.includes('images.aipg.art')) {
     return fullUrl;
-  }
-  
+}
+
   // Extract the path after images.aipg.art
   const url = new URL(fullUrl);
   const path = url.pathname;
@@ -44,7 +45,7 @@ export default function GalleryPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "image" | "video">("all");
+  const [filters, setFilters] = useState<GalleryFilters>({});
   const [deleting, setDeleting] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [nextOffset, setNextOffset] = useState(0);
@@ -65,7 +66,7 @@ export default function GalleryPage() {
     setHasMore(true);
     
     try {
-      const response = await fetchGallery(filter, INITIAL_PAGE_SIZE, 0, debouncedSearch || undefined);
+      const response = await fetchGallery(undefined, INITIAL_PAGE_SIZE, 0, debouncedSearch || undefined, filters);
       const validItems = response.items.filter(item => 
         item.mediaUrls && item.mediaUrls.length > 0 && item.mediaUrls[0]
       );
@@ -77,14 +78,14 @@ export default function GalleryPage() {
       setError(err.message || "Failed to load gallery");
       setLoading(false);
     }
-  }, [filter, debouncedSearch]);
+  }, [filters, debouncedSearch]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     
     try {
-      const response = await fetchGallery(filter, PAGE_SIZE, nextOffset, debouncedSearch || undefined);
+      const response = await fetchGallery(undefined, PAGE_SIZE, nextOffset, debouncedSearch || undefined, filters);
       const validItems = response.items.filter(item => 
         item.mediaUrls && item.mediaUrls.length > 0 && item.mediaUrls[0]
       );
@@ -95,7 +96,7 @@ export default function GalleryPage() {
     } catch {
       setLoadingMore(false);
     }
-  }, [filter, nextOffset, hasMore, loadingMore, debouncedSearch]);
+  }, [filters, nextOffset, hasMore, loadingMore, debouncedSearch]);
 
   // Debounce search input
   useEffect(() => {
@@ -212,58 +213,34 @@ export default function GalleryPage() {
     <main className="min-h-screen bg-[#0a0a0a]">
       <Header />
 
-      {/* Search header - Lexica style */}
+      {/* Search header */}
       <div className="w-full px-4 md:px-7 pt-2 sm:pt-4 pb-3 sm:pb-4">
-        <div className="max-w-xl mx-auto">
-          {/* Search box with arrow button */}
-          <div className="relative">
-            <div className="flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
-              <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search images"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-3 bg-transparent text-white placeholder-[#666] focus:outline-none"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery("")}
-                  className="mr-1 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-              <button 
-                className="mr-2 p-2 rounded-full bg-[#2a2a2a] hover:bg-[#333] text-white/70 hover:text-white transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+        <div className="flex items-center justify-center gap-3">
+          {/* Centered search box */}
+          <div className="w-full max-w-sm flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
+            <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search images"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-3 bg-transparent text-white placeholder-[#666] focus:outline-none"
+            />
+            {searchQuery && (
+            <button
+                onClick={() => setSearchQuery("")}
+                className="mr-3 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
+            >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>
+            )}
           </div>
-
-          {/* Filters */}
-          <div className="flex gap-2 justify-center mt-4">
-            {(["all", "image", "video"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-6 py-1.5 rounded-full text-sm transition-colors ${
-                  filter === f
-                    ? "bg-[#2a2a2a] text-white font-medium border border-[#444]"
-                    : "text-[#666] hover:text-white hover:bg-[#1a1a1a]"
-                }`}
-              >
-                {f === "all" ? "All" : f === "image" ? "Images" : "Videos"}
-              </button>
-            ))}
-          </div>
+          {/* Filter button */}
+          <GalleryFilter filters={filters} onFiltersChange={setFilters} />
         </div>
       </div>
 
@@ -276,17 +253,17 @@ export default function GalleryPage() {
         <div className="text-center py-32">
           <p className="text-[#666] mb-4">{error}</p>
           <button onClick={loadGallery} className="px-4 py-2 rounded-xl bg-[#1a1a1a] border border-[#333] text-white hover:bg-[#222]">
-            Try Again
-          </button>
+              Try Again
+            </button>
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-32">
           <p className="text-[#666] mb-4">
-            {filter === "video" ? "No videos yet" : "No images yet"}
-          </p>
+            {filters.type === "video" ? "No videos found" : filters.type === "image" ? "No images found" : "No results found"}
+            </p>
           <Link href="/create" className="px-4 py-2 rounded-xl bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-medium">
-            {filter === "video" ? "Create First Video" : "Create First Image"}
-          </Link>
+            Create Something New
+            </Link>
         </div>
       ) : (
         <>
@@ -302,19 +279,19 @@ export default function GalleryPage() {
                 const thumbnailUrl = getThumbnailUrl(fullUrl, 400);
                 return (
                   <GalleryCard
-                    key={item.jobId}
-                    item={item}
+                  key={item.jobId}
+                  item={item}
                     index={index}
                     thumbnailUrl={thumbnailUrl}
                     onSelect={() => setSelectedItem(item)}
-                    onDelete={() => handleDelete(item.jobId, item.walletAddress)}
+                  onDelete={() => handleDelete(item.jobId, item.walletAddress)}
                     onDownload={() => handleDownload(item)}
                     onToggleFavorite={() => handleToggleFavorite(item.jobId)}
                     canDelete={!!canDelete(item)}
-                    isDeleting={deleting === item.jobId}
+                  isDeleting={deleting === item.jobId}
                     isFavorited={favorites.has(item.jobId)}
                     isLoggedIn={isConnected}
-                  />
+                />
                 );
               })}
             </Masonry>
