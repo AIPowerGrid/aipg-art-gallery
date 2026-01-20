@@ -35,7 +35,7 @@ export function WalletButton() {
           className="w-4 h-4"
         />
         Connect
-      </button>
+        </button>
     );
   }
 
@@ -52,7 +52,6 @@ function WalletButtonClient() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [hasRedirected, setHasRedirected] = useState(false);
 
   // Auto sign-in when wallet connects
   const handleSignIn = useCallback(async () => {
@@ -71,6 +70,7 @@ function WalletButtonClient() {
         chainId: BASE_NETWORK.chainId,
       });
       console.log('Successfully signed in with wallet');
+      sessionStorage.setItem('aipg_just_signed_in', 'true');
       return true; // Return success
     } catch (error: any) {
       console.error('Sign-in failed:', error);
@@ -91,16 +91,15 @@ function WalletButtonClient() {
     }
   }, [isConnected, address, handleSignIn]);
 
-  // Redirect to create page after successful authentication
+  // Redirect to create page only on fresh login (not on every page load)
   useEffect(() => {
-    if (isConnected && address && isAuthenticated() && !hasRedirected) {
-      setHasRedirected(true);
+    // Only redirect if we just signed in (tracked via sessionStorage)
+    const justSignedIn = sessionStorage.getItem('aipg_just_signed_in');
+    if (isConnected && address && isAuthenticated() && justSignedIn) {
+      sessionStorage.removeItem('aipg_just_signed_in');
       router.push('/create');
-    } else if (!isConnected && hasRedirected) {
-      // Reset redirect flag when disconnected
-      setHasRedirected(false);
     }
-  }, [isConnected, address, hasRedirected, router]);
+  }, [isConnected, address, router]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -125,14 +124,14 @@ function WalletButtonClient() {
     const authenticated = isAuthenticated();
     
     return (
-      <div className="relative">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowDropdown(!showDropdown);
-          }}
+        <div className="relative">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDropdown(!showDropdown);
+            }}
           className="flex items-center gap-2 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full bg-[#1a1a1a] border border-[#333] text-white/80 hover:bg-[#222] hover:text-white hover:border-[#444] transition-colors"
-        >
+          >
           <Image 
             src="/base-logo.svg" 
             alt="Base" 
@@ -149,31 +148,31 @@ function WalletButtonClient() {
           )}
           <span className="font-mono text-xs sm:text-sm">
             {isSigningIn ? 'Signing...' : (ensName || formatAddress(address))}
-          </span>
-        </button>
-        
-        {showDropdown && (
-          <div 
-            className="absolute right-0 top-full mt-2 w-72 rounded-xl bg-black/95 border border-white/20 p-2 z-50 shadow-xl backdrop-blur-sm"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-3 py-2 text-xs text-white/50 border-b border-white/10 mb-2">
+            </span>
+          </button>
+          
+          {showDropdown && (
+            <div 
+              className="absolute right-0 top-full mt-2 w-72 rounded-xl bg-black/95 border border-white/20 p-2 z-50 shadow-xl backdrop-blur-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-3 py-2 text-xs text-white/50 border-b border-white/10 mb-2">
               {authenticated ? 'Authenticated ✓' : 'Connected (not signed in)'}
-            </div>
-            
-            {/* Wallet Address */}
-            <div className="px-3 py-2 mb-2 rounded-xl bg-white/5">
-              <div className="text-xs text-white/50 mb-1">Address</div>
-              <div className="font-mono text-sm text-white break-all">{address}</div>
-            </div>
-
+              </div>
+              
+              {/* Wallet Address */}
+              <div className="px-3 py-2 mb-2 rounded-xl bg-white/5">
+                <div className="text-xs text-white/50 mb-1">Address</div>
+                <div className="font-mono text-sm text-white break-all">{address}</div>
+              </div>
+              
             {/* Auth error */}
             {authError && (
               <div className="px-3 py-2 mb-2 text-xs text-red-400 bg-red-500/10 rounded-xl">
                 {authError}
-              </div>
+                </div>
             )}
-            
+              
             {/* Sign In button if not authenticated */}
             {!authenticated && !isSigningIn && (
               <button
@@ -186,19 +185,19 @@ function WalletButtonClient() {
                 Sign In with Wallet
               </button>
             )}
-            
-            {/* Disconnect Button */}
-            <button
+              
+              {/* Disconnect Button */}
+              <button
               onClick={handleDisconnect}
-              className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-              Disconnect
-            </button>
-          </div>
-        )}
+                className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-xl transition flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Disconnect
+              </button>
+            </div>
+          )}
       </div>
     );
   }
@@ -209,15 +208,15 @@ function WalletButtonClient() {
   );
 
   return (
-    <div className="relative">
-      <button
+      <div className="relative">
+        <button
         data-wallet-button
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowDropdown(!showDropdown);
-        }}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowDropdown(!showDropdown);
+          }}
         className="flex items-center gap-2 px-4 sm:px-6 py-1.5 sm:py-2 rounded-full bg-[#2a2a2a] border border-[#444] text-white/80 text-xs sm:text-sm font-medium hover:bg-[#333] hover:text-white transition-colors"
-      >
+        >
         <Image 
           src="/base-logo.svg" 
           alt="Base" 
@@ -226,65 +225,65 @@ function WalletButtonClient() {
           className="w-4 h-4"
         />
         Connect
-      </button>
+        </button>
 
-      {showDropdown && (
-        <div 
-          className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-black/95 border border-white/20 p-3 z-50 shadow-xl backdrop-blur-sm"
-          onClick={(e) => e.stopPropagation()}
-        >
+        {showDropdown && (
+          <div 
+            className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-black/95 border border-white/20 p-3 z-50 shadow-xl backdrop-blur-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Network Banner */}
-          <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-zinc-500/10 to-zinc-400/10 border border-zinc-500/20">
-            <div className="flex items-center gap-2">
+            <div className="mb-3 p-3 rounded-xl bg-gradient-to-r from-zinc-500/10 to-zinc-400/10 border border-zinc-500/20">
+              <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
               <span className="text-white font-semibold">Base Network</span>
+              </div>
             </div>
-          </div>
 
-          <div className="px-2 py-2 text-xs text-white/50 border-b border-white/10 mb-2 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Select Wallet
-          </div>
-          
-          {availableConnectors.length === 0 ? (
-            <div className="px-3 py-4 text-center">
-              <div className="text-white/70 text-sm mb-2">No wallets detected</div>
-              <p className="text-white/50 text-xs">
-                Install MetaMask, Coinbase Wallet, or another Web3 wallet to continue.
-              </p>
+            <div className="px-2 py-2 text-xs text-white/50 border-b border-white/10 mb-2 flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Select Wallet
             </div>
-          ) : (
-            <div className="space-y-1">
-              {availableConnectors.map((connector) => (
-                <button
-                  key={connector.uid}
-                  onClick={() => {
-                    connect({ connector });
-                    setShowDropdown(false);
-                  }}
-                  disabled={isPending}
-                  className="w-full px-3 py-3 text-left text-sm text-white hover:bg-white/10 rounded-xl transition flex items-center gap-3 disabled:opacity-50"
-                >
-                  {connector.icon && (
-                    <img src={connector.icon} alt="" className="w-7 h-7 rounded-lg" />
-                  )}
-                  <div className="flex-1">
-                    <div className="font-medium">{connector.name}</div>
-                    <div className="text-xs text-white/50">
-                      {isPending ? "Connecting..." : "Click to connect"}
+            
+            {availableConnectors.length === 0 ? (
+              <div className="px-3 py-4 text-center">
+                <div className="text-white/70 text-sm mb-2">No wallets detected</div>
+                <p className="text-white/50 text-xs">
+                  Install MetaMask, Coinbase Wallet, or another Web3 wallet to continue.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {availableConnectors.map((connector) => (
+                  <button
+                    key={connector.uid}
+                    onClick={() => {
+                      connect({ connector });
+                      setShowDropdown(false);
+                    }}
+                    disabled={isPending}
+                    className="w-full px-3 py-3 text-left text-sm text-white hover:bg-white/10 rounded-xl transition flex items-center gap-3 disabled:opacity-50"
+                  >
+                    {connector.icon && (
+                      <img src={connector.icon} alt="" className="w-7 h-7 rounded-lg" />
+                    )}
+                    <div className="flex-1">
+                      <div className="font-medium">{connector.name}</div>
+                      <div className="text-xs text-white/50">
+                        {isPending ? "Connecting..." : "Click to connect"}
+                      </div>
                     </div>
-                  </div>
-                  <svg className="w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                    <svg className="w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
     </div>
   );
 }
@@ -323,7 +322,7 @@ function ConnectWalletCardClient() {
         <p className="text-white/70 text-sm">Connect your Web3 wallet to sign in</p>
         <p className="text-white/50 text-xs mt-1">Base Network</p>
       </div>
-      
+
       {/* Network Info */}
       <div className="p-3 rounded-xl bg-gradient-to-r from-zinc-500/10 to-zinc-400/10 border border-zinc-500/20 text-center">
         <div className="flex items-center justify-center gap-2">

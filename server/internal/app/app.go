@@ -17,9 +17,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/cache"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/gallery"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
@@ -45,6 +47,7 @@ type App struct {
 	jobStore          *gallery.JobStore
 	favoritesStore    *gallery.FavoritesStore
 	r2Client          *r2.Client
+	cache             *cache.Cache
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -126,6 +129,10 @@ func New(cfg config.Config) (*App, error) {
 		log.Printf("R2 direct access disabled (set AWS_ACCESS_KEY_ID or SHARED_AWS_ACCESS_ID to enable)")
 	}
 
+	// Initialize in-memory cache for gallery queries
+	queryCache := cache.New()
+	log.Printf("In-memory query cache initialized")
+
 	return &App{
 		cfg:               cfg,
 		catalog:           catalog,
@@ -137,17 +144,23 @@ func New(cfg config.Config) (*App, error) {
 		userStore:         userStore,
 		jobStore:          jobStore,
 		favoritesStore:    favoritesStore,
+		cache:             queryCache,
 	}, nil
 }
 
 func (a *App) Router() http.Handler {
 	r := chi.NewRouter()
+
+	// CORS
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   a.allowedOrigins(),
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "apikey", "Authorization"},
 		AllowCredentials: true,
 	}))
+
+	// Global rate limiting: 100 requests per minute per IP
+	r.Use(httprate.LimitByIP(100, time.Minute))
 
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -162,11 +175,13 @@ func (a *App) Router() http.Handler {
 		api.Get("/models/{id}", a.handleGetModel)
 		api.Get("/styles", a.handleGetStyles)
 
-		api.Post("/jobs", a.handleCreateJob)
+		// Job creation with stricter rate limit: 20 per minute per IP
+		api.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
 		api.Get("/jobs/{id}", a.handleJobStatus)
 
 		// Public gallery endpoints (read-only, no auth required)
 		api.Get("/gallery", a.handleListGallery)
+		api.Get("/gallery/models", a.handleListGalleryModels)
 		api.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
 		api.Get("/gallery/{id}", a.handleGetGalleryItem)
 		api.Get("/gallery/{id}/media", a.handleGetGalleryMedia)
@@ -1182,6 +1197,9 @@ func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 	searchQuery := r.URL.Query().Get("q")
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
+	modelsParam := r.URL.Query().Get("models")
+	aspectRatio := r.URL.Query().Get("aspect")
+	nsfwFilter := r.URL.Query().Get("nsfw")
 	
 	limit := 25 // Default page size
 	if limitStr != "" {
@@ -1197,7 +1215,61 @@ func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	result := a.galleryStore.List(typeFilter, limit, offset, searchQuery)
+	// Parse models filter (comma-separated)
+	var models []string
+	if modelsParam != "" {
+		for _, m := range strings.Split(modelsParam, ",") {
+			m = strings.TrimSpace(m)
+			if m != "" {
+				models = append(models, m)
+			}
+		}
+	}
+
+	// Build cache key from all parameters
+	cacheKey := fmt.Sprintf("gallery:%s:%d:%d:%s:%s:%s:%s", 
+		typeFilter, limit, offset, searchQuery, modelsParam, aspectRatio, nsfwFilter)
+
+	// Check cache first (30 second TTL)
+	if cached, found := a.cache.Get(cacheKey); found {
+		writeJSON(w, http.StatusOK, cached)
+		return
+	}
+
+	// Use PostgresStore's ListAdvanced if available, otherwise fall back to List
+	var result interface{}
+	if pgStore, ok := a.galleryStore.(*gallery.PostgresStore); ok {
+		result = pgStore.ListAdvanced(typeFilter, limit, offset, searchQuery, models, aspectRatio, nsfwFilter)
+	} else {
+		result = a.galleryStore.List(typeFilter, limit, offset, searchQuery)
+	}
+
+	// Cache the result for 30 seconds
+	a.cache.Set(cacheKey, result, 30*time.Second)
+	
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (a *App) handleListGalleryModels(w http.ResponseWriter, r *http.Request) {
+	cacheKey := "gallery:models"
+	
+	// Check cache first (5 minute TTL - models change rarely)
+	if cached, found := a.cache.Get(cacheKey); found {
+		writeJSON(w, http.StatusOK, cached)
+		return
+	}
+
+	// Get unique models from the gallery
+	var result map[string]any
+	if pgStore, ok := a.galleryStore.(*gallery.PostgresStore); ok {
+		models := pgStore.ListModels()
+		result = map[string]any{"models": models}
+	} else {
+		result = map[string]any{"models": []string{}}
+	}
+	
+	// Cache for 5 minutes
+	a.cache.Set(cacheKey, result, 5*time.Minute)
 	
 	writeJSON(w, http.StatusOK, result)
 }

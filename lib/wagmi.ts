@@ -1,6 +1,6 @@
 'use client';
 
-import { createConfig, http } from 'wagmi'
+import { createConfig, http, createStorage } from 'wagmi'
 import { base, baseSepolia } from 'wagmi/chains'
 
 // WalletConnect project ID - get one at https://cloud.walletconnect.com
@@ -45,6 +45,10 @@ export const config = createConfig({
     [baseSepolia.id]: http(RPC_URLS[84532]),
   },
   ssr: true,
+  storage: createStorage({
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+    key: 'aipg-wallet',
+  }),
 })
 
 declare module 'wagmi' {

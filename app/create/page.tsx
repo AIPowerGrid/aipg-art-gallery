@@ -114,8 +114,25 @@ function DimensionSlider({
 }
 
 // Types
+interface ModelSettings {
+  steps?: number;
+  cfgScale?: number;
+  sampler?: string;
+  scheduler?: string;
+}
+
+interface Model {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  enabled: boolean;
+  default: boolean;
+  settings?: ModelSettings;
+}
+
 interface StylesConfig {
-  models: { id: string; name: string; description: string; type: string; enabled: boolean; default: boolean }[];
+  models: Model[];
   dimensions: { id: number; width: number; height: number; label: string; aspectRatio: string }[];
   defaultDimensionId: number;
   defaults: { steps: number; cfgScale: number; sampler: string; scheduler: string };
@@ -254,9 +271,9 @@ function CreatePageContent() {
         params: {
           width: selectedDimension.width,
           height: selectedDimension.height,
-          steps: styles?.defaults.steps ?? 28,
-          cfgScale: styles?.defaults.cfgScale ?? 3.5,
-          sampler: styles?.defaults.sampler ?? "euler",
+          steps: selectedModel?.settings?.steps ?? styles?.defaults.steps ?? 28,
+          cfgScale: selectedModel?.settings?.cfgScale ?? styles?.defaults.cfgScale ?? 3.5,
+          sampler: selectedModel?.settings?.sampler ?? styles?.defaults.sampler ?? "euler",
           scheduler: styles?.defaults.scheduler ?? "normal",
         },
       });
@@ -333,8 +350,8 @@ function CreatePageContent() {
                 params: selectedDimension ? {
                   width: selectedDimension.width,
                   height: selectedDimension.height,
-                  steps: styles?.defaults.steps,
-                  cfgScale: styles?.defaults.cfgScale,
+                  steps: selectedModel?.settings?.steps ?? styles?.defaults.steps,
+                  cfgScale: selectedModel?.settings?.cfgScale ?? styles?.defaults.cfgScale,
                 } : undefined,
                 mediaUrls,
               });
