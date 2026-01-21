@@ -1,12 +1,29 @@
 {
   "models": [
     {
+      "id": "z-image-turbo",
+      "name": "Z-Image Turbo",
+      "description": "Fast turbo image generation",
+      "type": "image",
+      "enabled": true,
+      "default": true
+    },
+    {
       "id": "flux.1-krea-dev",
       "name": "FLUX Krea",
       "description": "High-quality image generation model",
       "type": "image",
       "enabled": true,
-      "default": true
+      "default": false
+    },
+    {
+      "id": "ltx2_i2v",
+      "name": "LTX Image to Video",
+      "description": "Convert images to video using LTX Video 2.0",
+      "type": "video",
+      "enabled": true,
+      "default": false,
+      "requiresSourceImage": true
     }
   ],
   "dimensions": [

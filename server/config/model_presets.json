@@ -54,6 +54,33 @@
     }
   },
   {
+    "id": "z-image-turbo",
+    "displayName": "Z-Image Turbo",
+    "type": "image",
+    "description": "Z-Image Turbo - Fast turbo image generation with minimal steps for quick iterations.",
+    "tags": ["turbo", "fast", "image"],
+    "samplers": ["euler", "k_euler"],
+    "schedulers": ["simple", "normal"],
+    "capabilities": ["txt2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 5,
+      "cfgScale": 1.5,
+      "sampler": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "tiling": false,
+      "hiresFix": false
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1536, "step": 64 },
+      "height": { "min": 512, "max": 1536, "step": 64 },
+      "steps": { "min": 4, "max": 8, "step": 1 },
+      "cfgScale": { "min": 1, "max": 3, "step": 0.5 }
+    }
+  },
+  {
     "id": "flux.1-krea-dev",
     "displayName": "FLUX.1 Krea Dev",
     "type": "image",
@@ -572,6 +599,35 @@
       "cfgScale": { "min": 1, "max": 2.5, "step": 0.25 },
       "length": { "min": 48, "max": 144, "step": 8 },
       "fps": { "min": 24, "max": 30, "step": 1 }
+    }
+  },
+  {
+    "id": "ltx2_i2v",
+    "displayName": "LTX Image to Video",
+    "type": "video",
+    "description": "LTX Video 2.0 Image-to-Video - Convert images to video using LTX Video 2.0. Upload a source image and describe the motion.",
+    "tags": ["ltxv", "video", "i2v", "image-to-video"],
+    "samplers": ["k_euler", "dpmsolver"],
+    "schedulers": ["simple", "karras"],
+    "capabilities": ["img2video"],
+    "defaults": {
+      "width": 768,
+      "height": 512,
+      "steps": 20,
+      "cfgScale": 2,
+      "sampler": "k_euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "length": 121,
+      "fps": 24
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1280, "step": 64 },
+      "height": { "min": 512, "max": 704, "step": 64 },
+      "steps": { "min": 15, "max": 30, "step": 1 },
+      "cfgScale": { "min": 1, "max": 3, "step": 0.25 },
+      "length": { "min": 9, "max": 201, "step": 8 },
+      "fps": { "min": 16, "max": 30, "step": 1 }
     }
   },
   {

@@ -105,8 +105,18 @@ function DimensionSlider({
 }
 
 // Types
+interface ModelConfig {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  enabled: boolean;
+  default: boolean;
+  requiresSourceImage?: boolean;
+}
+
 interface StylesConfig {
-  models: { id: string; name: string; description: string; type: string; enabled: boolean; default: boolean }[];
+  models: ModelConfig[];
   dimensions: { id: number; width: number; height: number; label: string; aspectRatio: string }[];
   defaultDimensionId: number;
   defaults: { steps: number; cfgScale: number; sampler: string; scheduler: string };
@@ -152,6 +162,10 @@ function CreatePageContent() {
   const [styles, setStyles] = useState<StylesConfig | null>(null);
   const [prompt, setPrompt] = useState("");
   const [dimensionId, setDimensionId] = useState(3); // Default to square
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [sourceImage, setSourceImage] = useState<string | null>(null);
+  const [sourceImagePreview, setSourceImagePreview] = useState<string | null>(null);
+  const [frameCount, setFrameCount] = useState(121); // Default frame count for video models
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentJob, setCurrentJob] = useState<{ jobId: string; status: string; waitTime?: number; queuePosition?: number } | null>(null);
   const [creations, setCreations] = useState<StoredCreation[]>([]);
@@ -164,6 +178,11 @@ function CreatePageContent() {
       .then(data => {
         setStyles(data);
         setDimensionId(data.defaultDimensionId ?? 3);
+        // Set default model
+        const defaultModel = data.models?.find((m: ModelConfig) => m.default && m.enabled) || data.models?.[0];
+        if (defaultModel) {
+          setSelectedModelId(defaultModel.id);
+        }
       })
       .catch(() => setError('Failed to load configuration'));
   }, []);
@@ -205,17 +224,110 @@ function CreatePageContent() {
   }, [address]);
 
   const selectedDimension = styles?.dimensions.find(d => d.id === dimensionId);
-  const selectedModel = styles?.models.find(m => m.default) || styles?.models[0];
+  const selectedModel = styles?.models.find(m => m.id === selectedModelId) || styles?.models.find(m => m.default) || styles?.models[0];
+  const isVideoModel = selectedModel?.type === 'video';
+  const requiresSourceImage = selectedModel?.requiresSourceImage === true;
+
+  // Resize image to max dimensions using canvas
+  const resizeImage = (file: File, maxSize: number = 2048): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        img.onload = () => {
+          let { width, height } = img;
+          
+          // Check if resizing is needed
+          if (width <= maxSize && height <= maxSize) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          
+          // Calculate new dimensions maintaining aspect ratio
+          if (width > height) {
+            if (width > maxSize) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            }
+          } else {
+            if (height > maxSize) {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+          
+          // Create canvas and resize
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          const resizedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+          resolve(resizedBase64);
+        };
+        
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = e.target?.result as string;
+      };
+      
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle image upload for i2v models
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      // Resize image if needed (max 2048px to stay under API limit of 3072)
+      const resizedBase64 = await resizeImage(file, 2048);
+      setSourceImage(resizedBase64);
+      setSourceImagePreview(resizedBase64);
+    } catch (err) {
+      console.error('Failed to process image:', err);
+      setError('Failed to process image. Please try a different file.');
+    }
+  };
+
+  const clearSourceImage = () => {
+    setSourceImage(null);
+    setSourceImagePreview(null);
+  };
 
   // Generate handler
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || !selectedModel || !selectedDimension) return;
+    
+    // Validate source image is provided for i2v models
+    if (requiresSourceImage && !sourceImage) {
+      setError("Please upload an image first");
+      return;
+    }
     
     setIsGenerating(true);
     setError(null);
     setCurrentJob(null);
 
     try {
+      // Determine source processing and media type based on model
+      const isI2V = requiresSourceImage && sourceImage;
+      const mediaType = isVideoModel ? "video" : "image";
+      const sourceProcessing = isI2V ? "img2video" : (isVideoModel ? "txt2video" : "txt2img");
+      
+      // Strip data URL prefix from source image if present (API expects raw base64)
+      let cleanSourceImage = sourceImage;
+      if (cleanSourceImage && cleanSourceImage.startsWith('data:')) {
+        cleanSourceImage = cleanSourceImage.split(',')[1] || cleanSourceImage;
+      }
+
       const resp = await createJob({
         modelId: selectedModel.id,
         prompt: prompt.trim(),
@@ -223,15 +335,20 @@ function CreatePageContent() {
         nsfw: false,
         public: true,
         walletAddress: address,
-        mediaType: "image",
-        sourceProcessing: "txt2img",
+        mediaType,
+        sourceProcessing,
+        sourceImage: isI2V && cleanSourceImage ? cleanSourceImage : undefined,
         params: {
-          width: selectedDimension.width,
-          height: selectedDimension.height,
+          // Don't send dimensions for i2v models - let server use model defaults
+          ...(selectedModelId !== 'ltx2_i2v' && selectedDimension && {
+            width: selectedDimension.width,
+            height: selectedDimension.height,
+          }),
           steps: styles?.defaults.steps ?? 28,
           cfgScale: styles?.defaults.cfgScale ?? 3.5,
           sampler: styles?.defaults.sampler ?? "euler",
           scheduler: styles?.defaults.scheduler ?? "normal",
+          ...(selectedModelId === 'ltx2_i2v' && { length: frameCount }),
         },
       });
 
@@ -241,7 +358,7 @@ function CreatePageContent() {
       setError(err.message || "Failed to create job");
       setIsGenerating(false);
     }
-  }, [prompt, selectedModel, selectedDimension, styles, address]);
+  }, [prompt, selectedModel, selectedModelId, selectedDimension, styles, address, sourceImage, isVideoModel, requiresSourceImage, frameCount]);
 
   // Poll job status
   const pollJob = useCallback(async (jobId: string) => {
@@ -258,17 +375,18 @@ function CreatePageContent() {
         });
 
         if (status.status === "completed" && status.generations.length > 0) {
+          const creationType = isVideoModel ? "video" : "image";
           const creation: StoredCreation = {
             jobId,
             modelId: selectedModel?.id || "",
             modelName: selectedModel?.name || "",
             prompt,
-            type: "image",
+            type: creationType,
             createdAt: Date.now(),
             generations: status.generations.map(g => ({
               id: g.id,
               seed: g.seed || "",
-              kind: (g.kind === "video" ? "video" : "image") as "video" | "image",
+              kind: (g.kind === "video" ? "video" : creationType) as "video" | "image",
               url: g.url,
               base64: g.base64,
             })),
@@ -289,7 +407,7 @@ function CreatePageContent() {
                 modelId: selectedModel?.id || "",
                 modelName: selectedModel?.name || "",
                 prompt,
-                type: "image",
+                type: creationType,
                 isNsfw: false,
                 isPublic: false, // Private by default, user can publish later
                 walletAddress: address,
@@ -315,6 +433,7 @@ function CreatePageContent() {
           setIsGenerating(false);
           setCurrentJob(null);
           setPrompt("");
+          clearSourceImage();
           return;
         }
 
@@ -340,7 +459,7 @@ function CreatePageContent() {
       }
     };
     poll();
-  }, [selectedModel, selectedDimension, styles, prompt, address]);
+  }, [selectedModel, selectedDimension, styles, prompt, address, isVideoModel]);
 
   return (
     <main className="min-h-screen bg-black">
@@ -351,11 +470,56 @@ function CreatePageContent() {
         <div className="flex flex-col md:flex-row gap-6 mb-12">
           {/* Prompt Input */}
           <div className="flex-1">
+            {/* Image Upload for I2V models */}
+            {requiresSourceImage && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Source Image</span>
+                </div>
+                
+                {sourceImagePreview ? (
+                  <div className="relative inline-block">
+                    <img 
+                      src={sourceImagePreview} 
+                      alt="Source" 
+                      className="max-h-32 rounded-xl border border-zinc-700"
+                    />
+                    <button
+                      onClick={clearSourceImage}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-600 rounded-full transition-colors"
+                      disabled={isGenerating}
+                    >
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-600 rounded-xl cursor-pointer hover:border-indigo-500/50 hover:bg-zinc-800/30 transition-colors">
+                    <svg className="w-8 h-8 text-zinc-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <span className="text-sm text-zinc-400">Click to upload an image</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleImageUpload}
+                      className="hidden"
+                      disabled={isGenerating}
+                    />
+                  </label>
+                )}
+              </div>
+            )}
+            
             <div className="relative">
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe your image..."
+                placeholder={isVideoModel ? "Describe your video..." : "Describe your image..."}
                 disabled={isGenerating}
                 className="w-full min-h-[160px] bg-zinc-800/60 border border-zinc-700 rounded-2xl px-5 py-4 text-white text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 resize-none disabled:opacity-50"
                 onKeyDown={(e) => {
@@ -392,13 +556,68 @@ function CreatePageContent() {
 
           {/* Settings Panel */}
           <div className="w-full md:w-[280px] border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
-            {/* Dimensions */}
-            <DimensionSlider 
-              dimensions={styles?.dimensions || []}
-              selectedId={dimensionId}
-              onChange={setDimensionId}
-            />
-            
+            {/* Dimensions - hide for ltx2_i2v */}
+            {selectedModelId !== 'ltx2_i2v' && (
+              <DimensionSlider 
+                dimensions={styles?.dimensions || []}
+                selectedId={dimensionId}
+                onChange={setDimensionId}
+              />
+            )}
+
+            {/* Frame Count - only for ltx2_i2v */}
+            {selectedModelId === 'ltx2_i2v' && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
+                  <span>Frame Count</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={frameCount}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 9;
+                      // Snap to nearest valid value (8n + 1)
+                      const n = Math.round((val - 1) / 8);
+                      const snapped = Math.max(1, n) * 8 + 1;
+                      setFrameCount(snapped);
+                    }}
+                    onBlur={(e) => {
+                      // Ensure valid on blur
+                      const val = parseInt(e.target.value) || 9;
+                      const n = Math.round((val - 1) / 8);
+                      const snapped = Math.max(1, n) * 8 + 1;
+                      setFrameCount(snapped);
+                    }}
+                    min={9}
+                    step={8}
+                    disabled={isGenerating}
+                    className="w-24 bg-zinc-700/50 text-zinc-200 text-sm py-2 px-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/50 disabled:opacity-50"
+                  />
+                  <span className="text-xs text-zinc-500">Must be 8n+1 (9, 17, 25...)</span>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {[49, 73, 97, 121, 145, 169, 193].map(val => (
+                    <button
+                      key={val}
+                      onClick={() => setFrameCount(val)}
+                      disabled={isGenerating}
+                      className={`px-2 py-1 text-xs rounded transition-colors ${
+                        frameCount === val 
+                          ? 'bg-indigo-500 text-white' 
+                          : 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-600/50'
+                      } disabled:opacity-50`}
+                      title={`~${Math.round(val / 24)}s at 24fps`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Model */}
             <div>
@@ -410,9 +629,15 @@ function CreatePageContent() {
               </div>
               <select 
                 className="w-full bg-transparent text-zinc-200 text-sm py-2 px-3 rounded-lg hover:bg-zinc-700/50 cursor-pointer focus:outline-none"
-                value={selectedModel?.id || ""}
+                value={selectedModelId || ""}
+                disabled={isGenerating}
                 onChange={(e) => {
-                  // For now just one model, but ready for more
+                  setSelectedModelId(e.target.value);
+                  // Clear source image when switching away from i2v model
+                  const newModel = styles?.models.find(m => m.id === e.target.value);
+                  if (!newModel?.requiresSourceImage) {
+                    clearSourceImage();
+                  }
                 }}
               >
                 {styles?.models.filter(m => m.enabled).map(model => (
@@ -421,6 +646,9 @@ function CreatePageContent() {
                   </option>
                 ))}
               </select>
+              {selectedModel?.description && (
+                <p className="mt-1 text-xs text-zinc-500">{selectedModel.description}</p>
+              )}
             </div>
           </div>
         </div>
@@ -464,7 +692,7 @@ function CreatePageContent() {
                       {currentJob.status === 'queued' && (
                         <>Queue position: {currentJob.queuePosition || '...'}</>
                       )}
-                      {currentJob.status === 'processing' && 'Creating your image...'}
+                      {currentJob.status === 'processing' && (isVideoModel ? 'Creating your video...' : 'Creating your image...')}
                       {currentJob.status === 'completed' && 'Finalizing...'}
                     </span>
                     {currentJob.waitTime && currentJob.waitTime > 0 && (
@@ -491,7 +719,7 @@ function CreatePageContent() {
         {/* Creations Grid - Masonry Style */}
         {creations.length > 0 && (
           <div>
-            <h2 className="text-lg font-semibold text-white mb-4">Your Creations</h2>
+            <h2 className="text-lg font-semibold text-white mb-4">My Content</h2>
             <Masonry
               breakpointCols={MASONRY_BREAKPOINTS}
               className="masonry-grid flex w-auto -ml-1"
@@ -506,8 +734,8 @@ function CreatePageContent() {
 
         {creations.length === 0 && !isGenerating && (
           <div className="text-center py-20 text-zinc-500">
-            <p className="text-lg mb-2">No creations yet</p>
-            <p className="text-sm">Describe something and click Generate to start creating</p>
+            <p className="text-lg mb-2">No content yet</p>
+            <p className="text-sm">Describe something and click Generate to start creating images and videos</p>
           </div>
         )}
       </div>
@@ -518,18 +746,20 @@ function CreatePageContent() {
 // Creation Card Component
 function CreationCard({ creation }: { creation: StoredCreation }) {
   const [showModal, setShowModal] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
   const firstGen = creation.generations[0];
-  const imageUrl = firstGen?.url || firstGen?.base64;
-  // Use thumbnail for grid, full URL for modal
-  const thumbnailUrl = imageUrl && !imageUrl.startsWith('data:') 
-    ? getThumbnailUrl(imageUrl, 400) 
-    : imageUrl;
+  const mediaUrl = firstGen?.url || firstGen?.base64;
+  const isVideo = creation.type === "video" || firstGen?.kind === "video";
+  
+  // Use thumbnail for grid images, full URL for videos and modal
+  const thumbnailUrl = mediaUrl && !mediaUrl.startsWith('data:') && !isVideo
+    ? getThumbnailUrl(mediaUrl, 400) 
+    : mediaUrl;
 
   const handleDownload = () => {
-    if (!imageUrl) return;
-    const filename = getMediaFilename(creation.jobId, firstGen?.id, creation.type === "video");
-    downloadMedia(imageUrl, filename);
+    if (!mediaUrl) return;
+    const filename = getMediaFilename(creation.jobId, firstGen?.id, isVideo);
+    downloadMedia(mediaUrl, filename);
   };
 
   return (
@@ -539,17 +769,39 @@ function CreationCard({ creation }: { creation: StoredCreation }) {
         onClick={() => setShowModal(true)}
       >
         <div className="relative rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
-          {thumbnailUrl && !imgError ? (
-            <img
-              src={thumbnailUrl}
-              alt={creation.prompt.slice(0, 50)}
-              className="w-full h-auto block"
-              loading="lazy"
-              onError={() => setImgError(true)}
-            />
+          {thumbnailUrl && !mediaError ? (
+            isVideo ? (
+              <video
+                src={thumbnailUrl}
+                className="w-full h-auto block"
+                autoPlay
+                loop
+                muted
+                playsInline
+                onError={() => setMediaError(true)}
+              />
+            ) : (
+              <img
+                src={thumbnailUrl}
+                alt={creation.prompt.slice(0, 50)}
+                className="w-full h-auto block"
+                loading="lazy"
+                onError={() => setMediaError(true)}
+              />
+            )
           ) : (
             <div className="aspect-square flex items-center justify-center bg-zinc-800/50">
-              <span className="text-4xl opacity-50">🖼️</span>
+              <span className="text-4xl opacity-50">{isVideo ? '🎬' : '🖼️'}</span>
+            </div>
+          )}
+          
+          {/* Video badge */}
+          {isVideo && thumbnailUrl && !mediaError && (
+            <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 rounded-md text-xs text-white flex items-center gap-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+              Video
             </div>
           )}
           
@@ -572,14 +824,25 @@ function CreationCard({ creation }: { creation: StoredCreation }) {
             className="max-w-3xl w-full max-h-[90vh] overflow-auto bg-zinc-900 rounded-2xl border border-zinc-700"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Image */}
+            {/* Media */}
             <div className="relative">
-              {imageUrl && (
-                <img
-                  src={imageUrl}
-                  alt={creation.prompt}
-                  className="w-full h-auto"
-                />
+              {mediaUrl && (
+                isVideo ? (
+                  <video
+                    src={mediaUrl}
+                    className="w-full h-auto"
+                    controls
+                    autoPlay
+                    loop
+                    playsInline
+                  />
+                ) : (
+                  <img
+                    src={mediaUrl}
+                    alt={creation.prompt}
+                    className="w-full h-auto"
+                  />
+                )
               )}
               <button
                 onClick={() => setShowModal(false)}
@@ -604,7 +867,7 @@ function CreationCard({ creation }: { creation: StoredCreation }) {
                 onClick={handleDownload}
                 className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors"
               >
-                Download
+                Download {isVideo ? 'Video' : 'Image'}
               </button>
             </div>
           </div>

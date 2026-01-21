@@ -214,7 +214,11 @@ var presetToGridName = map[string]string{
 	"wan2.2-t2v-a14b-hq": "wan2_2_t2v_14b_hq",
 	
 	// LTX Video
-	"ltxv": "ltxv",
+	"ltxv":      "ltxv",
+	"ltx2_i2v":  "ltx2_i2v",
+	
+	// Z-Image Turbo
+	"z-image-turbo": "z-image-turbo",
 	
 	// FLUX models - use exact names that workers advertise
 	"FLUX.1-dev":                    "FLUX.1-dev",
