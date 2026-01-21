@@ -228,47 +228,43 @@ function CreatePageContent() {
   const isVideoModel = selectedModel?.type === 'video';
   const requiresSourceImage = selectedModel?.requiresSourceImage === true;
 
-  // Resize image to max dimensions using canvas
-  const resizeImage = (file: File, maxSize: number = 2048): Promise<string> => {
+  // Resize image to specific dimensions for i2v (1024x768) using canvas
+  const resizeImageForI2V = (file: File, targetWidth: number = 1024, targetHeight: number = 768): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const reader = new FileReader();
       
       reader.onload = (e) => {
         img.onload = () => {
-          let { width, height } = img;
-          
-          // Check if resizing is needed
-          if (width <= maxSize && height <= maxSize) {
-            resolve(e.target?.result as string);
-            return;
-          }
-          
-          // Calculate new dimensions maintaining aspect ratio
-          if (width > height) {
-            if (width > maxSize) {
-              height = Math.round((height * maxSize) / width);
-              width = maxSize;
-            }
-          } else {
-            if (height > maxSize) {
-              width = Math.round((width * maxSize) / height);
-              height = maxSize;
-            }
-          }
-          
-          // Create canvas and resize
+          // Create canvas with target dimensions
           const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
           const ctx = canvas.getContext('2d');
           if (!ctx) {
             reject(new Error('Could not get canvas context'));
             return;
           }
           
-          ctx.drawImage(img, 0, 0, width, height);
-          const resizedBase64 = canvas.toDataURL('image/jpeg', 0.9);
+          // Calculate crop/scale to fill target dimensions (cover mode)
+          const imgRatio = img.width / img.height;
+          const targetRatio = targetWidth / targetHeight;
+          
+          let srcX = 0, srcY = 0, srcW = img.width, srcH = img.height;
+          
+          if (imgRatio > targetRatio) {
+            // Image is wider - crop sides
+            srcW = img.height * targetRatio;
+            srcX = (img.width - srcW) / 2;
+          } else {
+            // Image is taller - crop top/bottom
+            srcH = img.width / targetRatio;
+            srcY = (img.height - srcH) / 2;
+          }
+          
+          // Draw image scaled/cropped to fill canvas
+          ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
+          const resizedBase64 = canvas.toDataURL('image/jpeg', 0.85);
           resolve(resizedBase64);
         };
         
@@ -287,8 +283,8 @@ function CreatePageContent() {
     if (!file) return;
     
     try {
-      // Resize image if needed (max 2048px to stay under API limit of 3072)
-      const resizedBase64 = await resizeImage(file, 2048);
+      // Resize image to exactly 1024x768 for ltx2_i2v model
+      const resizedBase64 = await resizeImageForI2V(file, 1024, 768);
       setSourceImage(resizedBase64);
       setSourceImagePreview(resizedBase64);
     } catch (err) {
