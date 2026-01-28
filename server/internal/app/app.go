@@ -209,6 +209,7 @@ func (a *App) Router() http.Handler {
 			protected.Patch("/gallery/{id}", a.handleUpdateGalleryItem)
 			protected.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
 			protected.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
+			protected.Post("/gallery/{id}/unpublish", a.handleUnpublishGalleryItem)
 			protected.Post("/favorites/{jobId}", a.handleAddFavorite)
 			protected.Delete("/favorites/{jobId}", a.handleRemoveFavorite)
 		})
@@ -1663,6 +1664,44 @@ func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
 		"message":  "Image published to gallery",
 		"jobId":    jobID,
 		"isPublic": true,
+	})
+}
+
+// handleUnpublishGalleryItem removes an image from the public gallery
+func (a *App) handleUnpublishGalleryItem(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
+		return
+	}
+	
+	requestWallet := getWalletFromContext(r)
+	
+	item := a.galleryStore.Get(jobID)
+	if item == nil {
+		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+	
+	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
+	if itemWallet != requestWallet {
+		writeError(w, http.StatusForbidden, errors.New("you can only unpublish your own images"))
+		return
+	}
+	
+	err := a.galleryStore.SetPublic(jobID, false)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, errors.New("failed to unpublish image"))
+		return
+	}
+	
+	log.Printf("Gallery: unpublished job %s by wallet %s", jobID, requestWallet)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":  true,
+		"message":  "Image removed from public gallery",
+		"jobId":    jobID,
+		"isPublic": false,
 	})
 }
 

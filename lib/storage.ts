@@ -41,6 +41,7 @@ export interface StoredCreation {
   generations: StoredGeneration[];
   tags: string[];
   walletAddress?: string;
+  isPublic?: boolean;
 }
 
 /**
