@@ -27,6 +27,8 @@ export interface TrackedJob {
   error?: string;
   result?: JobStatus; // Full result when completed
   pollFailures?: number; // Count consecutive poll failures
+  width?: number;
+  height?: number;
 }
 
 interface JobStore {

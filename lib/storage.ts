@@ -44,6 +44,16 @@ export interface StoredCreation {
   isPublic?: boolean;
 }
 
+// Extended creation type with generating state (used by UI components)
+export interface DisplayCreation extends StoredCreation {
+  isGenerating?: boolean;
+  progress?: number;
+  queuePosition?: number;
+  status?: string;
+  width?: number;
+  height?: number;
+}
+
 /**
  * Get all stored jobs from localStorage
  */
