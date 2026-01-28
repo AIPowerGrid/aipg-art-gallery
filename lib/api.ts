@@ -192,6 +192,12 @@ export function publishGalleryItem(jobId: string): Promise<{ success: boolean; i
   });
 }
 
+export function unpublishGalleryItem(jobId: string): Promise<{ success: boolean; isPublic: boolean }> {
+  return jsonFetch(`/gallery/${jobId}/unpublish`, {
+    method: "POST",
+  });
+}
+
 export function updateGalleryItem(jobId: string, mediaUrls: string[]): Promise<{ success: boolean }> {
   return jsonFetch(`/gallery/${jobId}`, {
     method: "PATCH",

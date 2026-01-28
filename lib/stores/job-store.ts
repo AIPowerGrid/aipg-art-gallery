@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { fetchJobStatus } from '@/lib/api';
+import { fetchJobStatus, updateGalleryItem } from '@/lib/api';
 import { JobStatus } from '@/types/models';
 
 export interface TrackedJob {
@@ -148,6 +148,22 @@ export const useJobStore = create<JobStore>()(
               
               if (status.status === 'completed') {
                 newStatus = 'completed';
+                
+                // Update gallery with media URLs if user was authenticated
+                if (job.walletAddress && status.generations && status.generations.length > 0) {
+                  const mediaUrls = status.generations
+                    .map(g => g.url)
+                    .filter((url): url is string => !!url);
+                  
+                  if (mediaUrls.length > 0) {
+                    try {
+                      await updateGalleryItem(job.jobId, mediaUrls);
+                      console.log('[JobStore] Updated gallery item with media:', job.jobId);
+                    } catch (err) {
+                      console.error('[JobStore] Failed to update gallery item:', err);
+                    }
+                  }
+                }
               } else if (status.status === 'faulted' || status.faulted) {
                 newStatus = 'faulted';
               } else if (status.status === 'processing') {

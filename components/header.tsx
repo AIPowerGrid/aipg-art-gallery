@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
 import { WalletButton } from "./wallet-button";
+import { ActiveJobsIndicator } from "./active-jobs-indicator";
 import { isAuthenticated } from "@/lib/auth";
 
 export function Header() {
@@ -67,8 +68,9 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Desktop Wallet */}
-          <div className="hidden md:flex items-center shrink-0">
+          {/* Desktop: Jobs + Wallet */}
+          <div className="hidden md:flex items-center gap-3 shrink-0">
+            <ActiveJobsIndicator />
             <WalletButton />
           </div>
 

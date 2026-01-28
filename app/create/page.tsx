@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Masonry from "react-masonry-css";
 import { Header } from "@/components/header";
-import { createJob, fetchJobStatus, fetchGalleryByWallet, addToGallery, updateGalleryItem, deleteGalleryItem, publishGalleryItem, GalleryItem, enhancePrompt } from "@/lib/api";
+import { createJob, fetchJobStatus, fetchGalleryByWallet, addToGallery, updateGalleryItem, deleteGalleryItem, publishGalleryItem, unpublishGalleryItem, GalleryItem, enhancePrompt } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { JobStatus } from "@/types/models";
 import { useAccount } from "wagmi";
@@ -14,6 +14,8 @@ import {
   StoredCreation,
   generateTagsFromPrompt 
 } from "@/lib/storage";
+import { useJobStore } from "@/lib/stores/job-store";
+import { useFaviconProgress, calculateProgress } from "@/lib/hooks/use-favicon-progress";
 import { 
   canGenerateAnon, 
   getRemainingGenerations, 
@@ -187,6 +189,66 @@ function CreatePageContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remainingGens, setRemainingGens] = useState(GENERATION_LIMIT);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  
+  // Global job store for tracking across navigation
+  const { jobs, addJob, getActiveJobs } = useJobStore();
+  const activeJobs = getActiveJobs();
+  const trackedJob = activeJobs.length > 0 ? activeJobs[0] : null;
+  
+  // Calculate progress from tracked job
+  const jobProgress = trackedJob 
+    ? calculateProgress(
+        trackedJob.submittedAt,
+        trackedJob.initialWaitTime,
+        trackedJob.waitTime,
+        trackedJob.status
+      )
+    : 0;
+  
+  // Update favicon with progress
+  useFaviconProgress(jobProgress, !!trackedJob);
+  
+  // Sync tracked job progress to the creation card
+  useEffect(() => {
+    if (trackedJob) {
+      setCreations(prev => prev.map(c => 
+        c.jobId === trackedJob.jobId && c.isGenerating
+          ? { 
+              ...c, 
+              progress: jobProgress, 
+              queuePosition: trackedJob.queuePosition, 
+              status: trackedJob.status 
+            }
+          : c
+      ));
+    }
+  }, [trackedJob, jobProgress]);
+  
+  // Watch for completed jobs in the store and update creations with media
+  useEffect(() => {
+    const completedJobs = jobs.filter(j => j.status === 'completed' && j.result?.generations?.length);
+    
+    completedJobs.forEach(job => {
+      setCreations(prev => prev.map(c => {
+        if (c.jobId === job.jobId && c.isGenerating) {
+          // Job completed - update with actual media
+          return {
+            ...c,
+            isGenerating: false,
+            progress: 100,
+            generations: job.result!.generations.map(g => ({
+              id: g.id,
+              seed: g.seed || "",
+              kind: (g.kind === "video" ? "video" : c.type) as "video" | "image",
+              url: g.url,
+              base64: g.base64,
+            })),
+          };
+        }
+        return c;
+      }));
+    });
+  }, [jobs]);
 
   // Update remaining generations count
   useEffect(() => {
@@ -207,40 +269,69 @@ function CreatePageContent() {
   }, []);
 
   // Load creations: DB for logged-in users, localStorage for anonymous
+  // Also merge in any active jobs from the job store
   useEffect(() => {
     async function loadCreations() {
+      // Get active jobs from store to show as generating placeholders
+      const activeJobsFromStore = getActiveJobs();
+      const activePlaceholders: DisplayCreation[] = activeJobsFromStore.map(job => ({
+        jobId: job.jobId,
+        modelId: job.modelId,
+        modelName: job.modelName,
+        prompt: job.prompt,
+        type: job.type,
+        createdAt: job.submittedAt,
+        generations: [],
+        tags: generateTagsFromPrompt(job.prompt),
+        walletAddress: job.walletAddress,
+        isGenerating: true,
+        progress: calculateProgress(job.submittedAt, job.initialWaitTime, job.waitTime, job.status),
+        status: job.status,
+      }));
+      
       if (address) {
-        // Logged in - fetch from database only
+        // Logged in - fetch from database
         try {
           const serverData = await fetchGalleryByWallet(address, 100);
-          const serverCreations: StoredCreation[] = serverData.items.map((item: GalleryItem) => ({
-            jobId: item.jobId,
-            modelId: item.modelId,
-            modelName: item.modelName,
-            prompt: item.prompt,
-            type: item.type as "image" | "video",
-            createdAt: item.createdAt,
-            generations: item.mediaUrls?.map((url, idx) => ({
-              id: `${item.jobId}-${idx}`,
-              seed: item.params?.seed || '',
-              kind: item.type as "image" | "video",
-              url: url,
-            })) || [],
-            tags: generateTagsFromPrompt(item.prompt),
-            walletAddress: item.walletAddress,
-          }));
-          setCreations(serverCreations);
+          const serverCreations: DisplayCreation[] = serverData.items
+            // Filter out items with no media (incomplete jobs)
+            .filter((item: GalleryItem) => item.mediaUrls && item.mediaUrls.length > 0 && item.mediaUrls[0])
+            .map((item: GalleryItem) => ({
+              jobId: item.jobId,
+              modelId: item.modelId,
+              modelName: item.modelName,
+              prompt: item.prompt,
+              type: item.type as "image" | "video",
+              createdAt: item.createdAt,
+              generations: item.mediaUrls?.map((url, idx) => ({
+                id: `${item.jobId}-${idx}`,
+                seed: item.params?.seed || '',
+                kind: item.type as "image" | "video",
+                url: url,
+              })) || [],
+              tags: generateTagsFromPrompt(item.prompt),
+              walletAddress: item.walletAddress,
+              isPublic: item.isPublic,
+            }));
+          
+          // Merge: active placeholders first, then completed (excluding duplicates)
+          const completedJobIds = new Set(activePlaceholders.map(p => p.jobId));
+          const filteredServer = serverCreations.filter(c => !completedJobIds.has(c.jobId));
+          setCreations([...activePlaceholders, ...filteredServer]);
         } catch (err) {
           console.error("Failed to load creations from server:", err);
-          setCreations([]);
+          setCreations(activePlaceholders);
         }
       } else {
-        // Anonymous - use localStorage
-        setCreations(getStoredCreations());
+        // Anonymous - use localStorage + active jobs
+        const stored = getStoredCreations();
+        const storedJobIds = new Set(activePlaceholders.map(p => p.jobId));
+        const filteredStored = stored.filter(c => !storedJobIds.has(c.jobId));
+        setCreations([...activePlaceholders, ...filteredStored]);
       }
     }
     loadCreations();
-  }, [address]);
+  }, [address, jobs]); // Re-run when jobs change
 
   const selectedDimension = styles?.dimensions.find(d => d.id === dimensionId);
   const selectedModel = styles?.models.find(m => m.default) || styles?.models[0];
@@ -315,6 +406,18 @@ function CreatePageContent() {
       
       // Add placeholder to front of creations
       setCreations(prev => [placeholder, ...prev.filter(c => c.jobId !== placeholder.jobId)]);
+      
+      // Add to global job store for tracking across navigation
+      addJob({
+        jobId: resp.jobId,
+        modelId: selectedModel.id,
+        modelName: selectedModel.name,
+        prompt: jobPrompt,
+        type: jobType,
+        isNsfw: false,
+        isPublic: false,
+        walletAddress: address,
+      });
       
       // Save to database IMMEDIATELY so it persists even if user navigates away
       // Media URLs will be empty initially - we'll update them when job completes
@@ -715,26 +818,27 @@ function CreationCard({ creation, onDelete }: { creation: DisplayCreation; onDel
     }
   };
   
-  const handlePublish = async () => {
-    if (creation.isPublic) return; // Already published
+  const handleTogglePublish = async () => {
     setIsPublishing(true);
     try {
-      await publishGalleryItem(creation.jobId);
-      // Mark as published locally
-      creation.isPublic = true;
-      // Show confetti on card
-      setShowConfetti(true);
-      setShowModal(false);
-      // Redirect after celebration
-      setTimeout(() => {
-        setShowConfetti(false);
-        // Use first 3 words of prompt for search
-        const searchWords = creation.prompt.split(' ').slice(0, 3).join(' ');
-        router.push(`/?search=${encodeURIComponent(searchWords)}`);
-      }, 2000);
+      if (creation.isPublic) {
+        // Unpublish
+        await unpublishGalleryItem(creation.jobId);
+        creation.isPublic = false;
+      } else {
+        // Publish
+        await publishGalleryItem(creation.jobId);
+        creation.isPublic = true;
+        // Show confetti on card
+        setShowConfetti(true);
+        setShowModal(false);
+        setTimeout(() => {
+          setShowConfetti(false);
+        }, 2000);
+      }
     } catch (err) {
-      console.error('Failed to publish:', err);
-      alert('Failed to publish to gallery');
+      console.error('Failed to toggle publish:', err);
+      alert(creation.isPublic ? 'Failed to unpublish' : 'Failed to publish');
     } finally {
       setIsPublishing(false);
     }
@@ -769,26 +873,33 @@ function CreationCard({ creation, onDelete }: { creation: DisplayCreation; onDel
         <div className={`relative rounded-xl overflow-hidden bg-zinc-800 border transition-colors ${
           showSpinner ? 'border-indigo-500/50' : 'border-zinc-700/50 hover:border-zinc-600'
         }`}>
-          {/* Confetti celebration on card */}
+          {/* Confetti celebration on card - explodes from center */}
           {showConfetti && (
             <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                 <span className="text-3xl">🎉</span>
               </div>
-              {[...Array(30)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute w-2 h-2 animate-confetti"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: '-10px',
-                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da', '#fcbad3'][i % 7],
-                    borderRadius: Math.random() > 0.5 ? '50%' : '0',
-                    animationDelay: `${Math.random() * 0.5}s`,
-                    animationDuration: `${1 + Math.random()}s`,
-                  }}
-                />
-              ))}
+              {[...Array(40)].map((_, i) => {
+                const angle = (i / 40) * Math.PI * 2;
+                const distance = 60 + Math.random() * 50;
+                const tx = Math.cos(angle) * distance;
+                const ty = Math.sin(angle) * distance;
+                return (
+                  <div
+                    key={i}
+                    className="absolute w-2 h-2 animate-confetti-explode"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da', '#fcbad3', '#74b9ff'][i % 8],
+                      borderRadius: Math.random() > 0.5 ? '50%' : '0',
+                      '--tx': `${tx}px`,
+                      '--ty': `${ty}px`,
+                      animationDelay: `${Math.random() * 0.15}s`,
+                    } as React.CSSProperties}
+                  />
+                );
+              })}
             </div>
           )}
           
@@ -878,31 +989,26 @@ function CreationCard({ creation, onDelete }: { creation: DisplayCreation; onDel
           {/* Action buttons - top right */}
           {!showSpinner && (
             <div className="absolute top-2 right-2 flex gap-1.5 z-10">
-              {/* Published indicator OR Publish button */}
-              {creation.isPublic ? (
-                <div 
-                  className="w-7 h-7 flex items-center justify-center bg-purple-600 text-white rounded-full text-xs font-bold"
-                  title="Published to gallery"
-                >
-                  P
-                </div>
-              ) : (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePublish();
-                  }}
-                  disabled={isPublishing}
-                  className="w-7 h-7 flex items-center justify-center bg-black/50 hover:bg-purple-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-all"
-                  title="Publish to Gallery"
-                >
-                  {isPublishing ? (
-                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    "P"
-                  )}
-                </button>
-              )}
+              {/* Publish toggle button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTogglePublish();
+                }}
+                disabled={isPublishing}
+                className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
+                  creation.isPublic 
+                    ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                    : 'bg-black/50 hover:bg-purple-600 text-white opacity-0 group-hover:opacity-100'
+                }`}
+                title={creation.isPublic ? "Click to unpublish" : "Publish to Gallery"}
+              >
+                {isPublishing ? (
+                  <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  "P"
+                )}
+              </button>
               {/* Delete button */}
               {onDelete && (
                 <button
@@ -1019,21 +1125,21 @@ function CreationCard({ creation, onDelete }: { creation: DisplayCreation; onDel
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={handlePublish}
+                    onClick={handleTogglePublish}
                     disabled={isPublishing}
                     className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
                   >
                     {isPublishing ? (
                       <>
                         <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Publishing...
+                        {creation.isPublic ? 'Unpublishing...' : 'Publishing...'}
                       </>
                     ) : (
                       <>
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        Publish to Gallery
+                        {creation.isPublic ? 'Unpublish' : 'Publish to Gallery'}
                       </>
                     )}
                   </button>
