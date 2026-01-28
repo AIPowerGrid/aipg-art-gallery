@@ -19,6 +19,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
 
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/ai"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/cache"
@@ -48,6 +49,7 @@ type App struct {
 	favoritesStore    *gallery.FavoritesStore
 	r2Client          *r2.Client
 	cache             *cache.Cache
+	aiClient          *ai.Client
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -133,6 +135,13 @@ func New(cfg config.Config) (*App, error) {
 	queryCache := cache.New()
 	log.Printf("In-memory query cache initialized")
 
+	// Initialize AI client for text generation (prompt enhancement)
+	var aiClient *ai.Client
+	if cfg.DefaultAPIKey != "" && cfg.AIModel != "" {
+		aiClient = ai.NewClient(cfg.DefaultAPIKey, cfg.AIModel, cfg.ClientAgent)
+		log.Printf("AI client initialized (model: %s)", cfg.AIModel)
+	}
+
 	return &App{
 		cfg:               cfg,
 		catalog:           catalog,
@@ -145,6 +154,7 @@ func New(cfg config.Config) (*App, error) {
 		jobStore:          jobStore,
 		favoritesStore:    favoritesStore,
 		cache:             queryCache,
+		aiClient:          aiClient,
 	}, nil
 }
 
@@ -175,6 +185,9 @@ func (a *App) Router() http.Handler {
 		api.Get("/models/{id}", a.handleGetModel)
 		api.Get("/styles", a.handleGetStyles)
 
+		// AI text generation (prompt enhancement)
+		api.Post("/ai/enhance", a.handleAIEnhance)
+
 		// Job creation with stricter rate limit: 20 per minute per IP
 		api.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
 		api.Get("/jobs/{id}", a.handleJobStatus)
@@ -193,6 +206,7 @@ func (a *App) Router() http.Handler {
 			protected.Use(a.authMiddleware)
 
 			protected.Post("/gallery", a.handleAddToGallery)
+			protected.Patch("/gallery/{id}", a.handleUpdateGalleryItem)
 			protected.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
 			protected.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
 			protected.Post("/favorites/{jobId}", a.handleAddFavorite)
@@ -1092,6 +1106,13 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 			gridModelName, mediaType, sourceProcessing, string(paramsJSON))
 	}
 
+	// Target specific worker for z-image-turbo model
+	if gridModelName == "z-image-turbo" {
+		// half5090beast worker ID - known working worker for z-image-turbo
+		payload.Workers = []string{"6379e6f3-5544-425a-af48-1a900cc83e18"}
+		log.Printf("🎯 Targeting worker half5090beast for z-image-turbo job")
+	}
+
 	return payload
 }
 
@@ -1508,6 +1529,56 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleUpdateGalleryItem updates a gallery item's media URLs (only owner can update)
+func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
+		return
+	}
+	
+	var req struct {
+		MediaURLs []string `json:"mediaUrls"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	
+	// Get wallet address from JWT (set by authMiddleware)
+	requestWallet := getWalletFromContext(r)
+	
+	// Get the item first to check ownership
+	item := a.galleryStore.Get(jobID)
+	if item == nil {
+		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+	
+	// Check ownership - wallet addresses must match
+	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
+	if itemWallet != "" && itemWallet != requestWallet {
+		writeError(w, http.StatusForbidden, errors.New("you can only update your own gallery items"))
+		return
+	}
+	
+	// Update the media URLs
+	err := a.galleryStore.UpdateMediaURLs(jobID, req.MediaURLs)
+	if err != nil {
+		log.Printf("Failed to update gallery item %s: %v", jobID, err)
+		writeError(w, http.StatusInternalServerError, errors.New("failed to update gallery item"))
+		return
+	}
+	
+	log.Printf("Gallery: updated media URLs for job %s (count=%d, owner=%s)", jobID, len(req.MediaURLs), requestWallet)
+	
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success": true,
+		"message": "Gallery item updated",
+		"jobId":   jobID,
+	})
+}
+
 // handleDeleteGalleryItem removes a gallery item (only owner can delete)
 func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "id")
@@ -1792,4 +1863,77 @@ func normalizeBase64(raw string) string {
 		return "data:image/webp;base64," + data
 	}
 	return ""
+}
+
+// ============================================================================
+// AI Text Generation Handlers
+// ============================================================================
+
+type AIEnhanceRequest struct {
+	Prompt string `json:"prompt"`
+	Type   string `json:"type"` // "image" or "video" - affects system prompt
+}
+
+type AIEnhanceResponse struct {
+	EnhancedPrompt string `json:"enhancedPrompt"`
+	Original       string `json:"original"`
+}
+
+func (a *App) handleAIEnhance(w http.ResponseWriter, r *http.Request) {
+	if a.aiClient == nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("AI service not configured"))
+		return
+	}
+
+	var req AIEnhanceRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid request body"))
+		return
+	}
+
+	if strings.TrimSpace(req.Prompt) == "" {
+		writeError(w, http.StatusBadRequest, errors.New("prompt is required"))
+		return
+	}
+
+	// Build prompt - user's input first, then instructions
+	systemPrompt := buildEnhanceSystemPrompt(req.Type)
+	fullPrompt := "\"" + req.Prompt + "\"\n\n" + systemPrompt
+
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+
+	enhanced, err := a.aiClient.GenerateText(ctx, fullPrompt)
+	if err != nil {
+		log.Printf("AI enhance error: %v", err)
+		writeError(w, http.StatusInternalServerError, errors.New("failed to enhance prompt"))
+		return
+	}
+
+	// Clean up the response - remove quotes, trim whitespace
+	enhanced = strings.TrimSpace(enhanced)
+	enhanced = strings.Trim(enhanced, "\"'")
+	enhanced = strings.TrimSpace(enhanced)
+
+	writeJSON(w, http.StatusOK, AIEnhanceResponse{
+		EnhancedPrompt: enhanced,
+		Original:       req.Prompt,
+	})
+}
+
+func buildEnhanceSystemPrompt(mediaType string) string {
+	if mediaType == "video" {
+		return `You are an expert at writing prompts for AI video generation models (LTX Video).
+Your task is to enhance the user's simple prompt into a detailed, cinematic video prompt.
+
+Guidelines:
+- Describe camera movement (pan, zoom, tracking shot, dolly, static, handheld, etc.)
+- Include lighting and atmosphere details
+- Specify motion and action clearly (what moves, how fast, direction)
+- Add temporal flow (what happens over the duration)
+- Keep it under 200 words
+- Output ONLY the enhanced prompt, nothing else`
+	}
+
+	return `Enhance this into a detailed image prompt. Keep ALL elements the user mentioned - do not remove or sanitize anything. Add lighting, composition, style details. End with: sharp focus, 4K, no watermark. Output ONLY the prompt.`
 }

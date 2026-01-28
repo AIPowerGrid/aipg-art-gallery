@@ -14,8 +14,8 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const authenticated = isConnected && isAuthenticated();
-  const profileLink = authenticated ? "/profile" : "/join";
-  const profileLabel = authenticated ? "My Images" : "Join";
+  const favoritesLink = authenticated ? "/favorites" : "/join";
+  const favoritesLabel = authenticated ? "Favorites" : "Join";
   
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
@@ -24,8 +24,8 @@ export function Header() {
 
   const navItems = [
     { href: "/", label: "Gallery", active: isActive("/") },
-    { href: "/create", label: "Create", active: isActive("/create") },
-    { href: profileLink, label: profileLabel, active: isActive("/profile") || isActive("/join") },
+    { href: "/create", label: "Studio", active: isActive("/create") },
+    { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
   ];
   
   return (
