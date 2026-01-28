@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Masonry from "react-masonry-css";
 import { useAccount } from "wagmi";
 import { getFavorites, removeFavorite, GalleryItem } from "@/lib/api";
 import { ImageModal } from "@/components/image-modal";
@@ -10,6 +11,14 @@ import { Header } from "@/components/header";
 import { MediaCard } from "@/components/media-card";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { isAuthenticated } from "@/lib/auth";
+
+// Masonry breakpoints - matches main gallery
+const MASONRY_BREAKPOINTS = {
+  default: 5,
+  1400: 4,
+  1100: 3,
+  768: 2,
+};
 
 interface FavoriteItem extends GalleryItem {
   loading?: boolean;
@@ -159,7 +168,11 @@ export default function FavoritesPage() {
               Your Favorites ({favorites.length})
             </h2>
             
-            <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-0">
+            <Masonry
+              breakpointCols={MASONRY_BREAKPOINTS}
+              className="masonry-grid flex w-auto -ml-0.5"
+              columnClassName="pl-0.5 bg-clip-padding"
+            >
               {filteredFavorites.map((item) => (
                 <MediaCard
                   key={item.jobId}
@@ -171,7 +184,7 @@ export default function FavoritesPage() {
                   isLoggedIn={true}
                 />
               ))}
-            </div>
+            </Masonry>
 
             {/* No search results */}
             {searchQuery && filteredFavorites.length === 0 && (
