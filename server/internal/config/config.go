@@ -39,6 +39,9 @@ type Config struct {
 	// PostgreSQL configuration
 	PostgresEnabled bool
 	PostgresConnStr string
+
+	// AI Text Generation (uses DefaultAPIKey)
+	AIModel string
 }
 
 func Load() Config {
@@ -75,6 +78,9 @@ func Load() Config {
 		// PostgreSQL configuration
 		PostgresEnabled: getEnv("POSTGRES_ENABLED", "true") == "true",
 		PostgresConnStr: getEnv("POSTGRES_CONN_STR", "host=localhost port=5432 user=aipg_user password=aipg_gallery_2024 dbname=aipg_gallery sslmode=disable"),
+
+		// AI Text Generation
+		AIModel: getEnv("AI_MODEL", "grid/moonshotai/kimi-k2-instruct"),
 	}
 }
 

@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import Masonry from "react-masonry-css";
 import { Header } from "@/components/header";
-import { createJob, fetchJobStatus, fetchGalleryByWallet, addToGallery, GalleryItem } from "@/lib/api";
+import { createJob, fetchJobStatus, fetchGalleryByWallet, addToGallery, updateGalleryItem, deleteGalleryItem, publishGalleryItem, GalleryItem, enhancePrompt } from "@/lib/api";
+import { useRouter } from "next/navigation";
 import { JobStatus } from "@/types/models";
 import { useAccount } from "wagmi";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
@@ -21,6 +22,15 @@ import {
 } from "@/lib/generation-limits";
 import { isAuthenticated } from "@/lib/auth";
 import { AuthModal } from "@/components/auth-modal";
+
+// Extended creation type with generating state
+interface DisplayCreation extends StoredCreation {
+  isGenerating?: boolean;
+  progress?: number;
+  queuePosition?: number;
+  status?: string;
+  isPublic?: boolean;
+}
 
 const MASONRY_BREAKPOINTS = {
   default: 5,
@@ -172,10 +182,11 @@ function CreatePageContent() {
   const [dimensionId, setDimensionId] = useState(3); // Default to square
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentJob, setCurrentJob] = useState<JobStatus | null>(null);
-  const [creations, setCreations] = useState<StoredCreation[]>([]);
+  const [creations, setCreations] = useState<DisplayCreation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remainingGens, setRemainingGens] = useState(GENERATION_LIMIT);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   // Update remaining generations count
   useEffect(() => {
@@ -284,6 +295,54 @@ function CreatePageContent() {
         setRemainingGens(getRemainingGenerations());
       }
 
+      // Create placeholder and add to creations array IMMEDIATELY
+      const jobPrompt = prompt.trim();
+      const jobType = selectedModel.type === "video" ? "video" : "image";
+      const placeholder: DisplayCreation = {
+        jobId: resp.jobId,
+        modelId: selectedModel.id,
+        modelName: selectedModel.name,
+        prompt: jobPrompt,
+        type: jobType,
+        createdAt: Date.now(),
+        generations: [], // Empty - no image yet
+        tags: generateTagsFromPrompt(jobPrompt),
+        walletAddress: address,
+        isGenerating: true,
+        progress: 0,
+        status: 'queued',
+      };
+      
+      // Add placeholder to front of creations
+      setCreations(prev => [placeholder, ...prev.filter(c => c.jobId !== placeholder.jobId)]);
+      
+      // Save to database IMMEDIATELY so it persists even if user navigates away
+      // Media URLs will be empty initially - we'll update them when job completes
+      if (authenticated) {
+        try {
+          await addToGallery({
+            jobId: resp.jobId,
+            modelId: selectedModel.id,
+            modelName: selectedModel.name,
+            prompt: jobPrompt,
+            type: jobType,
+            isNsfw: false,
+            isPublic: false,
+            walletAddress: address,
+            params: {
+              width: selectedDimension.width,
+              height: selectedDimension.height,
+              steps: selectedModel?.settings?.steps ?? styles?.defaults.steps,
+              cfgScale: selectedModel?.settings?.cfgScale ?? styles?.defaults.cfgScale,
+            },
+            mediaUrls: [], // Empty - will be populated when job completes
+          });
+          console.log('Saved job to gallery:', resp.jobId);
+        } catch (err) {
+          console.error('Failed to save job to gallery:', err);
+        }
+      }
+
       setCurrentJob({ 
         jobId: resp.jobId, 
         status: "queued",
@@ -295,6 +354,10 @@ function CreatePageContent() {
         waiting: 0,
         generations: []
       } as JobStatus);
+      
+      // Clear prompt immediately
+      setPrompt("");
+      
       pollJob(resp.jobId);
     } catch (err: any) {
       setError(err.message || "Failed to create job");
@@ -305,75 +368,107 @@ function CreatePageContent() {
   // Poll job status
   const pollJob = useCallback(async (jobId: string) => {
     let attempts = 0;
+    let initialWaitTime: number | undefined;
+    
     const poll = async () => {
       attempts++;
       try {
         const status: JobStatus = await fetchJobStatus(jobId);
         setCurrentJob(status);
+        
+        // Track initial wait time for progress calculation
+        if (!initialWaitTime && status.waitTime && status.waitTime > 0) {
+          initialWaitTime = status.waitTime;
+        }
+        
+        // Calculate progress percentage
+        let progress = 0;
+        if (status.status === "processing") {
+          progress = 75 + Math.min(25, attempts * 2); // 75-100% while processing
+        } else if (status.status === "queued" && initialWaitTime) {
+          const elapsed = initialWaitTime - (status.waitTime || 0);
+          progress = Math.min(70, (elapsed / initialWaitTime) * 70); // 0-70% while queued
+        } else if (status.status === "queued") {
+          progress = Math.min(30, attempts * 3); // Slowly increment if no wait time
+        }
+        
+        // Update the placeholder in creations array with progress
+        setCreations(prev => prev.map(c => 
+          c.jobId === jobId && c.isGenerating
+            ? { ...c, progress, queuePosition: status.queuePosition, status: status.status }
+            : c
+        ));
 
         if (status.status === "completed" && status.generations.length > 0) {
-          const creation: StoredCreation = {
-            jobId,
-            modelId: selectedModel?.id || "",
-            modelName: selectedModel?.name || "",
-            prompt,
-            type: "image",
-            createdAt: Date.now(),
-            generations: status.generations.map(g => ({
-              id: g.id,
-              seed: g.seed || "",
-              kind: (g.kind === "video" ? "video" : "image") as "video" | "image",
-              url: g.url,
-              base64: g.base64,
-            })),
-            tags: generateTagsFromPrompt(prompt),
-            walletAddress: address,
-          };
+          // Get the placeholder to preserve its prompt (since we cleared the input)
+          const placeholder = creations.find(c => c.jobId === jobId);
+          const jobPrompt = placeholder?.prompt || "";
+          const jobModelId = placeholder?.modelId || selectedModel?.id || "";
+          const jobModelName = placeholder?.modelName || selectedModel?.name || "";
+          const jobType = placeholder?.type || "image";
           
-          // Save to database if wallet connected, otherwise localStorage
-          if (address) {
-            // Extract media URLs from generations
+          // UPDATE THE CREATION IN PLACE - no adding/removing
+          setCreations(prev => prev.map(c => 
+            c.jobId === jobId
+              ? {
+                  ...c,
+                  isGenerating: false,
+                  progress: 100,
+                  generations: status.generations.map(g => ({
+                    id: g.id,
+                    seed: g.seed || "",
+                    kind: (g.kind === "video" ? "video" : jobType) as "video" | "image",
+                    url: g.url,
+                    base64: g.base64,
+                  })),
+                }
+              : c
+          ));
+          
+          // Update database with media URLs if authenticated, otherwise localStorage
+          const authenticated = address && isAuthenticated();
+          if (authenticated) {
             const mediaUrls = status.generations
               .map(g => g.url)
               .filter((url): url is string => !!url);
             
             try {
-              await addToGallery({
-                jobId,
-                modelId: selectedModel?.id || "",
-                modelName: selectedModel?.name || "",
-                prompt,
-                type: "image",
-                isNsfw: false,
-                isPublic: false, // Private by default, user can publish later
-                walletAddress: address,
-                params: selectedDimension ? {
-                  width: selectedDimension.width,
-                  height: selectedDimension.height,
-                  steps: selectedModel?.settings?.steps ?? styles?.defaults.steps,
-                  cfgScale: selectedModel?.settings?.cfgScale ?? styles?.defaults.cfgScale,
-                } : undefined,
-                mediaUrls,
-              });
+              // Update the existing gallery record with media URLs
+              // (we saved the job on creation, now we add the generated media)
+              await updateGalleryItem(jobId, mediaUrls);
+              console.log('Updated gallery item with media:', jobId);
             } catch (err) {
-              console.error("Failed to save to gallery:", err);
-              // Fallback to localStorage
-              saveCreation(creation);
+              console.error("Failed to update gallery item:", err);
             }
           } else {
-            // Anonymous user - use localStorage
+            const creation: StoredCreation = {
+              jobId,
+              modelId: jobModelId,
+              modelName: jobModelName,
+              prompt: jobPrompt,
+              type: jobType,
+              createdAt: Date.now(),
+              generations: status.generations.map(g => ({
+                id: g.id,
+                seed: g.seed || "",
+                kind: (g.kind === "video" ? "video" : jobType) as "video" | "image",
+                url: g.url,
+                base64: g.base64,
+              })),
+              tags: generateTagsFromPrompt(jobPrompt),
+              walletAddress: address,
+            };
             saveCreation(creation);
           }
           
-          setCreations(prev => [creation, ...prev]);
           setIsGenerating(false);
-          // Keep job info visible for 3 seconds to show worker name
           setTimeout(() => setCurrentJob(null), 3000);
-          setPrompt("");
           return;
         }
 
         if (status.status === "faulted") {
+          // Remove the placeholder on fault
+          setCreations(prev => prev.filter(c => c.jobId !== jobId));
           setError("Generation failed");
           setIsGenerating(false);
           return;
@@ -382,6 +477,8 @@ function CreatePageContent() {
         if (attempts < 120) {
           setTimeout(poll, 5000);
         } else {
+          // Remove the placeholder on timeout
+          setCreations(prev => prev.filter(c => c.jobId !== jobId));
           setError("Generation timed out");
           setIsGenerating(false);
         }
@@ -451,20 +548,61 @@ function CreatePageContent() {
               />
             </div>
             
-            {/* Generate Button */}
-            <div className="mt-4 flex justify-end">
+            {/* AI Enhance and Generate buttons */}
+            <div className="mt-4 flex justify-end gap-3">
+              <button
+                onClick={async () => {
+                  if (!prompt.trim()) return;
+                  setIsEnhancing(true);
+                  setError(null);
+                  try {
+                    const result = await enhancePrompt({
+                      prompt: prompt.trim(),
+                      type: selectedModel?.type === "video" ? "video" : "image",
+                    });
+                    setPrompt(result.enhancedPrompt);
+                  } catch (err: any) {
+                    setError(err.message || "Failed to enhance prompt");
+                  } finally {
+                    setIsEnhancing(false);
+                  }
+                }}
+                disabled={isGenerating || isEnhancing || !prompt.trim()}
+                className="px-5 py-3 bg-zinc-700 hover:bg-zinc-600 text-white font-medium rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-default transition-all flex items-center gap-2"
+                title="AI Enhance Prompt"
+              >
+                {isEnhancing ? (
+                  <>
+                    <span className="animate-spin w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full" />
+                    <span className="md:hidden">...</span>
+                    <span className="hidden md:inline">Enhancing...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span className="md:hidden">Enhance</span>
+                    <span className="hidden md:inline">Enhance my Prompt with AI</span>
+                  </>
+                )}
+              </button>
               <button
                 onClick={handleGenerate}
                 disabled={isGenerating || !prompt.trim()}
-                className="px-10 py-3 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-100 text-zinc-900 font-semibold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-default hover:brightness-110 transition-all"
+                className="px-6 md:px-10 py-3 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-100 text-zinc-900 font-semibold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-default hover:brightness-110 transition-all"
               >
                 {isGenerating ? (
                   <span className="flex items-center gap-2">
                     <span className="animate-spin w-4 h-4 border-2 border-zinc-400 border-t-zinc-700 rounded-full" />
-                    {currentJob?.status === "processing" ? "Creating..." : "Queued..."}
+                    <span className="md:hidden">{currentJob?.status === "processing" ? "..." : "..."}</span>
+                    <span className="hidden md:inline">{currentJob?.status === "processing" ? "Creating..." : "Queued..."}</span>
                   </span>
                 ) : (
-                  `Generate with ${selectedModel?.name || 'AI'}`
+                  <>
+                    <span className="md:hidden">Generate</span>
+                    <span className="hidden md:inline">Generate with {selectedModel?.name || 'AI'}</span>
+                  </>
                 )}
               </button>
             </div>
@@ -509,78 +647,6 @@ function CreatePageContent() {
           </div>
         </div>
 
-        {/* Active Job Panel */}
-        {currentJob && (
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-white mb-4">In Progress</h2>
-            <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
-              <div className="flex items-center gap-4">
-                {/* Animated Preview Box */}
-                <div className="relative w-20 h-20 rounded-xl bg-zinc-700/50 overflow-hidden flex-shrink-0">
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-zinc-600/30 to-transparent animate-shimmer" 
-                    style={{ backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} 
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <svg className="w-8 h-8 text-zinc-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18 20H4V6h9V4H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-9h-2v9zm-7.79-3.17l-1.96-2.36L5.5 18h11l-3.54-4.71zM20 4V1h-2v3h-3c.01.01 0 2 0 2h3v2.99c.01.01 2 0 2 0V6h3V4h-3z"/>
-                    </svg>
-                  </div>
-                </div>
-                
-                {/* Job Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate mb-2">{prompt || 'Generating...'}</p>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full h-1.5 bg-zinc-700 rounded-full overflow-hidden mb-2">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-500 ${
-                        currentJob.status === 'processing' ? 'bg-indigo-500 animate-pulse' : 'bg-amber-500'
-                      }`}
-                      style={{ 
-                        width: currentJob.status === 'processing' ? '60%' : '20%'
-                      }}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center justify-between text-xs text-zinc-400">
-                    <span>
-                      {currentJob.status === 'queued' && (
-                        <>Queue position: {currentJob.queuePosition || '...'}</>
-                      )}
-                      {currentJob.status === 'processing' && 'Creating your image...'}
-                      {currentJob.status === 'completed' && 'Finalizing...'}
-                    </span>
-                    <div className="text-right">
-                      {/* Worker info */}
-                      {currentJob.generations?.[0]?.workerName && (
-                        <div className="text-zinc-500 text-[10px] mb-0.5">
-                          Worker: {currentJob.generations[0].workerName}
-                        </div>
-                      )}
-                      {/* Time remaining */}
-                      {currentJob.waitTime && currentJob.waitTime > 0 && (
-                        <span className="text-zinc-500">
-                          ~{Math.ceil(currentJob.waitTime)}s remaining
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Status Badge */}
-                <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex-shrink-0 ${
-                  currentJob.status === 'processing' 
-                    ? 'bg-indigo-500/20 text-indigo-300' 
-                    : 'bg-amber-500/20 text-amber-300'
-                }`}>
-                  {currentJob.status === 'queued' ? 'Queued' : 'Processing'}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Creations Grid - Masonry Style */}
         {creations.length > 0 && (
           <div>
@@ -591,7 +657,11 @@ function CreatePageContent() {
               columnClassName="pl-1 bg-clip-padding"
             >
               {creations.map((creation) => (
-                <CreationCard key={creation.jobId} creation={creation} />
+                <CreationCard 
+                  key={creation.jobId} 
+                  creation={creation} 
+                  onDelete={(jobId) => setCreations(prev => prev.filter(c => c.jobId !== jobId))}
+                />
               ))}
             </Masonry>
           </div>
@@ -617,100 +687,372 @@ function CreatePageContent() {
 }
 
 // Creation Card Component
-function CreationCard({ creation }: { creation: StoredCreation }) {
+// Unified Creation Card - handles both generating and completed states
+function CreationCard({ creation, onDelete }: { creation: DisplayCreation; onDelete?: (jobId: string) => void }) {
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
-  const [imgError, setImgError] = useState(false);
+  const [mediaError, setMediaError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
   const firstGen = creation.generations[0];
-  const imageUrl = firstGen?.url || firstGen?.base64;
-  // Use thumbnail for grid, full URL for modal
-  const thumbnailUrl = imageUrl && !imageUrl.startsWith('data:') 
-    ? getThumbnailUrl(imageUrl, 400) 
-    : imageUrl;
+  const mediaUrl = firstGen?.url || firstGen?.base64;
+  const isVideo = creation.type === "video" || firstGen?.kind === "video";
+  
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Delete this image?')) return;
+    setIsDeleting(true);
+    try {
+      await deleteGalleryItem(creation.jobId);
+      onDelete?.(creation.jobId);
+    } catch (err) {
+      console.error('Failed to delete:', err);
+      alert('Failed to delete image');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+  
+  const handlePublish = async () => {
+    if (creation.isPublic) return; // Already published
+    setIsPublishing(true);
+    try {
+      await publishGalleryItem(creation.jobId);
+      // Mark as published locally
+      creation.isPublic = true;
+      // Show confetti on card
+      setShowConfetti(true);
+      setShowModal(false);
+      // Redirect after celebration
+      setTimeout(() => {
+        setShowConfetti(false);
+        // Use first 3 words of prompt for search
+        const searchWords = creation.prompt.split(' ').slice(0, 3).join(' ');
+        router.push(`/?search=${encodeURIComponent(searchWords)}`);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to publish:', err);
+      alert('Failed to publish to gallery');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+  
+  // Reset imageLoaded when the URL changes
+  const [prevUrl, setPrevUrl] = useState<string | undefined>(undefined);
+  if (mediaUrl !== prevUrl) {
+    setPrevUrl(mediaUrl);
+    setImageLoaded(false);
+  }
+  
+  // Show spinner overlay until image has loaded
+  const showSpinner = creation.isGenerating || !mediaUrl || (!imageLoaded && !isVideo && !mediaError);
+  
+  const thumbnailUrl = mediaUrl && !mediaUrl.startsWith('data:') && !isVideo
+    ? getThumbnailUrl(mediaUrl, 400) 
+    : mediaUrl;
 
   const handleDownload = () => {
-    if (!imageUrl) return;
-    const filename = getMediaFilename(creation.jobId, firstGen?.id, creation.type === "video");
-    downloadMedia(imageUrl, filename);
+    if (!mediaUrl) return;
+    const filename = getMediaFilename(creation.jobId, firstGen?.id, isVideo);
+    downloadMedia(mediaUrl, filename);
   };
 
   return (
     <>
       <div 
         className="mb-1 group cursor-pointer"
-        onClick={() => setShowModal(true)}
+        onClick={() => !showSpinner && setShowModal(true)}
       >
-        <div className="relative rounded-xl overflow-hidden bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 transition-colors">
-          {thumbnailUrl && !imgError ? (
-            <img
-              src={thumbnailUrl}
-              alt={creation.prompt.slice(0, 50)}
-              className="w-full h-auto block"
-              loading="lazy"
-              onError={() => setImgError(true)}
-            />
-          ) : (
+        <div className={`relative rounded-xl overflow-hidden bg-zinc-800 border transition-colors ${
+          showSpinner ? 'border-indigo-500/50' : 'border-zinc-700/50 hover:border-zinc-600'
+        }`}>
+          {/* Confetti celebration on card */}
+          {showConfetti && (
+            <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <span className="text-3xl">🎉</span>
+              </div>
+              {[...Array(30)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute w-2 h-2 animate-confetti"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: '-10px',
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#f38181', '#aa96da', '#fcbad3'][i % 7],
+                    borderRadius: Math.random() > 0.5 ? '50%' : '0',
+                    animationDelay: `${Math.random() * 0.5}s`,
+                    animationDuration: `${1 + Math.random()}s`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          
+          {/* Always render media if we have a URL - it loads in background */}
+          {thumbnailUrl && !mediaError && (
+            <div className={showSpinner ? 'invisible absolute' : 'visible'}>
+              {isVideo ? (
+                <video src={thumbnailUrl} className="w-full h-auto block animate-fadeIn" autoPlay loop muted playsInline onError={() => setMediaError(true)} />
+              ) : (
+                <img 
+                  src={thumbnailUrl} 
+                  alt={creation.prompt.slice(0, 50)} 
+                  className="w-full h-auto block animate-fadeIn" 
+                  loading="eager" 
+                  onLoad={() => setImageLoaded(true)}
+                  onError={() => setMediaError(true)} 
+                />
+              )}
+            </div>
+          )}
+          
+          {/* Show spinner overlay while loading */}
+          {showSpinner && (
+            <div className="aspect-square relative overflow-hidden bg-zinc-900">
+              {/* Subtle animated border glow */}
+              <div 
+                className="absolute inset-0 opacity-30"
+                style={{
+                  background: 'radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 70%)',
+                  animation: 'pulse 3s ease-in-out infinite'
+                }}
+              />
+              
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
+                {/* Simple spinning ring */}
+                <div className="relative w-12 h-12 mb-3">
+                  <div 
+                    className="w-12 h-12 rounded-full border-2 border-zinc-700"
+                  />
+                  <div 
+                    className="absolute inset-0 w-12 h-12 rounded-full border-2 border-transparent border-t-indigo-500"
+                    style={{ animation: 'spin 1s linear infinite' }}
+                  />
+                </div>
+                
+                <p className="text-zinc-400 text-xs text-center">
+                  {creation.status === 'queued' 
+                    ? (creation.queuePosition && creation.queuePosition > 0 
+                        ? `Queue #${creation.queuePosition}` 
+                        : 'Finding worker...')
+                    : isVideo ? 'Creating video...' : 'Creating image...'
+                  }
+                </p>
+                
+                {/* Progress percentage - small and subtle */}
+                <p className="text-zinc-500 text-[10px] mt-1">
+                  {Math.round(creation.progress || 0)}%
+                </p>
+              </div>
+              
+              {/* Type badge */}
+              <div className="absolute top-2 left-2 px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-400 flex items-center gap-1">
+                {isVideo ? (
+                  <><svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Video</>
+                ) : (
+                  <><svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>Image</>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Error state */}
+          {!showSpinner && (!thumbnailUrl || mediaError) && (
             <div className="aspect-square flex items-center justify-center bg-zinc-800/50">
-              <span className="text-4xl opacity-50">🖼️</span>
+              <span className="text-4xl opacity-50">{isVideo ? '🎬' : '🖼️'}</span>
+            </div>
+          )}
+          
+          {/* Video badge for completed videos */}
+          {!showSpinner && isVideo && thumbnailUrl && !mediaError && (
+            <div className="absolute top-2 left-2 px-2 py-1 bg-black/70 rounded-md text-xs text-white flex items-center gap-1">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              Video
+            </div>
+          )}
+          
+          {/* Action buttons - top right */}
+          {!showSpinner && (
+            <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+              {/* Published indicator OR Publish button */}
+              {creation.isPublic ? (
+                <div 
+                  className="w-7 h-7 flex items-center justify-center bg-purple-600 text-white rounded-full text-xs font-bold"
+                  title="Published to gallery"
+                >
+                  P
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePublish();
+                  }}
+                  disabled={isPublishing}
+                  className="w-7 h-7 flex items-center justify-center bg-black/50 hover:bg-purple-600 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-all"
+                  title="Publish to Gallery"
+                >
+                  {isPublishing ? (
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    "P"
+                  )}
+                </button>
+              )}
+              {/* Delete button */}
+              {onDelete && (
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="p-1.5 bg-black/60 hover:bg-red-600 rounded-full opacity-0 group-hover:opacity-100 transition-all"
+                  title="Delete"
+                >
+                  {isDeleting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  )}
+                </button>
+              )}
             </div>
           )}
           
           {/* Hover overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="absolute bottom-0 left-0 right-0 p-3">
+          {!showSpinner && (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="absolute bottom-0 left-0 right-0 p-3">
+                <p className="text-white text-xs line-clamp-2">{creation.prompt}</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Prompt for generating */}
+          {showSpinner && (
+            <div className="p-3 border-t border-zinc-700/50">
               <p className="text-white text-xs line-clamp-2">{creation.prompt}</p>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Modal */}
-      {showModal && (
+      {showModal && !showSpinner && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4"
           onClick={() => setShowModal(false)}
         >
           <div 
-            className="max-w-3xl w-full max-h-[90vh] overflow-auto bg-zinc-900 rounded-2xl border border-zinc-700"
+            className="flex flex-col max-w-[95vw] max-h-[95vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Image */}
-            <div className="relative">
-              {imageUrl && (
-                <img
-                  src={imageUrl}
-                  alt={creation.prompt}
-                  className="w-full h-auto"
-                />
+            {/* Media container - fits in viewport */}
+            <div className="relative flex-1 min-h-0 flex items-center justify-center">
+              {mediaUrl && (
+                isVideo ? (
+                  <video 
+                    id={`modal-media-${creation.jobId}`}
+                    src={mediaUrl} 
+                    className="max-w-full max-h-[75vh] object-contain rounded-lg" 
+                    controls 
+                    autoPlay 
+                    loop 
+                    playsInline 
+                  />
+                ) : (
+                  <img 
+                    id={`modal-media-${creation.jobId}`}
+                    src={mediaUrl} 
+                    alt={creation.prompt} 
+                    className="max-w-full max-h-[75vh] object-contain rounded-lg" 
+                  />
+                )
               )}
-              <button
-                onClick={() => setShowModal(false)}
-                className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              
+              {/* Control buttons */}
+              <div className="absolute top-3 right-3 flex gap-2">
+                {/* Fullscreen button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const el = document.getElementById(`modal-media-${creation.jobId}`);
+                    if (el) {
+                      if (el.requestFullscreen) {
+                        el.requestFullscreen();
+                      } else if ((el as any).webkitRequestFullscreen) {
+                        (el as any).webkitRequestFullscreen();
+                      }
+                    }
+                  }}
+                  className="p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
+                  title="Fullscreen"
+                >
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                </button>
+                {/* Close button */}
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
+                >
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
             
-            {/* Info */}
-            <div className="p-5 space-y-4">
-              <p className="text-white text-sm leading-relaxed">{creation.prompt}</p>
-              
-              <div className="flex items-center justify-between text-xs text-zinc-400">
-                <span>{creation.modelName}</span>
-                <span>{new Date(creation.createdAt).toLocaleDateString()}</span>
+            {/* Info bar below image */}
+            <div className="mt-3 px-4 py-3 bg-zinc-900/90 rounded-xl backdrop-blur-sm max-w-2xl mx-auto">
+              <p className="text-white text-sm leading-relaxed line-clamp-2 mb-2">{creation.prompt}</p>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-xs text-zinc-400">
+                  <span>{creation.modelName}</span>
+                  <span>•</span>
+                  <span>{new Date(creation.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePublish}
+                    disabled={isPublishing}
+                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    {isPublishing ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Publishing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        Publish to Gallery
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleDownload}
+                    className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download
+                  </button>
+                </div>
               </div>
-              
-              <button
-                onClick={handleDownload}
-                className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-medium rounded-xl transition-colors"
-              >
-                Download
-              </button>
             </div>
           </div>
         </div>
       )}
+      
     </>
   );
 }

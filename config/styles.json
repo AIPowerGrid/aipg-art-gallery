@@ -18,7 +18,7 @@
       "name": "FLUX Krea",
       "description": "High-quality image generation model",
       "type": "image",
-      "enabled": true,
+      "enabled": false,
       "default": false
     }
   ],

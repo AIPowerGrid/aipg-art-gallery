@@ -192,6 +192,14 @@ export function publishGalleryItem(jobId: string): Promise<{ success: boolean; i
   });
 }
 
+export function updateGalleryItem(jobId: string, mediaUrls: string[]): Promise<{ success: boolean }> {
+  return jsonFetch(`/gallery/${jobId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mediaUrls }),
+  });
+}
+
 // Favorites API - JWT authenticated
 export function addFavorite(jobId: string): Promise<{ success: boolean }> {
   return jsonFetch(`/favorites/${jobId}`, {
@@ -214,4 +222,23 @@ export function getFavorites(walletAddress: string, limit?: number): Promise<{ i
 
 export function checkFavorite(walletAddress: string, jobId: string): Promise<{ favorited: boolean }> {
   return jsonFetch(`/favorites/check/${walletAddress}/${jobId}`);
+}
+
+// AI Enhancement API
+export interface AIEnhanceRequest {
+  prompt: string;
+  type: "image" | "video";
+}
+
+export interface AIEnhanceResponse {
+  enhancedPrompt: string;
+  original: string;
+}
+
+export function enhancePrompt(request: AIEnhanceRequest): Promise<AIEnhanceResponse> {
+  return jsonFetch("/ai/enhance", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 }

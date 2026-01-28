@@ -132,8 +132,8 @@ export function MediaCard({
                   )}
                 </button>
               )}
-              {/* Published indicator - purple P */}
-              {item.isPublic && (
+              {/* Published indicator - purple P (only show if showPublishButton context, not on favorites) */}
+              {showPublishButton && item.isPublic && (
                 <div 
                   className="w-7 h-7 flex items-center justify-center bg-purple-600 backdrop-blur-sm text-white rounded-full text-xs font-bold"
                   title="Published to gallery"

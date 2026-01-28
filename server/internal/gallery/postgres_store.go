@@ -517,6 +517,16 @@ func (s *PostgresStore) SetPublic(jobID string, isPublic bool) error {
 	return err
 }
 
+// UpdateMediaURLs updates the media URL for a gallery item (uses first URL from array)
+func (s *PostgresStore) UpdateMediaURLs(jobID string, mediaURLs []string) error {
+	if len(mediaURLs) == 0 {
+		return nil // Nothing to update
+	}
+	// DB stores single media_url, use the first one
+	_, err := s.db.Exec("UPDATE gallery_items SET media_url = $1 WHERE job_id = $2", mediaURLs[0], jobID)
+	return err
+}
+
 // Count returns the total number of gallery items
 func (s *PostgresStore) Count() int {
 	var count int

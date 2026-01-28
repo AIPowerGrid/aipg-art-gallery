@@ -52,6 +52,8 @@ type CreateJobPayload struct {
 	SourceProcessing string         `json:"source_processing,omitempty"`
 	SourceMask       string         `json:"source_mask,omitempty"`
 	Extra            map[string]any `json:"extra,omitempty"`
+	Workers          []string       `json:"workers,omitempty"`          // Target specific worker IDs
+	WorkerBlacklist  bool           `json:"worker_blacklist,omitempty"` // If true, Workers is a blacklist
 	WalletAddress    string         `json:"wallet_id,omitempty"`
 	MediaType        string         `json:"media_type,omitempty"` // "image" or "video"
 }
