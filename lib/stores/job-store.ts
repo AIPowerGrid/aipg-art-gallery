@@ -29,6 +29,7 @@ export interface TrackedJob {
   pollFailures?: number; // Count consecutive poll failures
   width?: number;
   height?: number;
+  expectedGenerations?: number; // For batch mode - how many images to expect
 }
 
 interface JobStore {
@@ -151,16 +152,24 @@ export const useJobStore = create<JobStore>()(
               if (status.status === 'completed') {
                 newStatus = 'completed';
                 
-                // Update gallery with media URLs if user was authenticated
+                // Update gallery with media URLs and seeds if user was authenticated
                 if (job.walletAddress && status.generations && status.generations.length > 0) {
                   const mediaUrls = status.generations
                     .map(g => g.url)
                     .filter((url): url is string => !!url);
                   
+                  // Extract seeds from each generation
+                  const seeds = status.generations
+                    .map(g => g.seed || '')
+                    .filter((seed): seed is string => !!seed);
+                  
                   if (mediaUrls.length > 0) {
                     try {
-                      await updateGalleryItem(job.jobId, mediaUrls);
-                      console.log('[JobStore] Updated gallery item with media:', job.jobId);
+                      await updateGalleryItem(job.jobId, { 
+                        mediaUrls,
+                        seeds: seeds.length > 0 ? seeds : undefined,
+                      });
+                      console.log('[JobStore] Updated gallery item with media and seeds:', job.jobId, seeds);
                     } catch (err) {
                       console.error('[JobStore] Failed to update gallery item:', err);
                     }
@@ -179,12 +188,14 @@ export const useJobStore = create<JobStore>()(
               const initialWaitTime = existingJob?.initialWaitTime || 
                 (status.waitTime && status.waitTime > 0 ? status.waitTime : undefined);
 
+              // Always update result with latest status (including partial generations)
+              // This allows batch images to appear as they complete
               store.updateJob(job.jobId, {
                 status: newStatus,
                 waitTime: status.waitTime,
                 initialWaitTime,
                 queuePosition: status.queuePosition,
-                result: status.status === 'completed' ? status : undefined,
+                result: status, // Always update with latest status for progressive loading
                 error: status.faulted ? 'Job failed' : undefined,
                 pollFailures: 0, // Reset failure count on success
               });

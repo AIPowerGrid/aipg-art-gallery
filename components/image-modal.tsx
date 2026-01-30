@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { GalleryItem, JobParams } from "@/lib/api";
 
 interface ImageModalProps {
@@ -26,6 +26,18 @@ function formatParamValue(key: string, value: any): string {
 export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProps) {
   const mediaSrc = item.mediaUrls?.[0];
   const isVideo = item.type === "video";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(item.prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -116,7 +128,29 @@ export function ImageModal({ isOpen, onClose, item, onDownload }: ImageModalProp
         <div className="lg:w-96 flex flex-col gap-6">
           {/* Prompt */}
           <div>
-            <h2 className="text-white font-semibold text-lg mb-2">Prompt</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-white font-semibold text-lg">Prompt</h2>
+              <button
+                onClick={handleCopyPrompt}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition"
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy
+                  </>
+                )}
+              </button>
+            </div>
             <p className="text-white/90 text-sm leading-relaxed">
               {item.prompt.length > 300 
                 ? item.prompt.slice(0, 300) + '...' 

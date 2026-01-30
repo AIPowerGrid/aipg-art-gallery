@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
-import { WalletButton } from "./wallet-button";
+import { CustomConnectButton } from "./custom-connect-button";
 import { ActiveJobsIndicator } from "./active-jobs-indicator";
 import { isAuthenticated } from "@/lib/auth";
 
@@ -71,7 +71,7 @@ export function Header() {
           {/* Desktop: Jobs + Wallet */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
             <ActiveJobsIndicator />
-            <WalletButton />
+            <CustomConnectButton />
           </div>
 
           {/* Mobile: Hamburger Button */}
@@ -108,7 +108,7 @@ export function Header() {
           </Link>
             ))}
             <div className="pt-2 mt-2 border-t border-white/10">
-              <WalletButton />
+              <CustomConnectButton />
             </div>
         </nav>
         </div>

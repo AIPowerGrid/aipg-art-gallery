@@ -33,10 +33,13 @@ const nextConfig = {
     ],
   },
   webpack: (config) => {
-    // Fix for wagmi porto connector module resolution issue
+    // Fix for wagmi connector module resolution issues
     config.resolve.fallback = {
       ...config.resolve.fallback,
+      'porto': false,
       'porto/internal': false,
+      '@safe-global/safe-apps-sdk': false,
+      '@safe-global/safe-apps-provider': false,
     };
     config.externals.push('pino-pretty', 'lokijs', 'encoding');
     return config;

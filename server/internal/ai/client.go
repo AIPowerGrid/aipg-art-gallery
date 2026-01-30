@@ -10,18 +10,18 @@ import (
 	"time"
 )
 
-const (
-	GridAPIBaseURL = "https://api.aipowergrid.io/api/v2"
-)
-
 type Client struct {
 	httpClient  *http.Client
 	apiKey      string
 	model       string
 	clientAgent string
+	baseURL     string
 }
 
-func NewClient(apiKey, model, clientAgent string) *Client {
+func NewClient(apiKey, model, clientAgent, baseURL string) *Client {
+	if baseURL == "" {
+		baseURL = "https://api.aipowergrid.io/api/v2"
+	}
 	return &Client{
 		httpClient: &http.Client{
 			Timeout: 120 * time.Second,
@@ -29,6 +29,7 @@ func NewClient(apiKey, model, clientAgent string) *Client {
 		apiKey:      apiKey,
 		model:       model,
 		clientAgent: clientAgent,
+		baseURL:     baseURL,
 	}
 }
 
@@ -89,7 +90,7 @@ func (c *Client) GenerateText(ctx context.Context, prompt string) (string, error
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, GridAPIBaseURL+"/generate/text/async", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/generate/text/async", bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
@@ -152,7 +153,7 @@ func (c *Client) pollForResult(ctx context.Context, generationID string) (string
 }
 
 func (c *Client) checkStatus(ctx context.Context, generationID string) (*TextStatusResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, GridAPIBaseURL+"/generate/text/status/"+generationID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/generate/text/status/"+generationID, nil)
 	if err != nil {
 		return nil, err
 	}

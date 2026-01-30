@@ -1,75 +1,120 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
-/node_modules
+# ===================
+# IDE & Editor
+# ===================
+.cursor/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===================
+# Dependencies
+# ===================
+node_modules/
 /.pnp
 .pnp.js
 .yarn/install-state.gz
 
-# testing
-/coverage
-
-# next.js
+# ===================
+# Build & Output
+# ===================
+# Next.js
 /.next/
 /out/
-
-# production
 /build
 
-# misc
-.DS_Store
+# Go binaries
+server/api
+server/api-*
+server/aipg-api
+server/bin/
+bin/
+
+# ===================
+# Environment & Secrets
+# ===================
+.env
+.env.local
+.env*.local
 *.pem
 
-# debug
+# ===================
+# Testing
+# ===================
+/coverage
+
+# ===================
+# OS & Misc
+# ===================
+.DS_Store
+Thumbs.db
+
+# ===================
+# Logs
+# ===================
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-.env*.local
-.env
-# vercel
-.vercel
+# ===================
+# Backups & Temp
+# ===================
+*.bak
+*.backup
+*.backup-*
+*.tmp
+*.temp
+*.patch
 
-# typescript
+# ===================
+# Archives
+# ===================
+*.tar.gz
+*.zip
+*.exe
+
+# ===================
+# TypeScript
+# ===================
 *.tsbuildinfo
 next-env.d.ts
 
-# Build artifacts
-bin/
-server/api
-server/api.backup
-server/api.exe
-*.exe
+# ===================
+# Vercel
+# ===================
+.vercel
 
-# Logs
-*.log
-build.log
-fix-dimensions.log
-import*.log
-prompt-generation.log
-vision-poc.log
+# ===================
+# Python
+# ===================
+__pycache__/
+*.pyc
+*.pyo
 
-# Backups
-*.backup
-*.backup-*
-
-# Archives
-*.tar.gz
-*.zip
-
-# Temp files
-*.patch
+# ===================
+# Config (local only)
+# ===================
 ecosystem.config.js
 nginx*.conf
 
-# Python
-__pycache__/
-*.pyc
-
-# Scripts (dev only)
+# ===================
+# Development Scripts
+# ===================
 scripts/generate-*.js
 scripts/generate-*.py
 scripts/scrape-*.mjs
 scripts/lexica-source.html
+
+# ===================
+# MCP Servers
+# ===================
 firecrawl-mcp-server/
+
+# ===================
+# Data Backups
+# ===================
+data/*.backup*

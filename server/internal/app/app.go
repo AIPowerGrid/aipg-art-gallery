@@ -28,8 +28,8 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/modelvault"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/prompts"
-	"github.com/aipowergrid/aipg-art-gallery/server/internal/recipevault"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/r2"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/recipevault"
 )
 
 // Context key for wallet address
@@ -138,7 +138,7 @@ func New(cfg config.Config) (*App, error) {
 	// Initialize AI client for text generation (prompt enhancement)
 	var aiClient *ai.Client
 	if cfg.DefaultAPIKey != "" && cfg.AIModel != "" {
-		aiClient = ai.NewClient(cfg.DefaultAPIKey, cfg.AIModel, cfg.ClientAgent)
+		aiClient = ai.NewClient(cfg.DefaultAPIKey, cfg.AIModel, cfg.ClientAgent, cfg.APIBaseURL)
 		log.Printf("AI client initialized (model: %s)", cfg.AIModel)
 	}
 
@@ -339,19 +339,19 @@ var modelNameAliases = map[string][]string{
 	"wan2.2_ti2v_5B":     {"wan2.2_ti2v_5b", "wan2_2_ti2v_5b", "wan2.2-ti2v-5b", "wan2.2_ti2v_5B"},
 	"wan2.2-t2v-a14b":    {"wan2_2_t2v_14b", "wan2.2-t2v-14b", "wan2.2_t2v_a14b", "wan2.2-t2v-a14b"},
 	"wan2.2-t2v-a14b-hq": {"wan2_2_t2v_14b_hq", "wan2.2-t2v-14b-hq", "wan2.2_t2v_a14b_hq", "wan2.2-t2v-a14b-hq"},
-	
+
 	// FLUX models - case and punctuation variations
-	"FLUX.1-dev":                     {"flux.1-dev", "flux1-dev", "flux1.dev", "flux1_dev", "FLUX.1-dev"},
-	"flux.1-krea-dev":                {"flux1-krea-dev", "flux1_krea_dev", "flux.1_krea_dev", "krea", "flux.1-krea-dev", "flux1-krea-dev_fp8_scaled", "flux1-krea-dev-fp8-scaled", "flux1_krea_dev_fp8_scaled"},
-	"FLUX.1-dev-Kontext-fp8-scaled":  {"flux.1-dev-kontext-fp8-scaled", "flux1-dev-kontext-fp8-scaled", "flux1_dev_kontext_fp8_scaled", "flux_kontext_dev_basic", "FLUX.1-dev-Kontext-fp8-scaled"},
-	"Flux.1-Schnell fp8 (Compact)":   {"flux.1-schnell fp8 (compact)", "flux1-schnell-fp8-compact", "flux.1-schnell", "Flux.1-Schnell fp8 (Compact)"},
-	
+	"FLUX.1-dev":                    {"flux.1-dev", "flux1-dev", "flux1.dev", "flux1_dev", "FLUX.1-dev"},
+	"flux.1-krea-dev":               {"flux1-krea-dev", "flux1_krea_dev", "flux.1_krea_dev", "krea", "flux.1-krea-dev", "flux1-krea-dev_fp8_scaled", "flux1-krea-dev-fp8-scaled", "flux1_krea_dev_fp8_scaled"},
+	"FLUX.1-dev-Kontext-fp8-scaled": {"flux.1-dev-kontext-fp8-scaled", "flux1-dev-kontext-fp8-scaled", "flux1_dev_kontext_fp8_scaled", "flux_kontext_dev_basic", "FLUX.1-dev-Kontext-fp8-scaled"},
+	"Flux.1-Schnell fp8 (Compact)":  {"flux.1-schnell fp8 (compact)", "flux1-schnell-fp8-compact", "flux.1-schnell", "Flux.1-Schnell fp8 (Compact)"},
+
 	// Chroma
 	"Chroma": {"chroma", "chroma_final", "Chroma"},
-	
+
 	// SDXL
 	"SDXL 1.0": {"sdxl 1.0", "sdxl1", "sdxl", "sdxl1.0", "SDXL 1.0"},
-	
+
 	// Other models
 	"ltxv": {"ltx-video", "ltxv-13b", "ltxv"},
 	"ICBINP - I Can't Believe It's Not Photography": {"icbinp", "icbinp - i can't believe it's not photography"},
@@ -365,19 +365,19 @@ var presetToGridName = map[string]string{
 	"wan2.2_ti2v_5B":     "wan2_2_ti2v_5b",
 	"wan2.2-t2v-a14b":    "wan2_2_t2v_14b",
 	"wan2.2-t2v-a14b-hq": "wan2_2_t2v_14b_hq",
-	
+
 	// LTX Video
 	"ltxv": "ltxv",
-	
+
 	// FLUX models - use exact names that workers advertise
 	"FLUX.1-dev":                    "FLUX.1-dev",
 	"flux.1-krea-dev":               "flux.1-krea-dev",
 	"FLUX.1-dev-Kontext-fp8-scaled": "FLUX.1-dev-Kontext-fp8-scaled",
 	"Flux.1-Schnell fp8 (Compact)":  "Flux.1-Schnell fp8 (Compact)",
-	
+
 	// Chroma
 	"Chroma": "Chroma",
-	
+
 	// SDXL and SD models - use exact names
 	"SDXL 1.0":             "SDXL 1.0",
 	"ICBINP XL":            "ICBINP XL",
@@ -392,7 +392,7 @@ var presetToGridName = map[string]string{
 	"Anything v3":          "Anything v3",
 	"Epic Diffusion":       "Epic Diffusion",
 	"ICBINP - I Can't Believe It's Not Photography": "ICBINP - I Can't Believe It's Not Photography",
-	"Movie Diffusion":      "Movie Diffusion",
+	"Movie Diffusion": "Movie Diffusion",
 }
 
 // getGridModelName converts a preset ID to the Grid API model name
@@ -455,7 +455,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 	// Build a set of available models from RecipeVault for filtering
 	// Normalize model names by removing extensions and normalizing separators
 	recipeVaultModelSet := make(map[string]bool)
-	
+
 	normalizeModelName := func(name string) string {
 		// Remove file extensions
 		name = strings.TrimSuffix(name, ".safetensors")
@@ -470,7 +470,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 		name = strings.ReplaceAll(name, " ", "")
 		return name
 	}
-	
+
 	for _, model := range recipeVaultModels {
 		recipeVaultModelSet[strings.ToLower(model)] = true
 		recipeVaultModelSet[model] = true
@@ -482,7 +482,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 	presets := a.catalog.List()
 	log.Printf("RecipeVault: total presets in catalog: %d", len(presets))
 	response := make([]ModelView, 0, len(presets))
-	
+
 	// If RecipeVault is enabled, filter presets to only include models found in recipes
 	// Otherwise, show all presets
 	log.Printf("RecipeVault: filtering check - IsEnabled=%v, recipeVaultModelSet size=%d", a.recipeVaultClient.IsEnabled(), len(recipeVaultModelSet))
@@ -492,7 +492,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 			// Check if this preset's model is in RecipeVault
 			presetLower := strings.ToLower(preset.ID)
 			found := false
-			
+
 			// Normalize preset ID for comparison (same function as normalizeModelName)
 			normalizePresetID := func(id string) string {
 				id = strings.ToLower(id)
@@ -503,19 +503,19 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 				return id
 			}
 			presetNormalized := normalizePresetID(preset.ID)
-			
+
 			// Check exact match
 			if recipeVaultModelSet[presetLower] || recipeVaultModelSet[preset.ID] {
 				found = true
 			}
-			
+
 			// Check normalized match
 			if !found {
 				if recipeVaultModelSet[presetNormalized] {
 					found = true
 				}
 			}
-			
+
 			// Check aliases
 			if !found {
 				if aliases, ok := modelNameAliases[preset.ID]; ok {
@@ -533,7 +533,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			
+
 			// Check Grid API name
 			if !found {
 				gridName := getGridModelName(preset.ID)
@@ -548,7 +548,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			
+
 			// Check if any RecipeVault model name contains preset ID or vice versa (fuzzy match)
 			if !found {
 				// Extract core model name by removing common suffixes
@@ -563,13 +563,13 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 					}
 					return core
 				}
-				
+
 				presetCore := extractCoreModelName(presetNormalized)
-				
+
 				for _, rvModel := range recipeVaultModels {
 					rvNormalized := normalizeModelName(rvModel)
 					rvCore := extractCoreModelName(rvNormalized)
-					
+
 					// Check if cores match or if one contains the other
 					if presetCore == rvCore || strings.Contains(rvCore, presetCore) || strings.Contains(presetCore, rvCore) {
 						found = true
@@ -584,9 +584,9 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
-			
+
 			if !found {
-				log.Printf("RecipeVault: preset %q not found in RecipeVault models (presetNormalized=%q, checked %d RecipeVault models)", 
+				log.Printf("RecipeVault: preset %q not found in RecipeVault models (presetNormalized=%q, checked %d RecipeVault models)",
 					preset.ID, presetNormalized, len(recipeVaultModels))
 				// Log all RecipeVault models for debugging
 				for _, rvModel := range recipeVaultModels {
@@ -598,10 +598,10 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 				log.Printf("RecipeVault: including preset %q (matched to RecipeVault)", preset.ID)
 			}
 		}
-		
+
 		// Look up stats using preset ID and all known aliases
 		stat := lookupModelStats(preset.ID, byName)
-		
+
 		// Merge chain data if available
 		var chainModel *modelvault.OnChainModel
 		if chainModels != nil {
@@ -610,7 +610,7 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 				chainModel = chainModels[strings.ToLower(preset.ID)]
 			}
 		}
-		
+
 		response = append(response, buildModelView(preset, stat, chainModel))
 	}
 
@@ -620,10 +620,10 @@ func (a *App) handleListModels(w http.ResponseWriter, r *http.Request) {
 	})
 
 	log.Printf("RecipeVault: returning %d models in response (expected %d from RecipeVault)", len(response), len(recipeVaultModels))
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
-		"models":         response,
-		"chainSource":    a.vaultClient.IsEnabled(),
+		"models":            response,
+		"chainSource":       a.vaultClient.IsEnabled(),
 		"recipeVaultSource": a.recipeVaultClient.IsEnabled(),
 	})
 }
@@ -635,13 +635,13 @@ func lookupModelStats(presetID string, byName map[string]aipg.ModelStatus) aipg.
 	if stat, ok := byName[presetID]; ok {
 		return stat
 	}
-	
+
 	// Try lowercase match
 	presetLower := strings.ToLower(presetID)
 	if stat, ok := byName[presetLower]; ok {
 		return stat
 	}
-	
+
 	// Try aliases for this preset ID
 	if aliases, ok := modelNameAliases[presetID]; ok {
 		for _, alias := range aliases {
@@ -653,7 +653,7 @@ func lookupModelStats(presetID string, byName map[string]aipg.ModelStatus) aipg.
 			}
 		}
 	}
-	
+
 	// Also check if any alias list contains our preset ID (reverse lookup)
 	for _, aliases := range modelNameAliases {
 		for _, alias := range aliases {
@@ -670,7 +670,7 @@ func lookupModelStats(presetID string, byName map[string]aipg.ModelStatus) aipg.
 			}
 		}
 	}
-	
+
 	// Try normalized matching (replace hyphens/underscores/dots)
 	normalized := strings.ReplaceAll(strings.ReplaceAll(presetLower, "-", "_"), ".", "_")
 	for name, stat := range byName {
@@ -679,7 +679,7 @@ func lookupModelStats(presetID string, byName map[string]aipg.ModelStatus) aipg.
 			return stat
 		}
 	}
-	
+
 	// Return empty stats if not found
 	return aipg.ModelStatus{}
 }
@@ -694,7 +694,7 @@ func (a *App) handleGetStyles(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("styles config not found"))
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
 }
@@ -754,10 +754,16 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	payload := buildCreateJobPayload(req, preset)
-	
-	log.Printf("📤 Creating job: modelId=%s, preset.ID=%s, preset.Type=%s, gridName=%s, payload.Models=%v, mediaType=%s", 
+
+	// Target specific worker if configured
+	if a.cfg.TargetWorkerID != "" {
+		payload.Workers = []string{a.cfg.TargetWorkerID}
+		log.Printf("🎯 Targeting worker: %s", a.cfg.TargetWorkerID)
+	}
+
+	log.Printf("📤 Creating job: modelId=%s, preset.ID=%s, preset.Type=%s, gridName=%s, payload.Models=%v, mediaType=%s",
 		req.ModelID, preset.ID, preset.Type, getGridModelName(preset.ID), payload.Models, payload.MediaType)
-	
+
 	// Debug: log the full params for troubleshooting
 	if paramsJSON, err := json.Marshal(payload.Params); err == nil {
 		log.Printf("📤 Job params: %s", string(paramsJSON))
@@ -822,8 +828,8 @@ type ModelView struct {
 	Defaults             models.ModelDefaults `json:"defaults"`
 	Limits               models.ModelLimits   `json:"limits"`
 	// Chain-derived fields
-	OnChain     bool                      `json:"onChain"`
-	Constraints *ChainConstraintsView     `json:"constraints,omitempty"`
+	OnChain     bool                  `json:"onChain"`
+	Constraints *ChainConstraintsView `json:"constraints,omitempty"`
 }
 
 // ChainConstraintsView represents blockchain-derived generation constraints
@@ -840,7 +846,7 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel
 	if stat.ParseCount() > 0 {
 		status = "online"
 	}
-	
+
 	view := ModelView{
 		ID:                   preset.ID,
 		DisplayName:          preset.DisplayName,
@@ -858,14 +864,14 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel
 		Limits:               preset.Limits,
 		OnChain:              chainModel != nil,
 	}
-	
+
 	// Merge chain model data if available
 	if chainModel != nil {
 		// Override description if chain has a better one
 		if chainModel.Description != "" && chainModel.Description != preset.Description {
 			view.Description = chainModel.Description
 		}
-		
+
 		// Add chain constraints
 		if chainModel.Constraints != nil {
 			view.Constraints = &ChainConstraintsView{
@@ -875,7 +881,7 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel
 				CfgMax:   chainModel.Constraints.CfgMax,
 				ClipSkip: int(chainModel.Constraints.ClipSkip),
 			}
-			
+
 			// Update limits from chain constraints if they're more restrictive
 			if view.Limits.Steps != nil && chainModel.Constraints.StepsMax > 0 {
 				if int(chainModel.Constraints.StepsMax) < view.Limits.Steps.Max {
@@ -895,7 +901,7 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel
 			}
 		}
 	}
-	
+
 	return view
 }
 
@@ -927,6 +933,7 @@ type GenerationParams struct {
 	FPS       int     `json:"fps"`
 	Tiling    bool    `json:"tiling"`
 	HiresFix  bool    `json:"hiresFix"`
+	N         int     `json:"n"` // Number of images to generate (batch size, 1-4)
 }
 
 func (r CreateJobRequest) Validate() error {
@@ -944,36 +951,36 @@ func (r CreateJobRequest) Validate() error {
 func mapSamplerName(sampler string) string {
 	samplerMap := map[string]string{
 		// Direct mappings
-		"uni_pc":           "dpmsolver",
-		"unipc":            "dpmsolver",
-		"uni_pc_bh2":       "dpmsolver",
-		"dpm_2":            "k_dpm_2",
-		"dpm_2_ancestral":  "k_dpm_2_a",
-		"euler":            "k_euler",
-		"euler_ancestral":  "k_euler_a",
-		"heun":             "k_heun",
-		"lms":              "k_lms",
-		"dpm_fast":         "k_dpm_fast",
-		"dpm_adaptive":     "k_dpm_adaptive",
+		"uni_pc":             "dpmsolver",
+		"unipc":              "dpmsolver",
+		"uni_pc_bh2":         "dpmsolver",
+		"dpm_2":              "k_dpm_2",
+		"dpm_2_ancestral":    "k_dpm_2_a",
+		"euler":              "k_euler",
+		"euler_ancestral":    "k_euler_a",
+		"heun":               "k_heun",
+		"lms":                "k_lms",
+		"dpm_fast":           "k_dpm_fast",
+		"dpm_adaptive":       "k_dpm_adaptive",
 		"dpmpp_2s_ancestral": "k_dpmpp_2s_a",
-		"dpmpp_2m":         "k_dpmpp_2m",
-		"dpmpp_sde":        "k_dpmpp_sde",
-		"ddim":             "DDIM",
+		"dpmpp_2m":           "k_dpmpp_2m",
+		"dpmpp_sde":          "k_dpmpp_sde",
+		"ddim":               "DDIM",
 		// Already in correct format - pass through
-		"k_euler":          "k_euler",
-		"k_euler_a":        "k_euler_a",
-		"k_dpm_2":          "k_dpm_2",
-		"k_dpm_2_a":        "k_dpm_2_a",
-		"k_heun":           "k_heun",
-		"k_lms":            "k_lms",
-		"k_dpm_fast":       "k_dpm_fast",
-		"k_dpm_adaptive":   "k_dpm_adaptive",
-		"k_dpmpp_2s_a":     "k_dpmpp_2s_a",
-		"k_dpmpp_2m":       "k_dpmpp_2m",
-		"k_dpmpp_sde":      "k_dpmpp_sde",
-		"DDIM":             "DDIM",
-		"dpmsolver":        "dpmsolver",
-		"lcm":              "lcm",
+		"k_euler":        "k_euler",
+		"k_euler_a":      "k_euler_a",
+		"k_dpm_2":        "k_dpm_2",
+		"k_dpm_2_a":      "k_dpm_2_a",
+		"k_heun":         "k_heun",
+		"k_lms":          "k_lms",
+		"k_dpm_fast":     "k_dpm_fast",
+		"k_dpm_adaptive": "k_dpm_adaptive",
+		"k_dpmpp_2s_a":   "k_dpmpp_2s_a",
+		"k_dpmpp_2m":     "k_dpmpp_2m",
+		"k_dpmpp_sde":    "k_dpmpp_sde",
+		"DDIM":           "DDIM",
+		"dpmsolver":      "dpmsolver",
+		"lcm":            "lcm",
 	}
 
 	// Case-insensitive lookup
@@ -992,13 +999,13 @@ func mapSamplerName(sampler string) string {
 func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg.CreateJobPayload {
 	// Process prompts: enhance positive, provide default negative
 	enhancedPrompt, finalNegative := prompts.ProcessPrompts(req.Prompt, req.NegativePrompt, preset.ID)
-	
+
 	log.Printf("Prompt processing: original=%d chars, enhanced=%d chars, negative=%d chars",
 		len(req.Prompt), len(enhancedPrompt), len(finalNegative))
-	
+
 	rawSampler := pickString(req.Params.Sampler, preset.Defaults.Sampler)
 	mappedSampler := mapSamplerName(rawSampler)
-	
+
 	// Get final values - validate user input against model limits
 	// User values are used if provided and within range, otherwise clamped to valid range
 	width := pickIntInRange(req.Params.Width, preset.Defaults.Width, preset.Limits.Width)
@@ -1007,17 +1014,17 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 	cfgScale := pickFloatInRange(req.Params.CfgScale, preset.Defaults.CfgScale, preset.Limits.CfgScale)
 	denoise := pickFloat(req.Params.Denoise, preset.Defaults.Denoise) // No limits for denoise
 	scheduler := pickString(req.Params.Scheduler, preset.Defaults.Scheduler)
-	
+
 	// Video parameters - validate against limits
 	videoLength := pickIntInRange(req.Params.Length, preset.Defaults.Length, preset.Limits.Length)
 	fps := pickIntInRange(req.Params.FPS, preset.Defaults.FPS, preset.Limits.FPS)
-	
+
 	// Debug log for video models
 	if preset.Type == "video" {
 		log.Printf("🎬 Video params: preset=%s, userLen=%d→%d, userFPS=%d→%d, userSteps=%d→%d, userCfg=%.2f→%.2f",
-			preset.ID, 
+			preset.ID,
 			req.Params.Length, videoLength,
-			req.Params.FPS, fps, 
+			req.Params.FPS, fps,
 			req.Params.Steps, steps,
 			req.Params.CfgScale, cfgScale)
 	}
@@ -1041,7 +1048,12 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 	if req.Params.Seed != "" {
 		params["seed"] = req.Params.Seed
 	}
-	
+	// Batch generation - number of images to create (1-4)
+	if req.Params.N > 0 {
+		params["n"] = req.Params.N
+		log.Printf("📦 Batch mode enabled: generating %d images", req.Params.N)
+	}
+
 	// Video-specific parameters - comfy_bridge expects these at top level
 	if videoLength > 0 {
 		params["length"] = videoLength
@@ -1053,7 +1065,7 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 
 	// Convert preset ID to Grid API model name
 	gridModelName := getGridModelName(preset.ID)
-	
+
 	// Determine source processing based on model type if not specified
 	sourceProcessing := req.SourceProcessing
 	if sourceProcessing == "" {
@@ -1071,13 +1083,13 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 			}
 		}
 	}
-	
+
 	// Determine media type based on model type if not specified
 	mediaType := req.MediaType
 	if mediaType == "" {
 		mediaType = preset.Type
 	}
-	
+
 	payload := aipg.CreateJobPayload{
 		Prompt:           enhancedPrompt,
 		NegativePrompt:   finalNegative,
@@ -1099,19 +1111,12 @@ func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg
 	if req.SourceMask != "" {
 		payload.SourceMask = req.SourceMask
 	}
-	
+
 	// Log the full payload for video debugging
 	if preset.Type == "video" {
 		paramsJSON, _ := json.Marshal(params)
 		log.Printf("🎬 Video job payload: model=%s, mediaType=%s, sourceProc=%s, params=%s",
 			gridModelName, mediaType, sourceProcessing, string(paramsJSON))
-	}
-
-	// Target specific worker for z-image-turbo model
-	if gridModelName == "z-image-turbo" {
-		// half5090beast worker ID - known working worker for z-image-turbo
-		payload.Workers = []string{"6379e6f3-5544-425a-af48-1a900cc83e18"}
-		log.Printf("🎯 Targeting worker half5090beast for z-image-turbo job")
 	}
 
 	return payload
@@ -1222,21 +1227,21 @@ func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 	modelsParam := r.URL.Query().Get("models")
 	aspectRatio := r.URL.Query().Get("aspect")
 	nsfwFilter := r.URL.Query().Get("nsfw")
-	
+
 	limit := 25 // Default page size
 	if limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
 			limit = l
 		}
 	}
-	
+
 	offset := 0
 	if offsetStr != "" {
 		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
 			offset = o
 		}
 	}
-	
+
 	// Parse models filter (comma-separated)
 	var models []string
 	if modelsParam != "" {
@@ -1249,7 +1254,7 @@ func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build cache key from all parameters
-	cacheKey := fmt.Sprintf("gallery:%s:%d:%d:%s:%s:%s:%s", 
+	cacheKey := fmt.Sprintf("gallery:%s:%d:%d:%s:%s:%s:%s",
 		typeFilter, limit, offset, searchQuery, modelsParam, aspectRatio, nsfwFilter)
 
 	// Check cache first (30 second TTL)
@@ -1268,13 +1273,13 @@ func (a *App) handleListGallery(w http.ResponseWriter, r *http.Request) {
 
 	// Cache the result for 30 seconds
 	a.cache.Set(cacheKey, result, 30*time.Second)
-	
+
 	writeJSON(w, http.StatusOK, result)
 }
 
 func (a *App) handleListGalleryModels(w http.ResponseWriter, r *http.Request) {
 	cacheKey := "gallery:models"
-	
+
 	// Check cache first (5 minute TTL - models change rarely)
 	if cached, found := a.cache.Get(cacheKey); found {
 		writeJSON(w, http.StatusOK, cached)
@@ -1289,26 +1294,26 @@ func (a *App) handleListGalleryModels(w http.ResponseWriter, r *http.Request) {
 	} else {
 		result = map[string]any{"models": []string{}}
 	}
-	
+
 	// Cache for 5 minutes
 	a.cache.Set(cacheKey, result, 5*time.Minute)
-	
+
 	writeJSON(w, http.StatusOK, result)
 }
 
 type JobParamsRequest struct {
-	Width      *int     `json:"width,omitempty"`
-	Height     *int     `json:"height,omitempty"`
-	Steps      *int     `json:"steps,omitempty"`
-	CfgScale   *float64 `json:"cfgScale,omitempty"`
-	Sampler    *string  `json:"sampler,omitempty"`
-	Scheduler  *string  `json:"scheduler,omitempty"`
-	Seed       *string  `json:"seed,omitempty"`
-	Denoise    *float64 `json:"denoise,omitempty"`
-	Length     *int     `json:"length,omitempty"`
-	Fps        *int     `json:"fps,omitempty"`
-	Tiling     *bool    `json:"tiling,omitempty"`
-	HiresFix   *bool    `json:"hiresFix,omitempty"`
+	Width     *int     `json:"width,omitempty"`
+	Height    *int     `json:"height,omitempty"`
+	Steps     *int     `json:"steps,omitempty"`
+	CfgScale  *float64 `json:"cfgScale,omitempty"`
+	Sampler   *string  `json:"sampler,omitempty"`
+	Scheduler *string  `json:"scheduler,omitempty"`
+	Seed      *string  `json:"seed,omitempty"`
+	Denoise   *float64 `json:"denoise,omitempty"`
+	Length    *int     `json:"length,omitempty"`
+	Fps       *int     `json:"fps,omitempty"`
+	Tiling    *bool    `json:"tiling,omitempty"`
+	HiresFix  *bool    `json:"hiresFix,omitempty"`
 }
 
 type AddToGalleryRequest struct {
@@ -1331,12 +1336,12 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	
+
 	if req.JobID == "" || req.Prompt == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId and prompt are required"))
 		return
 	}
-	
+
 	// Convert request params to gallery params
 	var galleryParams *gallery.JobParams
 	if req.Params != nil {
@@ -1355,7 +1360,7 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 			HiresFix:  req.Params.HiresFix,
 		}
 	}
-	
+
 	item := gallery.GalleryItem{
 		JobID:          req.JobID,
 		ModelID:        req.ModelID,
@@ -1369,11 +1374,11 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		Params:         galleryParams,
 		MediaURLs:      req.MediaURLs,
 	}
-	
+
 	a.galleryStore.Add(item)
-	
+
 	log.Printf("Gallery: added job %s (model=%s, type=%s, wallet=%s, public=%v)", req.JobID, req.ModelName, req.Type, req.WalletAddress, req.IsPublic)
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Added to gallery",
@@ -1386,7 +1391,7 @@ func (a *App) handleListByWallet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("wallet address is required"))
 		return
 	}
-	
+
 	limitStr := r.URL.Query().Get("limit")
 	limit := 100
 	if limitStr != "" {
@@ -1394,9 +1399,9 @@ func (a *App) handleListByWallet(w http.ResponseWriter, r *http.Request) {
 			limit = l
 		}
 	}
-	
+
 	items := a.galleryStore.ListByWallet(wallet, limit)
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":  items,
 		"count":  len(items),
@@ -1411,13 +1416,13 @@ func (a *App) handleGetGalleryItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
 		return
 	}
-	
+
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
 		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
 		return
 	}
-	
+
 	writeJSON(w, http.StatusOK, item)
 }
 
@@ -1428,16 +1433,16 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
 		return
 	}
-	
+
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
 		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
 		return
 	}
-	
+
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	
+
 	// First try to fetch from Grid API to get generation IDs
 	// This ensures we have the correct generation IDs for CDN URLs
 	status, err := a.client.JobStatus(ctx, jobID)
@@ -1445,7 +1450,7 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 		// Extract generation IDs and build CDN URLs
 		urls := make([]string, 0, len(status.Generations))
 		genIDs := make([]string, 0, len(status.Generations))
-		
+
 		for _, gen := range status.Generations {
 			if gen.ID != "" {
 				genIDs = append(genIDs, gen.ID)
@@ -1454,20 +1459,20 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 				urls = append(urls, cdnURL)
 			}
 		}
-		
+
 		// Note: UpdateGenerations removed - media URLs are fetched dynamically
-		
+
 		if len(urls) > 0 {
 			writeJSON(w, http.StatusOK, map[string]any{
-				"jobId":    jobID,
+				"jobId":     jobID,
 				"mediaUrls": urls,
-				"type":     item.Type,
-				"source":   "grid-api",
+				"type":      item.Type,
+				"source":    "grid-api",
 			})
 			return
 		}
 	}
-	
+
 	// If Grid API failed or no generation IDs, try using R2 client if available
 	if a.r2Client != nil && len(item.GenerationIDs) > 0 {
 		urls := make([]string, 0, len(item.GenerationIDs))
@@ -1479,18 +1484,18 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 			}
 			urls = append(urls, url)
 		}
-		
+
 		if len(urls) > 0 {
 			writeJSON(w, http.StatusOK, map[string]any{
-				"jobId":    jobID,
+				"jobId":     jobID,
 				"mediaUrls": urls,
-				"type":     item.Type,
-				"source":   "r2",
+				"type":      item.Type,
+				"source":    "r2",
 			})
 			return
 		}
 	}
-	
+
 	// Final fallback - use cached URLs or job ID
 	if err != nil {
 		log.Printf("Warning: failed to fetch job status for %s: %v", jobID, err)
@@ -1510,69 +1515,72 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"jobId":    jobID,
+			"jobId":     jobID,
 			"mediaUrls": cachedURLs,
-			"type":     item.Type,
-			"source":   "cache",
-			"error":    "Job may have expired from Grid API",
+			"type":      item.Type,
+			"source":    "cache",
+			"error":     "Job may have expired from Grid API",
 		})
 		return
 	}
-	
+
 	// Absolute fallback - return CDN URL using job ID
 	// This may work for older uploads that used job ID as filename
 	fallbackURL := "https://images.aipg.art/" + jobID + ".webp"
 	writeJSON(w, http.StatusOK, map[string]any{
-		"jobId":    jobID,
+		"jobId":     jobID,
 		"mediaUrls": []string{fallbackURL},
-		"type":     item.Type,
-		"source":   "fallback",
+		"type":      item.Type,
+		"source":    "fallback",
 	})
 }
 
-// handleUpdateGalleryItem updates a gallery item's media URLs (only owner can update)
+// handleUpdateGalleryItem updates a gallery item's media URLs and seeds (only owner can update)
 func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "id")
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
 		return
 	}
-	
+
 	var req struct {
 		MediaURLs []string `json:"mediaUrls"`
+		Seeds     []string `json:"seeds,omitempty"`
+		Sampler   string   `json:"sampler,omitempty"`
+		Scheduler string   `json:"scheduler,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	
+
 	// Get wallet address from JWT (set by authMiddleware)
 	requestWallet := getWalletFromContext(r)
-	
+
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
 		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
 		return
 	}
-	
+
 	// Check ownership - wallet addresses must match
 	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
 	if itemWallet != "" && itemWallet != requestWallet {
 		writeError(w, http.StatusForbidden, errors.New("you can only update your own gallery items"))
 		return
 	}
-	
-	// Update the media URLs
-	err := a.galleryStore.UpdateMediaURLs(jobID, req.MediaURLs)
+
+	// Update the media URLs and seeds
+	err := a.galleryStore.UpdateGalleryItemMedia(jobID, req.MediaURLs, req.Seeds, req.Sampler, req.Scheduler)
 	if err != nil {
 		log.Printf("Failed to update gallery item %s: %v", jobID, err)
 		writeError(w, http.StatusInternalServerError, errors.New("failed to update gallery item"))
 		return
 	}
-	
-	log.Printf("Gallery: updated media URLs for job %s (count=%d, owner=%s)", jobID, len(req.MediaURLs), requestWallet)
-	
+
+	log.Printf("Gallery: updated job %s (urls=%d, seeds=%d, owner=%s)", jobID, len(req.MediaURLs), len(req.Seeds), requestWallet)
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Gallery item updated",
@@ -1587,17 +1595,17 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
 		return
 	}
-	
+
 	// Get wallet address from JWT (set by authMiddleware)
 	requestWallet := getWalletFromContext(r)
-	
+
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
 		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
 		return
 	}
-	
+
 	// Check ownership - wallet addresses must match
 	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
 	if itemWallet == "" {
@@ -1607,17 +1615,17 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, errors.New("you can only delete your own gallery items"))
 		return
 	}
-	
+
 	// Remove from gallery store
 	err := a.galleryStore.Delete(jobID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("failed to remove from gallery"))
 		return
 	}
-	
-	log.Printf("Gallery: deleted job %s (model=%s, type=%s, owner=%s, requestedBy=%s)", 
+
+	log.Printf("Gallery: deleted job %s (model=%s, type=%s, owner=%s, requestedBy=%s)",
 		jobID, item.ModelName, item.Type, item.WalletAddress, requestWallet)
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"message": "Removed from gallery",
@@ -1632,33 +1640,33 @@ func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
 		return
 	}
-	
+
 	// Get wallet address from JWT (set by authMiddleware)
 	requestWallet := getWalletFromContext(r)
-	
+
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
 		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
 		return
 	}
-	
+
 	// Check ownership
 	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
 	if itemWallet != requestWallet {
 		writeError(w, http.StatusForbidden, errors.New("you can only publish your own images"))
 		return
 	}
-	
+
 	// Update to public
 	err := a.galleryStore.SetPublic(jobID, true)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("failed to publish image"))
 		return
 	}
-	
+
 	log.Printf("Gallery: published job %s by wallet %s", jobID, requestWallet)
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success":  true,
 		"message":  "Image published to gallery",
@@ -1674,29 +1682,29 @@ func (a *App) handleUnpublishGalleryItem(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
 		return
 	}
-	
+
 	requestWallet := getWalletFromContext(r)
-	
+
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
 		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
 		return
 	}
-	
+
 	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
 	if itemWallet != requestWallet {
 		writeError(w, http.StatusForbidden, errors.New("you can only unpublish your own images"))
 		return
 	}
-	
+
 	err := a.galleryStore.SetPublic(jobID, false)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("failed to unpublish image"))
 		return
 	}
-	
+
 	log.Printf("Gallery: unpublished job %s by wallet %s", jobID, requestWallet)
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success":  true,
 		"message":  "Image removed from public gallery",
@@ -1709,23 +1717,23 @@ func (a *App) handleUnpublishGalleryItem(w http.ResponseWriter, r *http.Request)
 func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
 	wallet := getWalletFromContext(r) // From JWT
-	
+
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
 		return
 	}
-	
+
 	if a.favoritesStore == nil {
 		writeError(w, http.StatusServiceUnavailable, errors.New("favorites not available"))
 		return
 	}
-	
+
 	err := a.favoritesStore.Add(wallet, jobID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"jobId":   jobID,
@@ -1735,23 +1743,23 @@ func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
 	wallet := getWalletFromContext(r) // From JWT
-	
+
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
 		return
 	}
-	
+
 	if a.favoritesStore == nil {
 		writeError(w, http.StatusServiceUnavailable, errors.New("favorites not available"))
 		return
 	}
-	
+
 	err := a.favoritesStore.Remove(wallet, jobID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
 	}
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
 		"jobId":   jobID,
@@ -1764,12 +1772,12 @@ func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("wallet address required"))
 		return
 	}
-	
+
 	if a.favoritesStore == nil {
 		writeError(w, http.StatusServiceUnavailable, errors.New("favorites not available"))
 		return
 	}
-	
+
 	limitStr := r.URL.Query().Get("limit")
 	limit := 100
 	if limitStr != "" {
@@ -1777,9 +1785,9 @@ func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
 			limit = l
 		}
 	}
-	
+
 	items := a.favoritesStore.GetFavoritedItems(wallet, limit)
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":  items,
 		"count":  len(items),
@@ -1790,19 +1798,19 @@ func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleCheckFavorite(w http.ResponseWriter, r *http.Request) {
 	wallet := chi.URLParam(r, "wallet")
 	jobID := chi.URLParam(r, "jobId")
-	
+
 	if wallet == "" || jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("wallet and jobId required"))
 		return
 	}
-	
+
 	if a.favoritesStore == nil {
 		writeJSON(w, http.StatusOK, map[string]any{"favorited": false})
 		return
 	}
-	
+
 	favorited := a.favoritesStore.IsFavorited(wallet, jobID)
-	
+
 	writeJSON(w, http.StatusOK, map[string]any{
 		"favorited": favorited,
 		"jobId":     jobID,
@@ -1836,12 +1844,12 @@ func pickIntInRange(userValue, fallback int, limits *models.RangeInt) int {
 	if limits == nil {
 		return pickInt(userValue, fallback)
 	}
-	
+
 	// If user didn't provide a value, use fallback
 	if userValue <= 0 {
 		return clampInt(fallback, limits.Min, limits.Max)
 	}
-	
+
 	// User provided value - clamp to valid range
 	return clampInt(userValue, limits.Min, limits.Max)
 }
@@ -1851,12 +1859,12 @@ func pickFloatInRange(userValue, fallback float64, limits *models.RangeFloat) fl
 	if limits == nil {
 		return pickFloat(userValue, fallback)
 	}
-	
+
 	// If user didn't provide a value, use fallback
 	if userValue <= 0 {
 		return clampFloat(fallback, limits.Min, limits.Max)
 	}
-	
+
 	// User provided value - clamp to valid range
 	return clampFloat(userValue, limits.Min, limits.Max)
 }

@@ -4,6 +4,13 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { base, baseSepolia } from 'wagmi/chains';
 import { MODELVAULT_CONTRACTS, DEFAULT_CHAIN_ID } from "@/lib/wagmi";
 
+// Extend Window for ethereum provider
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
+
 interface NetworkSelectorProps {
   compact?: boolean;
 }

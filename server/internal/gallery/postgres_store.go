@@ -2,6 +2,7 @@ package gallery
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -49,13 +50,43 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	return store, nil
 }
 
+// parseMediaURLs parses the media_url field which can be either:
+// - A single URL string (legacy format)
+// - A JSON array of URLs (batch format)
+func parseMediaURLs(mediaURL string) []string {
+	if mediaURL == "" {
+		return []string{}
+	}
+	
+	// Try parsing as JSON array first
+	if strings.HasPrefix(mediaURL, "[") {
+		var urls []string
+		if err := json.Unmarshal([]byte(mediaURL), &urls); err == nil {
+			return urls
+		}
+	}
+	
+	// Fall back to single URL (legacy format)
+	return []string{mediaURL}
+}
+
+// encodeMediaURLs encodes media URLs for storage
+func encodeMediaURLs(urls []string) string {
+	if len(urls) == 0 {
+		return ""
+	}
+	if len(urls) == 1 {
+		return urls[0] // Single URL stored as-is for backwards compat
+	}
+	// Multiple URLs stored as JSON array
+	data, _ := json.Marshal(urls)
+	return string(data)
+}
+
 // Add inserts a new gallery item
 func (s *PostgresStore) Add(item GalleryItem) error {
-	// Convert media URLs array to single URL
-	mediaURL := ""
-	if len(item.MediaURLs) > 0 {
-		mediaURL = item.MediaURLs[0]
-	}
+	// Encode media URLs (single or multiple)
+	mediaURL := encodeMediaURLs(item.MediaURLs)
 
 	// Extract params
 	var width, height, steps *int
@@ -156,7 +187,7 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	if negPrompt.Valid {
 		item.NegativePrompt = negPrompt.String
 	}
-	item.MediaURLs = []string{mediaURL}
+	item.MediaURLs = parseMediaURLs(mediaURL)
 	item.CreatedAt = createdAt.UnixMilli()
 	item.Type = "image" // Default to image
 
@@ -355,7 +386,7 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 		if negPrompt.Valid {
 			item.NegativePrompt = negPrompt.String
 		}
-		item.MediaURLs = []string{mediaURL}
+		item.MediaURLs = parseMediaURLs(mediaURL)
 		item.CreatedAt = createdAt.UnixMilli()
 		
 		// Set type from database, defaulting to "image" if not set
@@ -464,7 +495,7 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 		if negPrompt.Valid {
 			item.NegativePrompt = negPrompt.String
 		}
-		item.MediaURLs = []string{mediaURL}
+		item.MediaURLs = parseMediaURLs(mediaURL)
 		item.CreatedAt = createdAt.UnixMilli()
 		item.Type = "image"
 
@@ -517,13 +548,69 @@ func (s *PostgresStore) SetPublic(jobID string, isPublic bool) error {
 	return err
 }
 
-// UpdateMediaURLs updates the media URL for a gallery item (uses first URL from array)
+// UpdateMediaURLs updates the media URLs for a gallery item (stores as JSON array)
 func (s *PostgresStore) UpdateMediaURLs(jobID string, mediaURLs []string) error {
 	if len(mediaURLs) == 0 {
 		return nil // Nothing to update
 	}
-	// DB stores single media_url, use the first one
-	_, err := s.db.Exec("UPDATE gallery_items SET media_url = $1 WHERE job_id = $2", mediaURLs[0], jobID)
+	// Store multiple URLs as JSON array for batch support
+	urlsJSON, err := json.Marshal(mediaURLs)
+	if err != nil {
+		return fmt.Errorf("failed to marshal media URLs: %w", err)
+	}
+	_, err = s.db.Exec("UPDATE gallery_items SET media_url = $1 WHERE job_id = $2", string(urlsJSON), jobID)
+	return err
+}
+
+// UpdateGalleryItemMedia updates media URLs, seeds, and other settings for a gallery item
+func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler string) error {
+	if len(mediaURLs) == 0 {
+		return nil // Nothing to update
+	}
+
+	// Store multiple URLs as JSON array for batch support
+	urlsJSON, err := json.Marshal(mediaURLs)
+	if err != nil {
+		return fmt.Errorf("failed to marshal media URLs: %w", err)
+	}
+
+	// Store seeds: JSON array for multiple, single string for one
+	var seedStr string
+	if len(seeds) > 1 {
+		seedJSON, err := json.Marshal(seeds)
+		if err != nil {
+			return fmt.Errorf("failed to marshal seeds: %w", err)
+		}
+		seedStr = string(seedJSON)
+	} else if len(seeds) == 1 {
+		seedStr = seeds[0]
+	}
+
+	// Build the query dynamically based on what we have
+	query := "UPDATE gallery_items SET media_url = $1"
+	args := []any{string(urlsJSON)}
+	argNum := 2
+
+	if seedStr != "" {
+		query += fmt.Sprintf(", seed = $%d", argNum)
+		args = append(args, seedStr)
+		argNum++
+	}
+	if sampler != "" {
+		query += fmt.Sprintf(", sampler = $%d", argNum)
+		args = append(args, sampler)
+		argNum++
+	}
+	if scheduler != "" {
+		query += fmt.Sprintf(", scheduler = $%d", argNum)
+		args = append(args, scheduler)
+		argNum++
+	}
+
+	query += fmt.Sprintf(" WHERE job_id = $%d", argNum)
+	args = append(args, jobID)
+
+	_, err = s.db.Exec(query, args...)
 	return err
 }
 

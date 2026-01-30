@@ -42,6 +42,9 @@ type Config struct {
 
 	// AI Text Generation (uses DefaultAPIKey)
 	AIModel string
+
+	// Worker targeting
+	TargetWorkerID string // Target specific worker for all jobs (optional)
 }
 
 func Load() Config {
@@ -77,10 +80,13 @@ func Load() Config {
 
 		// PostgreSQL configuration
 		PostgresEnabled: getEnv("POSTGRES_ENABLED", "true") == "true",
-		PostgresConnStr: getEnv("POSTGRES_CONN_STR", "host=localhost port=5432 user=aipg_user password=aipg_gallery_2024 dbname=aipg_gallery sslmode=disable"),
+		PostgresConnStr: os.Getenv("POSTGRES_CONN_STR"), // Required - no default for security
 
 		// AI Text Generation
 		AIModel: getEnv("AI_MODEL", "grid/moonshotai/kimi-k2-instruct"),
+
+		// Worker targeting
+		TargetWorkerID: os.Getenv("TARGET_WORKER_ID"),
 	}
 }
 

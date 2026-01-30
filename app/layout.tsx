@@ -1,8 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { headers } from "next/headers";
 import { Providers } from "@/components/providers";
-import { NavWallet } from "@/components/nav-wallet";
 
 const title = "AI Power Grid - Art Gallery";
 const description =
@@ -34,11 +33,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Get cookies from request headers for wagmi state hydration
+  const headersList = await headers();
+  const cookie = headersList.get("cookie") ?? undefined;
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -46,7 +49,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://images.aipg.art" />
       </head>
       <body className="bg-black text-white antialiased">
-        <Providers>
+        <Providers cookie={cookie}>
           <div className="fixed inset-0 -z-10 bg-aipg-grid">
             <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_60%)]" />
@@ -60,4 +63,3 @@ export default function RootLayout({
     </html>
   );
 }
-
