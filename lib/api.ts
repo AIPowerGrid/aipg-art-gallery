@@ -198,11 +198,18 @@ export function unpublishGalleryItem(jobId: string): Promise<{ success: boolean;
   });
 }
 
-export function updateGalleryItem(jobId: string, mediaUrls: string[]): Promise<{ success: boolean }> {
+export interface UpdateGalleryItemRequest {
+  mediaUrls: string[];
+  seeds?: string[];  // Seeds for each generation (batch mode has multiple)
+  sampler?: string;
+  scheduler?: string;
+}
+
+export function updateGalleryItem(jobId: string, data: UpdateGalleryItemRequest): Promise<{ success: boolean }> {
   return jsonFetch(`/gallery/${jobId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mediaUrls }),
+    body: JSON.stringify(data),
   });
 }
 

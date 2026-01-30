@@ -52,6 +52,7 @@ export interface DisplayCreation extends StoredCreation {
   status?: string;
   width?: number;
   height?: number;
+  expectedGenerations?: number; // For batch mode - how many images to expect
 }
 
 /**

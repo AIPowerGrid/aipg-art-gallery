@@ -29,17 +29,20 @@ export function getRemainingGenerations(): number {
   return Math.max(0, ANON_GENERATION_LIMIT - getAnonGenerationCount());
 }
 
-export function recordAnonGeneration(jobId: string): void {
+export function recordAnonGeneration(jobId: string, count: number = 1): void {
   if (typeof window === 'undefined') return;
   
   try {
     const data = localStorage.getItem(ANON_GENERATION_KEY);
     const records: GenerationRecord[] = data ? JSON.parse(data) : [];
     
-    records.push({
-      timestamp: Date.now(),
-      jobId
-    });
+    // Add multiple records for batch generations
+    for (let i = 0; i < count; i++) {
+      records.push({
+        timestamp: Date.now(),
+        jobId: `${jobId}-${i}`
+      });
+    }
     
     localStorage.setItem(ANON_GENERATION_KEY, JSON.stringify(records));
   } catch (err) {

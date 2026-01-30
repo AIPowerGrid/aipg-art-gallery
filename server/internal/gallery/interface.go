@@ -9,6 +9,7 @@ type GalleryStore interface {
 	Delete(jobID string) error
 	SetPublic(jobID string, isPublic bool) error
 	UpdateMediaURLs(jobID string, mediaURLs []string) error
+	UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler string) error
 	Count() int
 }
 
@@ -44,6 +45,11 @@ func (a *FileStoreAdapter) SetPublic(jobID string, isPublic bool) error {
 }
 
 func (a *FileStoreAdapter) UpdateMediaURLs(jobID string, mediaURLs []string) error {
+	// File store doesn't support this operation
+	return nil
+}
+
+func (a *FileStoreAdapter) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler string) error {
 	// File store doesn't support this operation
 	return nil
 }

@@ -97,6 +97,7 @@ export interface CreateJobRequest {
     fps?: number;
     tiling?: boolean;
     hiresFix?: boolean;
+    n?: number; // Number of images to generate in batch (1-4)
   };
   sourceImage?: string;
   sourceMask?: string;
