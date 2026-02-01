@@ -162,7 +162,7 @@ export function ImageModal({
             />
           )}
           
-          {/* Fullscreen button - bottom left of media */}
+          {/* Fullscreen button - top right of media */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -175,10 +175,10 @@ export function ImageModal({
                 }
               }
             }}
-            className="absolute bottom-3 left-3 p-2 bg-black/60 hover:bg-black/80 rounded-lg transition-all opacity-0 group-hover/media:opacity-100"
+            className="absolute top-4 right-4 p-2.5 bg-black/60 hover:bg-black/80 rounded-lg transition-all opacity-0 group-hover/media:opacity-100"
             title="View fullscreen"
           >
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
             </svg>
           </button>
