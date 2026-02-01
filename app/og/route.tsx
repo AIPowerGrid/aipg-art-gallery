@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
       if (res.ok) {
         const data = await res.json();
         images = data.items
-          ?.filter((item: any) => item.mediaUrls?.[0])
+          ?.filter((item: { mediaUrls?: string[] }) => item.mediaUrls?.[0])
           ?.slice(0, 6)
-          ?.map((item: any) => item.mediaUrls[0]) || [];
+          ?.map((item: { mediaUrls?: string[] }) => item.mediaUrls![0]) || [];
       }
     } catch {
       // Use fallback images if API fails

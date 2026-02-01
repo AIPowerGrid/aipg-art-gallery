@@ -21,7 +21,7 @@ interface ImageModalProps {
   isRegenerating?: boolean;
 }
 
-function formatParamValue(key: string, value: any): string {
+function formatParamValue(key: string, value: unknown): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") {

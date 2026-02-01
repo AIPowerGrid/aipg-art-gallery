@@ -74,8 +74,9 @@ export default function GalleryPage() {
       setHasMore(response.hasMore);
       setNextOffset(response.nextOffset);
       setLoading(false);
-    } catch (err: any) {
-      setError(err.message || "Failed to load gallery");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load gallery";
+      setError(message);
       setLoading(false);
     }
   }, [filters, debouncedSearch]);
@@ -156,8 +157,9 @@ export default function GalleryPage() {
       await deleteGalleryItem(jobId);
       setItems(prev => prev.filter(i => i.jobId !== jobId));
       if (selectedItem?.jobId === jobId) setSelectedItem(null);
-    } catch (err: any) {
-      alert(`Failed to delete: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert(`Failed to delete: ${message}`);
     } finally {
       setDeleting(null);
     }

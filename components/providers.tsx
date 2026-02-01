@@ -72,8 +72,9 @@ function WalletManager({ children }: { children: ReactNode }) {
       try {
         await signIn({ address, signMessageAsync, chainId: base.id });
         setAuthenticated(address); // Update reactive state
-      } catch (err: any) {
-        if (!err.message?.includes('rejected')) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : '';
+        if (!message.includes('rejected')) {
           console.error('Auth failed:', err);
         }
         authAttempted.current = false; // Allow retry on non-rejection errors

@@ -72,10 +72,11 @@ function WalletButtonClient() {
       console.log('Successfully signed in with wallet');
       sessionStorage.setItem('aipg_just_signed_in', 'true');
       return true; // Return success
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Sign-in failed:', error);
       // Don't show error if user rejected signature
-      if (!error.message?.includes('User rejected')) {
+      const message = error instanceof Error ? error.message : '';
+      if (!message.includes('User rejected')) {
         setAuthError('Sign-in failed. Please try again.');
       }
       return false; // Return failure

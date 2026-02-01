@@ -71,8 +71,9 @@ export default function FavoritesPage() {
     try {
       await removeFavorite(jobId);
       setFavorites(prev => prev.filter(item => item.jobId !== jobId));
-    } catch (err: any) {
-      alert(`Failed to remove favorite: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert(`Failed to remove favorite: ${message}`);
     }
   }
 
