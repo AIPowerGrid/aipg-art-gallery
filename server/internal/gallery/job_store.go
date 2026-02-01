@@ -2,6 +2,7 @@ package gallery
 
 import (
 	"database/sql"
+	"log"
 	"strings"
 	"time"
 )
@@ -93,6 +94,7 @@ func (s *JobStore) GetJobsByWallet(walletAddress string, limit int) ([]Generatio
 			&job.Error,
 		)
 		if err != nil {
+			log.Printf("Error scanning job row: %v", err)
 			continue
 		}
 		jobs = append(jobs, job)

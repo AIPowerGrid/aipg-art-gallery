@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Providers } from "@/components/providers";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const title = "AI Power Grid - Art Gallery";
 const description =
@@ -56,7 +57,9 @@ export default async function RootLayout({
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(6,182,212,0.06),_transparent_60%)]" />
           </div>
           <div className="min-h-screen flex flex-col">
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </Providers>
       </body>

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -159,7 +160,8 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	var createdAt time.Time
 	var width, height, steps sql.NullInt64
 	var cfgScale sql.NullFloat64
-	var sampler, scheduler, seed sql.NullString
+	var sampler, scheduler sql.NullString
+	var seed sql.NullInt64
 
 	err := s.db.QueryRow(query, jobID).Scan(
 		&item.JobID,
@@ -219,7 +221,8 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 		item.Params.Scheduler = &scheduler.String
 	}
 	if seed.Valid {
-		item.Params.Seed = &seed.String
+		seedStr := fmt.Sprintf("%d", seed.Int64)
+		item.Params.Seed = &seedStr
 	}
 
 	return &item
@@ -325,7 +328,10 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 	// Get total count
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM gallery_items WHERE %s", whereClause)
 	var total int
-	s.db.QueryRow(countQuery, args...).Scan(&total)
+	if err := s.db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+		log.Printf("Error counting gallery items: %v", err)
+		total = 0
+	}
 
 	// Get items ordered by pre-computed random sort (shuffled every 5 min via cron)
 	query := fmt.Sprintf(`
@@ -356,7 +362,8 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 		var createdAt time.Time
 		var width, height, steps sql.NullInt64
 		var cfgScale sql.NullFloat64
-		var sampler, scheduler, seed sql.NullString
+		var sampler, scheduler sql.NullString
+		var seed sql.NullInt64
 
 		err := rows.Scan(
 			&item.JobID,
@@ -424,7 +431,8 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 			item.Params.Scheduler = &scheduler.String
 		}
 		if seed.Valid {
-			item.Params.Seed = &seed.String
+			seedStr := fmt.Sprintf("%d", seed.Int64)
+			item.Params.Seed = &seedStr
 		}
 
 		items = append(items, item)
@@ -467,7 +475,8 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 		var createdAt time.Time
 		var width, height, steps sql.NullInt64
 		var cfgScale sql.NullFloat64
-		var sampler, scheduler, seed sql.NullString
+		var sampler, scheduler sql.NullString
+		var seed sql.NullInt64
 
 		err := rows.Scan(
 			&item.JobID,
@@ -527,7 +536,8 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 			item.Params.Scheduler = &scheduler.String
 		}
 		if seed.Valid {
-			item.Params.Seed = &seed.String
+			seedStr := fmt.Sprintf("%d", seed.Int64)
+			item.Params.Seed = &seedStr
 		}
 
 		items = append(items, item)
@@ -574,27 +584,23 @@ func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []
 		return fmt.Errorf("failed to marshal media URLs: %w", err)
 	}
 
-	// Store seeds: JSON array for multiple, single string for one
-	var seedStr string
-	if len(seeds) > 1 {
-		seedJSON, err := json.Marshal(seeds)
-		if err != nil {
-			return fmt.Errorf("failed to marshal seeds: %w", err)
-		}
-		seedStr = string(seedJSON)
-	} else if len(seeds) == 1 {
-		seedStr = seeds[0]
-	}
-
 	// Build the query dynamically based on what we have
 	query := "UPDATE gallery_items SET media_url = $1"
 	args := []any{string(urlsJSON)}
 	argNum := 2
 
-	if seedStr != "" {
-		query += fmt.Sprintf(", seed = $%d", argNum)
-		args = append(args, seedStr)
-		argNum++
+	// Store seed: the column is bigint, so we can only store one seed
+	// For batch mode with multiple seeds, we store the first one
+	if len(seeds) > 0 && seeds[0] != "" {
+		// Parse the seed string to int64 for the bigint column
+		seedInt, parseErr := strconv.ParseInt(seeds[0], 10, 64)
+		if parseErr == nil {
+			query += fmt.Sprintf(", seed = $%d", argNum)
+			args = append(args, seedInt)
+			argNum++
+		} else {
+			log.Printf("Warning: could not parse seed '%s' as int64: %v", seeds[0], parseErr)
+		}
 	}
 	if sampler != "" {
 		query += fmt.Sprintf(", sampler = $%d", argNum)
@@ -617,7 +623,10 @@ func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []
 // Count returns the total number of gallery items
 func (s *PostgresStore) Count() int {
 	var count int
-	s.db.QueryRow("SELECT COUNT(*) FROM gallery_items").Scan(&count)
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM gallery_items").Scan(&count); err != nil {
+		log.Printf("Error counting gallery items: %v", err)
+		return 0
+	}
 	return count
 }
 

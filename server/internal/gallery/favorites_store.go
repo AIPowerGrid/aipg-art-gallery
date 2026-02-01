@@ -128,10 +128,8 @@ func (s *FavoritesStore) GetFavoritedItems(wallet string, limit int) []GalleryIt
 			item.WalletAddress = walletAddr.String
 		}
 
-		// Parse media URLs
-		if mediaURL != "" {
-			item.MediaURLs = strings.Split(mediaURL, ",")
-		}
+		// Parse media URLs (use same parser as postgres_store for consistency)
+		item.MediaURLs = parseMediaURLs(mediaURL)
 
 		// Set params
 		item.Params = &JobParams{}

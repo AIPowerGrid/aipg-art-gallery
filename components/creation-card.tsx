@@ -1,48 +1,29 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { deleteGalleryItem, publishGalleryItem, unpublishGalleryItem } from "@/lib/api";
+import { deleteGalleryItem, publishGalleryItem, unpublishGalleryItem, GalleryItem } from "@/lib/api";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { getThumbnailUrl } from "@/lib/utils/thumbnails";
 import { DisplayCreation, removeCreation } from "@/lib/storage";
+import { ImageModal } from "./image-modal";
 
 interface CreationCardProps {
   creation: DisplayCreation;
   onDelete?: (jobId: string) => void;
   onPublishChange?: (jobId: string, isPublic: boolean) => void;
+  onRegenerate?: (creation: DisplayCreation) => void;
+  isRegenerating?: boolean;
 }
 
 // Unified Creation Card - handles both generating and completed states
-export function CreationCard({ creation, onDelete, onPublishChange }: CreationCardProps) {
+export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate, isRegenerating }: CreationCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [mediaError, setMediaError] = useState(false);
-  const [selectedGenIndex, setSelectedGenIndex] = useState(0);
-  
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (showModal) {
-      document.body.style.overflow = 'hidden';
-      return () => { document.body.style.overflow = ''; };
-    }
-  }, [showModal]);
-  
-  // Close modal on Escape key
-  useEffect(() => {
-    if (!showModal) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowModal(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showModal]);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showFeedback, setShowFeedback] = useState<'published' | 'unpublished' | null>(null);
   const [localIsPublic, setLocalIsPublic] = useState(creation.isPublic);
-  const [copied, setCopied] = useState(false);
   
   const isBatchGeneration = creation.generations.length > 1;
   const firstGen = creation.generations[0];
@@ -84,14 +65,12 @@ export function CreationCard({ creation, onDelete, onPublishChange }: CreationCa
         setLocalIsPublic(false);
         onPublishChange?.(creation.jobId, false);
         setShowFeedback('unpublished');
-        setShowModal(false);
         setTimeout(() => setShowFeedback(null), 2000);
       } else {
         await publishGalleryItem(creation.jobId);
         setLocalIsPublic(true);
         onPublishChange?.(creation.jobId, true);
         setShowFeedback('published');
-        setShowModal(false);
         setTimeout(() => setShowFeedback(null), 2000);
       }
     } catch (err) {
@@ -118,21 +97,6 @@ export function CreationCard({ creation, onDelete, onPublishChange }: CreationCa
   
   // Show image only when fully ready - not generating AND image loaded
   const showImage = !creation.isGenerating && thumbnailUrl && imageLoaded && !mediaError;
-
-  const handleDownload = () => {
-    if (isBatchMode) {
-      // Download current selected image in batch
-      const selectedGen = creation.generations[selectedGenIndex];
-      const selectedUrl = selectedGen?.url || selectedGen?.base64;
-      if (!selectedUrl) return;
-      const filename = getMediaFilename(creation.jobId, selectedGen?.id, selectedGen?.kind === "video");
-      downloadMedia(selectedUrl, filename);
-    } else {
-      if (!mediaUrl) return;
-      const filename = getMediaFilename(creation.jobId, firstGen?.id, isVideo);
-      downloadMedia(mediaUrl, filename);
-    }
-  };
 
   // For batch generations during loading, we need to track expected count
   const expectedBatchSize = creation.expectedGenerations || creation.generations.length || 1;
@@ -384,230 +348,45 @@ export function CreationCard({ creation, onDelete, onPublishChange }: CreationCa
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal - using shared ImageModal component */}
       {showModal && canOpenModal && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4"
-          onClick={() => setShowModal(false)}
-        >
-          <div 
-            className="flex flex-col max-w-[95vw] max-h-[95vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Media container - fits in viewport */}
-            <div className="relative flex-1 min-h-0 flex items-center justify-center">
-              {/* Batch mode: Show selected image with navigation */}
-              {isBatchMode ? (
-                <>
-                  {creation.generations.map((gen, idx) => {
-                    const genUrl = gen.url || gen.base64;
-                    const genIsVideo = gen.kind === "video";
-                    
-                    if (idx !== selectedGenIndex || !genUrl) return null;
-                    
-                    return genIsVideo ? (
-                      <video 
-                        key={gen.id}
-                        id={`modal-media-${creation.jobId}-${idx}`}
-                        src={genUrl} 
-                        className="max-w-full max-h-[75vh] object-contain rounded-lg" 
-                        controls 
-                        autoPlay 
-                        loop 
-                        playsInline 
-                      />
-                    ) : (
-                      <img 
-                        key={gen.id}
-                        id={`modal-media-${creation.jobId}-${idx}`}
-                        src={genUrl} 
-                        alt={`${creation.prompt} (${idx + 1}/${creation.generations.length})`}
-                        className="max-w-full max-h-[75vh] object-contain rounded-lg" 
-                      />
-                    );
-                  })}
-                  
-                  {/* Navigation arrows for batch */}
-                  {creation.generations.length > 1 && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedGenIndex((prev) => (prev - 1 + creation.generations.length) % creation.generations.length);
-                        }}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
-                        title="Previous"
-                      >
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedGenIndex((prev) => (prev + 1) % creation.generations.length);
-                        }}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
-                        title="Next"
-                      >
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                      
-                      {/* Image counter */}
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/60 rounded-full text-white text-sm font-medium">
-                        {selectedGenIndex + 1} / {creation.generations.length}
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
-                /* Single image mode */
-                mediaUrl && (
-                  isVideo ? (
-                    <video 
-                      id={`modal-media-${creation.jobId}`}
-                      src={mediaUrl} 
-                      className="max-w-full max-h-[75vh] object-contain rounded-lg" 
-                      controls 
-                      autoPlay 
-                      loop 
-                      playsInline 
-                    />
-                  ) : (
-                    <img 
-                      id={`modal-media-${creation.jobId}`}
-                      src={mediaUrl} 
-                      alt={creation.prompt} 
-                      className="max-w-full max-h-[75vh] object-contain rounded-lg" 
-                    />
-                  )
-                )
-              )}
-              
-              {/* Control buttons */}
-              <div className="absolute top-3 right-3 flex gap-2">
-                {/* Fullscreen button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const elId = isBatchMode 
-                      ? `modal-media-${creation.jobId}-${selectedGenIndex}`
-                      : `modal-media-${creation.jobId}`;
-                    const el = document.getElementById(elId);
-                    if (el) {
-                      if (el.requestFullscreen) {
-                        el.requestFullscreen();
-                      } else if ((el as any).webkitRequestFullscreen) {
-                        (el as any).webkitRequestFullscreen();
-                      }
-                    }
-                  }}
-                  className="p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
-                  title="Fullscreen"
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                  </svg>
-                </button>
-                {/* Close button */}
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
-                >
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-            
-            {/* Info bar below image */}
-            <div className="mt-3 px-4 py-3 bg-zinc-900/90 rounded-xl backdrop-blur-sm max-w-2xl mx-auto w-full">
-              {/* Prompt box with copy */}
-              <div className="relative mb-3">
-                <div className="bg-black/40 rounded-lg p-3 pr-20 border border-white/10">
-                  <p className="text-white/90 text-sm leading-relaxed max-h-20 overflow-y-auto">
-                    {creation.prompt}
-                  </p>
-                </div>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    try {
-                      await navigator.clipboard.writeText(creation.prompt);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    } catch (err) {
-                      console.error('Failed to copy:', err);
-                    }
-                  }}
-                  className={`absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition ${
-                    copied 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-indigo-600 hover:bg-indigo-500 text-white'
-                  }`}
-                  title="Copy prompt"
-                >
-                  {copied ? (
-                    <>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      Copy
-                    </>
-                  )}
-                </button>
-              </div>
-              
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-xs text-zinc-400">
-                  <span>{creation.modelName}</span>
-                  <span>•</span>
-                  <span>{new Date(creation.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleTogglePublish}
-                    disabled={isPublishing}
-                    className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-                  >
-                    {isPublishing ? (
-                      <>
-                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        {localIsPublic ? 'Unpublishing...' : 'Publishing...'}
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        {localIsPublic ? 'Unpublish' : 'Publish to Gallery'}
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    className="px-4 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ImageModal
+          isOpen={true}
+          onClose={() => setShowModal(false)}
+          item={{
+            jobId: creation.jobId,
+            modelId: creation.modelId,
+            modelName: creation.modelName,
+            prompt: creation.prompt,
+            negativePrompt: "",
+            type: creation.type,
+            isNsfw: false,
+            isPublic: localIsPublic || false,
+            walletAddress: creation.walletAddress,
+            createdAt: creation.createdAt,
+            mediaUrls: creation.generations.map(g => g.url || g.base64 || "").filter(Boolean),
+            params: creation.params || {
+              width: creation.width,
+              height: creation.height,
+            },
+          }}
+          onDownload={(index) => {
+            const gen = creation.generations[index];
+            const url = gen?.url || gen?.base64;
+            if (url) {
+              const filename = getMediaFilename(creation.jobId, gen?.id, gen?.kind === "video");
+              downloadMedia(url, filename);
+            }
+          }}
+          isOwner={true}
+          isPublic={localIsPublic || false}
+          onPublish={handleTogglePublish}
+          onDelete={() => handleDelete({ stopPropagation: () => {} } as React.MouseEvent)}
+          onRegenerate={onRegenerate ? () => onRegenerate(creation) : undefined}
+          isDeleting={isDeleting}
+          isPublishing={isPublishing}
+          isRegenerating={isRegenerating}
+        />
       )}
     </>
   );

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useJobStore, TrackedJob } from "@/lib/stores/job-store";
 import { calculateProgress } from "@/lib/hooks/use-favicon-progress";
 import { getThumbnailUrl } from "@/lib/utils/thumbnails";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
+import { ImageModal } from "./image-modal";
+import { GalleryItem } from "@/lib/api";
 
 export function ActiveJobsIndicator() {
   const [mounted, setMounted] = useState(false);
@@ -37,19 +38,28 @@ export function ActiveJobsIndicator() {
     }
   }, [showDropdown]);
 
-  // Handle escape key for modal
-  useEffect(() => {
-    if (!selectedJob) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedJob(null);
+  // Convert TrackedJob to GalleryItem format for ImageModal
+  const jobToGalleryItem = (job: TrackedJob): GalleryItem | null => {
+    if (!job.result?.generations?.[0]) return null;
+    const gen = job.result.generations[0];
+    return {
+      jobId: job.jobId,
+      modelId: job.modelId,
+      modelName: job.modelName,
+      prompt: job.prompt,
+      negativePrompt: "",
+      type: job.type,
+      isNsfw: false,
+      isPublic: false,
+      walletAddress: job.walletAddress,
+      createdAt: job.submittedAt,
+      mediaUrls: job.result.generations.map(g => g.url).filter((url): url is string => !!url),
+      params: {
+        width: job.width,
+        height: job.height,
+      },
     };
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectedJob]);
+  };
 
   if (!mounted) return null;
 
@@ -162,98 +172,24 @@ export function ActiveJobsIndicator() {
         </div>
       )}
 
-      {/* Job Detail Modal - rendered via portal to escape header stacking context */}
-      {selectedJob && selectedJob.result?.generations?.[0] && mounted && createPortal(
-        <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 p-4"
-          onClick={() => setSelectedJob(null)}
-        >
-          <div 
-            className="flex flex-col items-center max-w-[95vw] max-h-[95vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Image */}
-            <div className="relative flex items-center justify-center">
-              {selectedJob.type === 'video' ? (
-                <video 
-                  src={selectedJob.result.generations[0].url}
-                  controls
-                  autoPlay
-                  loop
-                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
-                />
-              ) : (
-                <img 
-                  src={selectedJob.result.generations[0].url}
-                  alt={selectedJob.prompt}
-                  className="max-w-full max-h-[70vh] object-contain rounded-lg"
-                />
-              )}
-              
-              {/* Close button */}
-              <button
-                onClick={() => setSelectedJob(null)}
-                className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 rounded-full transition-colors"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-
-              {/* Multiple images indicator */}
-              {selectedJob.result.generations.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/60 rounded-full text-white text-sm font-medium">
-                  1 / {selectedJob.result.generations.length}
-                </div>
-              )}
-            </div>
-
-            {/* Info bar */}
-            <div className="mt-3 px-4 py-3 bg-zinc-900/90 rounded-xl backdrop-blur-sm max-w-2xl w-full">
-              <p className="text-white/90 text-sm leading-relaxed mb-3 max-h-20 overflow-y-auto">
-                {selectedJob.prompt}
-              </p>
-              <div className="flex items-center justify-between text-xs text-zinc-400">
-                <div className="flex items-center gap-3">
-                  <span>{selectedJob.modelName}</span>
-                  <span>•</span>
-                  <span>{selectedJob.type === 'video' ? 'Video' : 'Image'}</span>
-                  {selectedJob.width && selectedJob.height && (
-                    <>
-                      <span>•</span>
-                      <span>{selectedJob.width}×{selectedJob.height}</span>
-                    </>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      const url = selectedJob.result?.generations[0]?.url;
-                      if (url) {
-                        downloadMedia(url, getMediaFilename(url, selectedJob.type));
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Download
-                  </button>
-                  <Link
-                    href="/create"
-                    onClick={() => setSelectedJob(null)}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium rounded-lg transition-colors"
-                  >
-                    View in Studio
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {/* Job Detail Modal - uses shared ImageModal component */}
+      {selectedJob && (() => {
+        const galleryItem = jobToGalleryItem(selectedJob);
+        if (!galleryItem) return null;
+        return (
+          <ImageModal
+            isOpen={true}
+            onClose={() => setSelectedJob(null)}
+            item={galleryItem}
+            onDownload={(index) => {
+              const gen = selectedJob.result?.generations[index];
+              if (gen?.url) {
+                downloadMedia(gen.url, getMediaFilename(selectedJob.jobId, gen.id, selectedJob.type === 'video'));
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
