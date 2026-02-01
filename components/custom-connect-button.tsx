@@ -4,6 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useState, useRef, useEffect } from "react";
 import { useDisconnect, useBalance, useAccount } from "wagmi";
 import { clearAuthToken } from "@/lib/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { base } from "wagmi/chains";
 
 // AIPG token contract on Base
@@ -33,8 +34,11 @@ export function CustomConnectButton() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const { clearAuth } = useAuthStore();
+  
   const handleDisconnect = () => {
     clearAuthToken();
+    clearAuth();
     disconnect();
     setDropdownOpen(false);
   };

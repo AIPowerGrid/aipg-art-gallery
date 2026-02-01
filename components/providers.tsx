@@ -8,6 +8,7 @@ import { config, SUPPORTED_CHAINS } from "@/lib/wagmi";
 import { useState, type ReactNode, useEffect, useRef, useMemo } from "react";
 import { base } from "wagmi/chains";
 import { signIn, isAuthenticated, getAuthAddress, clearAuthToken } from "@/lib/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 // Handle network switching and SIWE auth
 function WalletManager({ children }: { children: ReactNode }) {
@@ -16,6 +17,14 @@ function WalletManager({ children }: { children: ReactNode }) {
   const { signMessageAsync } = useSignMessage();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const authAttempted = useRef(false);
+  
+  // Auth store for reactive auth state
+  const { setAuthenticated, clearAuth, syncFromStorage } = useAuthStore();
+
+  // Sync auth state from localStorage on mount
+  useEffect(() => {
+    syncFromStorage();
+  }, [syncFromStorage]);
 
   // Auto-switch to Base if on wrong network
   useEffect(() => {
@@ -26,6 +35,13 @@ function WalletManager({ children }: { children: ReactNode }) {
       }
     }
   }, [isConnected, chainId, switchChain]);
+
+  // Clear auth when wallet disconnects
+  useEffect(() => {
+    if (!isConnected) {
+      clearAuth();
+    }
+  }, [isConnected, clearAuth]);
 
   // Handle auth when wallet connects
   useEffect(() => {
@@ -38,10 +54,14 @@ function WalletManager({ children }: { children: ReactNode }) {
     const storedAddress = getAuthAddress();
     if (storedAddress && storedAddress.toLowerCase() !== address.toLowerCase()) {
       clearAuthToken();
+      clearAuth();
     }
 
     // Already authenticated for this address
-    if (isAuthenticated()) return;
+    if (isAuthenticated()) {
+      setAuthenticated(address);
+      return;
+    }
 
     // Don't retry if already attempted this session
     if (authAttempted.current) return;
@@ -51,7 +71,7 @@ function WalletManager({ children }: { children: ReactNode }) {
       setIsSigningIn(true);
       try {
         await signIn({ address, signMessageAsync, chainId: base.id });
-        console.log('SIWE auth successful');
+        setAuthenticated(address); // Update reactive state
       } catch (err: any) {
         if (!err.message?.includes('rejected')) {
           console.error('Auth failed:', err);
@@ -65,7 +85,7 @@ function WalletManager({ children }: { children: ReactNode }) {
     // Small delay for connection to settle
     const timer = setTimeout(doAuth, 300);
     return () => clearTimeout(timer);
-  }, [isConnected, address, signMessageAsync]);
+  }, [isConnected, address, signMessageAsync, setAuthenticated, clearAuth]);
 
   return <>{children}</>;
 }

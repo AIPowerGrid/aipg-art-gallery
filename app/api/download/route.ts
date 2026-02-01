@@ -7,8 +7,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'URL parameter required' }, { status: 400 });
   }
 
-  // Only allow downloads from our CDN
-  const allowedDomains = ['images.aipg.art', 'r2.cloudflarestorage.com'];
+  // Only allow downloads from our CDN - use exact hostname matching to prevent SSRF
   let parsedUrl: URL;
   
   try {
@@ -17,7 +16,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
-  if (!allowedDomains.some(domain => parsedUrl.hostname.includes(domain))) {
+  const isAllowedDomain = 
+    parsedUrl.hostname === 'images.aipg.art' ||
+    parsedUrl.hostname.endsWith('.r2.cloudflarestorage.com');
+
+  if (!isAllowedDomain) {
     return NextResponse.json({ error: 'Domain not allowed' }, { status: 403 });
   }
 

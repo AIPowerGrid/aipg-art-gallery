@@ -44,6 +44,22 @@ export interface StoredCreation {
   isPublic?: boolean;
 }
 
+// Generation params for display
+export interface DisplayParams {
+  width?: number;
+  height?: number;
+  steps?: number;
+  cfgScale?: number;
+  sampler?: string;
+  scheduler?: string;
+  seed?: string;
+  denoise?: number;
+  length?: number;
+  fps?: number;
+  tiling?: boolean;
+  hiresFix?: boolean;
+}
+
 // Extended creation type with generating state (used by UI components)
 export interface DisplayCreation extends StoredCreation {
   isGenerating?: boolean;
@@ -53,6 +69,7 @@ export interface DisplayCreation extends StoredCreation {
   width?: number;
   height?: number;
   expectedGenerations?: number; // For batch mode - how many images to expect
+  params?: DisplayParams; // Full generation parameters
 }
 
 /**

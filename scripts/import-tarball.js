@@ -11,12 +11,18 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-// R2 Configuration from .env
-const R2_ENDPOINT = 'https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com';
-const R2_BUCKET = 'aipgcoregen';
-const R2_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID || '***REMOVED_AWS_ACCESS_KEY_ID***';
-const R2_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY || '***REMOVED_AWS_SECRET***';
-const PUBLIC_URL_BASE = 'https://images.aipg.art';
+// R2 Configuration from .env (REQUIRED - no defaults for security)
+const R2_ENDPOINT = process.env.R2_ENDPOINT || 'https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com';
+const R2_BUCKET = process.env.R2_BUCKET || 'aipgcoregen';
+const R2_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID;
+const R2_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+const PUBLIC_URL_BASE = process.env.R2_PUBLIC_URL || 'https://images.aipg.art';
+
+if (!R2_ACCESS_KEY || !R2_SECRET_KEY) {
+  console.error('ERROR: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables are required.');
+  console.error('Set them in your .env file or export them before running this script.');
+  process.exit(1);
+}
 
 // Gallery store path
 const GALLERY_PATH = './data/gallery.json';

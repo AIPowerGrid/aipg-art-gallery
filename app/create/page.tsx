@@ -92,14 +92,13 @@ function CreatePageContent() {
   const [dimensionId, setDimensionId] = useState(3); // Default to square
   const [isGenerating, setIsGenerating] = useState(false);
   const [creations, setCreations] = useState<DisplayCreation[]>([]);
-  const creationsRef = useRef<DisplayCreation[]>([]);
-  // Keep ref in sync for use in effects
-  useEffect(() => { creationsRef.current = creations; }, [creations]);
+  const [isLoaded, setIsLoaded] = useState(false); // Track if initial load is done
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remainingGens, setRemainingGens] = useState(GENERATION_LIMIT);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
+  const [regeneratingJobId, setRegeneratingJobId] = useState<string | null>(null);
   
   // Global job store for tracking across navigation
   const { jobs, addJob, getActiveJobs } = useJobStore();
@@ -118,132 +117,6 @@ function CreatePageContent() {
   
   // Update favicon with progress
   useFaviconProgress(jobProgress, !!trackedJob);
-  
-  // Sync active jobs to creations - add placeholders for new jobs
-  useEffect(() => {
-    const activeJobsFromStore = getActiveJobs();
-    
-    setCreations(prev => {
-      // Find jobs that don't have creations yet
-      const existingJobIds = new Set(prev.map(c => c.jobId));
-      const newJobs = activeJobsFromStore.filter(job => !existingJobIds.has(job.jobId));
-      
-      if (newJobs.length === 0) return prev;
-      
-      // Add placeholders for new jobs
-      const newPlaceholders: DisplayCreation[] = newJobs.map(job => ({
-        jobId: job.jobId,
-        modelId: job.modelId,
-        modelName: job.modelName,
-        prompt: job.prompt,
-        type: job.type,
-        createdAt: job.submittedAt,
-        generations: [],
-        tags: generateTagsFromPrompt(job.prompt),
-        walletAddress: job.walletAddress,
-        isGenerating: true,
-        progress: 0,
-        status: job.status,
-        width: job.width,
-        height: job.height,
-        expectedGenerations: job.expectedGenerations,
-      }));
-      
-      return sortCreations([...newPlaceholders, ...prev]);
-    });
-  }, [jobs, getActiveJobs]);
-  
-  // Sync tracked job progress to the creation card
-  useEffect(() => {
-    if (trackedJob) {
-      setCreations(prev => prev.map(c => {
-        if (c.jobId === trackedJob.jobId && c.isGenerating) {
-          return { 
-            ...c, 
-            progress: jobProgress, 
-            queuePosition: trackedJob.queuePosition, 
-            status: trackedJob.status,
-          };
-        }
-        return c;
-      }));
-    }
-  }, [trackedJob, jobProgress]);
-  
-  // Watch for completed/faulted jobs in the store and update UI
-  useEffect(() => {
-    const completedJobs = jobs.filter(j => j.status === 'completed' && j.result?.generations?.length);
-    const faultedJobs = jobs.filter(j => j.status === 'faulted');
-    
-    // Handle completed jobs - update their creations with media
-    completedJobs.forEach(job => {
-      setCreations(prev => {
-        // Check if this job already has a creation that needs updating
-        const hasCreation = prev.some(c => c.jobId === job.jobId);
-        let updated: DisplayCreation[];
-        
-        if (!hasCreation) {
-          // Job completed but no placeholder exists - add it directly
-          const newCreation: DisplayCreation = {
-            jobId: job.jobId,
-            modelId: job.modelId,
-            modelName: job.modelName,
-            prompt: job.prompt,
-            type: job.type,
-            createdAt: job.submittedAt,
-            generations: job.result!.generations.map(g => ({
-              id: g.id,
-              seed: g.seed || "",
-              kind: (g.kind === "video" ? "video" : job.type) as "video" | "image",
-              url: g.url,
-              base64: g.base64,
-            })),
-            tags: generateTagsFromPrompt(job.prompt),
-            walletAddress: job.walletAddress,
-            width: job.width,
-            height: job.height,
-            expectedGenerations: job.expectedGenerations,
-            isGenerating: false,
-            progress: 100,
-          };
-          updated = [newCreation, ...prev];
-        } else {
-          // Update existing creation
-          updated = prev.map(c => {
-            if (c.jobId === job.jobId) {
-              return {
-                ...c,
-                isGenerating: false,
-                progress: 100,
-                generations: job.result!.generations.map(g => ({
-                  id: g.id,
-                  seed: g.seed || "",
-                  kind: (g.kind === "video" ? "video" : c.type) as "video" | "image",
-                  url: g.url,
-                  base64: g.base64,
-                })),
-              };
-            }
-            return c;
-          });
-        }
-        
-        // Always re-sort after completion changes
-        return sortCreations(updated);
-      });
-    });
-    
-    // Handle faulted jobs - remove them
-    faultedJobs.forEach(job => {
-      setCreations(prev => prev.filter(c => c.jobId !== job.jobId));
-    });
-    
-    // Reset isGenerating flag if no active jobs remain
-    const hasActiveJobs = jobs.some(j => j.status === 'queued' || j.status === 'processing');
-    if (!hasActiveJobs && isGenerating) {
-      setIsGenerating(false);
-    }
-  }, [jobs, isGenerating]);
 
   // Update remaining generations count
   useEffect(() => {
@@ -263,37 +136,70 @@ function CreatePageContent() {
       .catch(() => setError('Failed to load configuration'));
   }, []);
 
-  // Load creations on mount and when address changes
+  // SINGLE effect to load creations on mount - runs once
   useEffect(() => {
+    let cancelled = false;
+    
     async function loadCreations() {
-      // Get active jobs from store to show as generating placeholders
+      const authenticated = address && isAuthenticated();
+      
+      // Build active job placeholders from store
       const activeJobsFromStore = getActiveJobs();
-      const activePlaceholders: DisplayCreation[] = activeJobsFromStore.map(job => ({
+      const activePlaceholders: DisplayCreation[] = activeJobsFromStore
+        .filter(job => job.status === 'queued' || job.status === 'processing')
+        .map(job => ({
+          jobId: job.jobId,
+          modelId: job.modelId,
+          modelName: job.modelName,
+          prompt: job.prompt,
+          type: job.type,
+          createdAt: job.submittedAt,
+          generations: [],
+          tags: generateTagsFromPrompt(job.prompt),
+          walletAddress: job.walletAddress,
+          isGenerating: true,
+          progress: calculateProgress(job.submittedAt, job.initialWaitTime, job.waitTime, job.status),
+          status: job.status,
+          width: job.width,
+          height: job.height,
+          expectedGenerations: job.expectedGenerations,
+        }));
+      
+      // Also include recently completed jobs that might not be on server yet
+      const recentlyCompletedJobs = activeJobsFromStore
+        .filter(job => job.status === 'completed' && job.result?.generations?.length);
+      const completedCreations: DisplayCreation[] = recentlyCompletedJobs.map(job => ({
         jobId: job.jobId,
         modelId: job.modelId,
         modelName: job.modelName,
         prompt: job.prompt,
         type: job.type,
         createdAt: job.submittedAt,
-        generations: [],
+        generations: job.result!.generations.map(g => ({
+          id: g.id,
+          seed: g.seed || "",
+          kind: (g.kind === "video" ? "video" : job.type) as "video" | "image",
+          url: g.url,
+          base64: g.base64,
+        })),
         tags: generateTagsFromPrompt(job.prompt),
         walletAddress: job.walletAddress,
-        isGenerating: true,
-        progress: calculateProgress(job.submittedAt, job.initialWaitTime, job.waitTime, job.status),
-        status: job.status,
         width: job.width,
         height: job.height,
         expectedGenerations: job.expectedGenerations,
+        isGenerating: false,
+        progress: 100,
       }));
       
-      const authenticated = address && isAuthenticated();
+      let serverCreations: DisplayCreation[] = [];
       
       if (authenticated) {
-        // Logged in - fetch ONLY from server, no localStorage
+        // Logged in - fetch from server
         try {
           const serverData = await fetchGalleryByWallet(address, 100);
+          if (cancelled) return;
           
-          const serverCreations: DisplayCreation[] = serverData.items
+          serverCreations = serverData.items
             .filter((item: GalleryItem) => item.mediaUrls && item.mediaUrls.length > 0 && item.mediaUrls[0])
             .map((item: GalleryItem) => ({
               jobId: item.jobId,
@@ -314,33 +220,177 @@ function CreatePageContent() {
               width: item.params?.width,
               height: item.params?.height,
               expectedGenerations: item.mediaUrls?.length,
+              params: item.params, // Store full params for display
             }));
-          
-          // Merge: active placeholders + server data
-          const activeJobIds = new Set(activePlaceholders.map(p => p.jobId));
-          const filteredServer = serverCreations.filter(c => !activeJobIds.has(c.jobId));
-          const merged = [...activePlaceholders, ...filteredServer];
-          
-          setCreations(sortCreations(merged));
         } catch (err) {
           console.error("Failed to load creations from server:", err);
-          setCreations(activePlaceholders);
         }
       } else if (!address) {
         // Anonymous - use localStorage
         const stored = getStoredCreations();
-        const activeJobIds = new Set(activePlaceholders.map(p => p.jobId));
-        const filteredStored: DisplayCreation[] = stored
-          .filter(c => !activeJobIds.has(c.jobId))
-          .map(c => ({ ...c, isGenerating: false }));
-        const merged = [...activePlaceholders, ...filteredStored];
-        
-        setCreations(sortCreations(merged));
+        serverCreations = stored.map(c => ({ ...c, isGenerating: false }));
       }
+      
+      if (cancelled) return;
+      
+      // Merge all sources, avoiding duplicates
+      const allJobIds = new Set<string>();
+      const merged: DisplayCreation[] = [];
+      
+      // Active placeholders first (generating)
+      for (const c of activePlaceholders) {
+        if (!allJobIds.has(c.jobId)) {
+          allJobIds.add(c.jobId);
+          merged.push(c);
+        }
+      }
+      
+      // Then recently completed from job store (might not be on server yet)
+      for (const c of completedCreations) {
+        if (!allJobIds.has(c.jobId)) {
+          allJobIds.add(c.jobId);
+          merged.push(c);
+        }
+      }
+      
+      // Then server/localStorage data
+      for (const c of serverCreations) {
+        if (!allJobIds.has(c.jobId)) {
+          allJobIds.add(c.jobId);
+          merged.push(c);
+        }
+      }
+      
+      setCreations(sortCreations(merged));
+      setIsLoaded(true);
     }
+    
     loadCreations();
+    
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]); // Only run on mount and address change
+  
+  // Update progress for active jobs (separate from initial load)
+  useEffect(() => {
+    if (!isLoaded) return; // Don't run until initial load is done
+    
+    const activeJobsFromStore = getActiveJobs();
+    
+    setCreations(prev => {
+      let updated = [...prev];
+      let changed = false;
+      
+      // Update progress for existing generating jobs
+      activeJobsFromStore.forEach(job => {
+        const idx = updated.findIndex(c => c.jobId === job.jobId);
+        if (idx !== -1 && updated[idx].isGenerating) {
+          const newProgress = calculateProgress(job.submittedAt, job.initialWaitTime, job.waitTime, job.status);
+          if (updated[idx].progress !== newProgress || updated[idx].status !== job.status) {
+            updated[idx] = {
+              ...updated[idx],
+              progress: newProgress,
+              queuePosition: job.queuePosition,
+              status: job.status,
+            };
+            changed = true;
+          }
+        }
+      });
+      
+      return changed ? updated : prev;
+    });
+  }, [jobs, isLoaded, getActiveJobs]);
+  
+  // Handle job completions (separate from initial load)
+  useEffect(() => {
+    if (!isLoaded) return; // Don't run until initial load is done
+    
+    const completedJobs = jobs.filter(j => j.status === 'completed' && j.result?.generations?.length);
+    const faultedJobs = jobs.filter(j => j.status === 'faulted');
+    
+    if (completedJobs.length === 0 && faultedJobs.length === 0) return;
+    
+    setCreations(prev => {
+      let updated = [...prev];
+      let changed = false;
+      
+      // Handle completed jobs
+      completedJobs.forEach(job => {
+        const idx = updated.findIndex(c => c.jobId === job.jobId);
+        // Get the seed from the first generation (for display in params)
+        const firstSeed = job.result?.generations?.[0]?.seed || "";
+        
+        if (idx !== -1 && updated[idx].isGenerating) {
+          // Update existing placeholder with results
+          // Also update params to include the seed from the completed generation
+          const existingParams = updated[idx].params || {};
+          updated[idx] = {
+            ...updated[idx],
+            isGenerating: false,
+            progress: 100,
+            generations: job.result!.generations.map(g => ({
+              id: g.id,
+              seed: g.seed || "",
+              kind: (g.kind === "video" ? "video" : job.type) as "video" | "image",
+              url: g.url,
+              base64: g.base64,
+            })),
+            params: {
+              ...existingParams,
+              seed: firstSeed, // Add the seed from the completed generation
+            },
+          };
+          changed = true;
+        } else if (idx === -1) {
+          // Job completed but no placeholder - add it
+          updated.unshift({
+            jobId: job.jobId,
+            modelId: job.modelId,
+            modelName: job.modelName,
+            prompt: job.prompt,
+            type: job.type,
+            createdAt: job.submittedAt,
+            generations: job.result!.generations.map(g => ({
+              id: g.id,
+              seed: g.seed || "",
+              kind: (g.kind === "video" ? "video" : job.type) as "video" | "image",
+              url: g.url,
+              base64: g.base64,
+            })),
+            tags: generateTagsFromPrompt(job.prompt),
+            walletAddress: job.walletAddress,
+            width: job.width,
+            height: job.height,
+            expectedGenerations: job.expectedGenerations,
+            isGenerating: false,
+            progress: 100,
+            params: {
+              width: job.width,
+              height: job.height,
+              seed: firstSeed, // Include the seed
+            },
+          });
+          changed = true;
+        }
+      });
+      
+      // Handle faulted jobs
+      const faultedIds = new Set(faultedJobs.map(j => j.jobId));
+      const beforeLen = updated.length;
+      updated = updated.filter(c => !faultedIds.has(c.jobId));
+      if (updated.length !== beforeLen) changed = true;
+      
+      if (!changed) return prev;
+      return sortCreations(updated);
+    });
+    
+    // Reset isGenerating flag if no active jobs remain
+    const hasActiveJobs = jobs.some(j => j.status === 'queued' || j.status === 'processing');
+    if (!hasActiveJobs && isGenerating) {
+      setIsGenerating(false);
+    }
+  }, [jobs, isLoaded, isGenerating]);
 
   const selectedDimension = styles?.dimensions.find(d => d.id === dimensionId);
   const selectedModel = styles?.models.find(m => m.default) || styles?.models[0];
@@ -408,6 +458,17 @@ function CreatePageContent() {
       const jobPrompt = prompt.trim();
       const jobType = selectedModel.type === "video" ? "video" : "image";
       const batchSize = (authenticated && batchMode) ? 4 : 1;
+      
+      // Build params object for display (seed will be added when job completes)
+      const jobParams = {
+        width: selectedDimension.width,
+        height: selectedDimension.height,
+        steps: selectedModel?.settings?.steps ?? styles?.defaults.steps,
+        cfgScale: selectedModel?.settings?.cfgScale ?? styles?.defaults.cfgScale,
+        sampler: selectedModel?.settings?.sampler ?? styles?.defaults.sampler,
+        scheduler: styles?.defaults.scheduler,
+      };
+      
       const placeholder: DisplayCreation = {
         jobId: resp.jobId,
         modelId: selectedModel.id,
@@ -424,6 +485,7 @@ function CreatePageContent() {
         width: selectedDimension.width,
         height: selectedDimension.height,
         expectedGenerations: batchSize,
+        params: jobParams, // Include full params for display
       };
       
       // Add placeholder and re-sort (generating jobs first)
@@ -480,6 +542,131 @@ function CreatePageContent() {
       setIsGenerating(false);
     }
   }, [prompt, selectedModel, selectedDimension, styles, address, isConnected, batchMode, addJob]);
+
+  // Regenerate handler - creates new job with same seed and params
+  const handleRegenerate = useCallback(async (creation: DisplayCreation) => {
+    if (!creation.params?.seed) {
+      setError("Cannot regenerate: no seed found");
+      return;
+    }
+    
+    const authenticated = isConnected && isAuthenticated();
+    if (!authenticated) {
+      setError("Please connect your wallet to regenerate");
+      setShowAuthModal(true);
+      return;
+    }
+    
+    setRegeneratingJobId(creation.jobId);
+    setError(null);
+    
+    // Find the correct model ID from styles config (display name -> API id)
+    // The creation stores displayName but API needs the id
+    let modelId = creation.modelId;
+    if (styles?.models) {
+      const matchingModel = styles.models.find(
+        m => m.name === creation.modelName || m.name === creation.modelId || m.id === creation.modelId
+      );
+      if (matchingModel) {
+        modelId = matchingModel.id;
+      }
+    }
+    
+    try {
+      const resp = await createJob({
+        modelId,
+        prompt: creation.prompt,
+        negativePrompt: "",
+        nsfw: false,
+        public: false, // Private by default
+        walletAddress: address,
+        mediaType: creation.type,
+        sourceProcessing: "txt2img",
+        params: {
+          width: creation.params?.width || creation.width || 896,
+          height: creation.params?.height || creation.height || 1152,
+          steps: creation.params?.steps || 5,
+          cfgScale: creation.params?.cfgScale || 1.5,
+          sampler: creation.params?.sampler || "euler",
+          scheduler: creation.params?.scheduler || "normal",
+          seed: creation.params.seed, // Use the same seed!
+          n: 1, // Single image regeneration
+        },
+      });
+
+      // Create placeholder for the new regeneration
+      const placeholder: DisplayCreation = {
+        jobId: resp.jobId,
+        modelId: creation.modelId,
+        modelName: creation.modelName,
+        prompt: creation.prompt,
+        type: creation.type,
+        createdAt: Date.now(),
+        generations: [],
+        tags: generateTagsFromPrompt(creation.prompt),
+        walletAddress: address,
+        isGenerating: true,
+        progress: 0,
+        status: 'queued',
+        width: creation.params?.width || creation.width,
+        height: creation.params?.height || creation.height,
+        expectedGenerations: 1,
+        params: {
+          ...creation.params,
+          seed: creation.params.seed,
+        },
+      };
+      
+      // Add placeholder and re-sort
+      setCreations(prev => sortCreations([placeholder, ...prev.filter(c => c.jobId !== placeholder.jobId)]));
+      
+      // Add to job store for tracking
+      addJob({
+        jobId: resp.jobId,
+        modelId: creation.modelId,
+        modelName: creation.modelName,
+        prompt: creation.prompt,
+        type: creation.type,
+        isNsfw: false,
+        isPublic: false,
+        walletAddress: address,
+        width: creation.params?.width || creation.width,
+        height: creation.params?.height || creation.height,
+        expectedGenerations: 1,
+      });
+      
+      // Save to database immediately
+      try {
+        await addToGallery({
+          jobId: resp.jobId,
+          modelId: creation.modelId,
+          modelName: creation.modelName,
+          prompt: creation.prompt,
+          type: creation.type,
+          isNsfw: false,
+          isPublic: false,
+          walletAddress: address,
+          params: {
+            width: creation.params?.width || creation.width,
+            height: creation.params?.height || creation.height,
+            steps: creation.params?.steps,
+            cfgScale: creation.params?.cfgScale,
+            sampler: creation.params?.sampler,
+            scheduler: creation.params?.scheduler,
+            seed: creation.params.seed,
+          },
+          mediaUrls: [],
+        });
+      } catch (err) {
+        console.error('Failed to save regenerated job:', err);
+      }
+      
+    } catch (err: any) {
+      setError(err.message || "Failed to regenerate");
+    } finally {
+      setRegeneratingJobId(null);
+    }
+  }, [address, isConnected, addJob, styles]);
 
   const authenticated = isConnected && isAuthenticated();
 
@@ -711,7 +898,14 @@ function CreatePageContent() {
                 <CreationCard 
                   key={creation.jobId} 
                   creation={creation} 
-                  onDelete={(jobId) => setCreations(prev => prev.filter(c => c.jobId !== jobId))}
+                  onDelete={(jobId) => {
+                    // Remove from local state
+                    setCreations(prev => prev.filter(c => c.jobId !== jobId));
+                    // Also remove from job store so it doesn't get re-added on refresh
+                    useJobStore.getState().removeJob(jobId);
+                  }}
+                  onRegenerate={handleRegenerate}
+                  isRegenerating={regeneratingJobId === creation.jobId}
                 />
               ))}
             </Masonry>
