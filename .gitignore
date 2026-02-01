@@ -118,3 +118,8 @@ firecrawl-mcp-server/
 # Data Backups
 # ===================
 data/*.backup*
+
+# ===================
+# Lock files (optional)
+# ===================
+bun.lockb
