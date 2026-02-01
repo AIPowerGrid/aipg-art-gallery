@@ -200,12 +200,13 @@ export const useJobStore = create<JobStore>()(
                 pollFailures: 0, // Reset failure count on success
               });
 
-            } catch (error: any) {
+            } catch (error: unknown) {
               const failures = (job.pollFailures || 0) + 1;
               console.error(`[JobStore] Failed to poll job ${job.jobId} (attempt ${failures}):`, error);
               
               // If we get a 404 or similar, mark as faulted immediately
-              if (error.message?.includes('404') || error.message?.includes('not found')) {
+              const errorMessage = error instanceof Error ? error.message : '';
+              if (errorMessage.includes('404') || errorMessage.includes('not found')) {
                 store.updateJob(job.jobId, {
                   status: 'faulted',
                   error: 'Job not found - may have expired',

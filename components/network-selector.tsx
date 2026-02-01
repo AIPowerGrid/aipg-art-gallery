@@ -94,9 +94,10 @@ export function NetworkSelector({ compact = false }: NetworkSelectorProps) {
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: `0x${chainId.toString(16)}` }],
           } as any);
-        } catch (switchError: any) {
+        } catch (switchError: unknown) {
           // If the chain hasn't been added to the wallet, add it
-          if (switchError.code === 4902) {
+          const walletError = switchError as { code?: number };
+          if (walletError.code === 4902) {
             const chain = type === 'mainnet' ? base : baseSepolia;
             await window.ethereum.request({
               method: 'wallet_addEthereumChain',

@@ -42,10 +42,11 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
     try {
       // Delete from server
       await deleteGalleryItem(creation.jobId);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // If server says not found (404), that's fine - just clean up locally
       // Error format is "404: message" from jsonFetch
-      const isNotFound = err?.message?.startsWith('404:') || err?.message?.includes('not found');
+      const message = err instanceof Error ? err.message : '';
+      const isNotFound = message.startsWith('404:') || message.includes('not found');
       if (!isNotFound) {
         console.error('Failed to delete from server:', err);
         // Still try to clean up locally

@@ -88,8 +88,9 @@ export default function ProfilePage() {
       setItems(prev => prev.map(item => 
         item.jobId === jobId ? { ...item, isPublic: true } : item
       ));
-    } catch (err: any) {
-      alert(`Failed to publish: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert(`Failed to publish: ${message}`);
     } finally {
       setPublishingId(null);
     }
@@ -107,8 +108,9 @@ export default function ProfilePage() {
       await removeFavorite(jobId);
       // Remove from favorites list
       setFavorites(prev => prev.filter(item => item.jobId !== jobId));
-    } catch (err: any) {
-      alert(`Failed to remove favorite: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert(`Failed to remove favorite: ${message}`);
     }
   }
 
@@ -176,8 +178,9 @@ export default function ProfilePage() {
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to load your creations");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to load your creations";
+      setError(message);
       setLoading(false);
     }
   }
