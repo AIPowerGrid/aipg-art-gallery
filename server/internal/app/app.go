@@ -353,7 +353,8 @@ var modelNameAliases = map[string][]string{
 	"SDXL 1.0": {"sdxl 1.0", "sdxl1", "sdxl", "sdxl1.0", "SDXL 1.0"},
 
 	// Other models
-	"ltxv": {"ltx-video", "ltxv-13b", "ltxv"},
+	"ltxv":     {"ltx-video", "ltxv-13b", "ltxv"},
+	"ltx-2.3": {"ltx-2.3", "ltx2.3", "ltx-2.3-i2v", "ltx 2.3 i2v"},
 	"ICBINP - I Can't Believe It's Not Photography": {"icbinp", "icbinp - i can't believe it's not photography"},
 	"ICBINP XL": {"icbinp xl", "icbinp-xl", "ICBINP XL"},
 }
@@ -367,7 +368,8 @@ var presetToGridName = map[string]string{
 	"wan2.2-t2v-a14b-hq": "wan2_2_t2v_14b_hq",
 
 	// LTX Video
-	"ltxv": "ltxv",
+	"ltxv":     "ltxv",
+	"ltx-2.3":  "ltx-2.3",
 
 	// FLUX models - use exact names that workers advertise
 	"FLUX.1-dev":                    "FLUX.1-dev",

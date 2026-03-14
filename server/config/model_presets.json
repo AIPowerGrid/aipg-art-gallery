@@ -602,6 +602,35 @@
     }
   },
   {
+    "id": "ltx-2.3",
+    "displayName": "LTX 2.3 I2V",
+    "type": "video",
+    "description": "LTX 2.3 I2V - DiT-based image-to-video and text-to-video model (22B FP8). Generates 30 FPS video at 1216×704. Supports both text-to-video and image-to-video.",
+    "tags": ["ltx", "ltxv", "video", "i2v", "text-to-video", "image-to-video"],
+    "samplers": ["k_euler", "dpmsolver", "k_dpmpp_2m"],
+    "schedulers": ["simple", "karras"],
+    "capabilities": ["txt2video", "img2video"],
+    "defaults": {
+      "width": 1216,
+      "height": 704,
+      "steps": 25,
+      "cfgScale": 2,
+      "sampler": "k_euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "length": 96,
+      "fps": 30
+    },
+    "limits": {
+      "width": { "min": 512, "max": 1920, "step": 64 },
+      "height": { "min": 512, "max": 1080, "step": 64 },
+      "steps": { "min": 20, "max": 30, "step": 1 },
+      "cfgScale": { "min": 1, "max": 2.5, "step": 0.25 },
+      "length": { "min": 48, "max": 144, "step": 8 },
+      "fps": { "min": 24, "max": 30, "step": 1 }
+    }
+  },
+  {
     "id": "ICBINP - I Can't Believe It's Not Photography",
     "displayName": "ICBINP",
     "type": "image",
