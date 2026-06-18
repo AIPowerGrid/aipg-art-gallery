@@ -76,6 +76,33 @@ jobs to the grid and serves gallery/media.
 - Secrets come from `.env` (copy `.env.example`). Never commit creds; `POSTGRES_CONN_STR` has
   no default by design.
 
+## Security Invariants (all subtrees)
+
+These are non-negotiable across the repo. Children may add stricter rules, never weaker.
+
+- **Never commit secrets.** No keys, passwords, connection strings, or tokens in any tracked
+  file — including docs, comments, test fixtures, and script defaults (`x = env || "literal"`
+  is a leak). Secrets live only in `.env` (gitignored). `data/gallery.json` may contain
+  expired presigned URLs; do not add live ones.
+- **Never trust the client.** Every limit, permission, and ownership rule must be enforced
+  server-side (`server/`) and in Supabase RLS. Frontend gates (generation limits, "members
+  only") are UX only; assume the browser sends arbitrary values.
+- **Auth is signature → JWT.** SIWE sign-in is replay-protected by a one-time, expiring nonce
+  and message validation (domain, address, freshness). Mutating routes verify a Bearer JWT and
+  read the wallet from the token, never from a client-supplied header/body.
+- **No SSRF / shell injection.** Server-side fetches of user-influenced URLs use an
+  exact-host allowlist and `redirect: 'manual'`. Shell-outs use argv arrays (`execFileSync`),
+  never interpolated command strings.
+- **Validate before trusting the doc.** A finding marked "fixed" here or in
+  `docs/SECURITY_AUDIT_REPORT.md` must be re-checked against the code before you rely on it.
+
+## Tips for future agents
+
+- Run the audit-relevant checks before claiming security work is done: `cd server && go test
+  ./... && go vet ./...`, `npm run build`, and `npm audit` for dependency drift.
+- When you touch auth, gallery writes, or any new outbound fetch/exec, re-read this section and
+  the nearest AGENTS.md, then update them if the contract changed.
+
 ## Work Guidance
 
 - New generation capability → backend handler in `server/` first, then `lib/api.ts` client +

@@ -25,17 +25,26 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(url);
-    
+    // redirect: 'manual' — the hostname allowlist above only validates the
+    // initial URL. If we followed redirects, an open redirect on an allowed
+    // origin could bounce us to an internal address (SSRF). Reject any 3xx.
+    const response = await fetch(url, { redirect: 'manual' });
+
+    if (response.status >= 300 && response.status < 400) {
+      return NextResponse.json({ error: 'Redirects are not allowed' }, { status: 502 });
+    }
+
     if (!response.ok) {
       return NextResponse.json({ error: 'Failed to fetch file' }, { status: response.status });
     }
 
     const blob = await response.blob();
-    
-    // Extract filename from URL
+
+    // Extract filename from URL and strip anything that could break out of the
+    // Content-Disposition header (quotes, CR/LF, path separators).
     const pathParts = parsedUrl.pathname.split('/');
-    const filename = pathParts[pathParts.length - 1] || 'download';
+    const rawName = pathParts[pathParts.length - 1] || 'download';
+    const filename = rawName.replace(/[^\w.\-]/g, '_').slice(0, 200) || 'download';
 
     return new NextResponse(blob, {
       headers: {

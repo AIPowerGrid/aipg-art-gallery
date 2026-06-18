@@ -19,7 +19,12 @@ and gallery maintenance. Run by hand, not part of the app runtime.
 - These are throwaway/admin scripts, not the source of truth: schema lives in
   `supabase/schema.sql`, runtime persistence is the Go `server/internal/gallery` store. Keep
   scripts consistent with those, not the reverse.
-- Read creds from env/`.env`; never hardcode keys or connection strings.
+- Read creds from env/`.env`; never hardcode keys or connection strings — not even as a
+  `process.env.X || "literal"` fallback (that literal is a committed secret).
+- Shell out with argv arrays (`execFileSync(cmd, [args])`), never interpolated command strings
+  built from filenames or other external input (shell-injection).
+- Disabling TLS verification (`rejectUnauthorized: false`, `sslmode=disable`) is prohibited
+  outside throwaway localhost-only use; prefer `sslmode=require`/`verify-full`.
 
 ## Work Guidance
 

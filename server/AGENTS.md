@@ -27,9 +27,15 @@ serves the gallery + media, runs SIWE auth, and proxies prompt enhancement. Entr
 - **Graceful degradation:** if ModelVault / RecipeVault / Postgres / R2 init fails, the app
   logs and continues with a fallback (presets-only, file-store gallery, no media). Preserve
   this — a missing optional dependency must not crash startup.
-- **Auth:** `/auth/verify` checks an EIP-191 SIWE signature (`internal/auth`) then issues an
-  HS256 JWT. Protected routes require `Authorization: Bearer`; the verified wallet is read
-  from request context. Keep JWT format compatible with the frontend.
+- **Auth:** `/auth/nonce` issues a single-use, expiring nonce (`internal/auth` `NonceStore`).
+  `/auth/verify` parses the SIWE message (`ParseSiweMessage`), validates domain + address +
+  `Issued At` freshness, **consumes the one-time nonce before** verifying the EIP-191 signature
+  (replay protection), then issues an HS256 JWT. Protected routes require `Authorization:
+  Bearer`; the verified wallet is read from request context. Keep JWT format + the SIWE flow
+  compatible with the frontend (`lib/auth.ts`). The nonce store is in-memory (single instance).
+- **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
+  steps, dimensions, prompt length) server-side regardless of frontend gating. CORS fails
+  closed — `allowedOrigins()` never returns `*`; production must set `GALLERY_ALLOWED_ORIGINS`.
 - **Grid passthrough:** generation goes through `internal/aipg` to the grid `/api/v2`; the
   server holds the grid key, the client never does.
 

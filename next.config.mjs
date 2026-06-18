@@ -28,12 +28,18 @@ const nextConfig = {
     ];
   },
   images: {
-    domains: ["ik.imagekit.io"],
+    // Pin to specific hosts. A wildcard like **.r2.cloudflarestorage.com would
+    // turn the Next image optimizer into an open proxy for ANY R2 bucket.
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**.r2.cloudflarestorage.com",
-        pathname: "**",
+        hostname: "images.aipg.art",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com",
+        pathname: "/**",
       },
     ],
   },

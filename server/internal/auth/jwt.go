@@ -67,13 +67,30 @@ func VerifyJWT(tokenString string) (string, error) {
 		return "", errors.New("invalid token format")
 	}
 
-	// Verify signature
+	// Reject any algorithm other than the HS256 we issue. This blocks "alg"
+	// confusion / "none" attacks regardless of how the signature is checked.
+	headerJSON, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return "", errors.New("invalid header encoding")
+	}
+	var header struct {
+		Alg string `json:"alg"`
+		Typ string `json:"typ"`
+	}
+	if err := json.Unmarshal(headerJSON, &header); err != nil {
+		return "", errors.New("invalid header")
+	}
+	if header.Alg != "HS256" {
+		return "", errors.New("unexpected token algorithm")
+	}
+
+	// Verify signature with a constant-time comparison to avoid timing leaks.
 	message := parts[0] + "." + parts[1]
 	h := hmac.New(sha256.New, []byte(secret))
 	h.Write([]byte(message))
 	expectedSignature := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
-	if parts[2] != expectedSignature {
+	if !hmac.Equal([]byte(parts[2]), []byte(expectedSignature)) {
 		return "", errors.New("invalid signature")
 	}
 

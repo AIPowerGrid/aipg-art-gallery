@@ -9,7 +9,7 @@
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 
 // R2 Configuration from .env (REQUIRED - no defaults for security)
 const R2_ENDPOINT = process.env.R2_ENDPOINT || 'https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com';
@@ -121,7 +121,8 @@ async function main() {
 
   for (const zipFile of zipFiles) {
     console.log(`\nExtracting ${zipFile}...`);
-    execSync(`unzip -o "${zipFile}" -d "${tempDir}"`, { stdio: 'inherit' });
+    // execFileSync (not a shell string) so a crafted filename can't inject commands.
+    execFileSync('unzip', ['-o', zipFile, '-d', tempDir], { stdio: 'inherit' });
   }
 
   // Get all image files

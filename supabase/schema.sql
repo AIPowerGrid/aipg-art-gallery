@@ -54,9 +54,12 @@ CREATE POLICY "Users can view their own generations"
     USING (auth.uid() = user_id);
 
 -- Policy: Users can insert their own generations
+-- Note: the previous "OR user_id IS NULL" clause let anyone with the anon key
+-- insert ownerless public rows (gallery spam). Inserts must be attributed to the
+-- authenticated user.
 CREATE POLICY "Users can insert their own generations"
     ON generations FOR INSERT
-    WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+    WITH CHECK (auth.uid() = user_id);
 
 -- Policy: Users can update their own generations
 CREATE POLICY "Users can update their own generations"

@@ -18,7 +18,9 @@ package owns one concern; `app/app.go` wires them together.
 - `gallery/` — storage layer. `GalleryStore` interface (`interface.go`) with two backends:
   `postgres_store.go` (primary) and the file-store via `FileStoreAdapter`. Plus
   `user_store.go`, `job_store.go`, `favorites_store.go`.
-- `auth/` — `siwe.go` (EIP-191 signature verify) + `jwt.go` (HS256 sign/verify, `JWT_SECRET`).
+- `auth/` — `siwe.go` (EIP-191 signature verify), `siwe_message.go` (EIP-4361 message parse),
+  `nonce.go` (single-use, expiring nonce store for replay protection), `jwt.go` (HS256
+  sign/verify with constant-time compare + `alg` check, `JWT_SECRET`). Tests in `*_test.go`.
 - `modelvault/` — go-ethereum client for the on-chain ModelVault (model registry; text/image/
   video model types). `recipevault/` — on-chain workflow/recipe registry (gzip-compressed
   payloads); shares the diamond-proxy contract with ModelVault.

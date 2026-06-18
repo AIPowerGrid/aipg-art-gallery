@@ -2,8 +2,6 @@ package app
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,6 +48,7 @@ type App struct {
 	r2Client          *r2.Client
 	cache             *cache.Cache
 	aiClient          *ai.Client
+	nonceStore        *auth.NonceStore
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -155,6 +154,7 @@ func New(cfg config.Config) (*App, error) {
 		favoritesStore:    favoritesStore,
 		cache:             queryCache,
 		aiClient:          aiClient,
+		nonceStore:        auth.NewNonceStore(),
 	}, nil
 }
 
@@ -220,9 +220,37 @@ func (a *App) Router() http.Handler {
 
 func (a *App) allowedOrigins() []string {
 	if len(a.cfg.AllowedOrigins) == 0 {
-		return []string{"*"}
+		// Fail closed: never combine a wildcard origin with AllowCredentials.
+		// Production MUST set GALLERY_ALLOWED_ORIGINS; without it we permit only
+		// local dev origins.
+		log.Printf("⚠️  GALLERY_ALLOWED_ORIGINS not set; restricting CORS to localhost dev origins")
+		return []string{"http://localhost:3000", "http://127.0.0.1:3000"}
 	}
 	return a.cfg.AllowedOrigins
+}
+
+// isAllowedSiweDomain checks that a SIWE message's domain matches a configured
+// allowed origin (host[:port]). When no origins are configured (local dev), any
+// domain is accepted to keep `npm run dev` working.
+func (a *App) isAllowedSiweDomain(domain string) bool {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return false
+	}
+	if len(a.cfg.AllowedOrigins) == 0 {
+		return true // dev mode
+	}
+	for _, origin := range a.cfg.AllowedOrigins {
+		host := origin
+		if i := strings.Index(host, "://"); i >= 0 {
+			host = host[i+3:]
+		}
+		host = strings.TrimSuffix(host, "/")
+		if strings.EqualFold(host, domain) {
+			return true
+		}
+	}
+	return false
 }
 
 // ============================================================================
@@ -267,25 +295,27 @@ func getWalletFromContext(r *http.Request) string {
 	return ""
 }
 
-// handleGetNonce generates a nonce for SIWE authentication
+// handleGetNonce issues a single-use, expiring nonce for SIWE authentication.
+// The nonce is recorded server-side so that handleVerifySignature can reject
+// replayed or forged sign-in messages.
 func (a *App) handleGetNonce(w http.ResponseWriter, r *http.Request) {
-	// Generate a random nonce
-	nonceBytes := make([]byte, 16)
-	if _, err := rand.Read(nonceBytes); err != nil {
+	nonce, err := a.nonceStore.Issue()
+	if err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("failed to generate nonce"))
 		return
 	}
-	nonce := hex.EncodeToString(nonceBytes)
-
-	// In production, you'd store this nonce with expiry in Redis
-	// For now, we rely on timestamp validation in the SIWE message
 
 	writeJSON(w, http.StatusOK, map[string]string{
 		"nonce": nonce,
 	})
 }
 
-// handleVerifySignature verifies SIWE signature and returns JWT
+// handleVerifySignature verifies a SIWE sign-in and returns a JWT.
+//
+// Order matters: we parse and validate the message envelope (domain, address,
+// freshness) and consume the one-time nonce BEFORE recovering the signature.
+// Consuming the nonce up front means a captured (message, signature) pair can
+// never be replayed — the nonce is gone after the first attempt, success or not.
 func (a *App) handleVerifySignature(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Message   string `json:"message"`
@@ -303,7 +333,43 @@ func (a *App) handleVerifySignature(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify the signature cryptographically
+	// Parse and validate the SIWE message envelope.
+	fields, err := auth.ParseSiweMessage(req.Message)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// Domain binding: the message must be for this site, not some other dApp
+	// where the user happened to sign a similar message.
+	if !a.isAllowedSiweDomain(fields.Domain) {
+		log.Printf("Auth: rejected SIWE domain %q", fields.Domain)
+		writeError(w, http.StatusUnauthorized, errors.New("unexpected sign-in domain"))
+		return
+	}
+
+	// The address in the request body must match the one inside the signed message.
+	if !strings.EqualFold(fields.Address, strings.TrimSpace(req.Address)) {
+		writeError(w, http.StatusUnauthorized, errors.New("address does not match signed message"))
+		return
+	}
+
+	// Freshness: reject stale messages and ones dated in the future (clock skew
+	// tolerance of 2 minutes).
+	now := time.Now()
+	if fields.IssuedAt.After(now.Add(2*time.Minute)) || now.Sub(fields.IssuedAt) > auth.NonceTTL {
+		writeError(w, http.StatusUnauthorized, errors.New("sign-in message expired - please try again"))
+		return
+	}
+
+	// One-time nonce: must have been issued by us and not already used. This is
+	// the core replay defense; consume it before the (more expensive) signature check.
+	if err := a.nonceStore.Consume(fields.Nonce); err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	// Verify the signature cryptographically.
 	valid, err := auth.VerifySignature(req.Message, req.Signature, req.Address)
 	if err != nil {
 		log.Printf("Auth: Signature verification error: %v", err)
@@ -936,12 +1002,38 @@ type GenerationParams struct {
 	N         int     `json:"n"` // Number of images to generate (batch size, 1-4)
 }
 
+// Server-side generation caps. The frontend gates batch/limits for UX, but the
+// client is never trusted: these bounds are enforced here regardless of what the
+// browser sends. Zero means "use the model default" and is left untouched.
+const (
+	maxPromptLen = 4000
+	maxBatchN    = 4
+	maxSteps     = 150
+	maxDimension = 2048
+)
+
 func (r CreateJobRequest) Validate() error {
 	if strings.TrimSpace(r.Prompt) == "" {
 		return errors.New("prompt is required")
 	}
 	if strings.TrimSpace(r.ModelID) == "" {
 		return errors.New("modelId is required")
+	}
+	if len(r.Prompt) > maxPromptLen {
+		return fmt.Errorf("prompt too long (max %d chars)", maxPromptLen)
+	}
+	if len(r.NegativePrompt) > maxPromptLen {
+		return fmt.Errorf("negative prompt too long (max %d chars)", maxPromptLen)
+	}
+	if r.Params.N < 0 || r.Params.N > maxBatchN {
+		return fmt.Errorf("n must be between 1 and %d", maxBatchN)
+	}
+	if r.Params.Steps < 0 || r.Params.Steps > maxSteps {
+		return fmt.Errorf("steps must be between 1 and %d", maxSteps)
+	}
+	if r.Params.Width < 0 || r.Params.Width > maxDimension ||
+		r.Params.Height < 0 || r.Params.Height > maxDimension {
+		return fmt.Errorf("dimensions must not exceed %d", maxDimension)
 	}
 	return nil
 }

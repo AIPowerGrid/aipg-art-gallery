@@ -11,7 +11,9 @@ server-side route handlers for things that must not run in the browser.
   `auth/login/`. `layout.tsx` + `globals.css` — shell + global styles.
 - Route handlers (server-side):
   - `api/download/route.ts` — proxied media download with **strict CDN hostname allowlist**
-    (SSRF guard; only `images.aipg.art` and configured CDN hosts).
+    (SSRF guard; only `images.aipg.art` and `*.r2.cloudflarestorage.com`). Uses
+    `redirect: 'manual'` and rejects 3xx so an allowed-host open-redirect can't be chained to
+    an internal target; the `Content-Disposition` filename is sanitized.
   - `api/og/route.tsx` + `og/route.tsx` — dynamic Open Graph images (edge runtime), built
     from recent gallery images.
   - `auth/callback/route.ts` — Supabase OAuth callback (social sign-in).
