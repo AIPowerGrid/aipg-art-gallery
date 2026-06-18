@@ -30,9 +30,13 @@ serves the gallery + media, runs SIWE auth, and proxies prompt enhancement. Entr
 - **Auth:** `/auth/nonce` issues a single-use, expiring nonce (`internal/auth` `NonceStore`).
   `/auth/verify` parses the SIWE message (`ParseSiweMessage`), validates domain + address +
   `Issued At` freshness, **consumes the one-time nonce before** verifying the EIP-191 signature
-  (replay protection), then issues an HS256 JWT. Protected routes require `Authorization:
-  Bearer`; the verified wallet is read from request context. Keep JWT format + the SIWE flow
-  compatible with the frontend (`lib/auth.ts`). The nonce store is in-memory (single instance).
+  (replay protection), then issues an HS256 JWT **as an httpOnly `aipg_auth` cookie** (the body
+  returns only the address — the token never goes to JS). `/auth/me` returns the current wallet;
+  `/auth/logout` clears the cookie. `authMiddleware` reads the cookie (Bearer header fallback),
+  and for cookie-borne mutating requests enforces an Origin allowlist (CSRF). Cookie attributes
+  come from `AUTH_COOKIE_DOMAIN` / `AUTH_COOKIE_SECURE` (Secure also auto-set for HTTPS). Keep
+  the SIWE flow + cookie behaviour compatible with `lib/auth.ts`. Nonce store is in-memory
+  (single instance).
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
   steps, dimensions, prompt length) server-side regardless of frontend gating. CORS fails
   closed — `allowedOrigins()` never returns `*`; production must set `GALLERY_ALLOWED_ORIGINS`.

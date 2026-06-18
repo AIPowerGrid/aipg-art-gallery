@@ -24,9 +24,10 @@ API client, wallet/web3 integration, auth/JWT handling, Zustand stores, and Reac
 
 - **`api.ts` is the only place that calls the Go API.** Pages/components/hooks go through it,
   not raw `fetch`. New endpoints get a typed function here.
-- JWT lives in `auth.ts` storage; `api.ts` reads it. Don't read/write the token elsewhere.
-  (Known accepted risk: token is in `localStorage`, so XSS-exposed — see
-  `docs/SECURITY_AUDIT_REPORT.md`. Do not widen this without moving to an httpOnly cookie.)
+- **The JWT is never in JS.** It lives only in an httpOnly cookie set by the Go server; `api.ts`
+  sends it via `credentials: 'include'` (no `Authorization` header). `auth.ts` stores only a
+  non-sensitive address+expiry marker for `isAuthenticated()` UI state; `fetchSession()`
+  (`/auth/me`) is the authoritative check. Never reintroduce token storage in `localStorage`.
 - `generation-limits.ts` gates are **UX only** — the Go server independently caps batch size,
   dimensions, and steps. Never treat a client-side limit as a security boundary.
 - SIWE sign-in (`auth.ts`) must keep sending the full prepared message + a fresh nonce per

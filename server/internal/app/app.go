@@ -180,6 +180,7 @@ func (a *App) Router() http.Handler {
 		// Auth endpoints (no authentication required)
 		api.Post("/auth/nonce", a.handleGetNonce)
 		api.Post("/auth/verify", a.handleVerifySignature)
+		api.Post("/auth/logout", a.handleLogout)
 
 		api.Get("/models", a.handleListModels)
 		api.Get("/models/{id}", a.handleGetModel)
@@ -205,6 +206,7 @@ func (a *App) Router() http.Handler {
 		api.Group(func(protected chi.Router) {
 			protected.Use(a.authMiddleware)
 
+			protected.Get("/auth/me", a.handleMe)
 			protected.Post("/gallery", a.handleAddToGallery)
 			protected.Patch("/gallery/{id}", a.handleUpdateGalleryItem)
 			protected.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
@@ -257,34 +259,78 @@ func (a *App) isAllowedSiweDomain(domain string) bool {
 // Authentication handlers and middleware
 // ============================================================================
 
-// authMiddleware extracts and verifies JWT from Authorization header
+// authMiddleware verifies the session JWT, read from the httpOnly cookie (browser
+// clients) or, as a fallback, an "Authorization: Bearer" header (CLI/non-browser).
+// For cookie-authenticated mutating requests it also enforces an Origin allowlist
+// as CSRF defense-in-depth (on top of the cookie's SameSite=Lax).
 func (a *App) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			writeError(w, http.StatusUnauthorized, errors.New("missing authorization header - please sign in"))
+		token, fromCookie := extractToken(r)
+		if token == "" {
+			writeError(w, http.StatusUnauthorized, errors.New("not signed in - please sign in"))
 			return
 		}
 
-		// Extract token (format: "Bearer <token>")
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			writeError(w, http.StatusUnauthorized, errors.New("invalid authorization format"))
+		// CSRF: cookie-borne credentials are sent automatically by the browser, so
+		// for state-changing methods require the request to originate from an
+		// allowed origin. Header-bearer requests are not CSRF-prone (the attacker
+		// can't set the header cross-site) and are exempt.
+		if fromCookie && isMutating(r.Method) && !a.isAllowedRequestOrigin(r) {
+			writeError(w, http.StatusForbidden, errors.New("cross-origin request blocked"))
 			return
 		}
 
-		// Verify JWT
-		walletAddress, err := auth.VerifyJWT(parts[1])
+		walletAddress, err := auth.VerifyJWT(token)
 		if err != nil {
 			log.Printf("Auth: JWT verification failed: %v", err)
-			writeError(w, http.StatusUnauthorized, errors.New("invalid or expired token - please sign in again"))
+			writeError(w, http.StatusUnauthorized, errors.New("invalid or expired session - please sign in again"))
 			return
 		}
 
-		// Add wallet address to context
 		ctx := context.WithValue(r.Context(), walletContextKey, walletAddress)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// extractToken pulls the JWT from the auth cookie first, then a Bearer header.
+// The bool reports whether it came from the cookie (relevant for CSRF handling).
+func extractToken(r *http.Request) (string, bool) {
+	if c, err := r.Cookie(authCookieName); err == nil && c.Value != "" {
+		return c.Value, true
+	}
+	authHeader := r.Header.Get("Authorization")
+	if parts := strings.SplitN(authHeader, " ", 2); len(parts) == 2 && parts[0] == "Bearer" {
+		return strings.TrimSpace(parts[1]), false
+	}
+	return "", false
+}
+
+func isMutating(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return false
+	default:
+		return true
+	}
+}
+
+// isAllowedRequestOrigin validates the Origin header against the configured
+// allowlist. When no origins are configured (local dev) it permits the request.
+func (a *App) isAllowedRequestOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		// Non-CORS clients (curl, same-origin server-side) send no Origin.
+		return true
+	}
+	if len(a.cfg.AllowedOrigins) == 0 {
+		return true // dev mode
+	}
+	for _, allowed := range a.cfg.AllowedOrigins {
+		if strings.EqualFold(strings.TrimSuffix(allowed, "/"), strings.TrimSuffix(origin, "/")) {
+			return true
+		}
+	}
+	return false
 }
 
 // getWalletFromContext retrieves the authenticated wallet address from request context
@@ -392,9 +438,68 @@ func (a *App) handleVerifySignature(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Auth: Wallet %s authenticated successfully", strings.ToLower(req.Address))
 
+	// Deliver the JWT only as an httpOnly cookie — it must never be readable by
+	// browser JS (XSS protection). The body returns just the (public) address so
+	// the frontend can drive UI state.
+	a.setAuthCookie(w, r, token)
+
 	writeJSON(w, http.StatusOK, map[string]string{
-		"token":   token,
 		"address": strings.ToLower(req.Address),
+	})
+}
+
+// handleMe returns the authenticated wallet for the current session cookie, or
+// 401 if there is none. The frontend uses it to reconcile auth state on load
+// (it can't read the httpOnly cookie itself).
+func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{
+		"address": getWalletFromContext(r),
+	})
+}
+
+// handleLogout clears the session cookie. Public: clearing a cookie needs no auth.
+func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
+	a.clearAuthCookie(w, r)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+const authCookieName = "aipg_auth"
+
+// cookieSecure decides whether to set the Secure attribute: forced by config, or
+// inferred from an HTTPS request (direct TLS or behind a TLS-terminating proxy).
+func (a *App) cookieSecure(r *http.Request) bool {
+	if a.cfg.AuthCookieSecure {
+		return true
+	}
+	if r.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
+func (a *App) setAuthCookie(w http.ResponseWriter, r *http.Request, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     authCookieName,
+		Value:    token,
+		Path:     "/",
+		Domain:   a.cfg.AuthCookieDomain, // empty = host-only (dev)
+		HttpOnly: true,
+		Secure:   a.cookieSecure(r),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int((24 * time.Hour).Seconds()),
+	})
+}
+
+func (a *App) clearAuthCookie(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     authCookieName,
+		Value:    "",
+		Path:     "/",
+		Domain:   a.cfg.AuthCookieDomain,
+		HttpOnly: true,
+		Secure:   a.cookieSecure(r),
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   -1,
 	})
 }
 

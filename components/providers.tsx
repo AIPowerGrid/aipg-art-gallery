@@ -19,12 +19,14 @@ function WalletManager({ children }: { children: ReactNode }) {
   const authAttempted = useRef(false);
   
   // Auth store for reactive auth state
-  const { setAuthenticated, clearAuth, syncFromStorage } = useAuthStore();
+  const { setAuthenticated, clearAuth, syncFromStorage, syncFromServer } = useAuthStore();
 
-  // Sync auth state from localStorage on mount
+  // On mount: show the optimistic local state immediately, then reconcile with
+  // the authoritative server session (httpOnly cookie via /auth/me).
   useEffect(() => {
     syncFromStorage();
-  }, [syncFromStorage]);
+    void syncFromServer();
+  }, [syncFromStorage, syncFromServer]);
 
   // Auto-switch to Base if on wrong network
   useEffect(() => {

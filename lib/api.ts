@@ -1,5 +1,4 @@
 import { CreateJobRequest, GalleryModel, JobStatus, ModelsResponse } from "@/types/models";
-import { getAuthToken } from "./auth";
 
 const getApiBase = () =>
   process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
@@ -9,20 +8,16 @@ async function jsonFetch<T>(
   init?: RequestInit,
   revalidate?: number
 ): Promise<T> {
-  // Build headers with JWT auth if available
   const headers: Record<string, string> = {
     ...(init?.headers as Record<string, string>),
   };
-  
-  // Add JWT token for authenticated requests
-  const token = getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const res = await fetch(`${getApiBase()}${path}`, {
     ...init,
     headers,
+    // Send the httpOnly session cookie on authenticated requests. The JWT is
+    // never read by JS; the browser attaches it automatically.
+    credentials: 'include',
     next: revalidate ? { revalidate } : undefined,
   });
   if (!res.ok) {

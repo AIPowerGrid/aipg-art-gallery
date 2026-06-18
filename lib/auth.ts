@@ -4,43 +4,43 @@ const getApiBase = () =>
   process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
 
 // ============================================================================
-// Token Storage
+// Session state
 // ============================================================================
+//
+// The JWT itself lives ONLY in an httpOnly cookie set by the Go server, so it is
+// never readable by JS (XSS-safe). The browser cannot read that cookie, so we
+// keep a small, non-sensitive marker in localStorage — the (public) wallet
+// address plus an expiry — purely to drive UI state synchronously. The server
+// re-validates the cookie on every protected request, so a tampered marker only
+// affects optimistic UI, never authorization.
 
-const TOKEN_KEY = 'aipg_auth_token';
 const ADDRESS_KEY = 'aipg_auth_address';
-
-export function getAuthToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
-}
+const EXPIRY_KEY = 'aipg_auth_expiry';
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // mirrors the server JWT lifetime
 
 export function getAuthAddress(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(ADDRESS_KEY);
 }
 
-function setAuthToken(token: string, address: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+function setSession(address: string) {
   localStorage.setItem(ADDRESS_KEY, address.toLowerCase());
+  localStorage.setItem(EXPIRY_KEY, String(Date.now() + SESSION_TTL_MS));
 }
 
+// Named clearAuthToken for backwards compatibility with existing callers; it now
+// clears the local session marker (the cookie is cleared via signOut()).
 export function clearAuthToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  if (typeof window === 'undefined') return;
   localStorage.removeItem(ADDRESS_KEY);
+  localStorage.removeItem(EXPIRY_KEY);
 }
 
 export function isAuthenticated(): boolean {
-  const token = getAuthToken();
-  if (!token) return false;
-  
-  // Check if token is expired
-  try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
+  if (typeof window === 'undefined') return false;
+  const address = localStorage.getItem(ADDRESS_KEY);
+  const expiry = Number(localStorage.getItem(EXPIRY_KEY) ?? 0);
+  return Boolean(address) && expiry > Date.now();
 }
 
 // ============================================================================
@@ -50,12 +50,13 @@ export function isAuthenticated(): boolean {
 async function getNonce(): Promise<string> {
   const response = await fetch(`${getApiBase()}/auth/nonce`, {
     method: 'POST',
+    credentials: 'include',
   });
-  
+
   if (!response.ok) {
     throw new Error('Failed to get nonce');
   }
-  
+
   const data = await response.json();
   return data.nonce;
 }
@@ -64,23 +65,50 @@ async function verifySignature(
   message: string,
   signature: string,
   address: string
-): Promise<{ token: string; address: string }> {
+): Promise<{ address: string }> {
   const response = await fetch(`${getApiBase()}/auth/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // let the browser store the httpOnly session cookie
     body: JSON.stringify({ message, signature, address }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.error || 'Failed to verify signature');
   }
-  
+
   return response.json();
 }
 
+/**
+ * Reconcile local UI state with the server session. Returns the authenticated
+ * address (from the httpOnly cookie) or null. Call on app load.
+ */
+export async function fetchSession(): Promise<string | null> {
+  try {
+    const response = await fetch(`${getApiBase()}/auth/me`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      clearAuthToken();
+      return null;
+    }
+    const data = await response.json();
+    const address: string | undefined = data?.address;
+    if (address) {
+      setSession(address);
+      return address.toLowerCase();
+    }
+    clearAuthToken();
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ============================================================================
-// Sign-In Function
+// Sign-In / Sign-Out
 // ============================================================================
 
 export interface SignInParams {
@@ -89,11 +117,11 @@ export interface SignInParams {
   chainId?: number;
 }
 
-export async function signIn({ address, signMessageAsync, chainId = 8453 }: SignInParams): Promise<string> {
-  // 1. Get nonce from backend
+export async function signIn({ address, signMessageAsync, chainId = 8453 }: SignInParams): Promise<void> {
+  // 1. Get a one-time nonce from the backend.
   const nonce = await getNonce();
 
-  // 2. Create SIWE message
+  // 2. Build the SIWE message.
   const message = new SiweMessage({
     domain: window.location.host,
     address,
@@ -107,24 +135,24 @@ export async function signIn({ address, signMessageAsync, chainId = 8453 }: Sign
 
   const preparedMessage = message.prepareMessage();
 
-  // 3. Sign message with wallet
-  const signature = await signMessageAsync({
-    message: preparedMessage,
-  });
+  // 3. Sign with the wallet.
+  const signature = await signMessageAsync({ message: preparedMessage });
 
-  // 4. Verify signature and get JWT
-  const { token } = await verifySignature(preparedMessage, signature, address);
+  // 4. Verify — the server sets the httpOnly session cookie on success.
+  await verifySignature(preparedMessage, signature, address);
 
-  // 5. Store token
-  setAuthToken(token, address);
-
-  return token;
+  // 5. Record only the public marker for UI state.
+  setSession(address);
 }
 
-// ============================================================================
-// Sign-Out Function
-// ============================================================================
-
-export function signOut() {
+export async function signOut() {
+  try {
+    await fetch(`${getApiBase()}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // best-effort; clear local state regardless
+  }
   clearAuthToken();
 }

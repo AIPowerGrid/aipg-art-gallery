@@ -87,9 +87,12 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 - **Never trust the client.** Every limit, permission, and ownership rule must be enforced
   server-side (`server/`) and in Supabase RLS. Frontend gates (generation limits, "members
   only") are UX only; assume the browser sends arbitrary values.
-- **Auth is signature → JWT.** SIWE sign-in is replay-protected by a one-time, expiring nonce
-  and message validation (domain, address, freshness). Mutating routes verify a Bearer JWT and
-  read the wallet from the token, never from a client-supplied header/body.
+- **Auth is signature → JWT in an httpOnly cookie.** SIWE sign-in is replay-protected by a
+  one-time, expiring nonce + message validation (domain, address, freshness). The JWT is
+  delivered ONLY as an `HttpOnly; Secure; SameSite=Lax` cookie — never returned to or stored by
+  JS. Mutating routes verify it from the cookie (Bearer header fallback for non-browser
+  clients), read the wallet from the token, and enforce an Origin allowlist (CSRF). The
+  frontend keeps only a non-sensitive address+expiry marker for UI state.
 - **No SSRF / shell injection.** Server-side fetches of user-influenced URLs use an
   exact-host allowlist and `redirect: 'manual'`. Shell-outs use argv arrays (`execFileSync`),
   never interpolated command strings.

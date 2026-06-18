@@ -15,6 +15,14 @@ type Config struct {
 	GalleryStorePath string
 	JWTSecret        string
 
+	// Auth cookie (httpOnly session cookie carrying the JWT).
+	// AuthCookieDomain: set to e.g. ".aipg.art" in prod so the cookie is shared
+	// across the app + API subdomains; leave empty for host-only (local dev).
+	// AuthCookieSecure: force the Secure attribute. When empty/false the server
+	// still sets Secure automatically for HTTPS requests (TLS or X-Forwarded-Proto).
+	AuthCookieDomain string
+	AuthCookieSecure bool
+
 	// ModelVault blockchain configuration
 	ModelVaultEnabled         bool
 	ModelVaultRPCURL          string
@@ -57,6 +65,8 @@ func Load() Config {
 		AllowedOrigins:   splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
 		GalleryStorePath: getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
 		JWTSecret:        os.Getenv("JWT_SECRET"),
+		AuthCookieDomain: os.Getenv("AUTH_COOKIE_DOMAIN"),
+		AuthCookieSecure: getEnv("AUTH_COOKIE_SECURE", "false") == "true",
 
 		// ModelVault blockchain configuration (enabled by default)
 		ModelVaultEnabled:         getEnv("MODELVAULT_ENABLED", "true") == "true",
