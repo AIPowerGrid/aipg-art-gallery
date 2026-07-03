@@ -59,13 +59,13 @@ export default function JoinPage() {
 
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 gap-4 mb-12">
-          {/* Active Model */}
+          {/* Krea 2 Turbo — image (live) */}
           <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
             <div className="flex items-start gap-4">
               <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">Flux 1.1 Pro Image Generation</h3>
+                <h3 className="text-white font-semibold mb-2">Krea 2 Turbo</h3>
                 <p className="text-white/60 text-sm mb-3">
-                  State-of-the-art image generation with incredible detail and prompt accuracy
+                  Fast, high-quality image generation — a great all-round default for realistic and artistic prompts
                 </p>
                 <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
                   Available Now
@@ -74,7 +74,52 @@ export default function JoinPage() {
             </div>
           </div>
 
-          {/* Coming Soon: Batch */}
+          {/* z-image-turbo — image (live) */}
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <h3 className="text-white font-semibold mb-2">z-image-turbo</h3>
+                <p className="text-white/60 text-sm mb-3">
+                  Ultra-fast image generation tuned for speed and clean, coherent results
+                </p>
+                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
+                  Available Now
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* FLUX.2 Klein 4B FP8 — image (live) */}
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <h3 className="text-white font-semibold mb-2">FLUX.2 Klein 4B FP8</h3>
+                <p className="text-white/60 text-sm mb-3">
+                  The open FLUX.2 Klein model — strong on fine detail and prompt accuracy
+                </p>
+                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
+                  Available Now
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* LTX-2.3 — video (live) */}
+          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
+            <div className="flex items-start gap-4">
+              <div className="flex-1">
+                <h3 className="text-white font-semibold mb-2">LTX-2.3 Video</h3>
+                <p className="text-white/60 text-sm mb-3">
+                  Text-to-video generation — turn a prompt into a short AI-generated clip
+                </p>
+                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
+                  Available Now
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Batch generation — feature (live: n up to 4) */}
           <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
             <div className="flex items-start gap-4">
               <div className="flex-1">
@@ -82,65 +127,20 @@ export default function JoinPage() {
                 <p className="text-white/60 text-sm mb-3">
                   Generate multiple variations at once to explore different creative directions
                 </p>
-                <span className="inline-block px-2 py-1 bg-white/5 text-white/50 text-xs rounded">
-                  Coming Soon
+                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
+                  Available Now
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Qwen Image */}
+          {/* More models + LoRAs — forward looking */}
           <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
             <div className="flex items-start gap-4">
               <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">Qwen Image Model</h3>
+                <h3 className="text-white font-semibold mb-2">More Models &amp; LoRAs</h3>
                 <p className="text-white/60 text-sm mb-3">
-                  Advanced AI model optimized for photorealistic and artistic image creation
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/5 text-white/50 text-xs rounded">
-                  Coming Soon
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Flux 2.dev */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">Flux 2.dev Image Generation</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  Next-generation Flux model with enhanced creative capabilities
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/5 text-white/50 text-xs rounded">
-                  Coming Soon
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Wan 2.2 Video */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">Wan 2.2 Video Generation</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  Create stunning AI-generated videos from text prompts
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/5 text-white/50 text-xs rounded">
-                  Coming Soon
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* LTX2 Video */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">LTX2 Video Generation</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  High-quality video synthesis with advanced motion control
+                  New image and video models plus custom LoRAs are being added to the grid
                 </p>
                 <span className="inline-block px-2 py-1 bg-white/5 text-white/50 text-xs rounded">
                   Coming Soon
@@ -164,7 +164,7 @@ export default function JoinPage() {
             </div>
             <div className="text-center">
               <h3 className="text-white font-medium mb-2">Video Generation</h3>
-              <p className="text-white/50 text-sm">Access to video models (coming soon)</p>
+              <p className="text-white/50 text-sm">Turn prompts into short clips with LTX-2.3 video</p>
             </div>
           </div>
         </div>

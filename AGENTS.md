@@ -59,7 +59,7 @@ jobs to the grid and serves gallery/media.
 
 ## Local Contracts
 
-- **Inherit org engineering standards:** `/Users/j/fix-axios-vuln/aipg-documentation/engineering-standards/`
+- **Inherit org engineering standards:** `../aipg-documentation/engineering-standards/`
   (core + git + the matching language file — `go.md` for `server/`, the TS/JS file for the
   frontend). The rules below are repo specializations.
 - **Front/back boundary:** the browser never holds grid keys, vault RPC, R2, or Postgres
