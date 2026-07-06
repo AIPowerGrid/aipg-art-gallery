@@ -41,8 +41,13 @@ type GalleryItem struct {
 	GenerationIDs  []string `json:"generationIds,omitempty"`
 	// MediaURLs are the cached R2 URLs (may be expired)
 	MediaURLs      []string `json:"mediaUrls,omitempty"`
+	// Seeds for each generation (batch mode has multiple seeds)
+	Seeds          []string `json:"seeds,omitempty"`
 	// Parameters used to create this generation
 	Params         *JobParams `json:"params,omitempty"`
+	// Per-job provenance from the grid: which worker ran it + wall-clock seconds.
+	Worker         string     `json:"worker,omitempty"`
+	GenTime        *float64   `json:"genTime,omitempty"`
 }
 
 // Store manages the public gallery

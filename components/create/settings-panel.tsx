@@ -1,7 +1,8 @@
 "use client";
 
 import { DimensionSlider } from '@/components/dimension-slider';
-import { StylesConfig, Model } from '@/lib/types/create';
+import { StylesConfig, Model, AdvancedSettings } from '@/lib/types/create';
+import { AdvancedSettingsPanel } from './advanced-settings';
 
 interface SettingsPanelProps {
   styles: StylesConfig | null;
@@ -10,7 +11,12 @@ interface SettingsPanelProps {
   batchMode: boolean;
   onBatchModeChange: (enabled: boolean) => void;
   selectedModel: Model | null;
+  onModelChange: (modelId: string) => void;
   authenticated: boolean;
+  advancedSettings: AdvancedSettings;
+  onAdvancedSettingsChange: (settings: AdvancedSettings) => void;
+  advancedExpanded: boolean;
+  onAdvancedExpandedChange: (expanded: boolean) => void;
 }
 
 export function SettingsPanel({
@@ -20,7 +26,12 @@ export function SettingsPanel({
   batchMode,
   onBatchModeChange,
   selectedModel,
+  onModelChange,
   authenticated,
+  advancedSettings,
+  onAdvancedSettingsChange,
+  advancedExpanded,
+  onAdvancedExpandedChange,
 }: SettingsPanelProps) {
   return (
     <div className="w-full md:w-[280px] border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
@@ -101,9 +112,7 @@ export function SettingsPanel({
           <select
             className="w-full bg-transparent text-zinc-200 text-sm py-2 px-3 pr-8 rounded-lg hover:bg-zinc-700/50 cursor-pointer focus:outline-none appearance-none"
             value={selectedModel?.id || ""}
-            onChange={() => {
-              // Model selection - ready for multiple models
-            }}
+            onChange={(e) => onModelChange(e.target.value)}
           >
             {styles?.models.filter(m => m.enabled).map(model => (
               <option key={model.id} value={model.id} className="bg-zinc-800">
@@ -121,6 +130,16 @@ export function SettingsPanel({
           </svg>
         </div>
       </div>
+
+      {/* Advanced Settings */}
+      <AdvancedSettingsPanel
+        selectedModel={selectedModel}
+        settings={advancedSettings}
+        onChange={onAdvancedSettingsChange}
+        isExpanded={advancedExpanded}
+        onExpandedChange={onAdvancedExpandedChange}
+        defaults={styles?.defaults || { steps: 28, cfgScale: 3.5 }}
+      />
     </div>
   );
 }

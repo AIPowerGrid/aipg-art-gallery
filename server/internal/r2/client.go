@@ -128,11 +128,16 @@ func ConvertToCDNURL(mediaURL string) string {
 		return ""
 	}
 	
-	// If already a CDN URL, return as-is
-	if strings.HasPrefix(mediaURL, "https://images.aipg.art/") {
+	// If already a public CDN URL, return as-is. The new grid serves media from
+	// media.aipg.art (GRID_MEDIA_BASE_URL) with multi-segment keys like
+	// image/{job}/0.webp — the last-segment flattening below would destroy those,
+	// so both CDN hosts must short-circuit here. (images.aipg.art is the legacy
+	// alias for the same bucket; keep it for older stored URLs.)
+	if strings.HasPrefix(mediaURL, "https://media.aipg.art/") ||
+		strings.HasPrefix(mediaURL, "https://images.aipg.art/") {
 		return mediaURL
 	}
-	
+
 	// Skip data URLs (base64 encoded images)
 	if strings.HasPrefix(mediaURL, "data:") {
 		return mediaURL

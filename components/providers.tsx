@@ -9,6 +9,7 @@ import { useState, type ReactNode, useEffect, useRef, useMemo } from "react";
 import { base } from "wagmi/chains";
 import { signIn, isAuthenticated, getAuthAddress, clearAuthToken } from "@/lib/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { GoogleOneTap } from "@/components/google-one-tap";
 
 // Handle network switching and SIWE auth
 function WalletManager({ children }: { children: ReactNode }) {
@@ -19,10 +20,10 @@ function WalletManager({ children }: { children: ReactNode }) {
   const authAttempted = useRef(false);
   
   // Auth store for reactive auth state
-  const { setAuthenticated, clearAuth, syncFromStorage, syncFromServer } = useAuthStore();
+  const { authMethod, setAuthenticated, clearAuth, syncFromStorage, syncFromServer } = useAuthStore();
 
-  // On mount: show the optimistic local state immediately, then reconcile with
-  // the authoritative server session (httpOnly cookie via /auth/me).
+  // On mount: show optimistic local state immediately, then reconcile with the
+  // authoritative server session (httpOnly cookie via /auth/me).
   useEffect(() => {
     syncFromStorage();
     void syncFromServer();
@@ -38,12 +39,12 @@ function WalletManager({ children }: { children: ReactNode }) {
     }
   }, [isConnected, chainId, switchChain]);
 
-  // Clear auth when wallet disconnects
+  // Clear wallet auth when wallet disconnects (but preserve Google auth)
   useEffect(() => {
-    if (!isConnected) {
+    if (!isConnected && authMethod === 'wallet') {
       clearAuth();
     }
-  }, [isConnected, clearAuth]);
+  }, [isConnected, authMethod, clearAuth]);
 
   // Handle auth when wallet connects
   useEffect(() => {
@@ -56,7 +57,10 @@ function WalletManager({ children }: { children: ReactNode }) {
     const storedAddress = getAuthAddress();
     if (storedAddress && storedAddress.toLowerCase() !== address.toLowerCase()) {
       clearAuthToken();
-      clearAuth();
+      // Only clear if we were using wallet auth
+      if (authMethod === 'wallet') {
+        clearAuth();
+      }
     }
 
     // Already authenticated for this address
@@ -68,29 +72,59 @@ function WalletManager({ children }: { children: ReactNode }) {
     // Don't retry if already attempted this session
     if (authAttempted.current) return;
 
+    let cancelled = false;
+
     const doAuth = async () => {
       authAttempted.current = true;
       setIsSigningIn(true);
       try {
-        await signIn({ address, signMessageAsync, chainId: base.id });
-        setAuthenticated(address); // Update reactive state
+        // On a fresh connect, wagmi reports isConnected before the connector's
+        // provider can actually sign — signMessageAsync throws
+        // "Connector not connected". Retry on that (only) until the provider is
+        // ready, so the user gets the signature prompt without needing a refresh.
+        let lastErr: unknown;
+        for (let attempt = 0; attempt < 8 && !cancelled; attempt++) {
+          try {
+            await signIn({ address, signMessageAsync, chainId: base.id });
+            if (!cancelled) setAuthenticated(address);
+            return;
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : '';
+            // User declined, or a genuine error → stop immediately.
+            if (msg.includes('rejected') || msg.includes('User rejected')) throw err;
+            if (!/not connected|Connector|getChainId|provider/i.test(msg)) throw err;
+            // Connector not ready yet → wait briefly and retry.
+            lastErr = err;
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
+        if (!cancelled) throw lastErr;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : '';
-        if (!message.includes('rejected')) {
-          console.error('Auth failed:', err);
+        if (!message.includes('rejected') && !message.includes('User rejected')) {
+          console.error('Auto sign-in failed:', err);
         }
-        authAttempted.current = false; // Allow retry on non-rejection errors
+        // Allow manual retry via dropdown
+        authAttempted.current = false;
       } finally {
-        setIsSigningIn(false);
+        if (!cancelled) setIsSigningIn(false);
       }
     };
 
-    // Small delay for connection to settle
-    const timer = setTimeout(doAuth, 300);
-    return () => clearTimeout(timer);
-  }, [isConnected, address, signMessageAsync, setAuthenticated, clearAuth]);
+    // Small initial delay for connection to settle, then doAuth retries until ready.
+    const timer = setTimeout(doAuth, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isConnected, address, signMessageAsync, setAuthenticated, clearAuth, authMethod]);
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <GoogleOneTap />
+    </>
+  );
 }
 
 const queryClient = new QueryClient({

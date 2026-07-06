@@ -9,7 +9,7 @@ type GalleryStore interface {
 	Delete(jobID string) error
 	SetPublic(jobID string, isPublic bool) error
 	UpdateMediaURLs(jobID string, mediaURLs []string) error
-	UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler string) error
+	UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler, worker string, genTime *float64) error
 	Count() int
 }
 
@@ -49,7 +49,7 @@ func (a *FileStoreAdapter) UpdateMediaURLs(jobID string, mediaURLs []string) err
 	return nil
 }
 
-func (a *FileStoreAdapter) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler string) error {
+func (a *FileStoreAdapter) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler, worker string, genTime *float64) error {
 	// File store doesn't support this operation
 	return nil
 }

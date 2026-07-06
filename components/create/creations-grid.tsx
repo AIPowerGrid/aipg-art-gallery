@@ -14,16 +14,16 @@ const MASONRY_BREAKPOINTS = {
 interface CreationsGridProps {
   creations: DisplayCreation[];
   onDelete: (jobId: string) => void;
-  onRegenerate: (creation: DisplayCreation) => void;
-  regeneratingJobId: string | null;
+  onEditInStudio: (creation: DisplayCreation) => void;
+  onRefresh?: () => void;
   isGenerating: boolean;
 }
 
 export function CreationsGrid({
   creations,
   onDelete,
-  onRegenerate,
-  regeneratingJobId,
+  onEditInStudio,
+  onRefresh,
   isGenerating,
 }: CreationsGridProps) {
   if (creations.length === 0 && !isGenerating) {
@@ -52,8 +52,8 @@ export function CreationsGrid({
             key={creation.jobId}
             creation={creation}
             onDelete={onDelete}
-            onRegenerate={onRegenerate}
-            isRegenerating={regeneratingJobId === creation.jobId}
+            onRegenerate={() => onEditInStudio(creation)}
+            onExtractComplete={onRefresh}
           />
         ))}
       </Masonry>

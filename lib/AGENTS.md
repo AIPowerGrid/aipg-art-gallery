@@ -2,47 +2,46 @@
 
 ## Purpose
 
-The browser-side application logic that sits between `app/` pages and the Go API: the typed
-API client, wallet/web3 integration, auth/JWT handling, Zustand stores, and React hooks.
+The browser-side application logic between `app/` pages and the backends: the typed API client,
+wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 
 ## Ownership
 
-- `api.ts` — the single typed client for the Go API (`NEXT_PUBLIC_GALLERY_API`, default
-  `http://localhost:4000/api`). Attaches the JWT as `Authorization: Bearer` and surfaces
-  `status: message` errors for rate-limit/error handling.
-- `auth.ts` — JWT + wallet-address storage helpers. `wagmi.ts` — wagmi/RainbowKit config.
-- `web3/` — wallet hooks/types (re-exported via `index.ts`). `supabase.ts` — Supabase client
-  (social auth). `generation-limits.ts` — anon/member generation-limit logic.
-- `stores/` — Zustand stores (`auth-store.ts`, `job-store.ts`).
-- `hooks/` — data + UI hooks (`use-creations`, `use-generation`, `use-media-fetching`,
-  `use-styles-config`, `use-wallet-address`, `use-favicon-progress`). Tested ones under
-  `hooks/__tests__/`.
-- `storage.ts` — client storage helpers. `utils/` — `download.ts`, `thumbnails.ts` (tested
-  under `utils/__tests__/`). `types/create.ts` — create-flow types.
+- `api.ts` — the single typed client for the Go API. Sends the session cookie via
+  `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
+- `auth.ts` — wallet sign-in (calls the Next `/auth-api/*` routes), session helpers, and the
+  non-sensitive session marker (address + expiry). Exposes `signIn`, `signOut` (→ Go
+  `/auth/logout`), `fetchSession` (→ Go `/auth/me`), `isAuthenticated`, `getApiBase`.
+- `nonce-store.ts` — in-memory one-time nonce store used by the `/auth-api` routes
+  (`storeNonce` / `consumeNonce` / `cleanupNonces`). Replace with Redis if multi-instance.
+- `wagmi.ts` — wagmi/RainbowKit config. `web3/` — wallet hooks/types. `supabase.ts` — Supabase
+  client. `generation-limits.ts` — anon/member generation-limit logic (UX gating only).
+- `stores/` — Zustand stores (`auth-store.ts` supports wallet + Google; `job-store.ts`).
+- `hooks/` — data + UI hooks. `storage.ts`, `utils/` (`download.ts`, `thumbnails.ts`),
+  `types/create.ts`.
 
 ## Local Contracts
 
-- **`api.ts` is the only place that calls the Go API.** Pages/components/hooks go through it,
-  not raw `fetch`. New endpoints get a typed function here.
-- **The JWT is never in JS.** It lives only in an httpOnly cookie set by the Go server; `api.ts`
-  sends it via `credentials: 'include'` (no `Authorization` header). `auth.ts` stores only a
-  non-sensitive address+expiry marker for `isAuthenticated()` UI state; `fetchSession()`
-  (`/auth/me`) is the authoritative check. Never reintroduce token storage in `localStorage`.
+- **`api.ts` is the only place that calls the Go API.** Components/hooks go through it.
+- **The JWT is never in JS.** It lives only in the httpOnly cookie set by `/auth-api/verify`
+  (wallet) or the Go `/auth/google` (Google). `auth.ts` / `auth-store.ts` store only
+  non-sensitive markers (wallet address, Google profile) for UI. Never store a token in
+  `localStorage`. `getActiveAuthToken` / token getters must not return.
 - `generation-limits.ts` gates are **UX only** — the Go server independently caps batch size,
-  dimensions, and steps. Never treat a client-side limit as a security boundary.
-- SIWE sign-in (`auth.ts`) must keep sending the full prepared message + a fresh nonce per
-  attempt; the backend rejects reused nonces and stale/foreign-domain messages.
-- Keep request/response types aligned with `types/models.ts` and the Go structs — the API is
-  the contract; mismatches surface as runtime errors.
+  dimensions, steps. Never treat a client-side limit as a security boundary.
+- Wallet sign-in (`auth.ts`) must send the full prepared SIWE message + a fresh nonce per
+  attempt; the `/auth-api/verify` route rejects reused nonces and stale/foreign-domain messages.
+- `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
+  is optimistic UI only.
+- Keep request/response types aligned with `types/models.ts` and the Go structs.
 
 ## Work Guidance
 
-- New API call → add a typed function in `api.ts`; surface state via a hook in `hooks/` and a
-  store in `stores/` if it's shared. Add a test next to tested siblings when logic is nontrivial.
+- New API call → add a typed function in `api.ts`; surface via a hook and a store if shared.
 
 ## Verification
 
-- `npm run test` (Jest) — covers `hooks/` and `utils/` with `__tests__/`.
+- `npm run test` (Jest) — covers `hooks/` and `utils/`. `npx tsc --noEmit`.
 
 ## Child DOX Index
 

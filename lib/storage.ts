@@ -42,6 +42,9 @@ export interface StoredCreation {
   tags: string[];
   walletAddress?: string;
   isPublic?: boolean;
+  // Per-job provenance from the grid (which worker ran it + how long it took).
+  worker?: string;
+  genTime?: number;
 }
 
 // Generation params for display

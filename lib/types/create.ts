@@ -7,6 +7,13 @@ export interface ModelSettings {
   cfgScale?: number;
   sampler?: string;
   scheduler?: string;
+  length?: number; // video: frame count
+  fps?: number;    // video: frames per second
+}
+
+export interface ModelLimits {
+  steps?: { min: number; max: number };
+  cfgScale?: { min: number; max: number };
 }
 
 export interface Model {
@@ -17,6 +24,13 @@ export interface Model {
   enabled: boolean;
   default: boolean;
   settings?: ModelSettings;
+  limits?: ModelLimits;
+}
+
+export interface AdvancedSettings {
+  seed?: string;
+  steps?: number;
+  cfgScale?: number;
 }
 
 export interface Dimension {

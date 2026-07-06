@@ -4,14 +4,19 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
-import { PromptForm, SettingsPanel, CreationsGrid, AnonLimitBanner } from "@/components/create";
+import { PromptForm, SettingsPanel, CreationsGrid, AnonLimitBanner, StylePicker, LoraInput, CollapsibleSection } from "@/components/create";
+import type { LoraSpec } from "@/components/create";
 import { useStylesConfig, getDefaultModel, getDimension } from "@/lib/hooks/use-styles-config";
+import { useGridStyles } from "@/lib/hooks/use-grid-styles";
+import { GridStyle } from "@/types/models";
 import { useCreations } from "@/lib/hooks/use-creations";
 import { useGeneration } from "@/lib/hooks/use-generation";
 import { useJobStore } from "@/lib/stores/job-store";
 import { useFaviconProgress, calculateProgress } from "@/lib/hooks/use-favicon-progress";
 import { getRemainingGenerations, GENERATION_LIMIT } from "@/lib/generation-limits";
 import { isAuthenticated } from "@/lib/auth";
+import { AdvancedSettings } from "@/lib/types/create";
+import { DisplayCreation } from "@/lib/storage";
 
 export default function CreatePage() {
   const [mounted, setMounted] = useState(false);
@@ -42,10 +47,22 @@ function CreatePageContent() {
   const [batchMode, setBatchMode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remainingGens, setRemainingGens] = useState(GENERATION_LIMIT);
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({});
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
+  const [prompt, setPrompt] = useState("");
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
+  const [sourceImage, setSourceImage] = useState<string | null>(null);
+  const [lora, setLora] = useState<LoraSpec | null>(null);
 
   // Styles/config
   const { styles, error: stylesError } = useStylesConfig();
-  const selectedModel = getDefaultModel(styles);
+  // Curated creative styles served by the grid (separate from the config blob above).
+  const { gridStyles } = useGridStyles();
+  const defaultModel = getDefaultModel(styles);
+  const selectedModel = selectedModelId 
+    ? styles?.models.find(m => m.id === selectedModelId) || defaultModel
+    : defaultModel;
   const selectedDimension = getDimension(styles, dimensionId);
 
   // Set default dimension when styles load
@@ -56,16 +73,14 @@ function CreatePageContent() {
   }, [styles?.defaultDimensionId]);
 
   // Creations (single source of truth)
-  const { creations, addCreation, removeCreation, hasActiveJobs } = useCreations(address);
+  const { creations, addCreation, removeCreation, hasActiveJobs, refresh } = useCreations(address);
 
   // Generation logic
   const {
     isGenerating,
     isEnhancing,
     error: generationError,
-    regeneratingJobId,
     generate,
-    regenerate,
     enhance,
   } = useGeneration({
     styles,
@@ -74,6 +89,10 @@ function CreatePageContent() {
     batchMode,
     walletAddress: address,
     isConnected,
+    advancedSettings,
+    selectedStyleId,
+    sourceImage,
+    lora,
     onCreationAdded: addCreation,
     onShowAuthModal: () => setShowAuthModal(true),
     onRemainingGensChange: setRemainingGens,
@@ -97,6 +116,34 @@ function CreatePageContent() {
 
   const error = stylesError || generationError;
 
+  // Selecting a style switches the model to the one it's tuned for (matched
+  // case-insensitively against the local model list). The grid still enforces
+  // the style's locked params + prompt template server-side.
+  const handleStyleSelect = (style: GridStyle | null) => {
+    setSelectedStyleId(style?.id ?? null);
+    if (style && styles?.models) {
+      const m = styles.models.find(
+        (mm) =>
+          mm.id.toLowerCase() === style.model.toLowerCase() ||
+          mm.name.toLowerCase() === style.model.toLowerCase()
+      );
+      if (m) setSelectedModelId(m.id);
+    }
+  };
+
+  // Handle "Edit in Studio" - prefill prompt and settings from existing creation
+  const handleEditInStudio = (creation: DisplayCreation) => {
+    setPrompt(creation.prompt);
+    setAdvancedSettings({
+      seed: creation.params?.seed,
+      steps: creation.params?.steps,
+      cfgScale: creation.params?.cfgScale,
+    });
+    setAdvancedExpanded(true);
+    // Scroll to top to see the prompt form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <main className="min-h-screen bg-black">
       <Header />
@@ -108,9 +155,45 @@ function CreatePageContent() {
           authenticated={authenticated}
         />
 
+        {/* Optional creative controls — collapsed by default so the prompt stays
+            the focus; each expands inline and shows its active selection. */}
+        <div className="flex flex-col gap-3 mb-6">
+          <CollapsibleSection
+            title="Styles"
+            hint={
+              selectedStyleId
+                ? gridStyles.find((s) => s.id === selectedStyleId)?.name ?? "1 selected"
+                : undefined
+            }
+          >
+            <StylePicker
+              styles={gridStyles}
+              selectedStyleId={selectedStyleId}
+              onSelect={handleStyleSelect}
+              modelType={selectedModel?.type === "video" ? "video" : "image"}
+            />
+          </CollapsibleSection>
+
+          {selectedModel?.type !== "video" && (
+            <CollapsibleSection title="LoRA" hint={lora ? "1 added" : undefined}>
+              <LoraInput
+                value={lora}
+                onChange={setLora}
+                hint={
+                  selectedModel?.id?.toLowerCase().includes("klein")
+                    ? "CivitAI link/version id — use Flux.2 Klein 4B LoRAs only"
+                    : "CivitAI link/version id — z-image LoRAs work best"
+                }
+              />
+            </CollapsibleSection>
+          )}
+        </div>
+
         {/* Generate Section */}
         <div className="flex flex-col md:flex-row md:items-stretch gap-6 mb-12">
           <PromptForm
+            prompt={prompt}
+            onPromptChange={setPrompt}
             onGenerate={generate}
             onEnhance={enhance}
             isGenerating={isGenerating || hasActiveJobs}
@@ -119,6 +202,8 @@ function CreatePageContent() {
             selectedModel={selectedModel}
             batchMode={batchMode}
             trackedJobStatus={trackedJob?.status}
+            sourceImage={sourceImage}
+            onSourceChange={setSourceImage}
           />
 
           <SettingsPanel
@@ -128,7 +213,12 @@ function CreatePageContent() {
             batchMode={batchMode}
             onBatchModeChange={setBatchMode}
             selectedModel={selectedModel}
+            onModelChange={setSelectedModelId}
             authenticated={authenticated}
+            advancedSettings={advancedSettings}
+            onAdvancedSettingsChange={setAdvancedSettings}
+            advancedExpanded={advancedExpanded}
+            onAdvancedExpandedChange={setAdvancedExpanded}
           />
         </div>
 
@@ -136,8 +226,8 @@ function CreatePageContent() {
         <CreationsGrid
           creations={creations}
           onDelete={removeCreation}
-          onRegenerate={regenerate}
-          regeneratingJobId={regeneratingJobId}
+          onEditInStudio={handleEditInStudio}
+          onRefresh={refresh}
           isGenerating={isGenerating || hasActiveJobs}
         />
       </div>

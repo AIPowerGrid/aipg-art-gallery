@@ -1,4 +1,4 @@
-import { CreateJobRequest, GalleryModel, JobStatus, ModelsResponse } from "@/types/models";
+import { CreateJobRequest, GalleryModel, GridStyle, JobStatus, ModelsResponse } from "@/types/models";
 
 const getApiBase = () =>
   process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
@@ -50,6 +50,11 @@ export function fetchJobStatus(jobId: string) {
   return jsonFetch<JobStatus>(`/jobs/${jobId}`);
 }
 
+/** Curated creative styles from the grid (model→recipe→style layer). */
+export function fetchGridStyles(): Promise<{ styles: GridStyle[] }> {
+  return jsonFetch("/styles/grid", undefined, 60);
+}
+
 // Gallery API
 
 export interface JobParams {
@@ -80,6 +85,9 @@ export interface GalleryItem {
   createdAt: number;
   params?: JobParams;
   mediaUrls?: string[];
+  seeds?: string[];  // Seeds for each image in batch mode
+  worker?: string;   // grid worker that ran it
+  genTime?: number;  // wall-clock generation seconds
 }
 
 export interface GalleryResponse {
@@ -138,6 +146,8 @@ export interface AddToGalleryRequest {
   walletAddress?: string;
   params?: JobParams;
   mediaUrls?: string[];
+  worker?: string;
+  genTime?: number;
 }
 
 export function addToGallery(item: AddToGalleryRequest): Promise<{ success: boolean }> {
@@ -193,11 +203,21 @@ export function unpublishGalleryItem(jobId: string): Promise<{ success: boolean;
   });
 }
 
+export function extractSingleImage(jobId: string, index: number): Promise<{ success: boolean; newJobId: string }> {
+  return jsonFetch(`/gallery/${jobId}/extract`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ index }),
+  });
+}
+
 export interface UpdateGalleryItemRequest {
   mediaUrls: string[];
   seeds?: string[];  // Seeds for each generation (batch mode has multiple)
   sampler?: string;
   scheduler?: string;
+  worker?: string;   // grid worker that ran it
+  genTime?: number;  // wall-clock generation seconds
 }
 
 export function updateGalleryItem(jobId: string, data: UpdateGalleryItemRequest): Promise<{ success: boolean }> {

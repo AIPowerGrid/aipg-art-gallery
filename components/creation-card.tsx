@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { deleteGalleryItem, publishGalleryItem, unpublishGalleryItem, GalleryItem } from "@/lib/api";
+import { deleteGalleryItem, publishGalleryItem, unpublishGalleryItem, extractSingleImage, GalleryItem } from "@/lib/api";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { getThumbnailUrl } from "@/lib/utils/thumbnails";
 import { DisplayCreation, removeCreation } from "@/lib/storage";
@@ -12,17 +12,19 @@ interface CreationCardProps {
   onDelete?: (jobId: string) => void;
   onPublishChange?: (jobId: string, isPublic: boolean) => void;
   onRegenerate?: (creation: DisplayCreation) => void;
+  onExtractComplete?: () => void; // Called after Save as Single succeeds
   isRegenerating?: boolean;
 }
 
 // Unified Creation Card - handles both generating and completed states
-export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate, isRegenerating }: CreationCardProps) {
+export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate, onExtractComplete, isRegenerating }: CreationCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
-  const [showFeedback, setShowFeedback] = useState<'published' | 'unpublished' | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [showFeedback, setShowFeedback] = useState<'published' | 'unpublished' | 'extracted' | null>(null);
   const [localIsPublic, setLocalIsPublic] = useState(creation.isPublic);
   
   const isBatchGeneration = creation.generations.length > 1;
@@ -79,6 +81,23 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
       alert(localIsPublic ? 'Failed to unpublish' : 'Failed to publish');
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleExtract = async (index: number) => {
+    setIsExtracting(true);
+    try {
+      await extractSingleImage(creation.jobId, index);
+      setShowFeedback('extracted');
+      setTimeout(() => setShowFeedback(null), 2000);
+      setShowModal(false);
+      // Trigger refresh so new item appears
+      onExtractComplete?.();
+    } catch (err) {
+      console.error('Failed to extract image:', err);
+      alert('Failed to save as single');
+    } finally {
+      setIsExtracting(false);
     }
   };
   
@@ -297,6 +316,41 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
           {/* Action buttons - top right (show for single when ready, or batch with images) */}
           {(!showSpinner || batchHasImages) && (
             <div className="absolute top-2 right-2 flex gap-1.5 z-10">
+              {/* Job info (worker + timing from the grid) — ⓘ with hover panel */}
+              {(creation.worker || creation.genTime != null || firstGen?.seed) && (
+                <div className="relative group/info">
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-7 h-7 flex items-center justify-center rounded-full bg-black/50 hover:bg-zinc-700 text-white text-xs opacity-0 group-hover:opacity-100 transition-all"
+                    title="Generation details"
+                    aria-label="Generation details"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className="absolute top-8 right-0 w-52 p-3 rounded-lg bg-zinc-900/95 border border-zinc-700 shadow-xl text-[11px] text-zinc-300 opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-30 cursor-default"
+                  >
+                    <div className="font-semibold text-zinc-100 mb-1.5">Generation details</div>
+                    <dl className="space-y-1">
+                      {creation.worker && (
+                        <div className="flex justify-between gap-2"><dt className="text-zinc-500">Worker</dt><dd className="text-right truncate font-mono">{creation.worker}</dd></div>
+                      )}
+                      {creation.modelName && (
+                        <div className="flex justify-between gap-2"><dt className="text-zinc-500">Model</dt><dd className="text-right truncate">{creation.modelName}</dd></div>
+                      )}
+                      {creation.genTime != null && (
+                        <div className="flex justify-between gap-2"><dt className="text-zinc-500">Gen time</dt><dd className="text-right">{creation.genTime.toFixed(1)}s</dd></div>
+                      )}
+                      {firstGen?.seed && (
+                        <div className="flex justify-between gap-2"><dt className="text-zinc-500">Seed</dt><dd className="text-right font-mono truncate">{firstGen.seed}</dd></div>
+                      )}
+                    </dl>
+                  </div>
+                </div>
+              )}
               {/* Publish toggle button */}
               <button
                 onClick={(e) => {
@@ -366,6 +420,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
             walletAddress: creation.walletAddress,
             createdAt: creation.createdAt,
             mediaUrls: creation.generations.map(g => g.url || g.base64 || "").filter(Boolean),
+            seeds: creation.generations.map(g => g.seed).filter(Boolean),
             params: creation.params || {
               width: creation.width,
               height: creation.height,
@@ -384,9 +439,11 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
           onPublish={handleTogglePublish}
           onDelete={() => handleDelete({ stopPropagation: () => {} } as React.MouseEvent)}
           onRegenerate={onRegenerate ? () => onRegenerate(creation) : undefined}
+          onExtract={isBatchGeneration ? handleExtract : undefined}
           isDeleting={isDeleting}
           isPublishing={isPublishing}
           isRegenerating={isRegenerating}
+          isExtracting={isExtracting}
         />
       )}
     </>

@@ -38,54 +38,70 @@ func parseFloat(raw json.RawMessage) float64 {
 	return 0
 }
 
-type CreateJobPayload struct {
-	Prompt           string         `json:"prompt"`
-	NegativePrompt   string         `json:"negative_prompt,omitempty"`
-	Models           []string       `json:"models"`
-	NSFW             bool           `json:"nsfw"`
-	CensorNSFW       bool           `json:"censor_nsfw"`
-	TrustedWorkers   bool           `json:"trusted_workers"`
-	R2               bool           `json:"r2"`
-	Shared           bool           `json:"shared"`
-	Params           map[string]any `json:"params"`
-	SourceImage      string         `json:"source_image,omitempty"`
-	SourceProcessing string         `json:"source_processing,omitempty"`
-	SourceMask       string         `json:"source_mask,omitempty"`
-	Extra            map[string]any `json:"extra,omitempty"`
-	Workers          []string       `json:"workers,omitempty"`          // Target specific worker IDs
-	WorkerBlacklist  bool           `json:"worker_blacklist,omitempty"` // If true, Workers is a blacklist
-	WalletAddress    string         `json:"wallet_id,omitempty"`
-	MediaType        string         `json:"media_type,omitempty"` // "image" or "video"
+// --- New grid /v1 synchronous generation (OpenAI-shaped) ---
+//
+// The new grid (api.aipowergrid.io/v1) replaces the legacy async horde: a single
+// POST blocks until the worker returns the result, so there is no poll loop on
+// the wire. The gallery bridges this back to its own async POST /jobs + poll
+// contract via an in-memory pending store (see app/pendingstore.go).
+
+// GenerateRequest is the OpenAI-style body for /v1/images/generations and
+// /v1/videos/generations. Knobs are omitempty: anything left unset falls back
+// to the model's recipe default on the grid (the "dumb happy path"), and the
+// grid rejects (422) out-of-band overrides rather than silently clamping.
+type GenerateRequest struct {
+	Prompt         string  `json:"prompt"`
+	Model          string  `json:"model"`
+	N              int     `json:"n,omitempty"`
+	Size           string  `json:"size,omitempty"`            // "WxH"; omit to let grid/source decide
+	Image          string  `json:"image,omitempty"`           // img2img / img2video source (base64 / data URI)
+	Loras          []any   `json:"loras,omitempty"`           // CivitAI passthrough (grid-gated + blacklisted)
+	OutputFormat   string  `json:"output_format,omitempty"`   // png|jpeg|webp (image only)
+	ResponseFormat string  `json:"response_format,omitempty"` // url|b64_json
+	NegativePrompt string  `json:"negative_prompt,omitempty"`
+	Seed           string  `json:"seed,omitempty"`
+	Steps          int     `json:"steps,omitempty"`
+	CfgScale       float64 `json:"cfg_scale,omitempty"`
+	Sampler        string  `json:"sampler,omitempty"`
+	Scheduler      string  `json:"scheduler,omitempty"`
+	Seconds        float64 `json:"seconds,omitempty"` // video only
+	FPS            int     `json:"fps,omitempty"`     // video only
+	Worker         string  `json:"worker,omitempty"`  // soft-affinity: prefer this worker (account must own it)
+	Style          string  `json:"style,omitempty"`   // curated style id; expanded server-side by the grid
+	ProgressToken  string  `json:"progress_token,omitempty"` // poll live % at GET /v1/progress/{token}
 }
 
-type CreateJobResponse struct {
-	ID      string  `json:"id"`
-	Message string  `json:"message"`
-	Kudos   float64 `json:"kudos"`
+// Style is one entry from the grid's GET /v1/styles registry.
+type Style struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Model       string   `json:"model"`
+	JobType     string   `json:"job_type"`
+	Aspect      string   `json:"aspect"`
+	Locked      []string `json:"locked"`
 }
 
-type JobStatusResponse struct {
-	ID            string       `json:"id"`
-	Done          bool         `json:"done"`
-	Faulted       bool         `json:"faulted"`
-	Processing    int          `json:"processing"`
-	Finished      int          `json:"finished"`
-	Waiting       int          `json:"waiting"`
-	QueuePosition int          `json:"queue_position"`
-	WaitTime      float64      `json:"wait_time"`
-	Message       string       `json:"message"`
-	Generations   []Generation `json:"generations"`
+// GenerateResponse is the OpenAI-style envelope returned by both endpoints.
+type GenerateResponse struct {
+	Created int64           `json:"created"`
+	Data    []GeneratedItem `json:"data"`
+	Grid    *GridMeta       `json:"grid,omitempty"`
 }
 
-type Generation struct {
-	ID       string      `json:"id"`
-	Img      string      `json:"img"`
-	ImgURL   string      `json:"img_url"`
-	Image    string      `json:"image"`
-	Mime     string      `json:"mime"`
-	Seed     interface{} `json:"seed"`
-	WorkerID string      `json:"worker_id"`
-	Worker   string      `json:"worker_name"`
-	State    string      `json:"state"`
-	Video    string      `json:"video"`
+type GeneratedItem struct {
+	URL           string `json:"url"`
+	B64JSON       string `json:"b64_json"`
+	RevisedPrompt string `json:"revised_prompt"`
+	Seed          *int64 `json:"seed,omitempty"`
+}
+
+// GridMeta is the per-job provenance the grid attaches to a generation: which
+// worker ran it, how long it took, and (text only) ttft / tokens-per-second.
+type GridMeta struct {
+	Worker      string   `json:"worker"`
+	GenTime     *float64 `json:"gen_time"`
+	Model       string   `json:"model"`
+	TTFT        *float64 `json:"ttft,omitempty"`
+	TokensPerS  *float64 `json:"tokens_per_s,omitempty"`
 }

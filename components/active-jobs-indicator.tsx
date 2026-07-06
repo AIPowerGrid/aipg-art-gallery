@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useJobStore, TrackedJob } from "@/lib/stores/job-store";
 import { calculateProgress } from "@/lib/hooks/use-favicon-progress";
 import { getThumbnailUrl } from "@/lib/utils/thumbnails";
@@ -14,6 +15,8 @@ export function ActiveJobsIndicator() {
   const { jobs, getActiveJobs, startPolling, isPolling } = useJobStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedJob, setSelectedJob] = useState<TrackedJob | null>(null);
+  const pathname = usePathname();
+  const isOnStudio = pathname === '/create';
 
   useEffect(() => {
     setMounted(true);
@@ -73,8 +76,6 @@ export function ActiveJobsIndicator() {
     return null;
   }
 
-  const totalJobs = activeJobs.length + recentCompleted.length;
-
   return (
     <div className="relative">
       <button
@@ -92,9 +93,9 @@ export function ActiveJobsIndicator() {
           </svg>
         )}
         <span className="text-sm font-medium">Jobs</span>
-        {totalJobs > 0 && (
-          <span className="px-1.5 py-0.5 text-xs bg-zinc-700 rounded-full">
-            {totalJobs}
+        {activeJobs.length > 0 && (
+          <span className="px-1.5 py-0.5 text-xs bg-indigo-600 rounded-full">
+            {activeJobs.length}
           </span>
         )}
         <svg 
@@ -116,13 +117,15 @@ export function ActiveJobsIndicator() {
           <div className="px-4 py-3 bg-zinc-800/50 border-b border-zinc-700">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-white">Jobs</span>
-              <Link
-                href="/create"
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
-                onClick={() => setShowDropdown(false)}
-              >
-                View all in Studio →
-              </Link>
+              {!isOnStudio && (
+                <Link
+                  href="/create"
+                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  onClick={() => setShowDropdown(false)}
+                >
+                  View all in Studio →
+                </Link>
+              )}
             </div>
           </div>
 
@@ -148,7 +151,7 @@ export function ActiveJobsIndicator() {
                   <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Completed ({recentCompleted.length})
+                  Just Finished
                 </div>
                 {recentCompleted.map((job) => (
                   <JobItem 

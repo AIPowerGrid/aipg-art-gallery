@@ -1,49 +1,125 @@
 import { create } from 'zustand';
-import { getAuthAddress, isAuthenticated, fetchSession } from '@/lib/auth';
+import { getAuthAddress, isAuthenticated, signOut, getApiBase } from '@/lib/auth';
+
+// Non-sensitive Google profile, kept in localStorage for UI only. The Google
+// JWT itself is NOT stored here — it lives in the httpOnly cookie set by the Go
+// /auth/google endpoint.
+const GOOGLE_ID_KEY = 'aipg_google_id';
+const GOOGLE_EMAIL_KEY = 'aipg_google_email';
+const GOOGLE_NAME_KEY = 'aipg_google_name';
+const GOOGLE_PICTURE_KEY = 'aipg_google_picture';
+const GOOGLE_EXPIRY_KEY = 'aipg_google_expiry';
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface AuthState {
   isAuthenticated: boolean;
+  authMethod: 'wallet' | 'google' | null;
   address: string | null;
+  googleId: string | null;
+  email: string | null;
+  name: string | null;
+  picture: string | null;
 
-  // Call this after sign-in to update state
   setAuthenticated: (address: string) => void;
-
-  // Call this on sign-out
+  setGoogleAuth: (googleId: string, email: string, name: string, picture: string) => void;
   clearAuth: () => void;
-
-  // Optimistic sync from the local (non-sensitive) session marker. Synchronous.
   syncFromStorage: () => void;
-
-  // Authoritative reconcile against the server session cookie (/auth/me).
   syncFromServer: () => Promise<void>;
+  getUserIdentifier: () => string | null;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+function clearGoogleProfile() {
+  [GOOGLE_ID_KEY, GOOGLE_EMAIL_KEY, GOOGLE_NAME_KEY, GOOGLE_PICTURE_KEY, GOOGLE_EXPIRY_KEY]
+    .forEach((k) => localStorage.removeItem(k));
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
+  authMethod: null,
   address: null,
+  googleId: null,
+  email: null,
+  name: null,
+  picture: null,
 
   setAuthenticated: (address: string) => {
-    set({ isAuthenticated: true, address: address.toLowerCase() });
+    set({
+      isAuthenticated: true,
+      authMethod: 'wallet',
+      address: address.toLowerCase(),
+      googleId: null, email: null, name: null, picture: null,
+    });
+  },
+
+  setGoogleAuth: (googleId: string, email: string, name: string, picture: string) => {
+    // Store only the non-sensitive profile for UI; the JWT is in the cookie.
+    localStorage.setItem(GOOGLE_ID_KEY, googleId);
+    localStorage.setItem(GOOGLE_EMAIL_KEY, email || '');
+    localStorage.setItem(GOOGLE_NAME_KEY, name || '');
+    localStorage.setItem(GOOGLE_PICTURE_KEY, picture || '');
+    localStorage.setItem(GOOGLE_EXPIRY_KEY, String(Date.now() + SESSION_TTL_MS));
+    set({ isAuthenticated: true, authMethod: 'google', address: null, googleId, email, name, picture });
   },
 
   clearAuth: () => {
-    set({ isAuthenticated: false, address: null });
+    clearGoogleProfile();
+    // Clears the wallet marker AND clears the httpOnly cookie server-side.
+    void signOut();
+    set({
+      isAuthenticated: false, authMethod: null,
+      address: null, googleId: null, email: null, name: null, picture: null,
+    });
   },
 
   syncFromStorage: () => {
+    // Optimistic UI from local markers (no token decode). Server reconciles next.
     if (isAuthenticated()) {
-      set({ isAuthenticated: true, address: getAuthAddress() });
-    } else {
-      set({ isAuthenticated: false, address: null });
+      set({ isAuthenticated: true, authMethod: 'wallet', address: getAuthAddress() });
+      return;
     }
+    const googleId = localStorage.getItem(GOOGLE_ID_KEY);
+    const googleExpiry = Number(localStorage.getItem(GOOGLE_EXPIRY_KEY) ?? 0);
+    if (googleId && googleExpiry > Date.now()) {
+      set({
+        isAuthenticated: true, authMethod: 'google', googleId,
+        email: localStorage.getItem(GOOGLE_EMAIL_KEY),
+        name: localStorage.getItem(GOOGLE_NAME_KEY),
+        picture: localStorage.getItem(GOOGLE_PICTURE_KEY),
+      });
+      return;
+    }
+    set({ isAuthenticated: false, authMethod: null, address: null, googleId: null });
   },
 
   syncFromServer: async () => {
-    const address = await fetchSession();
-    if (address) {
-      set({ isAuthenticated: true, address });
-    } else {
-      set({ isAuthenticated: false, address: null });
+    // Authoritative reconcile against the session cookie.
+    try {
+      const res = await fetch(`${getApiBase()}/auth/me`, { credentials: 'include' });
+      if (!res.ok) {
+        clearGoogleProfile();
+        set({ isAuthenticated: false, authMethod: null, address: null, googleId: null });
+        return;
+      }
+      const data = await res.json();
+      if (data.authMethod === 'google' && data.googleId) {
+        set({
+          isAuthenticated: true, authMethod: 'google',
+          address: null, googleId: data.googleId, email: data.email, name: data.name,
+        });
+      } else if (data.address) {
+        set({ isAuthenticated: true, authMethod: 'wallet', address: data.address.toLowerCase() });
+      } else {
+        set({ isAuthenticated: false, authMethod: null, address: null, googleId: null });
+      }
+    } catch {
+      // network hiccup: keep optimistic state
     }
+  },
+
+  getUserIdentifier: () => {
+    const state = get();
+    if (state.authMethod === 'wallet') return state.address;
+    if (state.authMethod === 'google') return state.googleId;
+    return null;
   },
 }));

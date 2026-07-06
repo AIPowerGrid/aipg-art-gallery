@@ -2,56 +2,51 @@
 
 ## Purpose
 
-The backend (chi router, Go 1.23). The only component that talks to the grid, the on-chain
-vaults, Cloudflare R2, and Postgres. Brokers image/video generation jobs to the grid,
-serves the gallery + media, runs SIWE auth, and proxies prompt enhancement. Entry point:
-`cmd/api/main.go`; all routes + HTTP handlers live in `internal/app/app.go`.
+The backend (chi router, Go ≥1.24). The only component that talks to the grid, the on-chain
+vaults, Cloudflare R2, and Postgres. Brokers image/video generation jobs, serves the gallery +
+media, validates auth sessions, runs Google One Tap sign-in, and proxies prompt enhancement.
+Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app/app.go`.
 
 ## Ownership
 
 - `cmd/api/main.go` — process entry: loads `.env`, builds `app.App`, serves `cfg.Address`.
 - `internal/app/app.go` — the router + every HTTP handler (~2K LOC god-file). Routes under
-  `/api`: auth (`/auth/nonce`, `/auth/verify`), `/models`, `/styles`, `/ai/enhance`, `/jobs`
-  (create + status), public `/gallery` + `/favorites` reads, and JWT-protected
+  `/api`: auth (`/auth/google`, `/auth/logout`, protected `/auth/me`), `/models`, `/styles`,
+  `/ai/enhance`, `/jobs`, public `/gallery` + `/favorites` reads, and JWT-protected
   gallery/favorites writes. CORS + IP rate limits (100/min global, 20/min on job create).
 - `internal/config` — typed `Config` + `Load()` (all env reads live here).
-- `internal/app` is owned here; the `internal/*` provider packages are owned in
-  `internal/AGENTS.md`.
 - `config/model_presets.json` — local model defaults/limits merged with on-chain models.
 
 ## Local Contracts
 
-- **One handler file:** routes and handlers stay in `internal/app/app.go`; provider logic
-  (vaults, r2, db, grid client, ai) stays in its `internal/*` package. Do not put env reads
-  outside `internal/config`.
-- **Graceful degradation:** if ModelVault / RecipeVault / Postgres / R2 init fails, the app
-  logs and continues with a fallback (presets-only, file-store gallery, no media). Preserve
-  this — a missing optional dependency must not crash startup.
-- **Auth:** `/auth/nonce` issues a single-use, expiring nonce (`internal/auth` `NonceStore`).
-  `/auth/verify` parses the SIWE message (`ParseSiweMessage`), validates domain + address +
-  `Issued At` freshness, **consumes the one-time nonce before** verifying the EIP-191 signature
-  (replay protection), then issues an HS256 JWT **as an httpOnly `aipg_auth` cookie** (the body
-  returns only the address — the token never goes to JS). `/auth/me` returns the current wallet;
-  `/auth/logout` clears the cookie. `authMiddleware` reads the cookie (Bearer header fallback),
-  and for cookie-borne mutating requests enforces an Origin allowlist (CSRF). Cookie attributes
-  come from `AUTH_COOKIE_DOMAIN` / `AUTH_COOKIE_SECURE` (Secure also auto-set for HTTPS). Keep
-  the SIWE flow + cookie behaviour compatible with `lib/auth.ts`. Nonce store is in-memory
-  (single instance).
+- **One handler file:** routes and handlers stay in `internal/app/app.go`; provider logic stays
+  in its `internal/*` package. Env reads only in `internal/config`.
+- **Graceful degradation:** if ModelVault / RecipeVault / Postgres / R2 init fails, the app logs
+  and continues with a fallback. Preserve this — a missing optional dependency must not crash.
+- **Auth:** wallet sign-in is NOT handled here — it lives in the Next `/auth-api/*` routes
+  (viem/ERC-6492), which mint the JWT and set the httpOnly `aipg_auth` cookie. The Go server:
+  (a) mints+sets the same cookie for Google One Tap (`/auth/google`); (b) validates the cookie
+  on protected routes via `authMiddleware` (Bearer header fallback for CLI); (c) serves
+  `/auth/me` and `/auth/logout`. `authMiddleware` enforces an Origin allowlist on cookie-borne
+  mutations (CSRF). `jwt.go` verifies HS256 with a constant-time compare + explicit `alg` check.
+  Cookie attributes come from `AUTH_COOKIE_DOMAIN` / `AUTH_COOKIE_SECURE` (Secure auto-set for
+  HTTPS). There is intentionally no Go wallet `/auth/verify` (removed dead, replay-prone path).
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
-  steps, dimensions, prompt length) server-side regardless of frontend gating. CORS fails
-  closed — `allowedOrigins()` never returns `*`; production must set `GALLERY_ALLOWED_ORIGINS`.
-- **Grid passthrough:** generation goes through `internal/aipg` to the grid `/api/v2`; the
-  server holds the grid key, the client never does.
+  steps, dimensions, prompt length). `allowedOrigins()` fails closed — never returns `*`;
+  production MUST set `GALLERY_ALLOWED_ORIGINS`.
+- **Grid passthrough:** generation goes through `internal/aipg` to the grid `/api/v2`; the server
+  holds the grid key, the client never does.
 
 ## Work Guidance
 
-- New endpoint → register in `app.Router()`, add the handler in `app.go`, wire auth + a rate
-  limit if it mutates or hits the grid. Validate request structs (see `*.Validate()`).
-- New config → add a field to `Config` and read it in `Load()`; document it in `.env.example`.
+- New endpoint → register in `app.Router()`, add the handler, wire auth + a rate limit if it
+  mutates or hits the grid. Validate request structs.
+- New config → add a field to `Config`, read it in `Load()`, document it in `.env.example`.
+- Anything that mints a JWT must set it via `setAuthCookie` (httpOnly), not return it in the body.
 
 ## Verification
 
-- `go test ./...` (current coverage: `internal/prompts`). `go build ./...`.
+- `GOTOOLCHAIN=auto go test ./... && go build ./... && go vet ./...` (toolchain pinned to 1.24).
 
 ## Child DOX Index
 

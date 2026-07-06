@@ -4,7 +4,7 @@ import { useJobStore } from '@/lib/stores/job-store';
 import { generateTagsFromPrompt, DisplayCreation } from '@/lib/storage';
 import { getRemainingGenerations, recordAnonGeneration } from '@/lib/generation-limits';
 import { isAuthenticated } from '@/lib/auth';
-import { StylesConfig, Model, Dimension } from '@/lib/types/create';
+import { StylesConfig, Model, Dimension, AdvancedSettings } from '@/lib/types/create';
 
 interface GenerationState {
   isGenerating: boolean;
@@ -20,6 +20,13 @@ interface UseGenerationOptions {
   batchMode: boolean;
   walletAddress?: string;
   isConnected: boolean;
+  advancedSettings?: AdvancedSettings;
+  /** Curated grid style id, or null. The grid expands prompt + locks params. */
+  selectedStyleId?: string | null;
+  /** data: URI of an img2img source image, or null. */
+  sourceImage?: string | null;
+  /** Optional CivitAI LoRA to inject. */
+  lora?: { name: string; model?: number; clip?: number; is_version?: boolean } | null;
   onCreationAdded: (creation: DisplayCreation) => void;
   onShowAuthModal: () => void;
   onRemainingGensChange: (remaining: number) => void;
@@ -42,6 +49,10 @@ export function useGeneration({
   batchMode,
   walletAddress,
   isConnected,
+  advancedSettings = {},
+  selectedStyleId = null,
+  sourceImage = null,
+  lora = null,
   onCreationAdded,
   onShowAuthModal,
   onRemainingGensChange,
@@ -96,6 +107,29 @@ export function useGeneration({
     setState(prev => ({ ...prev, isGenerating: true, error: null }));
 
     try {
+      // Use advanced settings if provided, otherwise fall back to model/defaults
+      const steps = advancedSettings.steps ?? selectedModel.settings?.steps ?? styles.defaults.steps ?? 28;
+      const cfgScale = advancedSettings.cfgScale ?? selectedModel.settings?.cfgScale ?? styles.defaults.cfgScale ?? 3.5;
+      const seed = advancedSettings.seed || undefined;
+
+      const isVideo = selectedModel.type === "video";
+      const sourceProcessing = sourceImage
+        ? (isVideo ? "img2video" : "img2img")
+        : (isVideo ? "txt2video" : "txt2img");
+
+      // Video guards: LTX clamps each side to [512,1280]; scale to fit (keep
+      // aspect), round to /32. And video batch is capped at 2 grid-side.
+      let width = selectedDimension.width;
+      let height = selectedDimension.height;
+      if (isVideo) {
+        const CAP = 1280, FLOOR = 512;
+        const longest = Math.max(width, height);
+        if (longest > CAP) { const s = CAP / longest; width = Math.round(width * s); height = Math.round(height * s); }
+        const fit = (v: number) => Math.max(FLOOR, Math.min(CAP, Math.round(v / 32) * 32));
+        width = fit(width); height = fit(height);
+      }
+      const batchN = authenticated && batchMode ? (isVideo ? 2 : 4) : 1;
+
       const resp = await createJob({
         modelId: selectedModel.id,
         prompt: prompt.trim(),
@@ -103,16 +137,21 @@ export function useGeneration({
         nsfw: false,
         public: true,
         walletAddress,
-        mediaType: "image",
-        sourceProcessing: "txt2img",
+        mediaType: isVideo ? "video" : "image",
+        sourceProcessing,
+        ...(selectedStyleId ? { style: selectedStyleId } : {}),
+        ...(sourceImage ? { sourceImage } : {}),
+        ...(lora ? { loras: [lora] } : {}),
         params: {
-          width: selectedDimension.width,
-          height: selectedDimension.height,
-          steps: selectedModel.settings?.steps ?? styles.defaults.steps ?? 28,
-          cfgScale: selectedModel.settings?.cfgScale ?? styles.defaults.cfgScale ?? 3.5,
+          width,
+          height,
+          steps,
+          cfgScale,
           sampler: selectedModel.settings?.sampler ?? styles.defaults.sampler ?? "euler",
           scheduler: styles.defaults.scheduler ?? "normal",
-          n: authenticated && batchMode ? 4 : 1,
+          n: batchN,
+          ...(isVideo ? { length: selectedModel.settings?.length ?? 96, fps: selectedModel.settings?.fps ?? 24 } : {}),
+          ...(seed ? { seed } : {}),
         },
       });
 
@@ -123,7 +162,7 @@ export function useGeneration({
       }
 
       const jobType = selectedModel.type === "video" ? "video" : "image";
-      const batchSize = authenticated && batchMode ? 4 : 1;
+      const batchSize = batchN;
 
       // Create placeholder
       const placeholder: DisplayCreation = {
@@ -145,10 +184,11 @@ export function useGeneration({
         params: {
           width: selectedDimension.width,
           height: selectedDimension.height,
-          steps: selectedModel.settings?.steps ?? styles.defaults.steps,
-          cfgScale: selectedModel.settings?.cfgScale ?? styles.defaults.cfgScale,
+          steps,
+          cfgScale,
           sampler: selectedModel.settings?.sampler ?? styles.defaults.sampler,
           scheduler: styles.defaults.scheduler,
+          ...(seed ? { seed } : {}),
         },
       };
 
@@ -184,10 +224,11 @@ export function useGeneration({
             params: {
               width: selectedDimension.width,
               height: selectedDimension.height,
-              steps: selectedModel.settings?.steps ?? styles.defaults.steps,
-              cfgScale: selectedModel.settings?.cfgScale ?? styles.defaults.cfgScale,
+              steps,
+              cfgScale,
               sampler: selectedModel.settings?.sampler ?? styles.defaults.sampler,
               scheduler: styles.defaults.scheduler,
+              ...(seed ? { seed } : {}),
             },
             mediaUrls: [],
           });
@@ -196,6 +237,8 @@ export function useGeneration({
         }
       }
 
+      // Reset generating state on success
+      setState(prev => ({ ...prev, isGenerating: false }));
       return true;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to create job";
@@ -203,7 +246,7 @@ export function useGeneration({
       setState(prev => ({ ...prev, isGenerating: false }));
       return false;
     }
-  }, [selectedModel, selectedDimension, styles, batchMode, walletAddress, isConnected, addJob, onCreationAdded, onShowAuthModal, onRemainingGensChange, setError]);
+  }, [selectedModel, selectedDimension, styles, batchMode, walletAddress, isConnected, advancedSettings, selectedStyleId, sourceImage, lora, addJob, onCreationAdded, onShowAuthModal, onRemainingGensChange, setError]);
 
   /**
    * Regenerate an existing creation with the same seed

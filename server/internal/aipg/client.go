@@ -14,6 +14,7 @@ import (
 type Client struct {
 	baseURL     string
 	httpClient  *http.Client
+	mediaClient *http.Client
 	clientAgent string
 }
 
@@ -24,7 +25,63 @@ func NewClient(baseURL, clientAgent string) *Client {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		// Media generation on the new grid is synchronous — the POST blocks
+		// until the worker finishes. Video (LTX) can take minutes, so this
+		// client gets a much longer ceiling than the status/stats client.
+		mediaClient: &http.Client{
+			Timeout: 6 * time.Minute,
+		},
 	}
+}
+
+// FetchProgress returns the worker's latest progress (0–100) for a token, or
+// nil if nothing has been reported yet. Best-effort: never blocks generation.
+func (c *Client) FetchProgress(ctx context.Context, token string) (*int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/progress/"+token, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Client-Agent", c.clientAgent)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("progress request failed (%d)", resp.StatusCode)
+	}
+	var parsed struct {
+		Progress *int `json:"progress"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return nil, err
+	}
+	return parsed.Progress, nil
+}
+
+// FetchStyles returns the grid's curated style registry (GET /v1/styles).
+func (c *Client) FetchStyles(ctx context.Context) ([]Style, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/styles", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Client-Agent", c.clientAgent)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("styles request failed (%d): %s", resp.StatusCode, body)
+	}
+	var parsed struct {
+		Styles []Style `json:"styles"`
+	}
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		return nil, err
+	}
+	return parsed.Styles, nil
 }
 
 func (c *Client) FetchModelStats(ctx context.Context) ([]ModelStatus, error) {
@@ -52,18 +109,25 @@ func (c *Client) FetchModelStats(ctx context.Context) ([]ModelStatus, error) {
 	return raw, nil
 }
 
-func (c *Client) CreateJob(ctx context.Context, request CreateJobPayload, apiKey, clientHeader string) (*CreateJobResponse, error) {
+// GenerateMedia calls the new grid's synchronous OpenAI-style endpoint and
+// blocks until the worker returns a result. kind is "image" or "video"; it
+// selects the path. The grid authenticates via the apikey header (it also
+// accepts Authorization: Bearer) and gates every knob server-side.
+func (c *Client) GenerateMedia(ctx context.Context, kind string, request GenerateRequest, apiKey, clientHeader string) (*GenerateResponse, error) {
+	path := "/images/generations"
+	if kind == "video" {
+		path = "/videos/generations"
+	}
+
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
 
-	// Log the payload being sent to Grid API
-	log.Printf("🌐 Grid API request: models=%v, media_type=%s, prompt_len=%d", 
-		request.Models, request.MediaType, len(request.Prompt))
-	log.Printf("🌐 Grid API full payload: %s", string(payload))
+	log.Printf("🌐 Grid /v1 %s: model=%s, n=%d, size=%q, img2x=%v, prompt_len=%d",
+		kind, request.Model, request.N, request.Size, request.Image != "", len(request.Prompt))
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/generate/async", c.baseURL), bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+path, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
 	}
@@ -73,34 +137,7 @@ func (c *Client) CreateJob(ctx context.Context, request CreateJobPayload, apiKey
 		req.Header.Set("apikey", apiKey)
 	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	log.Printf("🌐 Grid API response: status=%d, body=%s", resp.StatusCode, string(body))
-	
-	if resp.StatusCode != http.StatusAccepted {
-		return nil, fmt.Errorf("create job failed (%d): %s", resp.StatusCode, body)
-	}
-
-	var parsed CreateJobResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, err
-	}
-	return &parsed, nil
-}
-
-func (c *Client) JobStatus(ctx context.Context, jobID string) (*JobStatusResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/generate/status/%s", c.baseURL, jobID), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Client-Agent", c.clientAgent)
-
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.mediaClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -108,10 +145,10 @@ func (c *Client) JobStatus(ctx context.Context, jobID string) (*JobStatusRespons
 
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("job status failed (%d): %s", resp.StatusCode, body)
+		return nil, fmt.Errorf("grid %s generation failed (%d): %s", kind, resp.StatusCode, body)
 	}
 
-	var parsed JobStatusResponse
+	var parsed GenerateResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
 		return nil, err
 	}

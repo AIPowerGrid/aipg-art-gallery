@@ -1,16 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // output: 'standalone',
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   async headers() {
     return [
       {
         source: "/:path*",
         headers: [
-          {
-            key: "Content-Security-Policy",
-            // CSP: 'unsafe-inline' required for Next.js, 'unsafe-eval' for web3 libs
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
-          },
+          // Content-Security-Policy is set per-request in middleware.ts so it can
+          // carry a unique nonce and drop 'unsafe-inline' from script-src.
           {
             key: "X-Frame-Options",
             value: "DENY",
@@ -31,6 +29,11 @@ const nextConfig = {
     // Pin to specific hosts. A wildcard like **.r2.cloudflarestorage.com would
     // turn the Next image optimizer into an open proxy for ANY R2 bucket.
     remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "ik.imagekit.io",
+        pathname: "/**",
+      },
       {
         protocol: "https",
         hostname: "images.aipg.art",

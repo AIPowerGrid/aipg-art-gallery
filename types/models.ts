@@ -103,6 +103,21 @@ export interface CreateJobRequest {
   sourceMask?: string;
   sourceProcessing?: "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video";
   mediaType?: "image" | "video";
+  /** Curated style id (from GET /api/styles/grid); the grid expands it server-side. */
+  style?: string;
+  /** CivitAI LoRAs to inject (grid gates + downloads them). */
+  loras?: Array<{ name: string; model?: number; clip?: number; is_version?: boolean }>;
+}
+
+/** One curated style from GET /api/styles/grid (grid-served creative presets). */
+export interface GridStyle {
+  id: string;
+  name: string;
+  description: string;
+  model: string;
+  job_type: string;
+  aspect: string;
+  locked: string[];
 }
 
 export interface JobStatus {
@@ -117,7 +132,13 @@ export interface JobStatus {
   finished: number;
   /** Number of generations still waiting */
   waiting: number;
+  /** Real worker progress 0-100 while processing (null until first report). */
+  progress?: number | null;
   generations: GenerationView[];
+  /** Per-job provenance from the grid: worker that ran it + wall-clock seconds. */
+  worker?: string;
+  genTime?: number;
+  model?: string;
 }
 
 export interface GenerationView {

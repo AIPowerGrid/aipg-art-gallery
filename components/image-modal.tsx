@@ -16,9 +16,11 @@ interface ImageModalProps {
   onPublish?: () => void;
   onDelete?: () => void;
   onRegenerate?: () => void; // Regenerate with same seed
+  onExtract?: (index: number) => void; // Save single image from batch
   isDeleting?: boolean;
   isPublishing?: boolean;
   isRegenerating?: boolean;
+  isExtracting?: boolean;
 }
 
 function formatParamValue(key: string, value: unknown): string {
@@ -44,9 +46,11 @@ export function ImageModal({
   onPublish,
   onDelete,
   onRegenerate,
+  onExtract,
   isDeleting = false,
   isPublishing = false,
   isRegenerating = false,
+  isExtracting = false,
 }: ImageModalProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const mediaUrls = item.mediaUrls || [];
@@ -103,6 +107,9 @@ export function ImageModal({
   if (!isOpen || !mediaSrc || !mounted) return null;
 
   const params = item.params || {};
+  // Get the seed for the currently selected image (batch mode has per-image seeds)
+  const currentSeed = item.seeds?.[selectedIndex] ?? params.seed;
+  
   const paramEntries: [string, any][] = [
     ["Width", params.width],
     ["Height", params.height],
@@ -110,7 +117,7 @@ export function ImageModal({
     ["CFG Scale", params.cfgScale],
     ["Sampler", params.sampler],
     ["Scheduler", params.scheduler],
-    ["Seed", params.seed],
+    ["Seed", currentSeed],
     ["Denoise", params.denoise],
     ...(isVideo ? [
       ["Length", params.length] as [string, any],
@@ -288,27 +295,41 @@ export function ImageModal({
             </div>
           )}
 
-          {/* Regenerate button - only for owners with seed */}
-          {isOwner && onRegenerate && params.seed && (
+          {/* Edit in Studio button - only for owners with seed */}
+          {isOwner && onRegenerate && currentSeed && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onRegenerate();
+                onClose();
               }}
-              disabled={isRegenerating}
-              className="w-full px-4 py-3 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-semibold rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full px-4 py-3 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600/30 font-semibold rounded-xl transition flex items-center justify-center gap-2"
             >
-              {isRegenerating ? (
-                <>
-                  <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
-                  Regenerating...
-                </>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit in Studio
+            </button>
+          )}
+
+          {/* Save as Single button - only for batches */}
+          {isOwner && hasMultiple && onExtract && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onExtract(selectedIndex);
+              }}
+              disabled={isExtracting}
+              className="w-full px-4 py-3 bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 font-semibold rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isExtracting ? (
+                <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
               ) : (
                 <>
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                   </svg>
-                  Regenerate with Same Seed
+                  Save as Single
                 </>
               )}
             </button>

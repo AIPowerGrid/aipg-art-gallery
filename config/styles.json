@@ -6,20 +6,93 @@
       "description": "Fast turbo image generation",
       "type": "image",
       "enabled": true,
-      "default": true,
+      "default": false,
       "settings": {
-        "steps": 5,
+        "steps": 8,
         "cfgScale": 1.5,
         "sampler": "euler"
+      },
+      "limits": {
+        "steps": {
+          "min": 4,
+          "max": 16
+        },
+        "cfgScale": {
+          "min": 1,
+          "max": 3
+        }
       }
     },
     {
-      "id": "flux.1-krea-dev",
-      "name": "FLUX Krea",
-      "description": "High-quality image generation model",
+      "id": "flux.2 klein 4b fp8",
+      "name": "FLUX.2 Klein 4B",
+      "description": "Fast compact Flux model",
       "type": "image",
-      "enabled": false,
-      "default": false
+      "enabled": true,
+      "default": false,
+      "settings": {
+        "steps": 4,
+        "cfgScale": 1,
+        "sampler": "euler"
+      },
+      "limits": {
+        "steps": {
+          "min": 4,
+          "max": 6
+        },
+        "cfgScale": {
+          "min": 1,
+          "max": 1.5
+        }
+      }
+    },
+    {
+      "id": "LTX-2.3",
+      "name": "LTX-2.3 Video",
+      "description": "Text/image-to-video (LTX-2.3).",
+      "type": "video",
+      "enabled": true,
+      "default": false,
+      "settings": {
+        "steps": 12,
+        "cfgScale": 3,
+        "sampler": "euler",
+        "length": 96,
+        "fps": 24
+      },
+      "limits": {
+        "steps": {
+          "min": 4,
+          "max": 20
+        },
+        "cfgScale": {
+          "min": 1,
+          "max": 5
+        }
+      }
+    },
+    {
+      "id": "Krea 2 Turbo",
+      "name": "Krea 2 Turbo",
+      "description": "Krea 2 Turbo \u2014 fast, aesthetic image model. Krea 2 is licensed under the Krea 2 Community License Agreement.",
+      "type": "image",
+      "enabled": true,
+      "default": true,
+      "settings": {
+        "steps": 8,
+        "cfgScale": 1.0,
+        "sampler": "er_sde"
+      },
+      "limits": {
+        "steps": {
+          "min": 8,
+          "max": 12
+        },
+        "cfgScale": {
+          "min": 1,
+          "max": 1
+        }
+      }
     }
   ],
   "dimensions": [
@@ -71,6 +144,20 @@
       "height": 1536,
       "label": "Ultra Tall",
       "aspectRatio": "1:2.4"
+    },
+    {
+      "id": 7,
+      "width": 1216,
+      "height": 832,
+      "label": "Photo Landscape",
+      "aspectRatio": "3:2"
+    },
+    {
+      "id": 8,
+      "width": 832,
+      "height": 1216,
+      "label": "Photo Portrait",
+      "aspectRatio": "2:3"
     }
   ],
   "defaultDimensionId": 4,

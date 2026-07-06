@@ -45,7 +45,7 @@ export function WalletButton() {
 function WalletButtonClient() {
   const router = useRouter();
   const { address, isConnected } = useAccount();
-  const { connectors, connect, isPending } = useConnect();
+  const { connectors, connectAsync, isPending } = useConnect();
   const { disconnect } = useDisconnect();
   const { data: ensName } = useEnsName({ address });
   const { signMessageAsync } = useSignMessage();
@@ -85,12 +85,9 @@ function WalletButtonClient() {
     }
   }, [address, signMessageAsync]);
 
-  // Sign in when wallet connects
-  useEffect(() => {
-    if (isConnected && address && !isAuthenticated()) {
-      handleSignIn();
-    }
-  }, [isConnected, address, handleSignIn]);
+  // Connect + sign in one flow (see the connector onClick below). The global
+  // providers effect is the fallback for rehydration / other entry points; both
+  // routes call the de-duped signIn, so the wallet only prompts once.
 
   // Redirect to create page only on fresh login (not on every page load)
   useEffect(() => {
@@ -260,9 +257,17 @@ function WalletButtonClient() {
                 {availableConnectors.map((connector) => (
                   <button
                     key={connector.uid}
-                    onClick={() => {
-                      connect({ connector });
+                    onClick={async () => {
                       setShowDropdown(false);
+                      try {
+                        // Connect, then prompt the signature in the SAME flow —
+                        // connectAsync resolves only once the connector can sign,
+                        // so there's no "connected but not ready" race.
+                        await connectAsync({ connector });
+                        await handleSignIn();
+                      } catch {
+                        // user cancelled connect or signature; nothing to do
+                      }
                     }}
                     disabled={isPending}
                     className="w-full px-3 py-3 text-left text-sm text-white hover:bg-white/10 rounded-xl transition flex items-center gap-3 disabled:opacity-50"

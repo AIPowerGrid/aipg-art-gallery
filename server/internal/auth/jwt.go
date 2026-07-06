@@ -11,25 +11,62 @@ import (
 	"time"
 )
 
-// Claims represents the JWT payload
+// Claims represents the JWT payload - supports both wallet and Google auth
 type Claims struct {
-	WalletAddress string `json:"wallet_address"`
-	IssuedAt      int64  `json:"iat"`
-	ExpiresAt     int64  `json:"exp"`
+	// For wallet auth (existing) - JSON field is "address" to match the
+	// Next.js /auth-api/verify route which issues all wallet JWTs.
+	WalletAddress string `json:"address,omitempty"`
+	// For Google auth (new)
+	GoogleID string `json:"google_id,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Name     string `json:"name,omitempty"`
+	// Common fields
+	IssuedAt  int64 `json:"iat"`
+	ExpiresAt int64 `json:"exp"`
+}
+
+// UserIdentifier returns the primary user identifier (wallet address or google ID)
+func (c *Claims) UserIdentifier() string {
+	if c.WalletAddress != "" {
+		return c.WalletAddress
+	}
+	return c.GoogleID
+}
+
+// AuthMethod returns "wallet" or "google" based on which auth was used
+func (c *Claims) AuthMethod() string {
+	if c.WalletAddress != "" {
+		return "wallet"
+	}
+	return "google"
 }
 
 // GenerateJWT creates a JWT token for a wallet address
 func GenerateJWT(walletAddress string) (string, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		return "", errors.New("JWT_SECRET not configured")
-	}
-
-	// Create claims (24 hour expiry)
 	claims := Claims{
 		WalletAddress: strings.ToLower(walletAddress),
 		IssuedAt:      time.Now().Unix(),
 		ExpiresAt:     time.Now().Add(24 * time.Hour).Unix(),
+	}
+	return generateJWTFromClaims(claims)
+}
+
+// GenerateGoogleJWT creates a JWT token for a Google user
+func GenerateGoogleJWT(googleID, email, name string) (string, error) {
+	claims := Claims{
+		GoogleID:  googleID,
+		Email:     email,
+		Name:      name,
+		IssuedAt:  time.Now().Unix(),
+		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+	}
+	return generateJWTFromClaims(claims)
+}
+
+func generateJWTFromClaims(claims Claims) (string, error) {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		return "", errors.New("JWT_SECRET not configured")
 	}
 
 	// Create header
@@ -55,33 +92,44 @@ func GenerateJWT(walletAddress string) (string, error) {
 	return message + "." + signature, nil
 }
 
-// VerifyJWT validates a JWT token and returns the wallet address
+// VerifyJWT validates a JWT token and returns the wallet address (backward compatible)
 func VerifyJWT(tokenString string) (string, error) {
+	claims, err := VerifyJWTClaims(tokenString)
+	if err != nil {
+		return "", err
+	}
+	// Return wallet address for backward compatibility
+	// For Google users, this returns empty string - use VerifyJWTClaims instead
+	return claims.WalletAddress, nil
+}
+
+// VerifyJWTClaims validates a JWT token and returns the full claims
+func VerifyJWTClaims(tokenString string) (*Claims, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		return "", errors.New("JWT_SECRET not configured")
+		return nil, errors.New("JWT_SECRET not configured")
 	}
 
 	parts := strings.Split(tokenString, ".")
 	if len(parts) != 3 {
-		return "", errors.New("invalid token format")
+		return nil, errors.New("invalid token format")
 	}
 
 	// Reject any algorithm other than the HS256 we issue. This blocks "alg"
-	// confusion / "none" attacks regardless of how the signature is checked.
+	// confusion / "none" attacks. (The Next.js /auth-api/verify route also signs
+	// HS256 via jsonwebtoken, so both issuers are covered.)
 	headerJSON, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return "", errors.New("invalid header encoding")
+		return nil, errors.New("invalid header encoding")
 	}
 	var header struct {
 		Alg string `json:"alg"`
-		Typ string `json:"typ"`
 	}
 	if err := json.Unmarshal(headerJSON, &header); err != nil {
-		return "", errors.New("invalid header")
+		return nil, errors.New("invalid header")
 	}
 	if header.Alg != "HS256" {
-		return "", errors.New("unexpected token algorithm")
+		return nil, errors.New("unexpected token algorithm")
 	}
 
 	// Verify signature with a constant-time comparison to avoid timing leaks.
@@ -91,24 +139,24 @@ func VerifyJWT(tokenString string) (string, error) {
 	expectedSignature := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 
 	if !hmac.Equal([]byte(parts[2]), []byte(expectedSignature)) {
-		return "", errors.New("invalid signature")
+		return nil, errors.New("invalid signature")
 	}
 
 	// Decode claims
 	claimsJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return "", errors.New("invalid claims encoding")
+		return nil, errors.New("invalid claims encoding")
 	}
 
 	var claims Claims
 	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
-		return "", errors.New("invalid claims")
+		return nil, errors.New("invalid claims")
 	}
 
 	// Check expiry
 	if time.Now().Unix() > claims.ExpiresAt {
-		return "", errors.New("token expired")
+		return nil, errors.New("token expired")
 	}
 
-	return claims.WalletAddress, nil
+	return &claims, nil
 }

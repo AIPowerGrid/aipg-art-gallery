@@ -15,14 +15,6 @@ type Config struct {
 	GalleryStorePath string
 	JWTSecret        string
 
-	// Auth cookie (httpOnly session cookie carrying the JWT).
-	// AuthCookieDomain: set to e.g. ".aipg.art" in prod so the cookie is shared
-	// across the app + API subdomains; leave empty for host-only (local dev).
-	// AuthCookieSecure: force the Secure attribute. When empty/false the server
-	// still sets Secure automatically for HTTPS requests (TLS or X-Forwarded-Proto).
-	AuthCookieDomain string
-	AuthCookieSecure bool
-
 	// ModelVault blockchain configuration
 	ModelVaultEnabled         bool
 	ModelVaultRPCURL          string
@@ -53,20 +45,31 @@ type Config struct {
 
 	// Worker targeting
 	TargetWorkerID string // Target specific worker for all jobs (optional)
+
+	// Google OAuth
+	GoogleClientID string
+
+	// Auth cookie (httpOnly session cookie carrying the JWT). Set AuthCookieDomain
+	// to e.g. ".aipg.art" in prod so the web app + API subdomains share it; leave
+	// empty for host-only (local dev). AuthCookieSecure forces the Secure flag;
+	// the server also auto-sets Secure for HTTPS requests.
+	AuthCookieDomain string
+	AuthCookieSecure bool
 }
 
 func Load() Config {
 	return Config{
 		Address:          getEnv("GALLERY_SERVER_ADDR", ":4000"),
-		APIBaseURL:       getEnv("AIPG_API_URL", "https://api.aipowergrid.io/api/v2"),
-		ClientAgent:      getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v2"),
+		// New grid is OpenAI-shaped and lives under /v1 (no more /api/v2 async horde).
+		// Override AIPG_API_URL during DNS cutover if api.aipowergrid.io hasn't
+		// propagated yet (e.g. point it at the box's grid.aipowergrid.io/v1).
+		APIBaseURL:       getEnv("AIPG_API_URL", "https://api.aipowergrid.io/v1"),
+		ClientAgent:      getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v3"),
 		DefaultAPIKey:    os.Getenv("AIPG_API_KEY"),
 		ModelPresetPath:  getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
 		AllowedOrigins:   splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
 		GalleryStorePath: getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
 		JWTSecret:        os.Getenv("JWT_SECRET"),
-		AuthCookieDomain: os.Getenv("AUTH_COOKIE_DOMAIN"),
-		AuthCookieSecure: getEnv("AUTH_COOKIE_SECURE", "false") == "true",
 
 		// ModelVault blockchain configuration (enabled by default)
 		ModelVaultEnabled:         getEnv("MODELVAULT_ENABLED", "true") == "true",
@@ -92,11 +95,20 @@ func Load() Config {
 		PostgresEnabled: getEnv("POSTGRES_ENABLED", "true") == "true",
 		PostgresConnStr: os.Getenv("POSTGRES_CONN_STR"), // Required - no default for security
 
-		// AI Text Generation
-		AIModel: getEnv("AI_MODEL", "grid/moonshotai/kimi-k2-instruct"),
+		// AI Text Generation (prompt enhancement) — must be a text model the new
+		// grid serves on /v1/chat/completions. Override AI_MODEL to match what's
+		// actually online (see /v1/status/models).
+		AIModel: getEnv("AI_MODEL", "gpt-oss-20b"),
 
 		// Worker targeting
 		TargetWorkerID: os.Getenv("TARGET_WORKER_ID"),
+
+		// Google OAuth (use NEXT_PUBLIC_ version so only one env var needed)
+		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", os.Getenv("NEXT_PUBLIC_GOOGLE_CLIENT_ID")),
+
+		// Auth cookie
+		AuthCookieDomain: os.Getenv("AUTH_COOKIE_DOMAIN"),
+		AuthCookieSecure: getEnv("AUTH_COOKIE_SECURE", "false") == "true",
 	}
 }
 

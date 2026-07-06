@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"google.golang.org/api/idtoken"
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/ai"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
@@ -30,10 +31,13 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/recipevault"
 )
 
-// Context key for wallet address
+// Context keys for authentication
 type contextKey string
 
-const walletContextKey contextKey = "wallet_address"
+const (
+	walletContextKey contextKey = "wallet_address"
+	claimsContextKey contextKey = "auth_claims"
+)
 
 type App struct {
 	cfg               config.Config
@@ -48,7 +52,7 @@ type App struct {
 	r2Client          *r2.Client
 	cache             *cache.Cache
 	aiClient          *ai.Client
-	nonceStore        *auth.NonceStore
+	pending           *pendingStore
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -100,6 +104,11 @@ func New(cfg config.Config) (*App, error) {
 			jobStore = pgStore.JobStore
 			favoritesStore = gallery.NewFavoritesStore(pgStore.DB())
 			log.Printf("PostgreSQL gallery store connected, %d items", pgStore.Count())
+
+			// Ensure Google auth columns exist in users table
+			if err := userStore.EnsureSchema(); err != nil {
+				log.Printf("Warning: Failed to ensure user schema: %v", err)
+			}
 		}
 	} else {
 		// Use file-based store
@@ -154,7 +163,9 @@ func New(cfg config.Config) (*App, error) {
 		favoritesStore:    favoritesStore,
 		cache:             queryCache,
 		aiClient:          aiClient,
-		nonceStore:        auth.NewNonceStore(),
+		// Bridge for the new grid's synchronous /v1 generation. Entries live
+		// only long enough for the frontend to poll the result (10 min TTL).
+		pending: newPendingStore(10 * time.Minute),
 	}, nil
 }
 
@@ -177,14 +188,17 @@ func (a *App) Router() http.Handler {
 	})
 
 	r.Route("/api", func(api chi.Router) {
-		// Auth endpoints (no authentication required)
-		api.Post("/auth/nonce", a.handleGetNonce)
-		api.Post("/auth/verify", a.handleVerifySignature)
+		// Auth endpoints (no authentication required).
+		// Wallet sign-in (SIWE/viem, ERC-6492) is handled by the Next.js
+		// /auth-api/* routes, which mint the JWT and set the httpOnly cookie;
+		// there is intentionally no Go wallet-verify endpoint (removed dead path).
+		api.Post("/auth/google", a.handleGoogleAuth)
 		api.Post("/auth/logout", a.handleLogout)
 
 		api.Get("/models", a.handleListModels)
 		api.Get("/models/{id}", a.handleGetModel)
 		api.Get("/styles", a.handleGetStyles)
+		api.Get("/styles/grid", a.handleGridStyles) // curated creative styles from the grid
 
 		// AI text generation (prompt enhancement)
 		api.Post("/ai/enhance", a.handleAIEnhance)
@@ -212,6 +226,7 @@ func (a *App) Router() http.Handler {
 			protected.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
 			protected.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
 			protected.Post("/gallery/{id}/unpublish", a.handleUnpublishGalleryItem)
+			protected.Post("/gallery/{id}/extract", a.handleExtractSingleImage)
 			protected.Post("/favorites/{jobId}", a.handleAddFavorite)
 			protected.Delete("/favorites/{jobId}", a.handleRemoveFavorite)
 		})
@@ -223,36 +238,11 @@ func (a *App) Router() http.Handler {
 func (a *App) allowedOrigins() []string {
 	if len(a.cfg.AllowedOrigins) == 0 {
 		// Fail closed: never combine a wildcard origin with AllowCredentials.
-		// Production MUST set GALLERY_ALLOWED_ORIGINS; without it we permit only
-		// local dev origins.
+		// Production MUST set GALLERY_ALLOWED_ORIGINS.
 		log.Printf("⚠️  GALLERY_ALLOWED_ORIGINS not set; restricting CORS to localhost dev origins")
 		return []string{"http://localhost:3000", "http://127.0.0.1:3000"}
 	}
 	return a.cfg.AllowedOrigins
-}
-
-// isAllowedSiweDomain checks that a SIWE message's domain matches a configured
-// allowed origin (host[:port]). When no origins are configured (local dev), any
-// domain is accepted to keep `npm run dev` working.
-func (a *App) isAllowedSiweDomain(domain string) bool {
-	domain = strings.TrimSpace(domain)
-	if domain == "" {
-		return false
-	}
-	if len(a.cfg.AllowedOrigins) == 0 {
-		return true // dev mode
-	}
-	for _, origin := range a.cfg.AllowedOrigins {
-		host := origin
-		if i := strings.Index(host, "://"); i >= 0 {
-			host = host[i+3:]
-		}
-		host = strings.TrimSuffix(host, "/")
-		if strings.EqualFold(host, domain) {
-			return true
-		}
-	}
-	return false
 }
 
 // ============================================================================
@@ -260,9 +250,10 @@ func (a *App) isAllowedSiweDomain(domain string) bool {
 // ============================================================================
 
 // authMiddleware verifies the session JWT, read from the httpOnly cookie (browser
-// clients) or, as a fallback, an "Authorization: Bearer" header (CLI/non-browser).
-// For cookie-authenticated mutating requests it also enforces an Origin allowlist
-// as CSRF defense-in-depth (on top of the cookie's SameSite=Lax).
+// clients) or an "Authorization: Bearer" header (CLI/non-browser fallback).
+// Supports both wallet and Google authentication. For cookie-authenticated
+// mutating requests it enforces an Origin allowlist as CSRF defense-in-depth on
+// top of the cookie's SameSite=Lax attribute.
 func (a *App) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token, fromCookie := extractToken(r)
@@ -271,23 +262,25 @@ func (a *App) authMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// CSRF: cookie-borne credentials are sent automatically by the browser, so
-		// for state-changing methods require the request to originate from an
-		// allowed origin. Header-bearer requests are not CSRF-prone (the attacker
-		// can't set the header cross-site) and are exempt.
 		if fromCookie && isMutating(r.Method) && !a.isAllowedRequestOrigin(r) {
 			writeError(w, http.StatusForbidden, errors.New("cross-origin request blocked"))
 			return
 		}
 
-		walletAddress, err := auth.VerifyJWT(token)
+		// Verify JWT and get full claims
+		claims, err := auth.VerifyJWTClaims(token)
 		if err != nil {
 			log.Printf("Auth: JWT verification failed: %v", err)
 			writeError(w, http.StatusUnauthorized, errors.New("invalid or expired session - please sign in again"))
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), walletContextKey, walletAddress)
+		// Add claims to context (supports both wallet and Google auth)
+		ctx := context.WithValue(r.Context(), claimsContextKey, claims)
+		// Also add wallet address for backward compatibility
+		if claims.WalletAddress != "" {
+			ctx = context.WithValue(ctx, walletContextKey, claims.WalletAddress)
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -298,8 +291,7 @@ func extractToken(r *http.Request) (string, bool) {
 	if c, err := r.Cookie(authCookieName); err == nil && c.Value != "" {
 		return c.Value, true
 	}
-	authHeader := r.Header.Get("Authorization")
-	if parts := strings.SplitN(authHeader, " ", 2); len(parts) == 2 && parts[0] == "Bearer" {
+	if parts := strings.SplitN(r.Header.Get("Authorization"), " ", 2); len(parts) == 2 && parts[0] == "Bearer" {
 		return strings.TrimSpace(parts[1]), false
 	}
 	return "", false
@@ -315,158 +307,74 @@ func isMutating(method string) bool {
 }
 
 // isAllowedRequestOrigin validates the Origin header against the configured
-// allowlist. When no origins are configured (local dev) it permits the request.
+// allowlist. No Origin (curl/server-side) is allowed; in dev (no origins
+// configured) everything is allowed.
 func (a *App) isAllowedRequestOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
-		// Non-CORS clients (curl, same-origin server-side) send no Origin.
 		return true
 	}
 	if len(a.cfg.AllowedOrigins) == 0 {
-		return true // dev mode
+		return true
 	}
+	origin = strings.TrimSuffix(origin, "/")
 	for _, allowed := range a.cfg.AllowedOrigins {
-		if strings.EqualFold(strings.TrimSuffix(allowed, "/"), strings.TrimSuffix(origin, "/")) {
+		if strings.EqualFold(strings.TrimSuffix(allowed, "/"), origin) {
 			return true
 		}
 	}
 	return false
 }
 
+// getClaimsFromContext retrieves the full auth claims from request context
+func getClaimsFromContext(r *http.Request) *auth.Claims {
+	if claims, ok := r.Context().Value(claimsContextKey).(*auth.Claims); ok {
+		return claims
+	}
+	return nil
+}
+
 // getWalletFromContext retrieves the authenticated wallet address from request context
+// For Google auth users, returns empty string (use getUserIdentifier instead)
 func getWalletFromContext(r *http.Request) string {
+	// Try claims first (new way)
+	if claims := getClaimsFromContext(r); claims != nil {
+		return claims.WalletAddress
+	}
+	// Fall back to direct context value (backward compat)
 	if addr, ok := r.Context().Value(walletContextKey).(string); ok {
 		return addr
 	}
 	return ""
 }
 
-// handleGetNonce issues a single-use, expiring nonce for SIWE authentication.
-// The nonce is recorded server-side so that handleVerifySignature can reject
-// replayed or forged sign-in messages.
-func (a *App) handleGetNonce(w http.ResponseWriter, r *http.Request) {
-	nonce, err := a.nonceStore.Issue()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, errors.New("failed to generate nonce"))
-		return
+// getUserIdentifier returns the user's unique identifier (wallet address OR google ID)
+func getUserIdentifier(r *http.Request) string {
+	if claims := getClaimsFromContext(r); claims != nil {
+		return claims.UserIdentifier()
 	}
-
-	writeJSON(w, http.StatusOK, map[string]string{
-		"nonce": nonce,
-	})
+	// Fall back to wallet address for backward compat
+	return getWalletFromContext(r)
 }
 
-// handleVerifySignature verifies a SIWE sign-in and returns a JWT.
-//
-// Order matters: we parse and validate the message envelope (domain, address,
-// freshness) and consume the one-time nonce BEFORE recovering the signature.
-// Consuming the nonce up front means a captured (message, signature) pair can
-// never be replayed — the nonce is gone after the first attempt, success or not.
-func (a *App) handleVerifySignature(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Message   string `json:"message"`
-		Signature string `json:"signature"`
-		Address   string `json:"address"`
+// getAuthMethod returns "wallet" or "google" based on how the user authenticated
+func getAuthMethod(r *http.Request) string {
+	if claims := getClaimsFromContext(r); claims != nil {
+		return claims.AuthMethod()
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
-	}
-
-	if req.Message == "" || req.Signature == "" || req.Address == "" {
-		writeError(w, http.StatusBadRequest, errors.New("message, signature, and address are required"))
-		return
-	}
-
-	// Parse and validate the SIWE message envelope.
-	fields, err := auth.ParseSiweMessage(req.Message)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
-		return
-	}
-
-	// Domain binding: the message must be for this site, not some other dApp
-	// where the user happened to sign a similar message.
-	if !a.isAllowedSiweDomain(fields.Domain) {
-		log.Printf("Auth: rejected SIWE domain %q", fields.Domain)
-		writeError(w, http.StatusUnauthorized, errors.New("unexpected sign-in domain"))
-		return
-	}
-
-	// The address in the request body must match the one inside the signed message.
-	if !strings.EqualFold(fields.Address, strings.TrimSpace(req.Address)) {
-		writeError(w, http.StatusUnauthorized, errors.New("address does not match signed message"))
-		return
-	}
-
-	// Freshness: reject stale messages and ones dated in the future (clock skew
-	// tolerance of 2 minutes).
-	now := time.Now()
-	if fields.IssuedAt.After(now.Add(2*time.Minute)) || now.Sub(fields.IssuedAt) > auth.NonceTTL {
-		writeError(w, http.StatusUnauthorized, errors.New("sign-in message expired - please try again"))
-		return
-	}
-
-	// One-time nonce: must have been issued by us and not already used. This is
-	// the core replay defense; consume it before the (more expensive) signature check.
-	if err := a.nonceStore.Consume(fields.Nonce); err != nil {
-		writeError(w, http.StatusUnauthorized, err)
-		return
-	}
-
-	// Verify the signature cryptographically.
-	valid, err := auth.VerifySignature(req.Message, req.Signature, req.Address)
-	if err != nil {
-		log.Printf("Auth: Signature verification error: %v", err)
-		writeError(w, http.StatusUnauthorized, errors.New("signature verification failed"))
-		return
-	}
-
-	if !valid {
-		writeError(w, http.StatusUnauthorized, errors.New("invalid signature - address mismatch"))
-		return
-	}
-
-	// Generate JWT
-	token, err := auth.GenerateJWT(req.Address)
-	if err != nil {
-		log.Printf("Auth: JWT generation error: %v", err)
-		writeError(w, http.StatusInternalServerError, errors.New("failed to generate token"))
-		return
-	}
-
-	log.Printf("Auth: Wallet %s authenticated successfully", strings.ToLower(req.Address))
-
-	// Deliver the JWT only as an httpOnly cookie — it must never be readable by
-	// browser JS (XSS protection). The body returns just the (public) address so
-	// the frontend can drive UI state.
-	a.setAuthCookie(w, r, token)
-
-	writeJSON(w, http.StatusOK, map[string]string{
-		"address": strings.ToLower(req.Address),
-	})
+	return "wallet"
 }
 
-// handleMe returns the authenticated wallet for the current session cookie, or
-// 401 if there is none. The frontend uses it to reconcile auth state on load
-// (it can't read the httpOnly cookie itself).
-func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"address": getWalletFromContext(r),
-	})
-}
-
-// handleLogout clears the session cookie. Public: clearing a cookie needs no auth.
-func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
-	a.clearAuthCookie(w, r)
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
+// ----------------------------------------------------------------------------
+// Session cookie helpers. The JWT is delivered ONLY as an httpOnly cookie so it
+// is never readable by browser JS (XSS protection). The wallet JWT is minted by
+// the Next.js /auth-api/verify route, which sets the same cookie; the Go server
+// sets it for Google auth and clears it on logout, and reads it on every
+// protected request.
+// ----------------------------------------------------------------------------
 
 const authCookieName = "aipg_auth"
 
-// cookieSecure decides whether to set the Secure attribute: forced by config, or
-// inferred from an HTTPS request (direct TLS or behind a TLS-terminating proxy).
 func (a *App) cookieSecure(r *http.Request) bool {
 	if a.cfg.AuthCookieSecure {
 		return true
@@ -503,6 +411,100 @@ func (a *App) clearAuthCookie(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleMe returns the authenticated user for the current session cookie, or 401
+// if there is none. The frontend uses it to reconcile auth state on load (it
+// can't read the httpOnly cookie itself).
+func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
+	claims := getClaimsFromContext(r)
+	if claims == nil {
+		writeError(w, http.StatusUnauthorized, errors.New("not signed in"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{
+		"address":    claims.WalletAddress,
+		"googleId":   claims.GoogleID,
+		"email":      claims.Email,
+		"name":       claims.Name,
+		"authMethod": claims.AuthMethod(),
+	})
+}
+
+// handleLogout clears the session cookie. Public: clearing a cookie needs no auth.
+func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
+	a.clearAuthCookie(w, r)
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// handleGoogleAuth verifies Google ID token and returns JWT
+func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Credential string `json:"credential"` // Google ID token
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid request body"))
+		return
+	}
+
+	if req.Credential == "" {
+		writeError(w, http.StatusBadRequest, errors.New("credential is required"))
+		return
+	}
+
+	// Check if Google auth is configured
+	if a.cfg.GoogleClientID == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("Google authentication not configured"))
+		return
+	}
+
+	// Verify the Google ID token
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+
+	payload, err := idtoken.Validate(ctx, req.Credential, a.cfg.GoogleClientID)
+	if err != nil {
+		log.Printf("Auth: Google token validation failed: %v", err)
+		writeError(w, http.StatusUnauthorized, errors.New("invalid Google token"))
+		return
+	}
+
+	// Extract user info from payload
+	googleID := payload.Subject
+	email, _ := payload.Claims["email"].(string)
+	name, _ := payload.Claims["name"].(string)
+	picture, _ := payload.Claims["picture"].(string)
+
+	// Create or update user in database
+	if a.userStore != nil {
+		_, err := a.userStore.ConnectGoogle(googleID, email, name, picture)
+		if err != nil {
+			log.Printf("Auth: Failed to save Google user: %v", err)
+			// Continue anyway - user can still authenticate
+		}
+	}
+
+	// Generate JWT for the Google user
+	token, err := auth.GenerateGoogleJWT(googleID, email, name)
+	if err != nil {
+		log.Printf("Auth: JWT generation error for Google user: %v", err)
+		writeError(w, http.StatusInternalServerError, errors.New("failed to generate token"))
+		return
+	}
+
+	log.Printf("Auth: Google user %s (%s) authenticated successfully", email, googleID)
+
+	// Deliver the JWT only as an httpOnly cookie; the body returns just the
+	// (non-secret) profile fields for UI.
+	a.setAuthCookie(w, r, token)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"googleId": googleID,
+		"email":    email,
+		"name":     name,
+		"picture":  picture,
+	})
+}
+
 // modelNameAliases maps preset IDs to possible Grid API model names
 // This handles naming variations between what workers report and our preset IDs
 var modelNameAliases = map[string][]string{
@@ -529,42 +531,11 @@ var modelNameAliases = map[string][]string{
 	"ICBINP XL": {"icbinp xl", "icbinp-xl", "ICBINP XL"},
 }
 
-// presetToGridName maps our preset IDs to the canonical Grid API model names
-// These names MUST match what workers advertise to the Grid API
-var presetToGridName = map[string]string{
-	// WAN 2.2 video models - Grid API uses underscore format
-	"wan2.2_ti2v_5B":     "wan2_2_ti2v_5b",
-	"wan2.2-t2v-a14b":    "wan2_2_t2v_14b",
-	"wan2.2-t2v-a14b-hq": "wan2_2_t2v_14b_hq",
-
-	// LTX Video
-	"ltxv": "ltxv",
-
-	// FLUX models - use exact names that workers advertise
-	"FLUX.1-dev":                    "FLUX.1-dev",
-	"flux.1-krea-dev":               "flux.1-krea-dev",
-	"FLUX.1-dev-Kontext-fp8-scaled": "FLUX.1-dev-Kontext-fp8-scaled",
-	"Flux.1-Schnell fp8 (Compact)":  "Flux.1-Schnell fp8 (Compact)",
-
-	// Chroma
-	"Chroma": "Chroma",
-
-	// SDXL and SD models - use exact names
-	"SDXL 1.0":             "SDXL 1.0",
-	"ICBINP XL":            "ICBINP XL",
-	"Juggernaut XL":        "Juggernaut XL",
-	"Animagine XL":         "Animagine XL",
-	"DreamShaper XL":       "DreamShaper XL",
-	"Stable Cascade 1.0":   "Stable Cascade 1.0",
-	"stable_diffusion":     "stable_diffusion",
-	"stable_diffusion_2.1": "stable_diffusion_2.1",
-	"Deliberate":           "Deliberate",
-	"Realistic Vision":     "Realistic Vision",
-	"Anything v3":          "Anything v3",
-	"Epic Diffusion":       "Epic Diffusion",
-	"ICBINP - I Can't Believe It's Not Photography": "ICBINP - I Can't Believe It's Not Photography",
-	"Movie Diffusion": "Movie Diffusion",
-}
+// presetToGridName maps preset IDs to the model names workers advertise on the
+// new grid (what /v1/status/models returns and the recipes are keyed by). The
+// catalog uses those exact names as preset IDs, so this is an identity by
+// default — kept as an override hook for any future alias divergence.
+var presetToGridName = map[string]string{}
 
 // getGridModelName converts a preset ID to the Grid API model name
 func getGridModelName(presetID string) string {
@@ -870,6 +841,21 @@ func (a *App) handleGetStyles(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+// handleGridStyles proxies the grid's curated creative-style registry
+// (GET /v1/styles). NOTE: the older /api/styles above serves the frontend's
+// create-config blob (models/dimensions/defaults) and is really misnamed — the
+// real "styles" are these. Kept on a distinct path until the frontend migrates.
+func (a *App) handleGridStyles(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	styles, err := a.client.FetchStyles(ctx)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"styles": styles})
+}
+
 func (a *App) handleGetModel(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	preset, ok := a.catalog.Get(id)
@@ -924,25 +910,6 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := buildCreateJobPayload(req, preset)
-
-	// Target specific worker if configured
-	if a.cfg.TargetWorkerID != "" {
-		payload.Workers = []string{a.cfg.TargetWorkerID}
-		log.Printf("🎯 Targeting worker: %s", a.cfg.TargetWorkerID)
-	}
-
-	log.Printf("📤 Creating job: modelId=%s, preset.ID=%s, preset.Type=%s, gridName=%s, payload.Models=%v, mediaType=%s",
-		req.ModelID, preset.ID, preset.Type, getGridModelName(preset.ID), payload.Models, payload.MediaType)
-
-	// Debug: log the full params for troubleshooting
-	if paramsJSON, err := json.Marshal(payload.Params); err == nil {
-		log.Printf("📤 Job params: %s", string(paramsJSON))
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
-	defer cancel()
-
 	apiKey := req.APIKey
 	if apiKey == "" {
 		apiKey = a.cfg.DefaultAPIKey
@@ -952,14 +919,49 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := a.client.CreateJob(ctx, payload, apiKey, a.cfg.ClientAgent)
-	if err != nil {
-		writeError(w, http.StatusBadGateway, err)
-		return
+	gen := buildGenerateRequest(req, preset)
+	kind := "image"
+	if preset.Type == "video" || req.MediaType == "video" {
+		kind = "video"
 	}
 
+	// Prefer our own worker when configured. TARGET_WORKER_ID is the worker NAME
+	// on the new grid; the gallery's account must own it (the grid 403s otherwise).
+	if a.cfg.TargetWorkerID != "" {
+		gen.Worker = a.cfg.TargetWorkerID
+		log.Printf("🎯 Preferring worker: %s", a.cfg.TargetWorkerID)
+	}
+
+	log.Printf("📤 Creating %s job: modelId=%s, gridName=%s, size=%q, img2x=%v",
+		kind, req.ModelID, gen.Model, gen.Size, gen.Image != "")
+
+	// The new grid /v1 endpoints are synchronous (the POST blocks until the
+	// worker finishes). The gallery's own API stays async: register a pending
+	// job, return its id now, and run the blocking grid call in the background.
+	jobID := a.pending.create(kind, req.Prompt)
+	// Use the bridge job id as the progress token so the grid stashes the
+	// worker's live % under it; handleJobStatus polls it while processing.
+	gen.ProgressToken = jobID
+
+	clientAgent := a.cfg.ClientAgent
+	go func() {
+		// Detached from the request: the HTTP handler has already returned.
+		// Bound only by the media client's own timeout.
+		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+		defer cancel()
+
+		resp, err := a.client.GenerateMedia(ctx, kind, gen, apiKey, clientAgent)
+		if err != nil {
+			log.Printf("❌ Grid %s job %s failed: %v", kind, jobID, err)
+			a.pending.fail(jobID, err.Error())
+			return
+		}
+		log.Printf("✅ Grid %s job %s done: %d result(s)", kind, jobID, len(resp.Data))
+		a.pending.complete(jobID, resp.Data, resp.Grid)
+	}()
+
 	writeJSON(w, http.StatusAccepted, map[string]any{
-		"jobId":  resp.ID,
+		"jobId":  jobID,
 		"status": "queued",
 	})
 }
@@ -971,16 +973,22 @@ func (a *App) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
-	defer cancel()
-
-	status, err := a.client.JobStatus(ctx, jobID)
-	if err != nil {
-		writeError(w, http.StatusBadGateway, err)
+	job, ok := a.pending.get(jobID)
+	if !ok {
+		writeError(w, http.StatusNotFound, fmt.Errorf("unknown or expired job: %s", jobID))
 		return
 	}
 
-	writeJSON(w, http.StatusOK, buildJobView(status))
+	view := buildJobView(jobID, job)
+	// While the job is running, surface the worker's real progress (best-effort).
+	if job.Status == "processing" {
+		ctx, cancel := context.WithTimeout(r.Context(), 4*time.Second)
+		defer cancel()
+		if p, err := a.client.FetchProgress(ctx, jobID); err == nil {
+			view.Progress = p
+		}
+	}
+	writeJSON(w, http.StatusOK, view)
 }
 
 type ModelView struct {
@@ -1089,6 +1097,10 @@ type CreateJobRequest struct {
 	SourceMask       string           `json:"sourceMask"`
 	SourceProcessing string           `json:"sourceProcessing"`
 	MediaType        string           `json:"mediaType"` // "image" or "video"
+	Style            string           `json:"style"`     // curated style id (grid expands it)
+	// CivitAI LoRAs to inject: [{name, model, clip, is_version}]. Passed through
+	// to the grid, which gates them (capability + blacklist + count) and downloads.
+	Loras            []any            `json:"loras,omitempty"`
 }
 
 type GenerationParams struct {
@@ -1143,192 +1155,106 @@ func (r CreateJobRequest) Validate() error {
 	return nil
 }
 
-// mapSamplerName converts ComfyUI sampler names to Grid API format
-// The Grid API expects specific sampler names with k_ prefix
-func mapSamplerName(sampler string) string {
-	samplerMap := map[string]string{
-		// Direct mappings
-		"uni_pc":             "dpmsolver",
-		"unipc":              "dpmsolver",
-		"uni_pc_bh2":         "dpmsolver",
-		"dpm_2":              "k_dpm_2",
-		"dpm_2_ancestral":    "k_dpm_2_a",
-		"euler":              "k_euler",
-		"euler_ancestral":    "k_euler_a",
-		"heun":               "k_heun",
-		"lms":                "k_lms",
-		"dpm_fast":           "k_dpm_fast",
-		"dpm_adaptive":       "k_dpm_adaptive",
-		"dpmpp_2s_ancestral": "k_dpmpp_2s_a",
-		"dpmpp_2m":           "k_dpmpp_2m",
-		"dpmpp_sde":          "k_dpmpp_sde",
-		"ddim":               "DDIM",
-		// Already in correct format - pass through
-		"k_euler":        "k_euler",
-		"k_euler_a":      "k_euler_a",
-		"k_dpm_2":        "k_dpm_2",
-		"k_dpm_2_a":      "k_dpm_2_a",
-		"k_heun":         "k_heun",
-		"k_lms":          "k_lms",
-		"k_dpm_fast":     "k_dpm_fast",
-		"k_dpm_adaptive": "k_dpm_adaptive",
-		"k_dpmpp_2s_a":   "k_dpmpp_2s_a",
-		"k_dpmpp_2m":     "k_dpmpp_2m",
-		"k_dpmpp_sde":    "k_dpmpp_sde",
-		"DDIM":           "DDIM",
-		"dpmsolver":      "dpmsolver",
-		"lcm":            "lcm",
+// buildGenerateRequest maps the gallery's CreateJobRequest onto the new grid's
+// OpenAI-shaped /v1 body. Knobs the user did not explicitly set are LEFT OUT so
+// the grid applies the model's recipe default (the happy path). We do not clamp
+// here — the grid is the authority and rejects out-of-band overrides (422)
+// rather than silently clamping, which is the behaviour we want users to see.
+func buildGenerateRequest(req CreateJobRequest, preset models.ModelPreset) aipg.GenerateRequest {
+	gen := aipg.GenerateRequest{
+		Model: getGridModelName(preset.ID),
+		Style: req.Style,
 	}
 
-	// Case-insensitive lookup
-	lowerSampler := strings.ToLower(sampler)
-	if mapped, ok := samplerMap[lowerSampler]; ok {
-		return mapped
-	}
-	if mapped, ok := samplerMap[sampler]; ok {
-		return mapped
-	}
-
-	// Default to k_euler if unknown
-	return "k_euler"
-}
-
-func buildCreateJobPayload(req CreateJobRequest, preset models.ModelPreset) aipg.CreateJobPayload {
-	// Process prompts: enhance positive, provide default negative
-	enhancedPrompt, finalNegative := prompts.ProcessPrompts(req.Prompt, req.NegativePrompt, preset.ID)
-
-	log.Printf("Prompt processing: original=%d chars, enhanced=%d chars, negative=%d chars",
-		len(req.Prompt), len(enhancedPrompt), len(finalNegative))
-
-	rawSampler := pickString(req.Params.Sampler, preset.Defaults.Sampler)
-	mappedSampler := mapSamplerName(rawSampler)
-
-	// Get final values - validate user input against model limits
-	// User values are used if provided and within range, otherwise clamped to valid range
-	width := pickIntInRange(req.Params.Width, preset.Defaults.Width, preset.Limits.Width)
-	height := pickIntInRange(req.Params.Height, preset.Defaults.Height, preset.Limits.Height)
-	steps := pickIntInRange(req.Params.Steps, preset.Defaults.Steps, preset.Limits.Steps)
-	cfgScale := pickFloatInRange(req.Params.CfgScale, preset.Defaults.CfgScale, preset.Limits.CfgScale)
-	denoise := pickFloat(req.Params.Denoise, preset.Defaults.Denoise) // No limits for denoise
-	scheduler := pickString(req.Params.Scheduler, preset.Defaults.Scheduler)
-
-	// Video parameters - validate against limits
-	videoLength := pickIntInRange(req.Params.Length, preset.Defaults.Length, preset.Limits.Length)
-	fps := pickIntInRange(req.Params.FPS, preset.Defaults.FPS, preset.Limits.FPS)
-
-	// Debug log for video models
-	if preset.Type == "video" {
-		log.Printf("🎬 Video params: preset=%s, userLen=%d→%d, userFPS=%d→%d, userSteps=%d→%d, userCfg=%.2f→%.2f",
-			preset.ID,
-			req.Params.Length, videoLength,
-			req.Params.FPS, fps,
-			req.Params.Steps, steps,
-			req.Params.CfgScale, cfgScale)
+	if req.Style != "" {
+		// A style owns prompt-shaping (its template + negative) and locks key
+		// params grid-side, so send the RAW prompt and skip local enhancement —
+		// otherwise we'd double-enhance.
+		gen.Prompt = req.Prompt
+		gen.NegativePrompt = req.NegativePrompt
+	} else {
+		// No style: enhance positive + provide a sensible default negative.
+		gen.Prompt, gen.NegativePrompt = prompts.ProcessPrompts(req.Prompt, req.NegativePrompt, preset.ID)
 	}
 
-	params := map[string]any{
-		"sampler_name":       mappedSampler,
-		"scheduler":          scheduler,
-		"cfg_scale":          cfgScale,
-		"steps":              steps,
-		"karras":             strings.EqualFold(scheduler, "karras"),
-		"hires_fix":          req.Params.HiresFix,
-		"tiling":             req.Params.Tiling,
-		"denoising_strength": denoise,
+	// Size: only pin when the caller supplied BOTH dimensions. Omitting it lets
+	// the grid pick the recipe default and, for img2img/img2video, auto-match
+	// the output to the source frame.
+	if req.Params.Width > 0 && req.Params.Height > 0 {
+		gen.Size = fmt.Sprintf("%dx%d", req.Params.Width, req.Params.Height)
 	}
-	if width > 0 {
-		params["width"] = width
-	}
-	if height > 0 {
-		params["height"] = height
-	}
-	if req.Params.Seed != "" {
-		params["seed"] = req.Params.Seed
-	}
-	// Batch generation - number of images to create (1-4)
+
+	// Batch size.
 	if req.Params.N > 0 {
-		params["n"] = req.Params.N
-		log.Printf("📦 Batch mode enabled: generating %d images", req.Params.N)
+		gen.N = req.Params.N
 	}
 
-	// Video-specific parameters - comfy_bridge expects these at top level
-	if videoLength > 0 {
-		params["length"] = videoLength
-		params["video_length"] = videoLength
-	}
-	if fps > 0 {
-		params["fps"] = fps
+	// img2img / img2video source frame (inline base64 / data URI).
+	if req.SourceImage != "" {
+		gen.Image = req.SourceImage
 	}
 
-	// Convert preset ID to Grid API model name
-	gridModelName := getGridModelName(preset.ID)
+	// User-supplied CivitAI LoRAs (grid gates + downloads them).
+	if len(req.Loras) > 0 {
+		gen.Loras = req.Loras
+	}
 
-	// Determine source processing based on model type if not specified
-	sourceProcessing := req.SourceProcessing
-	if sourceProcessing == "" {
-		if preset.Type == "video" {
-			if req.SourceImage != "" {
-				sourceProcessing = "img2video"
-			} else {
-				sourceProcessing = "txt2video"
+	// Advanced knobs — pass through ONLY when the user set them.
+	if req.Params.Seed != "" {
+		gen.Seed = req.Params.Seed
+	}
+	if req.Params.Steps > 0 {
+		gen.Steps = req.Params.Steps
+	}
+	if req.Params.CfgScale > 0 {
+		gen.CfgScale = req.Params.CfgScale
+	}
+	if req.Params.Sampler != "" {
+		// The new grid enum-validates samplers against the recipe's ComfyUI names
+		// (euler, dpmpp_2m, res_multistep, …) and rejects off-list values. Pass
+		// the value straight through — presets only offer names the recipe allows.
+		// (No more horde k_* remapping; that produced names the grid 422s on.)
+		gen.Sampler = req.Params.Sampler
+	}
+	if req.Params.Scheduler != "" {
+		gen.Scheduler = req.Params.Scheduler
+	}
+
+	// Video-only: the grid takes seconds + fps and derives frame count. The
+	// gallery UI expresses duration as a frame count ("length"), so convert.
+	if preset.Type == "video" {
+		fps := req.Params.FPS
+		if fps > 0 {
+			gen.FPS = fps
+		}
+		if req.Params.Length > 0 {
+			effFPS := fps
+			if effFPS <= 0 {
+				effFPS = 24 // grid default; only used to derive duration
 			}
-		} else {
-			if req.SourceImage != "" {
-				sourceProcessing = "img2img"
-			} else {
-				sourceProcessing = "txt2img"
-			}
+			gen.Seconds = float64(req.Params.Length) / float64(effFPS)
 		}
 	}
 
-	// Determine media type based on model type if not specified
-	mediaType := req.MediaType
-	if mediaType == "" {
-		mediaType = preset.Type
-	}
-
-	payload := aipg.CreateJobPayload{
-		Prompt:           enhancedPrompt,
-		NegativePrompt:   finalNegative,
-		Models:           []string{gridModelName},
-		NSFW:             req.NSFW,
-		CensorNSFW:       !req.NSFW,
-		TrustedWorkers:   true,
-		R2:               true,
-		Shared:           req.Public,
-		Params:           params,
-		WalletAddress:    req.WalletAddress,
-		SourceProcessing: sourceProcessing,
-		MediaType:        mediaType,
-	}
-
-	if req.SourceImage != "" {
-		payload.SourceImage = req.SourceImage
-	}
-	if req.SourceMask != "" {
-		payload.SourceMask = req.SourceMask
-	}
-
-	// Log the full payload for video debugging
-	if preset.Type == "video" {
-		paramsJSON, _ := json.Marshal(params)
-		log.Printf("🎬 Video job payload: model=%s, mediaType=%s, sourceProc=%s, params=%s",
-			gridModelName, mediaType, sourceProcessing, string(paramsJSON))
-	}
-
-	return payload
+	return gen
 }
 
 type JobView struct {
 	JobID         string           `json:"jobId"`
 	Status        string           `json:"status"`
 	Faulted       bool             `json:"faulted"`
+	Error         string           `json:"error,omitempty"`
+	Progress      *int             `json:"progress,omitempty"` // 0-100 worker progress while processing
 	WaitTime      float64          `json:"waitTime"`
 	QueuePosition int              `json:"queuePosition"`
 	Processing    int              `json:"processing"`
 	Finished      int              `json:"finished"`
 	Waiting       int              `json:"waiting"`
 	Generations   []GenerationView `json:"generations"`
+	// Per-job provenance from the grid (worker that ran it + wall-clock seconds).
+	Worker  string   `json:"worker,omitempty"`
+	GenTime *float64 `json:"genTime,omitempty"`
+	Model   string   `json:"model,omitempty"`
 }
 
 type GenerationView struct {
@@ -1342,63 +1268,52 @@ type GenerationView struct {
 	WorkerName string `json:"workerName,omitempty"`
 }
 
-func buildJobView(resp *aipg.JobStatusResponse) JobView {
-	status := "queued"
-	if resp.Faulted {
-		status = "faulted"
-	} else if resp.Done {
-		status = "completed"
-	} else if resp.Processing > 0 {
-		status = "processing"
+// buildJobView renders a pending-store entry into the JobView the frontend
+// polls. The new grid returns final public URLs (images.aipg.art /
+// media.aipg.art) directly, so there is no R2-key reconstruction to do here.
+func buildJobView(jobID string, job pendingJob) JobView {
+	view := JobView{
+		JobID:   jobID,
+		Status:  job.Status,
+		Faulted: job.Status == "faulted",
+		Error:   job.Err,
 	}
 
-	views := make([]GenerationView, 0, len(resp.Generations))
-	for _, gen := range resp.Generations {
-		view := GenerationView{
-			ID:         gen.ID,
-			Seed:       fmt.Sprintf("%v", gen.Seed),
-			MimeType:   gen.Mime,
-			WorkerID:   gen.WorkerID,
-			WorkerName: gen.Worker,
-		}
-		switch {
-		case gen.Video != "":
-			view.Kind = "video"
-			view.URL = r2.ConvertToCDNURL(gen.Video)
-		case strings.Contains(strings.ToLower(gen.Mime), "video"):
-			view.Kind = "video"
-			rawURL := firstNonEmpty(gen.Video, gen.ImgURL, gen.Img)
-			if rawURL != "" {
-				view.URL = r2.ConvertToCDNURL(rawURL)
-			}
-		default:
-			view.Kind = "image"
-			rawURL := firstNonEmpty(gen.ImgURL, gen.Img)
-			view.Base64 = normalizeBase64(gen.Image)
-			if view.Base64 == "" && strings.HasPrefix(rawURL, "data:image") {
-				view.Base64 = rawURL
-				view.URL = ""
-			} else if rawURL != "" {
-				view.URL = r2.ConvertToCDNURL(rawURL)
-			} else if gen.ID != "" && view.Base64 == "" {
-				// Fallback: construct R2 URL from generation ID when Grid API returns empty URL
-				view.URL = fmt.Sprintf("https://images.aipg.art/%s.webp", gen.ID)
-			}
-		}
-		views = append(views, view)
+	switch job.Status {
+	case "processing":
+		view.Processing = 1
+	case "completed":
+		view.Finished = len(job.Items)
 	}
 
-	return JobView{
-		JobID:         resp.ID,
-		Status:        status,
-		Faulted:       resp.Faulted,
-		WaitTime:      resp.WaitTime,
-		QueuePosition: resp.QueuePosition,
-		Processing:    resp.Processing,
-		Finished:      resp.Finished,
-		Waiting:       resp.Waiting,
-		Generations:   views,
+	if job.Grid != nil {
+		view.Worker = job.Grid.Worker
+		view.GenTime = job.Grid.GenTime
+		view.Model = job.Grid.Model
 	}
+
+	views := make([]GenerationView, 0, len(job.Items))
+	for i, item := range job.Items {
+		gv := GenerationView{
+			ID:   fmt.Sprintf("%s-%d", jobID, i),
+			Kind: job.Kind,
+		}
+		if job.Grid != nil {
+			gv.WorkerName = job.Grid.Worker
+		}
+		if item.Seed != nil {
+			gv.Seed = strconv.FormatInt(*item.Seed, 10)
+		}
+		if item.URL != "" {
+			gv.URL = item.URL
+		} else if item.B64JSON != "" {
+			gv.Base64 = normalizeBase64(item.B64JSON)
+		}
+		views = append(views, gv)
+	}
+	view.Generations = views
+
+	return view
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -1525,6 +1440,9 @@ type AddToGalleryRequest struct {
 	WalletAddress  string            `json:"walletAddress,omitempty"`
 	Params         *JobParamsRequest `json:"params,omitempty"`
 	MediaURLs      []string          `json:"mediaUrls,omitempty"`
+	// Per-job provenance from the grid (worker that ran it + wall-clock seconds).
+	Worker         string            `json:"worker,omitempty"`
+	GenTime        *float64          `json:"genTime,omitempty"`
 }
 
 func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
@@ -1570,6 +1488,8 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		WalletAddress:  req.WalletAddress,
 		Params:         galleryParams,
 		MediaURLs:      req.MediaURLs,
+		Worker:         req.Worker,
+		GenTime:        req.GenTime,
 	}
 
 	a.galleryStore.Add(item)
@@ -1640,37 +1560,35 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	// First try to fetch from Grid API to get generation IDs
-	// This ensures we have the correct generation IDs for CDN URLs
-	status, err := a.client.JobStatus(ctx, jobID)
-	if err == nil && len(status.Generations) > 0 {
-		// Extract generation IDs and build CDN URLs
-		urls := make([]string, 0, len(status.Generations))
-		genIDs := make([]string, 0, len(status.Generations))
-
-		for _, gen := range status.Generations {
-			if gen.ID != "" {
-				genIDs = append(genIDs, gen.ID)
-				// Build CDN URL using generation ID
-				cdnURL := "https://images.aipg.art/" + gen.ID + ".webp"
-				urls = append(urls, cdnURL)
+	// The new grid returns final public URLs at generation time, which the
+	// frontend persists into the item via handleAddToGallery. So the stored
+	// MediaURLs are authoritative — there is no async job to re-query (the
+	// bridge jobID is ephemeral and never existed grid-side). Prefer them.
+	if len(item.MediaURLs) > 0 {
+		urls := make([]string, 0, len(item.MediaURLs))
+		for _, u := range item.MediaURLs {
+			if u == "" {
+				continue
+			}
+			// Preserve presigned R2 URLs as-is; normalize anything else to CDN.
+			if strings.Contains(u, ".r2.cloudflarestorage.com") || strings.Contains(u, "presigned") {
+				urls = append(urls, u)
+			} else if cdn := r2.ConvertToCDNURL(u); cdn != "" {
+				urls = append(urls, cdn)
 			}
 		}
-
-		// Note: UpdateGenerations removed - media URLs are fetched dynamically
-
 		if len(urls) > 0 {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"jobId":     jobID,
 				"mediaUrls": urls,
 				"type":      item.Type,
-				"source":    "grid-api",
+				"source":    "stored",
 			})
 			return
 		}
 	}
 
-	// If Grid API failed or no generation IDs, try using R2 client if available
+	// Older items may only have generation IDs — mint fresh R2 URLs from them.
 	if a.r2Client != nil && len(item.GenerationIDs) > 0 {
 		urls := make([]string, 0, len(item.GenerationIDs))
 		for _, genID := range item.GenerationIDs {
@@ -1691,34 +1609,6 @@ func (a *App) handleGetGalleryMedia(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-	}
-
-	// Final fallback - use cached URLs or job ID
-	if err != nil {
-		log.Printf("Warning: failed to fetch job status for %s: %v", jobID, err)
-		cachedURLs := make([]string, 0, len(item.MediaURLs))
-		for _, cachedURL := range item.MediaURLs {
-			if cachedURL != "" {
-				// If it's already an R2 presigned URL, preserve it
-				if strings.Contains(cachedURL, ".r2.cloudflarestorage.com") || strings.Contains(cachedURL, "presigned") {
-					cachedURLs = append(cachedURLs, cachedURL)
-				} else {
-					// Otherwise convert to CDN format
-					cdnURL := r2.ConvertToCDNURL(cachedURL)
-					if cdnURL != "" {
-						cachedURLs = append(cachedURLs, cdnURL)
-					}
-				}
-			}
-		}
-		writeJSON(w, http.StatusOK, map[string]any{
-			"jobId":     jobID,
-			"mediaUrls": cachedURLs,
-			"type":      item.Type,
-			"source":    "cache",
-			"error":     "Job may have expired from Grid API",
-		})
-		return
 	}
 
 	// Absolute fallback - return CDN URL using job ID
@@ -1745,6 +1635,8 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 		Seeds     []string `json:"seeds,omitempty"`
 		Sampler   string   `json:"sampler,omitempty"`
 		Scheduler string   `json:"scheduler,omitempty"`
+		Worker    string   `json:"worker,omitempty"`
+		GenTime   *float64 `json:"genTime,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -1769,7 +1661,7 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the media URLs and seeds
-	err := a.galleryStore.UpdateGalleryItemMedia(jobID, req.MediaURLs, req.Seeds, req.Sampler, req.Scheduler)
+	err := a.galleryStore.UpdateGalleryItemMedia(jobID, req.MediaURLs, req.Seeds, req.Sampler, req.Scheduler, req.Worker, req.GenTime)
 	if err != nil {
 		log.Printf("Failed to update gallery item %s: %v", jobID, err)
 		writeError(w, http.StatusInternalServerError, errors.New("failed to update gallery item"))
@@ -1910,6 +1802,96 @@ func (a *App) handleUnpublishGalleryItem(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// handleExtractSingleImage extracts one image from a batch into its own gallery item
+func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
+	jobID := chi.URLParam(r, "id")
+	if jobID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("job ID is required"))
+		return
+	}
+
+	var req struct {
+		Index int `json:"index"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid request body"))
+		return
+	}
+
+	requestWallet := getWalletFromContext(r)
+
+	// Get the original batch item
+	item := a.galleryStore.Get(jobID)
+	if item == nil {
+		writeError(w, http.StatusNotFound, errors.New("gallery item not found"))
+		return
+	}
+
+	// Check ownership
+	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
+	if itemWallet != requestWallet {
+		writeError(w, http.StatusForbidden, errors.New("you can only extract from your own images"))
+		return
+	}
+
+	// Validate index
+	if len(item.MediaURLs) <= 1 {
+		writeError(w, http.StatusBadRequest, errors.New("item is not a batch"))
+		return
+	}
+	if req.Index < 0 || req.Index >= len(item.MediaURLs) {
+		writeError(w, http.StatusBadRequest, errors.New("invalid image index"))
+		return
+	}
+
+	// Create new gallery item with just the single image
+	newJobID := fmt.Sprintf("%s-extract-%d", jobID, req.Index)
+	
+	// Get the seed for this specific image
+	var seed *string
+	if len(item.Seeds) > req.Index {
+		seed = &item.Seeds[req.Index]
+	} else if item.Params != nil && item.Params.Seed != nil {
+		seed = item.Params.Seed
+	}
+
+	newItem := gallery.GalleryItem{
+		JobID:          newJobID,
+		ModelID:        item.ModelID,
+		ModelName:      item.ModelName,
+		Prompt:         item.Prompt,
+		NegativePrompt: item.NegativePrompt,
+		Type:           item.Type,
+		IsNSFW:         item.IsNSFW,
+		IsPublic:       false, // Start as private
+		WalletAddress:  item.WalletAddress,
+		MediaURLs:      []string{item.MediaURLs[req.Index]},
+		Seeds:          nil, // Single image doesn't need seeds array
+		Params:         item.Params,
+	}
+	
+	// Set the correct seed for this image
+	if seed != nil && newItem.Params != nil {
+		newItem.Params.Seed = seed
+	}
+
+	err := a.galleryStore.Add(newItem)
+	if err != nil {
+		log.Printf("Failed to extract single image: %v", err)
+		writeError(w, http.StatusInternalServerError, errors.New("failed to save extracted image"))
+		return
+	}
+
+	log.Printf("Gallery: extracted image %d from batch %s to %s by wallet %s", req.Index, jobID, newJobID, requestWallet)
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"success":    true,
+		"message":    "Image saved as single",
+		"newJobId":   newJobID,
+		"originalId": jobID,
+	})
+}
+
 // Favorites handlers
 func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
@@ -2012,87 +1994,6 @@ func (a *App) handleCheckFavorite(w http.ResponseWriter, r *http.Request) {
 		"favorited": favorited,
 		"jobId":     jobID,
 	})
-}
-
-func pickString(value, fallback string) string {
-	if strings.TrimSpace(value) != "" {
-		return value
-	}
-	return fallback
-}
-
-func pickInt(value, fallback int) int {
-	if value > 0 {
-		return value
-	}
-	return fallback
-}
-
-func pickFloat(value, fallback float64) float64 {
-	if value > 0 {
-		return value
-	}
-	return fallback
-}
-
-// pickIntInRange returns user value if within [min, max], otherwise returns fallback
-// If user value is 0/unset, uses fallback. If user value is out of range, clamps to nearest limit.
-func pickIntInRange(userValue, fallback int, limits *models.RangeInt) int {
-	if limits == nil {
-		return pickInt(userValue, fallback)
-	}
-
-	// If user didn't provide a value, use fallback
-	if userValue <= 0 {
-		return clampInt(fallback, limits.Min, limits.Max)
-	}
-
-	// User provided value - clamp to valid range
-	return clampInt(userValue, limits.Min, limits.Max)
-}
-
-// pickFloatInRange returns user value if within [min, max], otherwise clamps to range
-func pickFloatInRange(userValue, fallback float64, limits *models.RangeFloat) float64 {
-	if limits == nil {
-		return pickFloat(userValue, fallback)
-	}
-
-	// If user didn't provide a value, use fallback
-	if userValue <= 0 {
-		return clampFloat(fallback, limits.Min, limits.Max)
-	}
-
-	// User provided value - clamp to valid range
-	return clampFloat(userValue, limits.Min, limits.Max)
-}
-
-func clampInt(value, min, max int) int {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
-func clampFloat(value, min, max float64) float64 {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 func normalizeBase64(raw string) string {

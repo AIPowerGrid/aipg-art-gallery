@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type RangeInt struct {
@@ -74,14 +75,18 @@ func LoadCatalog(path string) (Catalog, error) {
 		if p.ID == "" {
 			continue
 		}
-		items[p.ID] = p
+		// Key by lowercased ID: the frontend's model list (config/styles.json)
+		// and the grid advertise the same model with different casing
+		// (e.g. "flux.2 klein 4b fp8" vs "FLUX.2 Klein 4B FP8"), so lookups
+		// must be case-insensitive or generation 400s with "unknown model".
+		items[strings.ToLower(p.ID)] = p
 	}
 
 	return Catalog{items: items}, nil
 }
 
 func (c Catalog) Get(id string) (ModelPreset, bool) {
-	v, ok := c.items[id]
+	v, ok := c.items[strings.ToLower(id)]
 	return v, ok
 }
 

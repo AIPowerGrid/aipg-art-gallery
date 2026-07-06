@@ -2,37 +2,34 @@
 
 ## Purpose
 
-The shared React UI for the gallery app: layout, the create/generation flow, gallery cards
-and modals, wallet/auth controls, and providers.
+Reusable client UI for the gallery, generation flow, wallet/Google auth, and layout. Presentation
++ interaction only; data and auth logic come from `lib/`.
 
 ## Ownership
 
-- Top-level pieces: `header.tsx`, `providers.tsx` (wagmi/RainbowKit/query/theme providers),
-  `auth-modal.tsx`, `social-auth.tsx`, `custom-connect-button.tsx`, `wallet-button.tsx`,
-  `network-selector.tsx`, `error-boundary.tsx`.
-- Gallery: `media-card.tsx`, `creation-card.tsx`, `image-modal.tsx`, `gallery-filter.tsx`,
-  `active-jobs-indicator.tsx`, `dimension-slider.tsx`.
-- `create/` — the generation flow: `prompt-form.tsx`, `settings-panel.tsx`,
-  `creations-grid.tsx`, `anon-limit-banner.tsx` (barrel-exported via `index.ts`).
-- shadcn is configured (`components.json`, base color slate) and Radix primitives are
-  installed as deps, but components currently use Radix directly — there is no
-  `components/ui/` directory yet.
+- Auth UI: `custom-connect-button.tsx`, `wallet-button.tsx`, `auth-modal.tsx`, `social-auth.tsx`,
+  `google-one-tap.tsx` (Google One Tap — posts the credential to the Go `/auth/google` with
+  `credentials: 'include'`; the server sets the httpOnly cookie). `providers.tsx` wires Wagmi /
+  RainbowKit / React Query and drives wallet SIWE sign-in + session reconcile on mount.
+- Gallery/media: `creation-card.tsx`, `media-card.tsx`, `image-modal.tsx`, `gallery-filter.tsx`,
+  `creations-grid.tsx`, `active-jobs-indicator.tsx`. Create flow: `create/*`. Misc: `header.tsx`,
+  `network-selector.tsx`, `dimension-slider.tsx`, `error-boundary.tsx`.
 
 ## Local Contracts
 
-- Components are presentational + interaction; data and side effects come from `lib/` hooks
-  and stores, and from `lib/api.ts` — components do not call the Go API directly.
-- Build on Radix primitives and Tailwind tokens (see `tailwind.config.ts`); do not add
-  ad-hoc UI libraries. If you add shadcn-generated primitives, put them under
-  `components/ui/` (the `components.json` alias) and update this doc.
+- Components consume `lib/` (stores, hooks, `api.ts`) — no direct `fetch` of the Go API, no raw
+  token handling. Auth state comes from `useAuthStore`.
+- **Auth components must not read or store the JWT** — it's an httpOnly cookie. Use the store's
+  markers (address, Google profile) for display and `credentials: 'include'` on any auth fetch.
+- Keep components presentational; push nontrivial logic into `lib/hooks` or `lib/stores`.
 
 ## Work Guidance
 
-—
+- New UI → reuse primitives here; add shared state via a `lib/store` and data via a `lib/hook`.
 
 ## Verification
 
-—
+- `npm run build` + `npx tsc --noEmit`.
 
 ## Child DOX Index
 

@@ -123,3 +123,6 @@ data/*.backup*
 # Lock files (optional)
 # ===================
 bun.lockb
+gallery.env
+gallery-server
+tsconfig.tsbuildinfo

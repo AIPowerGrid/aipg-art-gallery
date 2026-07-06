@@ -20,7 +20,7 @@ type Client struct {
 
 func NewClient(apiKey, model, clientAgent, baseURL string) *Client {
 	if baseURL == "" {
-		baseURL = "https://api.aipowergrid.io/api/v2"
+		baseURL = "https://api.aipowergrid.io/v1"
 	}
 	return &Client{
 		httpClient: &http.Client{
@@ -33,69 +33,52 @@ func NewClient(apiKey, model, clientAgent, baseURL string) *Client {
 	}
 }
 
-// TextGenerationRequest is the request payload for text generation
-type TextGenerationRequest struct {
-	Prompt string            `json:"prompt"`
-	Params TextGenerationParams `json:"params"`
-	Models []string          `json:"models"`
+// chatRequest is the OpenAI-style /v1/chat/completions request. The new grid is
+// a faithful OpenAI proxy, so prompt enhancement is a single synchronous call —
+// no async submit + poll loop like the old Flask horde.
+type chatRequest struct {
+	Model       string        `json:"model"`
+	Messages    []chatMessage `json:"messages"`
+	Temperature float64       `json:"temperature"`
+	MaxTokens   int           `json:"max_tokens"`
 }
 
-type TextGenerationParams struct {
-	MaxLength        int      `json:"max_length"`
-	MaxContextLength int      `json:"max_context_length"`
-	Temperature      float64  `json:"temperature"`
-	RepPen           float64  `json:"rep_pen"`
-	TopP             float64  `json:"top_p"`
-	TopK             int      `json:"top_k"`
-	StopSequence     []string `json:"stop_sequence"`
+type chatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
-// TextGenerationResponse is the initial response with job ID
-type TextGenerationResponse struct {
-	ID string `json:"id"`
+type chatResponse struct {
+	Choices []struct {
+		Message chatMessage `json:"message"`
+	} `json:"choices"`
+	Error *struct {
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
 }
 
-// TextStatusResponse is the polling response
-type TextStatusResponse struct {
-	Done        bool         `json:"done"`
-	Faulted     bool         `json:"faulted"`
-	FaultedMsg  string       `json:"faulted_message,omitempty"`
-	Generations []Generation `json:"generations,omitempty"`
-}
-
-type Generation struct {
-	Text string `json:"text"`
-}
-
-// GenerateText submits a text generation request and polls until complete
+// GenerateText runs one chat completion and returns the assistant's text. The
+// caller assembles the full instruction into prompt (user text + guidelines),
+// so we send it as a single user message.
 func (c *Client) GenerateText(ctx context.Context, prompt string) (string, error) {
-	// Build request payload
-	payload := TextGenerationRequest{
-		Prompt: prompt,
-		Params: TextGenerationParams{
-			MaxLength:        1024,
-			MaxContextLength: 8192,
-			Temperature:      0.7,
-			RepPen:           1.1,
-			TopP:             0.92,
-			TopK:             100,
-			StopSequence:     []string{"<|endoftext|>"},
-		},
-		Models: []string{c.model},
+	payload := chatRequest{
+		Model:       c.model,
+		Messages:    []chatMessage{{Role: "user", Content: prompt}},
+		Temperature: 0.7,
+		MaxTokens:   1024,
 	}
 
-	// Submit request
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/generate/text/async", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
-
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("apikey", c.apiKey)
 	req.Header.Set("Client-Agent", c.clientAgent)
 
@@ -105,72 +88,20 @@ func (c *Client) GenerateText(ctx context.Context, prompt string) (string, error
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("API error %d: %s", resp.StatusCode, string(bodyBytes))
+	respBytes, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBytes))
 	}
 
-	var genResp TextGenerationResponse
-	if err := json.NewDecoder(resp.Body).Decode(&genResp); err != nil {
+	var parsed chatResponse
+	if err := json.Unmarshal(respBytes, &parsed); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
 	}
-
-	// Poll for result
-	return c.pollForResult(ctx, genResp.ID)
-}
-
-func (c *Client) pollForResult(ctx context.Context, generationID string) (string, error) {
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	maxAttempts := 60 // 60 * 2s = 120s max
-	attempts := 0
-
-	for {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		case <-ticker.C:
-			attempts++
-			if attempts > maxAttempts {
-				return "", fmt.Errorf("timeout waiting for generation")
-			}
-
-			status, err := c.checkStatus(ctx, generationID)
-			if err != nil {
-				continue // Retry on error
-			}
-
-			if status.Faulted {
-				return "", fmt.Errorf("generation failed: %s", status.FaultedMsg)
-			}
-
-			if status.Done && len(status.Generations) > 0 && status.Generations[0].Text != "" {
-				return status.Generations[0].Text, nil
-			}
-		}
+	if parsed.Error != nil {
+		return "", fmt.Errorf("generation failed: %s", parsed.Error.Message)
 	}
-}
-
-func (c *Client) checkStatus(ctx context.Context, generationID string) (*TextStatusResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/generate/text/status/"+generationID, nil)
-	if err != nil {
-		return nil, err
+	if len(parsed.Choices) == 0 || parsed.Choices[0].Message.Content == "" {
+		return "", fmt.Errorf("empty completion")
 	}
-
-	req.Header.Set("apikey", c.apiKey)
-	req.Header.Set("Client-Agent", c.clientAgent)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var status TextStatusResponse
-	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
-		return nil, err
-	}
-
-	return &status, nil
+	return parsed.Choices[0].Message.Content, nil
 }

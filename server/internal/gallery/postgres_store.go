@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 // PostgresStore implements GalleryStore using PostgreSQL
@@ -109,12 +109,14 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 			job_id, model, prompt, negative_prompt,
 			media_url, is_public, wallet_address,
 			width, height, steps, cfg_scale, sampler, scheduler, seed,
-			type, created_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			type, created_at, worker, gen_time
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		ON CONFLICT (job_id) DO UPDATE SET
 			media_url = EXCLUDED.media_url,
 			is_public = EXCLUDED.is_public,
-			type = EXCLUDED.type
+			type = EXCLUDED.type,
+			worker = COALESCE(EXCLUDED.worker, gallery_items.worker),
+			gen_time = COALESCE(EXCLUDED.gen_time, gallery_items.gen_time)
 	`
 
 	createdAt := time.UnixMilli(item.CreatedAt)
@@ -125,6 +127,12 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 	itemType := item.Type
 	if itemType == "" {
 		itemType = "image"
+	}
+
+	// NULL (not "") when unknown so COALESCE preserves an existing worker on re-add.
+	var workerArg interface{}
+	if item.Worker != "" {
+		workerArg = item.Worker
 	}
 
 	_, err := s.db.Exec(query,
@@ -138,6 +146,8 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 		width, height, steps, cfgScale, sampler, scheduler, seed,
 		itemType,
 		createdAt,
+		workerArg,
+		item.GenTime,
 	)
 
 	return err
@@ -148,8 +158,8 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	query := `
 		SELECT job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
-			   width, height, steps, cfg_scale, sampler, scheduler, seed,
-			   created_at
+			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
+			   created_at, worker, gen_time
 		FROM gallery_items
 		WHERE job_id = $1
 	`
@@ -162,6 +172,9 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	var cfgScale sql.NullFloat64
 	var sampler, scheduler sql.NullString
 	var seed sql.NullInt64
+	var seeds pq.StringArray
+	var worker sql.NullString
+	var genTime sql.NullFloat64
 
 	err := s.db.QueryRow(query, jobID).Scan(
 		&item.JobID,
@@ -171,12 +184,19 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 		&mediaURL,
 		&item.IsPublic,
 		&walletAddr,
-		&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed,
-		&createdAt,
+		&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed, &seeds,
+		&createdAt, &worker, &genTime,
 	)
 
 	if err != nil {
 		return nil
+	}
+
+	if worker.Valid {
+		item.Worker = worker.String
+	}
+	if genTime.Valid {
+		item.GenTime = &genTime.Float64
 	}
 
 	if model.Valid {
@@ -223,6 +243,11 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	if seed.Valid {
 		seedStr := fmt.Sprintf("%d", seed.Int64)
 		item.Params.Seed = &seedStr
+	}
+	
+	// Set seeds array for batch mode
+	if len(seeds) > 0 {
+		item.Seeds = seeds
 	}
 
 	return &item
@@ -337,8 +362,8 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 	query := fmt.Sprintf(`
 		SELECT job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
-			   width, height, steps, cfg_scale, sampler, scheduler, seed,
-			   type, created_at
+			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
+			   type, created_at, worker, gen_time
 		FROM gallery_items
 		WHERE %s
 		ORDER BY random_sort
@@ -364,6 +389,9 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 		var cfgScale sql.NullFloat64
 		var sampler, scheduler sql.NullString
 		var seed sql.NullInt64
+		var seeds pq.StringArray
+		var worker sql.NullString
+		var genTime sql.NullFloat64
 
 		err := rows.Scan(
 			&item.JobID,
@@ -373,14 +401,21 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 			&mediaURL,
 			&item.IsPublic,
 			&walletAddr,
-			&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed,
+			&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed, &seeds,
 			&itemType,
-			&createdAt,
+			&createdAt, &worker, &genTime,
 		)
 
 		if err != nil {
 			log.Printf("Error scanning gallery item: %v", err)
 			continue
+		}
+
+		if worker.Valid {
+			item.Worker = worker.String
+		}
+		if genTime.Valid {
+			item.GenTime = &genTime.Float64
 		}
 
 		if model.Valid {
@@ -434,6 +469,11 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 			seedStr := fmt.Sprintf("%d", seed.Int64)
 			item.Params.Seed = &seedStr
 		}
+		
+		// Set seeds array for batch mode
+		if len(seeds) > 0 {
+			item.Seeds = seeds
+		}
 
 		items = append(items, item)
 	}
@@ -453,8 +493,8 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 	query := `
 		SELECT job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
-			   width, height, steps, cfg_scale, sampler, scheduler, seed,
-			   created_at
+			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
+			   created_at, worker, gen_time
 		FROM gallery_items
 		WHERE LOWER(wallet_address) = LOWER($1)
 		ORDER BY created_at DESC
@@ -477,6 +517,9 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 		var cfgScale sql.NullFloat64
 		var sampler, scheduler sql.NullString
 		var seed sql.NullInt64
+		var seeds pq.StringArray
+		var worker sql.NullString
+		var genTime sql.NullFloat64
 
 		err := rows.Scan(
 			&item.JobID,
@@ -486,12 +529,19 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 			&mediaURL,
 			&item.IsPublic,
 			&walletAddr,
-			&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed,
-			&createdAt,
+			&width, &height, &steps, &cfgScale, &sampler, &scheduler, &seed, &seeds,
+			&createdAt, &worker, &genTime,
 		)
 
 		if err != nil {
 			continue
+		}
+
+		if worker.Valid {
+			item.Worker = worker.String
+		}
+		if genTime.Valid {
+			item.GenTime = &genTime.Float64
 		}
 
 		if model.Valid {
@@ -510,6 +560,11 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 
 		if walletAddr.Valid {
 			item.WalletAddress = walletAddr.String
+		}
+		
+		// Set seeds array for batch mode
+		if len(seeds) > 0 {
+			item.Seeds = seeds
 		}
 
 		// Build params struct
@@ -573,7 +628,7 @@ func (s *PostgresStore) UpdateMediaURLs(jobID string, mediaURLs []string) error 
 }
 
 // UpdateGalleryItemMedia updates media URLs, seeds, and other settings for a gallery item
-func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler string) error {
+func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler, worker string, genTime *float64) error {
 	if len(mediaURLs) == 0 {
 		return nil // Nothing to update
 	}
@@ -589,17 +644,20 @@ func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []
 	args := []any{string(urlsJSON)}
 	argNum := 2
 
-	// Store seed: the column is bigint, so we can only store one seed
-	// For batch mode with multiple seeds, we store the first one
-	if len(seeds) > 0 && seeds[0] != "" {
-		// Parse the seed string to int64 for the bigint column
-		seedInt, parseErr := strconv.ParseInt(seeds[0], 10, 64)
-		if parseErr == nil {
-			query += fmt.Sprintf(", seed = $%d", argNum)
-			args = append(args, seedInt)
-			argNum++
-		} else {
-			log.Printf("Warning: could not parse seed '%s' as int64: %v", seeds[0], parseErr)
+	// Store seeds array for batch mode (each image has its own seed)
+	if len(seeds) > 0 {
+		query += fmt.Sprintf(", seeds = $%d", argNum)
+		args = append(args, pq.Array(seeds))
+		argNum++
+		
+		// Also store first seed in legacy column for backwards compatibility
+		if seeds[0] != "" {
+			seedInt, parseErr := strconv.ParseInt(seeds[0], 10, 64)
+			if parseErr == nil {
+				query += fmt.Sprintf(", seed = $%d", argNum)
+				args = append(args, seedInt)
+				argNum++
+			}
 		}
 	}
 	if sampler != "" {
@@ -610,6 +668,16 @@ func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []
 	if scheduler != "" {
 		query += fmt.Sprintf(", scheduler = $%d", argNum)
 		args = append(args, scheduler)
+		argNum++
+	}
+	if worker != "" {
+		query += fmt.Sprintf(", worker = $%d", argNum)
+		args = append(args, worker)
+		argNum++
+	}
+	if genTime != nil {
+		query += fmt.Sprintf(", gen_time = $%d", argNum)
+		args = append(args, *genTime)
 		argNum++
 	}
 

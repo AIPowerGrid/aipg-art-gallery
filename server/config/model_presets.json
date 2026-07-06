@@ -3,656 +3,222 @@
     "id": "z-image-turbo",
     "displayName": "Z-Image Turbo",
     "type": "image",
-    "description": "Z-Image Turbo - Fast turbo image generation model optimized for speed with minimal steps.",
-    "tags": ["turbo", "fast", "generalist"],
-    "samplers": ["k_euler", "ddim"],
-    "schedulers": ["normal"],
-    "capabilities": ["txt2img"],
+    "description": "Fast turbo image model \u2014 great quality in just a few steps. The default for quick generations.",
+    "tags": [
+      "turbo",
+      "fast",
+      "generalist"
+    ],
+    "samplers": [
+      "euler",
+      "res_multistep",
+      "dpmpp_2m"
+    ],
+    "schedulers": [
+      "simple",
+      "normal",
+      "beta",
+      "sgm_uniform"
+    ],
+    "capabilities": [
+      "txt2img"
+    ],
     "defaults": {
       "width": 896,
       "height": 1152,
-      "steps": 5,
-      "cfgScale": 1.5,
-      "sampler": "k_euler",
-      "scheduler": "normal",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1536, "step": 64 },
-      "height": { "min": 512, "max": 1536, "step": 64 },
-      "steps": { "min": 3, "max": 8, "step": 1 },
-      "cfgScale": { "min": 1, "max": 3, "step": 0.5 }
-    }
-  },
-  {
-    "id": "SDXL 1.0",
-    "displayName": "SDXL 1.0",
-    "type": "image",
-    "description": "Stable Diffusion XL 1.0 - The base SDXL model for high-quality image generation.",
-    "tags": ["sdxl", "stable-diffusion", "generalist"],
-    "samplers": ["k_euler", "k_euler_a", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 2048, "step": 64 },
-      "height": { "min": 512, "max": 2048, "step": 64 },
-      "steps": { "min": 10, "max": 50, "step": 1 },
-      "cfgScale": { "min": 1, "max": 20, "step": 0.5 }
-    }
-  },
-  {
-    "id": "FLUX.1-dev",
-    "displayName": "FLUX.1 Dev",
-    "type": "image",
-    "description": "FLUX.1 Dev - High-quality image generation model by Black Forest Labs.",
-    "tags": ["flux", "high-quality", "generalist"],
-    "samplers": ["k_euler", "ddim"],
-    "schedulers": ["simple", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 24,
-      "cfgScale": 4,
-      "sampler": "k_euler",
-      "scheduler": "simple",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1536, "step": 64 },
-      "height": { "min": 512, "max": 1536, "step": 64 },
-      "steps": { "min": 12, "max": 32, "step": 1 },
-      "cfgScale": { "min": 1, "max": 7, "step": 0.5 }
-    }
-  },
-  {
-    "id": "flux.1-krea-dev",
-    "displayName": "FLUX.1 Krea Dev",
-    "type": "image",
-    "description": "FLUX.1 Krea Dev - High fidelity Flux model tuned by Krea for stylized general-purpose prompts.",
-    "tags": ["flux", "creative", "krea"],
-    "samplers": ["k_euler", "uni_pc", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 28,
-      "cfgScale": 3.5,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1536, "step": 64 },
-      "height": { "min": 512, "max": 1536, "step": 64 },
-      "steps": { "min": 28, "max": 32, "step": 1 },
-      "cfgScale": { "min": 3.5, "max": 5, "step": 0.5 }
-    }
-  },
-  {
-    "id": "FLUX.1-dev-Kontext-fp8-scaled",
-    "displayName": "FLUX.1 Kontext",
-    "type": "image",
-    "description": "FLUX.1 Kontext - Context-aware image generation and editing model for precise transformations.",
-    "tags": ["flux", "kontext", "img2img", "editing"],
-    "samplers": ["k_euler", "uni_pc", "ddim"],
-    "schedulers": ["simple", "normal"],
-    "capabilities": ["txt2img", "img2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 25,
-      "cfgScale": 2,
-      "sampler": "k_euler",
-      "scheduler": "simple",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1536, "step": 64 },
-      "height": { "min": 512, "max": 1536, "step": 64 },
-      "steps": { "min": 20, "max": 30, "step": 1 },
-      "cfgScale": { "min": 1, "max": 2.5, "step": 0.25 }
-    }
-  },
-  {
-    "id": "Flux.1-Schnell fp8 (Compact)",
-    "displayName": "FLUX.1 Schnell FP8",
-    "type": "image",
-    "description": "FLUX.1 Schnell - Fast image generation model for quick iterations. 12B parameters.",
-    "tags": ["flux", "schnell", "speed", "fp8"],
-    "samplers": ["k_euler", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 896,
-      "height": 896,
-      "steps": 4,
-      "cfgScale": 2,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1152, "step": 64 },
-      "height": { "min": 512, "max": 1152, "step": 64 },
-      "steps": { "min": 3, "max": 8, "step": 1 },
-      "cfgScale": { "min": 1, "max": 4, "step": 0.5 }
-    }
-  },
-  {
-    "id": "Chroma",
-    "displayName": "Chroma",
-    "type": "image",
-    "description": "Chroma - High-quality image generation model optimized for vibrant, detailed images with excellent color reproduction.",
-    "tags": ["chroma", "colorful", "artistic"],
-    "samplers": ["k_euler", "uni_pc", "ddim"],
-    "schedulers": ["simple", "karras"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 28,
-      "cfgScale": 4,
-      "sampler": "k_euler",
-      "scheduler": "simple",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1536, "step": 64 },
-      "height": { "min": 512, "max": 1536, "step": 64 },
-      "steps": { "min": 28, "max": 32, "step": 1 },
-      "cfgScale": { "min": 3.5, "max": 5, "step": 0.5 }
-    }
-  },
-  {
-    "id": "ICBINP XL",
-    "displayName": "ICBINP XL",
-    "type": "image",
-    "description": "I Can't Believe It's Not Photography XL - Photorealistic model for creating images that look like real photos.",
-    "tags": ["realistic", "photography", "sdxl"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 2048, "step": 64 },
-      "height": { "min": 512, "max": 2048, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 3, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "Juggernaut XL",
-    "displayName": "Juggernaut XL",
-    "type": "image",
-    "description": "Juggernaut XL - Very popular realistic model for high-quality photorealistic images.",
-    "tags": ["realistic", "sdxl", "popular"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 2048, "step": 64 },
-      "height": { "min": 512, "max": 2048, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 3, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "Animagine XL",
-    "displayName": "Animagine XL",
-    "type": "image",
-    "description": "Animagine XL 3.0 - Sophisticated anime text-to-image model with superior hand anatomy and anime concept knowledge.",
-    "tags": ["anime", "sdxl", "artistic"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 28,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 2048, "step": 64 },
-      "height": { "min": 512, "max": 2048, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 3, "max": 12, "step": 0.5 }
-    }
-  },
-  {
-    "id": "DreamShaper XL",
-    "displayName": "DreamShaper XL",
-    "type": "image",
-    "description": "DreamShaper XL Lightning - General purpose model for photos, art, anime, and manga. Fast generation with Lightning optimization.",
-    "tags": ["generalist", "sdxl", "lightning", "fast"],
-    "samplers": ["k_dpmpp_sde"],
-    "schedulers": ["karras"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 4,
-      "cfgScale": 2,
-      "sampler": "k_dpmpp_sde",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 2048, "step": 64 },
-      "height": { "min": 512, "max": 2048, "step": 64 },
-      "steps": { "min": 3, "max": 6, "step": 1 },
-      "cfgScale": { "min": 1.5, "max": 3, "step": 0.25 }
-    }
-  },
-  {
-    "id": "Stable Cascade 1.0",
-    "displayName": "Stable Cascade",
-    "type": "image",
-    "description": "Stable Cascade 1.0 - Built on Wurstchen architecture, works at a much smaller latent space for efficient generation.",
-    "tags": ["cascade", "efficient", "generalist"],
-    "samplers": ["k_euler", "ddim"],
-    "schedulers": ["normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 1024,
-      "height": 1024,
-      "steps": 24,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "normal",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 2048, "step": 64 },
-      "height": { "min": 512, "max": 2048, "step": 64 },
-      "steps": { "min": 20, "max": 30, "step": 1 },
-      "cfgScale": { "min": 4, "max": 12, "step": 0.5 }
-    }
-  },
-  {
-    "id": "Deliberate",
-    "displayName": "Deliberate",
-    "type": "image",
-    "description": "Deliberate - Create anything you want with detailed prompts. Best with extremely detailed descriptions.",
-    "tags": ["generalist", "sd1.5", "detailed"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img", "img2img"],
-    "defaults": {
-      "width": 512,
-      "height": 512,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 256, "max": 1024, "step": 64 },
-      "height": { "min": 256, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "Realistic Vision",
-    "displayName": "Realistic Vision",
-    "type": "image",
-    "description": "Realistic Vision - Model optimized for creating photorealistic human portraits and scenes.",
-    "tags": ["realistic", "portrait", "sd1.5"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img", "img2img"],
-    "defaults": {
-      "width": 512,
-      "height": 768,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 256, "max": 1024, "step": 64 },
-      "height": { "min": 256, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "Anything v3",
-    "displayName": "Anything v3",
-    "type": "image",
-    "description": "Anything v3 - Popular anime model with the VAE built in for booru-style artwork.",
-    "tags": ["anime", "booru", "sd1.5"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 512,
-      "height": 768,
-      "steps": 28,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 256, "max": 1024, "step": 64 },
-      "height": { "min": 256, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "Epic Diffusion",
-    "displayName": "Epic Diffusion",
-    "type": "image",
-    "description": "Epic Diffusion - General purpose SD 1.x model with NSFW support for high quality output in various styles.",
-    "tags": ["generalist", "sd1.5"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 512,
-      "height": 512,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 256, "max": 1024, "step": 64 },
-      "height": { "min": 256, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "stable_diffusion",
-    "displayName": "Stable Diffusion 1.5",
-    "type": "image",
-    "description": "Stable Diffusion 1.5 - The baseline generalist AI image generating model. Foundation for all finetuned models.",
-    "tags": ["generalist", "sd1.5", "baseline"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img", "img2img"],
-    "defaults": {
-      "width": 512,
-      "height": 512,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 256, "max": 1024, "step": 64 },
-      "height": { "min": 256, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "stable_diffusion_2.1",
-    "displayName": "Stable Diffusion 2.1",
-    "type": "image",
-    "description": "Stable Diffusion 2.1 - Generalist AI image generating model with improved architecture.",
-    "tags": ["generalist", "sd2.1", "baseline"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img", "img2img"],
-    "defaults": {
-      "width": 768,
-      "height": 768,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
-      "denoise": 1,
-      "tiling": false,
-      "hiresFix": false
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1024, "step": 64 },
-      "height": { "min": 512, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
-    }
-  },
-  {
-    "id": "wan2.2_ti2v_5B",
-    "displayName": "WAN 2.2 Standard (5B)",
-    "type": "video",
-    "description": "WAN 2.2 Text/Image-to-Video 5B - Fast video generation supporting both text-to-video and image-to-video. Economy option for RTX 5070Ti or better.",
-    "tags": ["wan", "video", "fast", "i2v"],
-    "samplers": ["uni_pc", "euler", "k_euler"],
-    "schedulers": ["simple"],
-    "capabilities": ["txt2video", "img2video"],
-    "defaults": {
-      "width": 640,
-      "height": 640,
-      "steps": 20,
-      "cfgScale": 5,
-      "sampler": "uni_pc",
-      "scheduler": "simple",
-      "denoise": 1,
-      "length": 121,
-      "fps": 24
-    },
-    "limits": {
-      "width": { "min": 512, "max": 960, "step": 64 },
-      "height": { "min": 512, "max": 960, "step": 64 },
-      "steps": { "min": 12, "max": 32, "step": 1 },
-      "cfgScale": { "min": 3, "max": 7, "step": 0.25 },
-      "length": { "min": 49, "max": 161, "step": 8 },
-      "fps": { "min": 16, "max": 30, "step": 1 }
-    }
-  },
-  {
-    "id": "wan2.2-t2v-a14b",
-    "displayName": "WAN 2.2 Better (14B)",
-    "type": "video",
-    "description": "WAN 2.2 Text-to-Video 14B - Premium text-to-video with cinematic motion and detail using separate high/low noise transformers. Uses 4-step LightX2V acceleration.",
-    "tags": ["wan", "video", "high-quality", "14b"],
-    "samplers": ["euler", "k_euler"],
-    "schedulers": ["simple"],
-    "capabilities": ["txt2video"],
-    "defaults": {
-      "width": 640,
-      "height": 640,
-      "steps": 4,
+      "steps": 8,
       "cfgScale": 1,
       "sampler": "euler",
       "scheduler": "simple",
       "denoise": 1,
-      "length": 81,
-      "fps": 16
+      "tiling": false,
+      "hiresFix": false
     },
     "limits": {
-      "width": { "min": 512, "max": 960, "step": 64 },
-      "height": { "min": 512, "max": 960, "step": 64 },
-      "steps": { "min": 4, "max": 4, "step": 1 },
-      "cfgScale": { "min": 1, "max": 1, "step": 0.25 },
-      "length": { "min": 49, "max": 129, "step": 8 },
-      "fps": { "min": 12, "max": 24, "step": 1 }
+      "width": {
+        "min": 512,
+        "max": 1536,
+        "step": 64
+      },
+      "height": {
+        "min": 512,
+        "max": 1536,
+        "step": 64
+      },
+      "steps": {
+        "min": 4,
+        "max": 16,
+        "step": 1
+      }
     }
   },
   {
-    "id": "wan2.2-t2v-a14b-hq",
-    "displayName": "WAN 2.2 Best (14B HQ)",
-    "type": "video",
-    "description": "WAN 2.2 Text-to-Video 14B HQ - Maximum quality text-to-video without lighting LoRAs for cinematic output. Uses 20 steps for best quality.",
-    "tags": ["wan", "video", "premium", "cinematic"],
-    "samplers": ["euler", "k_euler"],
-    "schedulers": ["simple"],
-    "capabilities": ["txt2video"],
+    "id": "FLUX.2 Klein 4B FP8",
+    "displayName": "FLUX.2 Klein 4B",
+    "type": "image",
+    "description": "FLUX.2 Klein 4B \u2014 high-fidelity text-to-image with image editing (img2img). Best overall quality.",
+    "tags": [
+      "flux",
+      "quality",
+      "edit",
+      "i2i"
+    ],
+    "samplers": [
+      "euler",
+      "dpmpp_2m",
+      "dpmpp_2m_sde",
+      "res_multistep"
+    ],
+    "schedulers": [],
+    "capabilities": [
+      "txt2img",
+      "img2img"
+    ],
     "defaults": {
       "width": 1024,
-      "height": 576,
-      "steps": 20,
-      "cfgScale": 3.5,
+      "height": 1024,
+      "steps": 4,
+      "cfgScale": 1,
       "sampler": "euler",
-      "scheduler": "simple",
-      "denoise": 1,
-      "length": 81,
-      "fps": 16
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1280, "step": 64 },
-      "height": { "min": 512, "max": 720, "step": 64 },
-      "steps": { "min": 20, "max": 20, "step": 1 },
-      "cfgScale": { "min": 3.5, "max": 3.5, "step": 0.25 },
-      "length": { "min": 49, "max": 129, "step": 8 },
-      "fps": { "min": 12, "max": 24, "step": 1 }
-    }
-  },
-  {
-    "id": "ltxv",
-    "displayName": "LTX-Video",
-    "type": "video",
-    "description": "LTX-Video - First DiT-based video model generating 30 FPS videos at 1216×704 faster than real-time. Uses ltxv-13b-0.9.8-dev for highest quality.",
-    "tags": ["ltxv", "video", "real-time", "high-resolution"],
-    "samplers": ["k_euler", "dpmsolver", "k_dpmpp_2m"],
-    "schedulers": ["simple", "karras"],
-    "capabilities": ["txt2video"],
-    "defaults": {
-      "width": 1216,
-      "height": 704,
-      "steps": 25,
-      "cfgScale": 2,
-      "sampler": "k_euler",
-      "scheduler": "simple",
-      "denoise": 1,
-      "length": 96,
-      "fps": 30
-    },
-    "limits": {
-      "width": { "min": 512, "max": 1920, "step": 64 },
-      "height": { "min": 512, "max": 1080, "step": 64 },
-      "steps": { "min": 20, "max": 30, "step": 1 },
-      "cfgScale": { "min": 1, "max": 2.5, "step": 0.25 },
-      "length": { "min": 48, "max": 144, "step": 8 },
-      "fps": { "min": 24, "max": 30, "step": 1 }
-    }
-  },
-  {
-    "id": "ICBINP - I Can't Believe It's Not Photography",
-    "displayName": "ICBINP",
-    "type": "image",
-    "description": "I Can't Believe It's Not Photography - Merged from 10+ photorealistic models for ultra-realistic output.",
-    "tags": ["realistic", "photography", "sd1.5"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
-    "defaults": {
-      "width": 512,
-      "height": 768,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
       "denoise": 1,
       "tiling": false,
       "hiresFix": false
     },
     "limits": {
-      "width": { "min": 256, "max": 1024, "step": 64 },
-      "height": { "min": 256, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
+      "width": {
+        "min": 512,
+        "max": 1536,
+        "step": 64
+      },
+      "height": {
+        "min": 512,
+        "max": 1536,
+        "step": 64
+      },
+      "steps": {
+        "min": 4,
+        "max": 6,
+        "step": 1
+      },
+      "cfgScale": {
+        "min": 1,
+        "max": 1.5,
+        "step": 0.25
+      }
     }
   },
   {
-    "id": "Movie Diffusion",
-    "displayName": "Movie Diffusion",
-    "type": "image",
-    "description": "Movie Diffusion - SD 1.5 trained on 35mm film stills from popular movies for cinematic looks.",
-    "tags": ["cinematic", "film", "sd1.5"],
-    "samplers": ["k_euler", "k_dpmpp_2m", "ddim"],
-    "schedulers": ["karras", "normal"],
-    "capabilities": ["txt2img"],
+    "id": "LTX-2.3",
+    "displayName": "LTX-2.3 Video",
+    "type": "video",
+    "description": "LTX-2.3 video generation \u2014 text-to-video and image-to-video (animate a still). 1\u20138 seconds.",
+    "tags": [
+      "ltx",
+      "video",
+      "i2v",
+      "t2v"
+    ],
+    "samplers": [],
+    "schedulers": [],
+    "capabilities": [
+      "txt2video",
+      "img2video"
+    ],
     "defaults": {
       "width": 768,
       "height": 512,
-      "steps": 30,
-      "cfgScale": 7,
-      "sampler": "k_euler",
-      "scheduler": "karras",
+      "steps": 12,
+      "cfgScale": 3,
+      "denoise": 1,
+      "length": 96,
+      "fps": 24
+    },
+    "limits": {
+      "width": {
+        "min": 512,
+        "max": 1280,
+        "step": 64
+      },
+      "height": {
+        "min": 512,
+        "max": 1280,
+        "step": 64
+      },
+      "steps": {
+        "min": 4,
+        "max": 20,
+        "step": 1
+      },
+      "cfgScale": {
+        "min": 1,
+        "max": 5,
+        "step": 0.25
+      },
+      "length": {
+        "min": 24,
+        "max": 192,
+        "step": 24
+      },
+      "fps": {
+        "min": 16,
+        "max": 30,
+        "step": 1
+      }
+    }
+  },
+  {
+    "id": "Krea 2 Turbo",
+    "displayName": "Krea 2 Turbo",
+    "type": "image",
+    "description": "Krea 2 Turbo - fast aesthetic image model. Krea 2 is licensed under the Krea 2 Community License Agreement.",
+    "tags": [
+      "turbo",
+      "fast",
+      "aesthetic"
+    ],
+    "samplers": [
+      "er_sde",
+      "euler",
+      "dpmpp_2m",
+      "res_multistep"
+    ],
+    "schedulers": [
+      "simple",
+      "normal",
+      "beta",
+      "sgm_uniform"
+    ],
+    "capabilities": [
+      "txt2img"
+    ],
+    "defaults": {
+      "width": 1280,
+      "height": 720,
+      "steps": 8,
+      "cfgScale": 1,
+      "sampler": "er_sde",
+      "scheduler": "simple",
       "denoise": 1,
       "tiling": false,
       "hiresFix": false
     },
     "limits": {
-      "width": { "min": 256, "max": 1024, "step": 64 },
-      "height": { "min": 256, "max": 1024, "step": 64 },
-      "steps": { "min": 15, "max": 50, "step": 1 },
-      "cfgScale": { "min": 4, "max": 15, "step": 0.5 }
+      "width": {
+        "min": 512,
+        "max": 1536
+      },
+      "height": {
+        "min": 512,
+        "max": 1536
+      },
+      "steps": {
+        "min": 8,
+        "max": 12
+      },
+      "cfgScale": {
+        "min": 1,
+        "max": 1
+      }
     }
   }
 ]
