@@ -34,8 +34,12 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
   steps, dimensions, prompt length). `allowedOrigins()` fails closed — never returns `*`;
   production MUST set `GALLERY_ALLOWED_ORIGINS`.
-- **Grid passthrough:** generation goes through `internal/aipg` to the grid `/api/v2`; the server
-  holds the grid key, the client never does.
+- **Grid passthrough:** generation goes through `internal/aipg` to the grid **`/v1`**
+  (`POST /v1/images/generations`, synchronous; the legacy horde `/api/v2` is RETIRED —
+  410 Gone). `internal/app/pendingstore.go` bridges the gallery's async `POST /api/jobs`
+  + poll contract onto the synchronous grid call. The server holds the grid key, the
+  client never does. Config paths are CWD-relative (`config/styles.json`,
+  `./config/model_presets.json`) — run the server from the repo root.
 
 ## Work Guidance
 
