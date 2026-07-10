@@ -1,23 +1,22 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { useWalletAddress } from "../use-wallet-address";
-import * as wagmi from "wagmi";
-
-jest.mock("wagmi", () => ({
-  useAccount: jest.fn(() => ({
-    address: undefined,
-    isConnected: false,
-  })),
-}));
 
 describe("useWalletAddress", () => {
-  const mockUseAccount = wagmi.useAccount as jest.MockedFunction<typeof wagmi.useAccount>;
+  const request = jest.fn();
+  const on = jest.fn();
+  const removeListener = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseAccount.mockReturnValue({
-      address: undefined,
-      isConnected: false,
-    } as any);
+    request.mockResolvedValue([]);
+    Object.defineProperty(window, "ethereum", {
+      configurable: true,
+      value: { request, on, removeListener },
+    });
+  });
+
+  afterEach(() => {
+    delete (window as typeof window & { ethereum?: unknown }).ethereum;
   });
 
   it("should return mounted state after mount", async () => {
@@ -41,18 +40,15 @@ describe("useWalletAddress", () => {
 
   it("should return address when connected", async () => {
     const mockAddress = "0x1234567890123456789012345678901234567890";
-    mockUseAccount.mockReturnValue({
-      address: mockAddress as `0x${string}`,
-      isConnected: true,
-    } as any);
+    request.mockResolvedValue([mockAddress]);
 
     const { result } = renderHook(() => useWalletAddress());
 
     await waitFor(() => {
-      expect(result.current.mounted).toBe(true);
+      expect(result.current.address).toBe(mockAddress);
     });
 
-    expect(result.current.address).toBe(mockAddress);
     expect(result.current.isConnected).toBe(true);
+    expect(request).toHaveBeenCalledWith({ method: "eth_accounts" });
   });
 });
