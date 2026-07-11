@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAccount } from "wagmi";
 import { ConnectWalletCard } from "@/components/wallet-button";
 import { SocialAuth } from "@/components/social-auth";
-import { supabase } from "@/lib/supabase";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 // Disable SSR for this page since it uses wagmi hooks
 export const dynamic = 'force-dynamic';
@@ -36,47 +35,21 @@ export default function LoginPage() {
 
 function LoginPageClient() {
   const router = useRouter();
-  const { address, isConnected } = useAccount();
-  const [user, setUser] = useState<any>(null);
+  const { isAuthenticated } = useAuthStore();
 
-  // Check for Supabase session
+  // Both wallet SIWE and Google issue the same server session.
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        setUser(session.user);
-      }
-    };
-    checkSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        setUser(session.user);
-        router.push("/profile");
-      }
-    });
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
-  }, [router]);
-
-  // Redirect if wallet connected or social auth user exists
-  useEffect(() => {
-    if ((isConnected && address) || user) {
-      router.push("/profile");
+    if (isAuthenticated) {
+      router.push("/create");
     }
-  }, [isConnected, address, user, router]);
+  }, [isAuthenticated, router]);
 
   return (
     <main className="flex-1 w-full px-4 md:px-10 py-8 flex items-center justify-center">
       <div className="panel max-w-md w-full space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-semibold text-gradient mb-2">Sign In</h1>
-          <p className="text-white/70">Connect your wallet or sign in with social account</p>
+          <p className="text-white/70">Continue with Google or verify your wallet</p>
         </div>
 
         {/* Wallet Connection */}
@@ -106,11 +79,11 @@ function LoginPageClient() {
         <div className="space-y-3 text-sm text-white/60">
           <div className="flex items-start gap-3">
             <span className="text-lg">💡</span>
-            <p>Choose between wallet connection or social login. Your data is stored securely and associated with your account.</p>
+            <p>Choose Google or a Base wallet. Both create the same secure gallery session.</p>
           </div>
           <div className="flex items-start gap-3">
             <span className="text-lg">🔒</span>
-            <p>Wallet connection requires no signature or transaction. Social login uses secure OAuth authentication.</p>
+            <p>Wallet sign-in asks for an off-chain signature and never submits a transaction.</p>
           </div>
         </div>
 

@@ -13,7 +13,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - `internal/app/app.go` — the router + every HTTP handler (~2K LOC god-file). Routes under
   `/api`: auth (`/auth/google`, `/auth/logout`, protected `/auth/me`), `/models`, `/styles`,
   `/ai/enhance`, `/jobs`, public `/gallery` + `/favorites` reads, and JWT-protected
-  gallery/favorites writes. CORS + IP rate limits (100/min global, 20/min on job create).
+  gallery/favorites writes. Protected `/gallery/me` is the identity-neutral private gallery
+  read path. CORS + IP rate limits (100/min global, 20/min on job create).
 - `internal/config` — typed `Config` + `Load()` (all env reads live here).
 - `config/model_presets.json` — local model defaults/limits merged with on-chain models.
 
@@ -31,6 +32,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   mutations (CSRF). `jwt.go` verifies HS256 with a constant-time compare + explicit `alg` check.
   Cookie attributes come from `AUTH_COOKIE_DOMAIN` / `AUTH_COOKIE_SECURE` (Secure auto-set for
   HTTPS). There is intentionally no Go wallet `/auth/verify` (removed dead, replay-prone path).
+- Private gallery reads use protected `/gallery/me`; the legacy wallet path is owner-checked.
+  Never expose unpublished prompts or media through an unauthenticated wallet lookup.
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
   steps, dimensions, prompt length). `allowedOrigins()` fails closed — never returns `*`;
   production MUST set `GALLERY_ALLOWED_ORIGINS`.

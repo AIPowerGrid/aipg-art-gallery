@@ -5,20 +5,13 @@ import { GENERATION_LIMIT } from '@/lib/generation-limits';
 interface AnonLimitBannerProps {
   remainingGenerations: number;
   authenticated: boolean;
+  onSignIn: () => void;
 }
 
-export function AnonLimitBanner({ remainingGenerations, authenticated }: AnonLimitBannerProps) {
+export function AnonLimitBanner({ remainingGenerations, authenticated, onSignIn }: AnonLimitBannerProps) {
   if (authenticated) {
     return null;
   }
-
-  const handleConnectClick = () => {
-    // Find and click the wallet button
-    const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
-    if (walletBtn) {
-      walletBtn.click();
-    }
-  };
 
   return (
     <div className="mb-6 bg-[#1a1a1a] border border-[#333] rounded-xl p-4">
@@ -30,10 +23,10 @@ export function AnonLimitBanner({ remainingGenerations, authenticated }: AnonLim
             </span>
             {' '}
             <button
-              onClick={handleConnectClick}
+              onClick={onSignIn}
               className="text-white hover:underline"
             >
-              Connect wallet
+              Sign in
             </button>
             {' '}for unlimited access.
           </p>

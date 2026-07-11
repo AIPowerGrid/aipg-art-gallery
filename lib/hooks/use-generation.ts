@@ -3,7 +3,6 @@ import { createJob, addToGallery, enhancePrompt } from '@/lib/api';
 import { useJobStore } from '@/lib/stores/job-store';
 import { generateTagsFromPrompt, DisplayCreation } from '@/lib/storage';
 import { getRemainingGenerations, recordAnonGeneration } from '@/lib/generation-limits';
-import { isAuthenticated } from '@/lib/auth';
 import { StylesConfig, Model, Dimension, AdvancedSettings } from '@/lib/types/create';
 
 interface GenerationState {
@@ -18,8 +17,8 @@ interface UseGenerationOptions {
   selectedModel: Model | null;
   selectedDimension: Dimension | null;
   batchMode: boolean;
-  walletAddress?: string;
-  isConnected: boolean;
+  ownerIdentifier?: string;
+  authenticated: boolean;
   advancedSettings?: AdvancedSettings;
   /** Curated grid style id, or null. The grid expands prompt + locks params. */
   selectedStyleId?: string | null;
@@ -47,8 +46,8 @@ export function useGeneration({
   selectedModel,
   selectedDimension,
   batchMode,
-  walletAddress,
-  isConnected,
+  ownerIdentifier,
+  authenticated,
   advancedSettings = {},
   selectedStyleId = null,
   sourceImage = null,
@@ -82,17 +81,15 @@ export function useGeneration({
       return false;
     }
 
-    const authenticated = isConnected && isAuthenticated();
-
     // Validation checks
     if (!authenticated && batchMode) {
-      setError("Batch generation is only available for members. Please connect your wallet.");
+      setError("Batch generation is only available after sign-in.");
       onShowAuthModal();
       return false;
     }
 
     if (!authenticated && selectedModel.type === "video") {
-      setError("Video generation is only available for members. Please connect your wallet.");
+      setError("Video generation is only available after sign-in.");
       onShowAuthModal();
       return false;
     }
@@ -136,7 +133,7 @@ export function useGeneration({
         negativePrompt: "",
         nsfw: false,
         public: true,
-        walletAddress,
+        walletAddress: ownerIdentifier,
         mediaType: isVideo ? "video" : "image",
         sourceProcessing,
         ...(selectedStyleId ? { style: selectedStyleId } : {}),
@@ -174,7 +171,7 @@ export function useGeneration({
         createdAt: Date.now(),
         generations: [],
         tags: generateTagsFromPrompt(prompt.trim()),
-        walletAddress,
+        walletAddress: ownerIdentifier,
         isGenerating: true,
         progress: 0,
         status: 'queued',
@@ -203,7 +200,7 @@ export function useGeneration({
         type: jobType,
         isNsfw: false,
         isPublic: false,
-        walletAddress,
+        walletAddress: ownerIdentifier,
         width: selectedDimension.width,
         height: selectedDimension.height,
         expectedGenerations: batchSize,
@@ -220,7 +217,7 @@ export function useGeneration({
             type: jobType,
             isNsfw: false,
             isPublic: false,
-            walletAddress,
+            walletAddress: ownerIdentifier,
             params: {
               width: selectedDimension.width,
               height: selectedDimension.height,
@@ -246,7 +243,7 @@ export function useGeneration({
       setState(prev => ({ ...prev, isGenerating: false }));
       return false;
     }
-  }, [selectedModel, selectedDimension, styles, batchMode, walletAddress, isConnected, advancedSettings, selectedStyleId, sourceImage, lora, addJob, onCreationAdded, onShowAuthModal, onRemainingGensChange, setError]);
+  }, [selectedModel, selectedDimension, styles, batchMode, ownerIdentifier, authenticated, advancedSettings, selectedStyleId, sourceImage, lora, addJob, onCreationAdded, onShowAuthModal, onRemainingGensChange, setError]);
 
   /**
    * Regenerate an existing creation with the same seed
@@ -257,9 +254,8 @@ export function useGeneration({
       return;
     }
 
-    const authenticated = isConnected && isAuthenticated();
     if (!authenticated) {
-      setError("Please connect your wallet to regenerate");
+      setError("Please sign in to regenerate");
       onShowAuthModal();
       return;
     }
@@ -284,7 +280,7 @@ export function useGeneration({
         negativePrompt: "",
         nsfw: false,
         public: false,
-        walletAddress,
+        walletAddress: ownerIdentifier,
         mediaType: creation.type,
         sourceProcessing: "txt2img",
         params: {
@@ -308,7 +304,7 @@ export function useGeneration({
         createdAt: Date.now(),
         generations: [],
         tags: generateTagsFromPrompt(creation.prompt),
-        walletAddress,
+        walletAddress: ownerIdentifier,
         isGenerating: true,
         progress: 0,
         status: 'queued',
@@ -328,7 +324,7 @@ export function useGeneration({
         type: creation.type,
         isNsfw: false,
         isPublic: false,
-        walletAddress,
+        walletAddress: ownerIdentifier,
         width: creation.params?.width || creation.width,
         height: creation.params?.height || creation.height,
         expectedGenerations: 1,
@@ -343,7 +339,7 @@ export function useGeneration({
           type: creation.type,
           isNsfw: false,
           isPublic: false,
-          walletAddress,
+          walletAddress: ownerIdentifier,
           params: {
             width: creation.params?.width || creation.width,
             height: creation.params?.height || creation.height,
@@ -364,7 +360,7 @@ export function useGeneration({
     } finally {
       setState(prev => ({ ...prev, regeneratingJobId: null }));
     }
-  }, [walletAddress, isConnected, styles, addJob, onCreationAdded, onShowAuthModal, setError]);
+  }, [ownerIdentifier, authenticated, styles, addJob, onCreationAdded, onShowAuthModal, setError]);
 
   /**
    * Enhance a prompt using AI

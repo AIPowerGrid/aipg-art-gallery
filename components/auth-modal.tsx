@@ -1,5 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { GoogleSignInButton } from "@/components/google-one-tap";
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -8,6 +11,7 @@ interface AuthModalProps {
 }
 
 export function AuthModal({ isOpen, onClose, title, message }: AuthModalProps) {
+  const router = useRouter();
   if (!isOpen) return null;
 
   return (
@@ -27,6 +31,14 @@ export function AuthModal({ isOpen, onClose, title, message }: AuthModalProps) {
         </div>
         
         <div className="flex flex-col gap-3">
+          <GoogleSignInButton onSuccess={() => {
+            onClose();
+            router.refresh();
+          }} />
+          <div className="relative py-1">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
+            <div className="relative flex justify-center text-xs"><span className="bg-[#1a1a1a] px-3 text-white/40">OR</span></div>
+          </div>
           <button
             onClick={(e) => {
               e.preventDefault();

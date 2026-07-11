@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
 import { CustomConnectButton } from "./custom-connect-button";
 import { ActiveJobsIndicator } from "./active-jobs-indicator";
+import { GoogleAccountButton } from "./google-account-button";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function Header() {
@@ -15,8 +16,8 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Use reactive auth state from store
-  const { isAuthenticated } = useAuthStore();
-  const authenticated = isConnected && isAuthenticated;
+  const { isAuthenticated, authMethod } = useAuthStore();
+  const authenticated = isAuthenticated && (authMethod === 'google' || isConnected);
   const favoritesLink = authenticated ? "/favorites" : "/join";
   const favoritesLabel = authenticated ? "Favorites" : "Join";
   
@@ -28,7 +29,9 @@ export function Header() {
   const navItems = [
     { href: "/", label: "Gallery", active: isActive("/") },
     { href: "/create", label: "Studio", active: isActive("/create") },
-    { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
+    ...(authMethod === 'google' ? [] : [
+      { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
+    ]),
   ];
   
   return (
@@ -73,7 +76,12 @@ export function Header() {
           {/* Desktop: Jobs + Wallet */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
             <ActiveJobsIndicator />
-            <CustomConnectButton />
+            {!authenticated && (
+              <Link href="/auth/login" className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white">
+                Sign in
+              </Link>
+            )}
+            {authMethod === 'google' ? <GoogleAccountButton /> : <CustomConnectButton />}
           </div>
 
           {/* Mobile: Hamburger Button */}
@@ -110,7 +118,16 @@ export function Header() {
           </Link>
             ))}
             <div className="pt-2 mt-2 border-t border-white/10">
-              <CustomConnectButton />
+              {!authenticated && (
+                <Link
+                  href="/auth/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-3 text-white/80 hover:text-white"
+                >
+                  Sign in with Google or wallet
+                </Link>
+              )}
+              {authMethod === 'google' ? <GoogleAccountButton /> : <CustomConnectButton />}
             </div>
         </nav>
         </div>

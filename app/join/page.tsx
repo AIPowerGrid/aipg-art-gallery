@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
-import { isAuthenticated } from "@/lib/auth";
+import { GoogleSignInButton } from "@/components/google-one-tap";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 export const dynamic = 'force-dynamic';
 
 export default function JoinPage() {
   const { isConnected } = useAccount();
+  const { isAuthenticated, authMethod } = useAuthStore();
 
   // If already authenticated, show nothing while WalletButton handles redirect
-  if (isConnected && isAuthenticated()) {
+  if (isAuthenticated && (authMethod === 'google' || isConnected)) {
     return (
       <main className="flex-1 w-full min-h-screen bg-black">
         <Header />
@@ -33,9 +35,10 @@ export default function JoinPage() {
             Unlock Unlimited Access
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto mb-8">
-            Connect your Base wallet to save your creations and access unlimited generations.
+            Continue with Google or verify a Base wallet to save creations and unlock member features.
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
+            <GoogleSignInButton />
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -152,7 +155,7 @@ export default function JoinPage() {
 
         {/* Benefits Section */}
         <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-8 mb-12">
-          <h2 className="text-xl font-semibold text-white mb-6 text-center">Why Connect Your Wallet?</h2>
+          <h2 className="text-xl font-semibold text-white mb-6 text-center">Why Sign In?</h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
               <h3 className="text-white font-medium mb-2">Unlimited Generations</h3>

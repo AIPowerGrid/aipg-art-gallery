@@ -104,6 +104,7 @@ export function CustomConnectButton() {
               if (!connected) {
                 return (
                   <button
+                    data-wallet-button
                     onClick={openConnectModal}
                     className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-lg transition-colors"
                   >

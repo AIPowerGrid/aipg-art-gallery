@@ -14,7 +14,7 @@ import { useGeneration } from "@/lib/hooks/use-generation";
 import { useJobStore } from "@/lib/stores/job-store";
 import { useFaviconProgress, calculateProgress } from "@/lib/hooks/use-favicon-progress";
 import { getRemainingGenerations, GENERATION_LIMIT } from "@/lib/generation-limits";
-import { isAuthenticated } from "@/lib/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import { AdvancedSettings } from "@/lib/types/create";
 import { DisplayCreation } from "@/lib/storage";
 
@@ -40,7 +40,11 @@ export default function CreatePage() {
 function CreatePageContent() {
   // Wallet state
   const { address, isConnected } = useAccount();
-  const authenticated = isConnected && isAuthenticated();
+  const { isAuthenticated: hasSession, authMethod } = useAuthStore();
+  const authenticated = hasSession && (authMethod === 'google' || isConnected);
+  const ownerIdentifier = authenticated
+    ? (authMethod === 'wallet' ? address : 'google-session')
+    : undefined;
 
   // UI state
   const [dimensionId, setDimensionId] = useState(3);
@@ -73,7 +77,7 @@ function CreatePageContent() {
   }, [styles?.defaultDimensionId]);
 
   // Creations (single source of truth)
-  const { creations, addCreation, removeCreation, hasActiveJobs, refresh } = useCreations(address);
+  const { creations, addCreation, removeCreation, hasActiveJobs, refresh } = useCreations(authenticated);
 
   // Generation logic
   const {
@@ -87,8 +91,8 @@ function CreatePageContent() {
     selectedModel,
     selectedDimension,
     batchMode,
-    walletAddress: address,
-    isConnected,
+    ownerIdentifier,
+    authenticated,
     advancedSettings,
     selectedStyleId,
     sourceImage,
@@ -153,6 +157,7 @@ function CreatePageContent() {
         <AnonLimitBanner
           remainingGenerations={remainingGens}
           authenticated={authenticated}
+          onSignIn={() => setShowAuthModal(true)}
         />
 
         {/* Optional creative controls — collapsed by default so the prompt stays
@@ -237,7 +242,7 @@ function CreatePageContent() {
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         title="Generation Limit Reached"
-        message={`You've used all ${GENERATION_LIMIT} free generations. Connect your Base wallet to unlock unlimited image generations, access to video creation, and the ability to save and manage your creations across all your devices!`}
+        message={`You've used all ${GENERATION_LIMIT} free generations. Sign in with Google or verify a Base wallet to unlock image and video generation and save creations across devices.`}
       />
     </main>
   );

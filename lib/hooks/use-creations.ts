@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useJobStore } from '@/lib/stores/job-store';
-import { fetchGalleryByWallet, GalleryItem } from '@/lib/api';
+import { fetchMyGallery, GalleryItem } from '@/lib/api';
 import { getStoredCreations, DisplayCreation, generateTagsFromPrompt } from '@/lib/storage';
 import { calculateProgress } from '@/lib/hooks/use-favicon-progress';
-import { isAuthenticated } from '@/lib/auth';
 
 /**
  * Sort creations: generating jobs first, then by date descending
@@ -123,7 +122,7 @@ interface UseCreationsReturn {
  * Hook to manage creations with a single source of truth
  * Merges data from: job store (active/completed), server API, localStorage
  */
-export function useCreations(walletAddress?: string): UseCreationsReturn {
+export function useCreations(authenticated: boolean): UseCreationsReturn {
   const [creations, setCreations] = useState<DisplayCreation[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -140,7 +139,6 @@ export function useCreations(walletAddress?: string): UseCreationsReturn {
     let cancelled = false;
 
     async function loadCreations() {
-      const authenticated = walletAddress && isAuthenticated();
       const activeJobsFromStore = getActiveJobs();
 
       // Build placeholders for active jobs
@@ -158,7 +156,7 @@ export function useCreations(walletAddress?: string): UseCreationsReturn {
 
       if (authenticated) {
         try {
-          const serverData = await fetchGalleryByWallet(walletAddress, 100);
+          const serverData = await fetchMyGallery(100);
           if (cancelled) return;
 
           serverCreations = serverData.items
@@ -167,7 +165,7 @@ export function useCreations(walletAddress?: string): UseCreationsReturn {
         } catch (err) {
           console.error("Failed to load creations from server:", err);
         }
-      } else if (!walletAddress) {
+      } else {
         // Anonymous - use localStorage
         const stored = getStoredCreations();
         serverCreations = stored.map(c => ({ ...c, isGenerating: false }));
@@ -207,7 +205,7 @@ export function useCreations(walletAddress?: string): UseCreationsReturn {
     loadCreations();
 
     return () => { cancelled = true; };
-  }, [walletAddress, getActiveJobs, refreshTrigger]);
+  }, [authenticated, getActiveJobs, refreshTrigger]);
 
   // Update progress for active jobs
   useEffect(() => {

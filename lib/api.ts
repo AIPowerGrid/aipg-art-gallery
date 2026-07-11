@@ -171,6 +171,13 @@ export function fetchGalleryByWallet(walletAddress: string, limit?: number): Pro
   return jsonFetch(`/gallery/wallet/${walletAddress}${query ? `?${query}` : ""}`);
 }
 
+export function fetchMyGallery(limit?: number): Promise<WalletGalleryResponse> {
+  const params = new URLSearchParams();
+  if (limit) params.append("limit", String(limit));
+  const query = params.toString();
+  return jsonFetch(`/gallery/me${query ? `?${query}` : ""}`);
+}
+
 export interface GalleryMediaResponse {
   jobId: string;
   mediaUrls: string[];

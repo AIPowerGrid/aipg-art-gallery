@@ -20,7 +20,8 @@ route handlers for things that must not run in the browser — including wallet 
     (`images.aipg.art`, `*.r2.cloudflarestorage.com`), `redirect: 'manual'` (no redirect
     following → SSRF-safe), and a sanitized `Content-Disposition` filename.
   - `api/og/route.tsx` + `og/route.tsx` — dynamic Open Graph images.
-  - `auth/callback/route.ts` — Supabase OAuth callback.
+  - `auth/callback/route.ts` — legacy Supabase OAuth callback; the live Google path uses
+    Google Identity Services and the Go `/auth/google` endpoint.
 
 ## Local Contracts
 

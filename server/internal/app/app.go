@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -210,7 +211,6 @@ func (a *App) Router() http.Handler {
 		// Public gallery endpoints (read-only, no auth required)
 		api.Get("/gallery", a.handleListGallery)
 		api.Get("/gallery/models", a.handleListGalleryModels)
-		api.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
 		api.Get("/gallery/{id}", a.handleGetGalleryItem)
 		api.Get("/gallery/{id}/media", a.handleGetGalleryMedia)
 		api.Get("/favorites/wallet/{wallet}", a.handleGetFavorites)
@@ -221,6 +221,8 @@ func (a *App) Router() http.Handler {
 			protected.Use(a.authMiddleware)
 
 			protected.Get("/auth/me", a.handleMe)
+			protected.Get("/gallery/me", a.handleListMyGallery)
+			protected.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
 			protected.Post("/gallery", a.handleAddToGallery)
 			protected.Patch("/gallery/{id}", a.handleUpdateGalleryItem)
 			protected.Delete("/gallery/{id}", a.handleDeleteGalleryItem)
@@ -355,6 +357,24 @@ func getUserIdentifier(r *http.Request) string {
 	}
 	// Fall back to wallet address for backward compat
 	return getWalletFromContext(r)
+}
+
+// getGalleryOwnerIdentifier returns the durable owner key stored with private
+// gallery items. Existing wallet ownership remains backward compatible. Google
+// subjects are hashed before storage so provider IDs never enter gallery data.
+func getGalleryOwnerIdentifier(r *http.Request) string {
+	claims := getClaimsFromContext(r)
+	if claims == nil {
+		return ""
+	}
+	if claims.WalletAddress != "" {
+		return strings.ToLower(strings.TrimSpace(claims.WalletAddress))
+	}
+	if claims.GoogleID != "" {
+		digest := sha256.Sum256([]byte("google:" + claims.GoogleID))
+		return fmt.Sprintf("google:%x", digest[:])
+	}
+	return ""
 }
 
 // getAuthMethod returns "wallet" or "google" based on how the user authenticated
@@ -1100,7 +1120,7 @@ type CreateJobRequest struct {
 	Style            string           `json:"style"`     // curated style id (grid expands it)
 	// CivitAI LoRAs to inject: [{name, model, clip, is_version}]. Passed through
 	// to the grid, which gates them (capability + blacklist + count) and downloads.
-	Loras            []any            `json:"loras,omitempty"`
+	Loras []any `json:"loras,omitempty"`
 }
 
 type GenerationParams struct {
@@ -1441,8 +1461,8 @@ type AddToGalleryRequest struct {
 	Params         *JobParamsRequest `json:"params,omitempty"`
 	MediaURLs      []string          `json:"mediaUrls,omitempty"`
 	// Per-job provenance from the grid (worker that ran it + wall-clock seconds).
-	Worker         string            `json:"worker,omitempty"`
-	GenTime        *float64          `json:"genTime,omitempty"`
+	Worker  string   `json:"worker,omitempty"`
+	GenTime *float64 `json:"genTime,omitempty"`
 }
 
 func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
@@ -1454,6 +1474,12 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 
 	if req.JobID == "" || req.Prompt == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId and prompt are required"))
+		return
+	}
+
+	ownerID := getGalleryOwnerIdentifier(r)
+	if ownerID == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authenticated owner is required"))
 		return
 	}
 
@@ -1485,7 +1511,7 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		Type:           req.Type,
 		IsNSFW:         req.IsNSFW,
 		IsPublic:       req.IsPublic,
-		WalletAddress:  req.WalletAddress,
+		WalletAddress:  ownerID,
 		Params:         galleryParams,
 		MediaURLs:      req.MediaURLs,
 		Worker:         req.Worker,
@@ -1494,7 +1520,7 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 
 	a.galleryStore.Add(item)
 
-	log.Printf("Gallery: added job %s (model=%s, type=%s, wallet=%s, public=%v)", req.JobID, req.ModelName, req.Type, req.WalletAddress, req.IsPublic)
+	log.Printf("Gallery: added job %s (model=%s, type=%s, owner=%s, public=%v)", req.JobID, req.ModelName, req.Type, ownerID, req.IsPublic)
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"success": true,
@@ -1502,10 +1528,35 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (a *App) handleListMyGallery(w http.ResponseWriter, r *http.Request) {
+	ownerID := getGalleryOwnerIdentifier(r)
+	if ownerID == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authenticated owner is required"))
+		return
+	}
+
+	limit := 100
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 && parsed <= 500 {
+			limit = parsed
+		}
+	}
+	items := a.galleryStore.ListByWallet(ownerID, limit)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"items":  items,
+		"count":  len(items),
+		"wallet": "session",
+	})
+}
+
 func (a *App) handleListByWallet(w http.ResponseWriter, r *http.Request) {
 	wallet := chi.URLParam(r, "wallet")
 	if wallet == "" {
 		writeError(w, http.StatusBadRequest, errors.New("wallet address is required"))
+		return
+	}
+	if strings.ToLower(strings.TrimSpace(wallet)) != getGalleryOwnerIdentifier(r) {
+		writeError(w, http.StatusForbidden, errors.New("you can only view your own private gallery"))
 		return
 	}
 
@@ -1644,7 +1695,7 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get wallet address from JWT (set by authMiddleware)
-	requestWallet := getWalletFromContext(r)
+	requestWallet := getGalleryOwnerIdentifier(r)
 
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -1655,7 +1706,7 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 
 	// Check ownership - wallet addresses must match
 	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
-	if itemWallet != "" && itemWallet != requestWallet {
+	if itemWallet == "" || itemWallet != requestWallet {
 		writeError(w, http.StatusForbidden, errors.New("you can only update your own gallery items"))
 		return
 	}
@@ -1686,7 +1737,7 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get wallet address from JWT (set by authMiddleware)
-	requestWallet := getWalletFromContext(r)
+	requestWallet := getGalleryOwnerIdentifier(r)
 
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -1697,10 +1748,7 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 
 	// Check ownership - wallet addresses must match
 	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
-	if itemWallet == "" {
-		// Legacy item with no wallet - allow deletion for now but log it
-		log.Printf("Gallery: deleting legacy item %s with no wallet (requested by %s)", jobID, requestWallet)
-	} else if itemWallet != requestWallet {
+	if itemWallet == "" || itemWallet != requestWallet {
 		writeError(w, http.StatusForbidden, errors.New("you can only delete your own gallery items"))
 		return
 	}
@@ -1731,7 +1779,7 @@ func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get wallet address from JWT (set by authMiddleware)
-	requestWallet := getWalletFromContext(r)
+	requestWallet := getGalleryOwnerIdentifier(r)
 
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -1772,7 +1820,7 @@ func (a *App) handleUnpublishGalleryItem(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	requestWallet := getWalletFromContext(r)
+	requestWallet := getGalleryOwnerIdentifier(r)
 
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
@@ -1818,7 +1866,7 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestWallet := getWalletFromContext(r)
+	requestWallet := getGalleryOwnerIdentifier(r)
 
 	// Get the original batch item
 	item := a.galleryStore.Get(jobID)
@@ -1846,7 +1894,7 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 
 	// Create new gallery item with just the single image
 	newJobID := fmt.Sprintf("%s-extract-%d", jobID, req.Index)
-	
+
 	// Get the seed for this specific image
 	var seed *string
 	if len(item.Seeds) > req.Index {
@@ -1869,7 +1917,7 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 		Seeds:          nil, // Single image doesn't need seeds array
 		Params:         item.Params,
 	}
-	
+
 	// Set the correct seed for this image
 	if seed != nil && newItem.Params != nil {
 		newItem.Params.Seed = seed
