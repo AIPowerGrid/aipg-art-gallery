@@ -358,16 +358,16 @@ func getUserIdentifier(r *http.Request) string {
 	return getWalletFromContext(r)
 }
 
-func (a *App) gridAssertion(r *http.Request) (string, error) {
+func (a *App) gridUserToken(ctx context.Context, r *http.Request) (string, error) {
 	claims := getClaimsFromContext(r)
 	if claims == nil {
 		return "", errors.New("authenticated Grid identity required")
 	}
-	provider, subject := "wallet", claims.WalletAddress
+	subject := "wallet:" + strings.ToLower(strings.TrimSpace(claims.WalletAddress))
 	if claims.GoogleID != "" {
-		provider, subject = "google", claims.GoogleID
+		subject = "google:" + claims.GoogleID
 	}
-	return aipg.SignAssertion(a.cfg.DefaultAPIKey, provider, subject)
+	return a.client.ExchangeServiceIdentity(ctx, a.cfg.DefaultAPIKey, subject)
 }
 
 // getGalleryOwnerIdentifier returns the durable owner key stored with private
@@ -514,8 +514,23 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Core independently verifies the provider token and binds this gallery-local
+	// subject to the universal Google account. Login remains available if Core is
+	// temporarily down; the next successful Google login repairs the link.
+	gridAccessToken := ""
+	if a.cfg.DefaultAPIKey != "" {
+		gridCtx, gridCancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer gridCancel()
+		gridAccessToken, err = a.client.ExchangeGoogle(
+			gridCtx, a.cfg.DefaultAPIKey, req.Credential, "google:"+googleID,
+		)
+		if err != nil {
+			log.Printf("Auth: Grid Google exchange deferred: %v", err)
+		}
+	}
+
 	// Generate JWT for the Google user
-	token, err := auth.GenerateGoogleJWT(googleID, email, name)
+	token, err := auth.GenerateGoogleJWT(googleID, email, name, gridAccessToken)
 	if err != nil {
 		log.Printf("Auth: JWT generation error for Google user: %v", err)
 		writeError(w, http.StatusInternalServerError, errors.New("failed to generate token"))
@@ -537,14 +552,14 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCredits(w http.ResponseWriter, r *http.Request) {
-	assertion, err := a.gridAssertion(r)
+	userToken, err := a.gridUserToken(r.Context(), r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	credits, err := a.client.Credits(ctx, a.cfg.DefaultAPIKey, assertion)
+	credits, err := a.client.Credits(ctx, a.cfg.DefaultAPIKey, userToken)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, errors.New("Grid credits are unavailable"))
 		return
@@ -584,14 +599,13 @@ func (a *App) handleWalletLink(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("invalid wallet proof"))
 		return
 	}
-	assertion, err := a.gridAssertion(r)
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, err)
+	if claims.GridAccessToken == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("fresh Google sign-in required"))
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	result, err := a.client.LinkWallet(ctx, a.cfg.DefaultAPIKey, assertion, map[string]string{
+	result, err := a.client.LinkWallet(ctx, a.cfg.DefaultAPIKey, claims.GridAccessToken, map[string]string{
 		"message": proof.Message, "signature": proof.Signature, "address": proof.Address,
 	})
 	if err != nil {
@@ -603,7 +617,9 @@ func (a *App) handleWalletLink(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, errors.New("Grid returned an invalid wallet-link result"))
 		return
 	}
-	token, err := auth.GenerateLinkedJWT(claims.GoogleID, claims.Email, claims.Name, verifiedWallet)
+	token, err := auth.GenerateLinkedJWT(
+		claims.GoogleID, claims.Email, claims.Name, verifiedWallet, claims.GridAccessToken,
+	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("failed to refresh linked session"))
 		return
@@ -1021,7 +1037,7 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, errors.New("Grid bridge is not configured"))
 		return
 	}
-	assertion, err := a.gridAssertion(r)
+	userToken, err := a.gridUserToken(r.Context(), r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err)
 		return
@@ -1059,7 +1075,7 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 		defer cancel()
 
-		resp, err := a.client.GenerateMedia(ctx, kind, gen, a.cfg.DefaultAPIKey, assertion, clientAgent)
+		resp, err := a.client.GenerateMedia(ctx, kind, gen, a.cfg.DefaultAPIKey, userToken, clientAgent)
 		if err != nil {
 			log.Printf("❌ Grid %s job %s failed: %v", kind, jobID, err)
 			a.pending.fail(jobID, err.Error())
@@ -2186,13 +2202,13 @@ func (a *App) handleAIEnhance(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
-	assertion, err := a.gridAssertion(r)
+	userToken, err := a.gridUserToken(r.Context(), r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err)
 		return
 	}
 
-	enhanced, err := a.aiClient.GenerateText(ctx, fullPrompt, assertion)
+	enhanced, err := a.aiClient.GenerateText(ctx, fullPrompt, userToken)
 	if err != nil {
 		log.Printf("AI enhance error: %v", err)
 		writeError(w, http.StatusInternalServerError, errors.New("failed to enhance prompt"))

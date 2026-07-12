@@ -68,8 +68,11 @@ jobs to the grid and serves gallery/media.
 - **Two ports:** frontend on 3000 (`npm run dev`), API on 4000 (`cd server && go run ./cmd/api`).
 - **Auth:** Google or SIWE yields an HS256 JWT in an httpOnly cookie. A proved
   wallet can be linked to Google through Core's proof-of-both merge path.
-- **Grid identity:** `AIPG_API_KEY` is a server-only bridge key. Authenticated
-  generation carries a one-use Google or wallet assertion; Core owns credits.
+- **Grid identity:** `AIPG_API_KEY` is the server-only bounded `aipg-art`
+  service key. Google proof is verified by Core; wallet/app sessions exchange a
+  Gallery-local subject. Authenticated generation carries the resulting
+  short-lived `X-Grid-User-Token`; Core owns credits. Public 3D jobs are
+  explicitly service-owned and constrained by the service spending ceilings.
 - **Models are blockchain-sourced:** the live model list comes from the on-chain ModelVault
   (merged with local presets for defaults/limits), not a hardcoded list. RecipeVault supplies
   workflow recipes. Do not hardcode a model catalog in the frontend.

@@ -110,14 +110,76 @@ func (c *Client) FetchModelStats(ctx context.Context) ([]ModelStatus, error) {
 	return raw, nil
 }
 
+// ExchangeServiceIdentity turns one gallery-local authenticated subject into a
+// short-lived Core user token. The service key remains the backend credential;
+// the token carries user billing attribution without global impersonation.
+func (c *Client) ExchangeServiceIdentity(ctx context.Context, apiKey, subject string) (string, error) {
+	payload, _ := json.Marshal(map[string]string{"subject": subject})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/auth/service/exchange", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("grid identity exchange failed (%d): %s", resp.StatusCode, raw)
+	}
+	var result struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil || result.AccessToken == "" {
+		return "", errors.New("grid identity exchange returned no token")
+	}
+	return result.AccessToken, nil
+}
+
+// ExchangeGoogle asks Core to verify the same Google ID token and bind the
+// gallery-local subject to the global canonical Google account.
+func (c *Client) ExchangeGoogle(ctx context.Context, apiKey, idToken, appSubject string) (string, error) {
+	payload, _ := json.Marshal(map[string]string{
+		"id_token": idToken, "app_subject": appSubject,
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/auth/google/exchange", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("grid Google exchange failed (%d): %s", resp.StatusCode, raw)
+	}
+	var result struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil || result.AccessToken == "" {
+		return "", errors.New("grid Google exchange returned no token")
+	}
+	return result.AccessToken, nil
+}
+
 // GenerateMedia calls the new grid's synchronous OpenAI-style endpoint and
 // blocks until the worker returns a result. kind is "image" or "video"; it
 // selects the path. The grid authenticates via the apikey header (it also
 // accepts Authorization: Bearer) and gates every knob server-side.
-func (c *Client) GenerateMedia(ctx context.Context, kind string, request GenerateRequest, apiKey, assertion, clientHeader string) (*GenerateResponse, error) {
+func (c *Client) GenerateMedia(ctx context.Context, kind string, request GenerateRequest, apiKey, userToken, clientHeader string) (*GenerateResponse, error) {
 	path := "/images/generations"
-	if kind == "video" {
+	switch kind {
+	case "video":
 		path = "/videos/generations"
+	case "3d":
+		path = "/3d/generations"
 	}
 
 	payload, err := json.Marshal(request)
@@ -137,8 +199,8 @@ func (c *Client) GenerateMedia(ctx context.Context, kind string, request Generat
 	if apiKey != "" {
 		req.Header.Set("apikey", apiKey)
 	}
-	if assertion != "" {
-		req.Header.Set("X-Grid-User-Assertion", assertion)
+	if userToken != "" {
+		req.Header.Set("X-Grid-User-Token", userToken)
 	}
 
 	resp, err := c.mediaClient.Do(req)
@@ -159,7 +221,7 @@ func (c *Client) GenerateMedia(ctx context.Context, kind string, request Generat
 	return &parsed, nil
 }
 
-func (c *Client) accountRequest(ctx context.Context, method, path, apiKey, assertion string, body any) ([]byte, int, error) {
+func (c *Client) accountRequest(ctx context.Context, method, path, apiKey, userToken string, body any) ([]byte, int, error) {
 	var reader io.Reader
 	if body != nil {
 		payload, err := json.Marshal(body)
@@ -173,7 +235,7 @@ func (c *Client) accountRequest(ctx context.Context, method, path, apiKey, asser
 		return nil, 0, err
 	}
 	req.Header.Set("apikey", apiKey)
-	req.Header.Set("X-Grid-User-Assertion", assertion)
+	req.Header.Set("X-Grid-User-Token", userToken)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -186,8 +248,8 @@ func (c *Client) accountRequest(ctx context.Context, method, path, apiKey, asser
 	return raw, resp.StatusCode, err
 }
 
-func (c *Client) Credits(ctx context.Context, apiKey, assertion string) (map[string]any, error) {
-	raw, status, err := c.accountRequest(ctx, http.MethodGet, "/account/credits", apiKey, assertion, nil)
+func (c *Client) Credits(ctx context.Context, apiKey, userToken string) (map[string]any, error) {
+	raw, status, err := c.accountRequest(ctx, http.MethodGet, "/account/credits", apiKey, userToken, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -218,8 +280,8 @@ func (c *Client) WalletLinkNonce(ctx context.Context) (string, error) {
 	return result.Nonce, nil
 }
 
-func (c *Client) LinkWallet(ctx context.Context, apiKey, assertion string, proof map[string]string) (map[string]any, error) {
-	raw, status, err := c.accountRequest(ctx, http.MethodPost, "/account/identities/wallet/link/asserted", apiKey, assertion, proof)
+func (c *Client) LinkWallet(ctx context.Context, apiKey, userToken string, proof map[string]string) (map[string]any, error) {
+	raw, status, err := c.accountRequest(ctx, http.MethodPost, "/account/identities/wallet/link/asserted", apiKey, userToken, proof)
 	if err != nil {
 		return nil, err
 	}

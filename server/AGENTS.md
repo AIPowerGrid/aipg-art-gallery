@@ -44,8 +44,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
     client never does. Config paths are CWD-relative (`config/styles.json`,
     `./config/model_presets.json`) — run the server from the repo root.
 - Jobs, prompt enhancement, and credits require the session cookie. The server
-  signs a fresh `X-Grid-User-Assertion` with its scoped bridge key; request
-  bodies never supply a Grid key. Pending job status is owner-bound.
+  exchanges its namespaced local subject through a scoped service account and
+  sends the resulting short-lived `X-Grid-User-Token`; request bodies never
+  supply a Grid key. Public 3D is explicitly service-owned and bounded by the
+  service account's Core spending ceilings. Pending job status is owner-bound.
 
 ## Work Guidance
 

@@ -60,7 +60,7 @@ type chatResponse struct {
 // GenerateText runs one chat completion and returns the assistant's text. The
 // caller assembles the full instruction into prompt (user text + guidelines),
 // so we send it as a single user message.
-func (c *Client) GenerateText(ctx context.Context, prompt, assertion string) (string, error) {
+func (c *Client) GenerateText(ctx context.Context, prompt, userToken string) (string, error) {
 	payload := chatRequest{
 		Model:       c.model,
 		Messages:    []chatMessage{{Role: "user", Content: prompt}},
@@ -81,8 +81,8 @@ func (c *Client) GenerateText(ctx context.Context, prompt, assertion string) (st
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("apikey", c.apiKey)
 	req.Header.Set("Client-Agent", c.clientAgent)
-	if assertion != "" {
-		req.Header.Set("X-Grid-User-Assertion", assertion)
+	if userToken != "" {
+		req.Header.Set("X-Grid-User-Token", userToken)
 	}
 
 	resp, err := c.httpClient.Do(req)

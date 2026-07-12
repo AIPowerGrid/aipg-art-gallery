@@ -13,8 +13,8 @@ package owns one concern; `app/app.go` wires them together.
   single synchronous call to `/v1/images|videos/generations`; `FetchModelStats` reads
   `/v1/status/models`. `types.go` holds the request/response shapes. The async POST
   /jobs + poll contract the frontend uses is bridged in `app/pendingstore.go`.
-  `assertion.go` signs Core-compatible one-use identity assertions; the bridge
-  key is server-only.
+  `client.go` exchanges namespaced gallery subjects for short-lived Core user
+  tokens; the service key is server-only.
 - `ai/` — client for grid text generation (prompt enhancement) via `/v1/chat/completions`.
 - `prompts/` — model-aware prompt enhancement / category detection. Has tests.
 - `gallery/` — storage layer. `GalleryStore` interface with two backends: `postgres_store.go`

@@ -20,6 +20,9 @@ type Claims struct {
 	GoogleID string `json:"google_id,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Name     string `json:"name,omitempty"`
+	// Short-lived Core step-up token. The JWT is httpOnly and server-read only;
+	// this token is never exposed in an API response or browser JavaScript.
+	GridAccessToken string `json:"grid_access_token,omitempty"`
 	// Common fields
 	IssuedAt  int64 `json:"iat"`
 	ExpiresAt int64 `json:"exp"`
@@ -52,22 +55,23 @@ func GenerateJWT(walletAddress string) (string, error) {
 }
 
 // GenerateGoogleJWT creates a JWT token for a Google user
-func GenerateGoogleJWT(googleID, email, name string) (string, error) {
+func GenerateGoogleJWT(googleID, email, name, gridAccessToken string) (string, error) {
 	claims := Claims{
-		GoogleID:  googleID,
-		Email:     email,
-		Name:      name,
-		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+		GoogleID:        googleID,
+		Email:           email,
+		Name:            name,
+		GridAccessToken: gridAccessToken,
+		IssuedAt:        time.Now().Unix(),
+		ExpiresAt:       time.Now().Add(24 * time.Hour).Unix(),
 	}
 	return generateJWTFromClaims(claims)
 }
 
-func GenerateLinkedJWT(googleID, email, name, walletAddress string) (string, error) {
+func GenerateLinkedJWT(googleID, email, name, walletAddress, gridAccessToken string) (string, error) {
 	claims := Claims{
-		GoogleID: googleID, Email: email, Name: name,
-		WalletAddress: strings.ToLower(walletAddress),
-		IssuedAt:      time.Now().Unix(), ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+		GoogleID: googleID, Email: email, Name: name, GridAccessToken: gridAccessToken,
+		WalletAddress: strings.ToLower(walletAddress), IssuedAt: time.Now().Unix(),
+		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 	}
 	return generateJWTFromClaims(claims)
 }
