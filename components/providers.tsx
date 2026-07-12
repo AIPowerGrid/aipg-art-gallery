@@ -1,14 +1,26 @@
 "use client";
 
-import '@rainbow-me/rainbowkit/styles.css';
+import "@rainbow-me/rainbowkit/styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider, useAccount, useSwitchChain, useSignMessage, cookieToInitialState } from "wagmi";
+import {
+  WagmiProvider,
+  useAccount,
+  useSwitchChain,
+  useSignMessage,
+  cookieToInitialState,
+} from "wagmi";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { config, SUPPORTED_CHAINS } from "@/lib/wagmi";
 import { useState, type ReactNode, useEffect, useRef, useMemo } from "react";
 import { base } from "wagmi/chains";
-import { signIn, isAuthenticated, getAuthAddress, clearAuthToken } from "@/lib/auth";
+import {
+  signIn,
+  isAuthenticated,
+  getAuthAddress,
+  clearAuthToken,
+} from "@/lib/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useJobStore } from "@/lib/stores/job-store";
 import { GoogleOneTap } from "@/components/google-one-tap";
 
 // Handle network switching and SIWE auth
@@ -18,9 +30,19 @@ function WalletManager({ children }: { children: ReactNode }) {
   const { signMessageAsync } = useSignMessage();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const authAttempted = useRef(false);
-  
+
   // Auth store for reactive auth state
-  const { authMethod, setAuthenticated, clearAuth, syncFromStorage, syncFromServer } = useAuthStore();
+  const {
+    isAuthenticated: hasSession,
+    authMethod,
+    address: sessionAddress,
+    googleId,
+    setAuthenticated,
+    clearAuth,
+    syncFromStorage,
+    syncFromServer,
+  } = useAuthStore();
+  const setActiveOwner = useJobStore((state) => state.setActiveOwner);
 
   // On mount: show optimistic local state immediately, then reconcile with the
   // authoritative server session (httpOnly cookie via /auth/me).
@@ -29,10 +51,19 @@ function WalletManager({ children }: { children: ReactNode }) {
     void syncFromServer();
   }, [syncFromStorage, syncFromServer]);
 
+  useEffect(() => {
+    const owner = hasSession
+      ? googleId
+        ? `google:${googleId}`
+        : sessionAddress
+      : null;
+    setActiveOwner(owner ?? null);
+  }, [hasSession, googleId, sessionAddress, setActiveOwner]);
+
   // Auto-switch to Base if on wrong network
   useEffect(() => {
     if (isConnected && chainId) {
-      const supportedIds = SUPPORTED_CHAINS.map(c => c.id) as number[];
+      const supportedIds = SUPPORTED_CHAINS.map((c) => c.id) as number[];
       if (!supportedIds.includes(chainId)) {
         switchChain?.({ chainId: base.id });
       }
@@ -41,7 +72,7 @@ function WalletManager({ children }: { children: ReactNode }) {
 
   // Clear wallet auth when wallet disconnects (but preserve Google auth)
   useEffect(() => {
-    if (!isConnected && authMethod === 'wallet') {
+    if (!isConnected && authMethod === "wallet") {
       clearAuth();
     }
   }, [isConnected, authMethod, clearAuth]);
@@ -53,12 +84,22 @@ function WalletManager({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Merely connecting a wallet must not replace an active Google session.
+    // The account menu exposes an explicit proof-of-both link action instead.
+    if (authMethod === "google") {
+      authAttempted.current = false;
+      return;
+    }
+
     // Clear old auth if address changed
     const storedAddress = getAuthAddress();
-    if (storedAddress && storedAddress.toLowerCase() !== address.toLowerCase()) {
+    if (
+      storedAddress &&
+      storedAddress.toLowerCase() !== address.toLowerCase()
+    ) {
       clearAuthToken();
       // Only clear if we were using wallet auth
-      if (authMethod === 'wallet') {
+      if (authMethod === "wallet") {
         clearAuth();
       }
     }
@@ -89,10 +130,12 @@ function WalletManager({ children }: { children: ReactNode }) {
             if (!cancelled) setAuthenticated(address);
             return;
           } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : '';
+            const msg = err instanceof Error ? err.message : "";
             // User declined, or a genuine error → stop immediately.
-            if (msg.includes('rejected') || msg.includes('User rejected')) throw err;
-            if (!/not connected|Connector|getChainId|provider/i.test(msg)) throw err;
+            if (msg.includes("rejected") || msg.includes("User rejected"))
+              throw err;
+            if (!/not connected|Connector|getChainId|provider/i.test(msg))
+              throw err;
             // Connector not ready yet → wait briefly and retry.
             lastErr = err;
             await new Promise((r) => setTimeout(r, 500));
@@ -100,9 +143,12 @@ function WalletManager({ children }: { children: ReactNode }) {
         }
         if (!cancelled) throw lastErr;
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : '';
-        if (!message.includes('rejected') && !message.includes('User rejected')) {
-          console.error('Auto sign-in failed:', err);
+        const message = err instanceof Error ? err.message : "";
+        if (
+          !message.includes("rejected") &&
+          !message.includes("User rejected")
+        ) {
+          console.error("Auto sign-in failed:", err);
         }
         // Allow manual retry via dropdown
         authAttempted.current = false;
@@ -117,7 +163,14 @@ function WalletManager({ children }: { children: ReactNode }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isConnected, address, signMessageAsync, setAuthenticated, clearAuth, authMethod]);
+  }, [
+    isConnected,
+    address,
+    signMessageAsync,
+    setAuthenticated,
+    clearAuth,
+    authMethod,
+  ]);
 
   return (
     <>
@@ -136,10 +189,10 @@ const queryClient = new QueryClient({
   },
 });
 
-export function Providers({ 
+export function Providers({
   children,
-  cookie 
-}: { 
+  cookie,
+}: {
   children: ReactNode;
   cookie?: string;
 }) {
@@ -156,17 +209,15 @@ export function Providers({
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           theme={darkTheme({
-            accentColor: '#6366f1',
-            accentColorForeground: 'white',
-            borderRadius: 'medium',
-            fontStack: 'system',
+            accentColor: "#6366f1",
+            accentColorForeground: "white",
+            borderRadius: "medium",
+            fontStack: "system",
           })}
           modalSize="compact"
           initialChain={base}
         >
-          <WalletManager>
-            {children}
-          </WalletManager>
+          <WalletManager>{children}</WalletManager>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

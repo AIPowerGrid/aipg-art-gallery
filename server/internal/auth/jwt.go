@@ -27,18 +27,18 @@ type Claims struct {
 
 // UserIdentifier returns the primary user identifier (wallet address or google ID)
 func (c *Claims) UserIdentifier() string {
-	if c.WalletAddress != "" {
-		return c.WalletAddress
+	if c.GoogleID != "" {
+		return c.GoogleID
 	}
-	return c.GoogleID
+	return c.WalletAddress
 }
 
 // AuthMethod returns "wallet" or "google" based on which auth was used
 func (c *Claims) AuthMethod() string {
-	if c.WalletAddress != "" {
-		return "wallet"
+	if c.GoogleID != "" {
+		return "google"
 	}
-	return "google"
+	return "wallet"
 }
 
 // GenerateJWT creates a JWT token for a wallet address
@@ -59,6 +59,15 @@ func GenerateGoogleJWT(googleID, email, name string) (string, error) {
 		Name:      name,
 		IssuedAt:  time.Now().Unix(),
 		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
+	}
+	return generateJWTFromClaims(claims)
+}
+
+func GenerateLinkedJWT(googleID, email, name, walletAddress string) (string, error) {
+	claims := Claims{
+		GoogleID: googleID, Email: email, Name: name,
+		WalletAddress: strings.ToLower(walletAddress),
+		IssuedAt:      time.Now().Unix(), ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 	}
 	return generateJWTFromClaims(claims)
 }

@@ -66,8 +66,10 @@ jobs to the grid and serves gallery/media.
   creds. All of that lives in `server/`. The frontend talks only to the Go API
   (`NEXT_PUBLIC_GALLERY_API`, default `http://localhost:4000/api`).
 - **Two ports:** frontend on 3000 (`npm run dev`), API on 4000 (`cd server && go run ./cmd/api`).
-- **Auth:** SIWE → the Go server issues an HS256 JWT (`JWT_SECRET`); the frontend sends it as
-  `Authorization: Bearer`. Same secret must be set both sides of any deploy.
+- **Auth:** Google or SIWE yields an HS256 JWT in an httpOnly cookie. A proved
+  wallet can be linked to Google through Core's proof-of-both merge path.
+- **Grid identity:** `AIPG_API_KEY` is a server-only bridge key. Authenticated
+  generation carries a one-use Google or wallet assertion; Core owns credits.
 - **Models are blockchain-sourced:** the live model list comes from the on-chain ModelVault
   (merged with local presets for defaults/limits), not a hardcoded list. RecipeVault supplies
   workflow recipes. Do not hardcode a model catalog in the frontend.
@@ -101,8 +103,9 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 
 ## Tips for future agents
 
-- Run the audit-relevant checks before claiming security work is done: `cd server && go test
-  ./... && go vet ./...`, `npm run build`, and `npm audit` for dependency drift.
+- Run the audit-relevant checks before claiming security work is done:
+  `cd server && GOTOOLCHAIN=auto go test ./... && GOTOOLCHAIN=auto go vet ./...`,
+  `npm run build`, and `npm audit` for dependency drift.
 - When you touch auth, gallery writes, or any new outbound fetch/exec, re-read this section and
   the nearest AGENTS.md, then update them if the contract changed.
 

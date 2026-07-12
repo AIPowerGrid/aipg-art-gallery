@@ -27,6 +27,8 @@ route handlers for things that must not run in the browser — including wallet 
 
 - Pages talk to the backend through `lib/api.ts` — do not `fetch` the Go API directly from a
   page. Auth state comes from `lib/` stores/hooks.
+- Generation requires Google or wallet authentication and displays Core's
+  promotional, daily, and purchased credit pockets. No local free counter.
 - **Route handlers run on the server.** The `download` proxy must keep its exact-hostname
   allowlist + `redirect: 'manual'`. Any new outbound-fetch handler needs the same discipline.
 - **`auth-api/verify` is security-critical:** never return the JWT in the body (httpOnly cookie

@@ -201,13 +201,6 @@ func (a *App) Router() http.Handler {
 		api.Get("/styles", a.handleGetStyles)
 		api.Get("/styles/grid", a.handleGridStyles) // curated creative styles from the grid
 
-		// AI text generation (prompt enhancement)
-		api.Post("/ai/enhance", a.handleAIEnhance)
-
-		// Job creation with stricter rate limit: 20 per minute per IP
-		api.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
-		api.Get("/jobs/{id}", a.handleJobStatus)
-
 		// Public gallery endpoints (read-only, no auth required)
 		api.Get("/gallery", a.handleListGallery)
 		api.Get("/gallery/models", a.handleListGalleryModels)
@@ -221,6 +214,12 @@ func (a *App) Router() http.Handler {
 			protected.Use(a.authMiddleware)
 
 			protected.Get("/auth/me", a.handleMe)
+			protected.Post("/auth/link-wallet/nonce", a.handleWalletLinkNonce)
+			protected.Post("/auth/link-wallet", a.handleWalletLink)
+			protected.Get("/credits", a.handleCredits)
+			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
+			protected.Get("/jobs/{id}", a.handleJobStatus)
+			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/ai/enhance", a.handleAIEnhance)
 			protected.Get("/gallery/me", a.handleListMyGallery)
 			protected.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
 			protected.Post("/gallery", a.handleAddToGallery)
@@ -359,6 +358,18 @@ func getUserIdentifier(r *http.Request) string {
 	return getWalletFromContext(r)
 }
 
+func (a *App) gridAssertion(r *http.Request) (string, error) {
+	claims := getClaimsFromContext(r)
+	if claims == nil {
+		return "", errors.New("authenticated Grid identity required")
+	}
+	provider, subject := "wallet", claims.WalletAddress
+	if claims.GoogleID != "" {
+		provider, subject = "google", claims.GoogleID
+	}
+	return aipg.SignAssertion(a.cfg.DefaultAPIKey, provider, subject)
+}
+
 // getGalleryOwnerIdentifier returns the durable owner key stored with private
 // gallery items. Existing wallet ownership remains backward compatible. Google
 // subjects are hashed before storage so provider IDs never enter gallery data.
@@ -367,12 +378,12 @@ func getGalleryOwnerIdentifier(r *http.Request) string {
 	if claims == nil {
 		return ""
 	}
-	if claims.WalletAddress != "" {
-		return strings.ToLower(strings.TrimSpace(claims.WalletAddress))
-	}
 	if claims.GoogleID != "" {
 		digest := sha256.Sum256([]byte("google:" + claims.GoogleID))
 		return fmt.Sprintf("google:%x", digest[:])
+	}
+	if claims.WalletAddress != "" {
+		return strings.ToLower(strings.TrimSpace(claims.WalletAddress))
 	}
 	return ""
 }
@@ -523,6 +534,82 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 		"name":     name,
 		"picture":  picture,
 	})
+}
+
+func (a *App) handleCredits(w http.ResponseWriter, r *http.Request) {
+	assertion, err := a.gridAssertion(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	credits, err := a.client.Credits(ctx, a.cfg.DefaultAPIKey, assertion)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("Grid credits are unavailable"))
+		return
+	}
+	writeJSON(w, http.StatusOK, credits)
+}
+
+func (a *App) handleWalletLinkNonce(w http.ResponseWriter, r *http.Request) {
+	claims := getClaimsFromContext(r)
+	if claims == nil || claims.GoogleID == "" {
+		writeError(w, http.StatusForbidden, errors.New("Google session required"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	nonce, err := a.client.WalletLinkNonce(ctx)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("wallet-link nonce unavailable"))
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"nonce": nonce})
+}
+
+func (a *App) handleWalletLink(w http.ResponseWriter, r *http.Request) {
+	claims := getClaimsFromContext(r)
+	if claims == nil || claims.GoogleID == "" {
+		writeError(w, http.StatusForbidden, errors.New("Google session required"))
+		return
+	}
+	var proof struct {
+		Message   string `json:"message"`
+		Signature string `json:"signature"`
+		Address   string `json:"address"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	if err := decoder.Decode(&proof); err != nil || proof.Message == "" || proof.Signature == "" || proof.Address == "" {
+		writeError(w, http.StatusBadRequest, errors.New("invalid wallet proof"))
+		return
+	}
+	assertion, err := a.gridAssertion(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	result, err := a.client.LinkWallet(ctx, a.cfg.DefaultAPIKey, assertion, map[string]string{
+		"message": proof.Message, "signature": proof.Signature, "address": proof.Address,
+	})
+	if err != nil {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
+	verifiedWallet, _ := result["wallet"].(string)
+	if verifiedWallet == "" {
+		writeError(w, http.StatusBadGateway, errors.New("Grid returned an invalid wallet-link result"))
+		return
+	}
+	token, err := auth.GenerateLinkedJWT(claims.GoogleID, claims.Email, claims.Name, verifiedWallet)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, errors.New("failed to refresh linked session"))
+		return
+	}
+	a.setAuthCookie(w, r, token)
+	writeJSON(w, http.StatusOK, result)
 }
 
 // modelNameAliases maps preset IDs to possible Grid API model names
@@ -930,14 +1017,16 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apiKey := req.APIKey
-	if apiKey == "" {
-		apiKey = a.cfg.DefaultAPIKey
-	}
-	if apiKey == "" {
-		writeError(w, http.StatusBadRequest, errors.New("apiKey is required"))
+	if a.cfg.DefaultAPIKey == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("Grid bridge is not configured"))
 		return
 	}
+	assertion, err := a.gridAssertion(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+	owner := getGalleryOwnerIdentifier(r)
 
 	gen := buildGenerateRequest(req, preset)
 	kind := "image"
@@ -958,7 +1047,7 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	// The new grid /v1 endpoints are synchronous (the POST blocks until the
 	// worker finishes). The gallery's own API stays async: register a pending
 	// job, return its id now, and run the blocking grid call in the background.
-	jobID := a.pending.create(kind, req.Prompt)
+	jobID := a.pending.create(kind, req.Prompt, owner)
 	// Use the bridge job id as the progress token so the grid stashes the
 	// worker's live % under it; handleJobStatus polls it while processing.
 	gen.ProgressToken = jobID
@@ -970,7 +1059,7 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 		defer cancel()
 
-		resp, err := a.client.GenerateMedia(ctx, kind, gen, apiKey, clientAgent)
+		resp, err := a.client.GenerateMedia(ctx, kind, gen, a.cfg.DefaultAPIKey, assertion, clientAgent)
 		if err != nil {
 			log.Printf("❌ Grid %s job %s failed: %v", kind, jobID, err)
 			a.pending.fail(jobID, err.Error())
@@ -996,6 +1085,10 @@ func (a *App) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 	job, ok := a.pending.get(jobID)
 	if !ok {
 		writeError(w, http.StatusNotFound, fmt.Errorf("unknown or expired job: %s", jobID))
+		return
+	}
+	if job.Owner == "" || job.Owner != getGalleryOwnerIdentifier(r) {
+		writeError(w, http.StatusNotFound, errors.New("job not found"))
 		return
 	}
 
@@ -1108,8 +1201,6 @@ type CreateJobRequest struct {
 	ModelID          string           `json:"modelId"`
 	Prompt           string           `json:"prompt"`
 	NegativePrompt   string           `json:"negativePrompt"`
-	APIKey           string           `json:"apiKey"`
-	WalletAddress    string           `json:"walletAddress"`
 	Params           GenerationParams `json:"params"`
 	NSFW             bool             `json:"nsfw"`
 	Public           bool             `json:"public"`
@@ -2095,8 +2186,13 @@ func (a *App) handleAIEnhance(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
+	assertion, err := a.gridAssertion(r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
 
-	enhanced, err := a.aiClient.GenerateText(ctx, fullPrompt)
+	enhanced, err := a.aiClient.GenerateText(ctx, fullPrompt, assertion)
 	if err != nil {
 		log.Printf("AI enhance error: %v", err)
 		writeError(w, http.StatusInternalServerError, errors.New("failed to enhance prompt"))

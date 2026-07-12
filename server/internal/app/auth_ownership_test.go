@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
 )
@@ -32,6 +33,25 @@ func TestGalleryOwnerIdentifierGoogleIsOpaqueAndStable(t *testing.T) {
 	}
 	if strings.Contains(first, "google-subject-123") {
 		t.Fatalf("google subject leaked in owner identifier: %q", first)
+	}
+}
+
+func TestLinkedSessionKeepsGoogleGalleryOwner(t *testing.T) {
+	googleOnly := getGalleryOwnerIdentifier(requestWithClaims(&auth.Claims{GoogleID: "google-subject-123"}))
+	linked := getGalleryOwnerIdentifier(requestWithClaims(&auth.Claims{
+		GoogleID: "google-subject-123", WalletAddress: "0x1111111111111111111111111111111111111111",
+	}))
+	if linked != googleOnly {
+		t.Fatalf("linked owner = %q, want existing Google owner %q", linked, googleOnly)
+	}
+}
+
+func TestPendingJobsCarryOwner(t *testing.T) {
+	store := newPendingStore(time.Minute)
+	id := store.create("image", "prompt", "owner-1")
+	job, ok := store.get(id)
+	if !ok || job.Owner != "owner-1" {
+		t.Fatalf("pending job owner was not retained: %#v", job)
 	}
 }
 

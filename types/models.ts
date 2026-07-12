@@ -79,11 +79,8 @@ export interface CreateJobRequest {
   modelId: string;
   prompt: string;
   negativePrompt?: string;
-  apiKey?: string;
   nsfw?: boolean;
   public?: boolean;
-  /** Wallet address of the user submitting the job */
-  walletAddress?: string;
   params: {
     width?: number;
     height?: number;
@@ -101,12 +98,18 @@ export interface CreateJobRequest {
   };
   sourceImage?: string;
   sourceMask?: string;
-  sourceProcessing?: "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video";
+  sourceProcessing?:
+    "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video";
   mediaType?: "image" | "video";
   /** Curated style id (from GET /api/styles/grid); the grid expands it server-side. */
   style?: string;
   /** CivitAI LoRAs to inject (grid gates + downloads them). */
-  loras?: Array<{ name: string; model?: number; clip?: number; is_version?: boolean }>;
+  loras?: Array<{
+    name: string;
+    model?: number;
+    clip?: number;
+    is_version?: boolean;
+  }>;
 }
 
 /** One curated style from GET /api/styles/grid (grid-served creative presets). */
@@ -151,4 +154,3 @@ export interface GenerationView {
   workerId?: string;
   workerName?: string;
 }
-

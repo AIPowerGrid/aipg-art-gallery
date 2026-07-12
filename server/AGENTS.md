@@ -11,7 +11,7 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 - `cmd/api/main.go` — process entry: loads `.env`, builds `app.App`, serves `cfg.Address`.
 - `internal/app/app.go` — the router + every HTTP handler (~2K LOC god-file). Routes under
-  `/api`: auth (`/auth/google`, `/auth/logout`, protected `/auth/me`), `/models`, `/styles`,
+  `/api`: auth (`/auth/google`, `/auth/logout`, protected `/auth/me` and wallet linking), `/models`, `/styles`,
   `/ai/enhance`, `/jobs`, public `/gallery` + `/favorites` reads, and JWT-protected
   gallery/favorites writes. Protected `/gallery/me` is the identity-neutral private gallery
   read path. CORS + IP rate limits (100/min global, 20/min on job create).
@@ -40,9 +40,12 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - **Grid passthrough:** generation goes through `internal/aipg` to the grid **`/v1`**
   (`POST /v1/images/generations`, synchronous; the legacy horde `/api/v2` is RETIRED —
   410 Gone). `internal/app/pendingstore.go` bridges the gallery's async `POST /api/jobs`
-  + poll contract onto the synchronous grid call. The server holds the grid key, the
-  client never does. Config paths are CWD-relative (`config/styles.json`,
-  `./config/model_presets.json`) — run the server from the repo root.
+  and poll contract onto the synchronous grid call. The server holds the grid key, the
+    client never does. Config paths are CWD-relative (`config/styles.json`,
+    `./config/model_presets.json`) — run the server from the repo root.
+- Jobs, prompt enhancement, and credits require the session cookie. The server
+  signs a fresh `X-Grid-User-Assertion` with its scoped bridge key; request
+  bodies never supply a Grid key. Pending job status is owner-bound.
 
 ## Work Guidance
 

@@ -1,7 +1,7 @@
-import { SiweMessage } from 'siwe';
+import { SiweMessage } from "siwe";
 
 // Wallet sign-in uses the Next.js /auth-api routes (viem / ERC-6492 support).
-const getAuthBase = () => '/auth-api';
+const getAuthBase = () => "/auth-api";
 
 // Session checks (/auth/me, /auth/logout) live on the Go API.
 export const getApiBase = () =>
@@ -18,12 +18,12 @@ export const getApiBase = () =>
 // re-validates the cookie on every protected request, so a tampered marker only
 // affects optimistic UI, never authorization.
 
-const ADDRESS_KEY = 'aipg_auth_address';
-const EXPIRY_KEY = 'aipg_auth_expiry';
+const ADDRESS_KEY = "aipg_auth_address";
+const EXPIRY_KEY = "aipg_auth_expiry";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // mirrors the server JWT lifetime
 
 export function getAuthAddress(): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === "undefined") return null;
   return localStorage.getItem(ADDRESS_KEY);
 }
 
@@ -35,13 +35,13 @@ function setSession(address: string) {
 // Named clearAuthToken for backwards compatibility with existing callers; it now
 // clears the local wallet session marker (the cookie is cleared via signOut()).
 export function clearAuthToken() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === "undefined") return;
   localStorage.removeItem(ADDRESS_KEY);
   localStorage.removeItem(EXPIRY_KEY);
 }
 
 export function isAuthenticated(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === "undefined") return false;
   const address = localStorage.getItem(ADDRESS_KEY);
   const expiry = Number(localStorage.getItem(EXPIRY_KEY) ?? 0);
   return Boolean(address) && expiry > Date.now();
@@ -53,11 +53,11 @@ export function isAuthenticated(): boolean {
 
 async function getNonce(): Promise<string> {
   const response = await fetch(`${getAuthBase()}/nonce`, {
-    method: 'POST',
-    credentials: 'include',
+    method: "POST",
+    credentials: "include",
   });
   if (!response.ok) {
-    throw new Error('Failed to get nonce');
+    throw new Error("Failed to get nonce");
   }
   const data = await response.json();
   return data.nonce;
@@ -66,17 +66,17 @@ async function getNonce(): Promise<string> {
 async function verifySignature(
   message: string,
   signature: string,
-  address: string
+  address: string,
 ): Promise<{ address: string }> {
   const response = await fetch(`${getAuthBase()}/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include', // let the browser store the httpOnly session cookie
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include", // let the browser store the httpOnly session cookie
     body: JSON.stringify({ message, signature, address }),
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || 'Failed to verify signature');
+    throw new Error(error.error || "Failed to verify signature");
   }
   return response.json();
 }
@@ -87,7 +87,9 @@ async function verifySignature(
  */
 export async function fetchSession(): Promise<string | null> {
   try {
-    const response = await fetch(`${getApiBase()}/auth/me`, { credentials: 'include' });
+    const response = await fetch(`${getApiBase()}/auth/me`, {
+      credentials: "include",
+    });
     if (!response.ok) {
       clearAuthToken();
       return null;
@@ -101,6 +103,30 @@ export async function fetchSession(): Promise<string | null> {
     return null;
   } catch {
     return null;
+  }
+}
+
+export async function linkWalletToGoogleAccount(
+  address: string,
+  signMessageAsync: (args: { message: string }) => Promise<string>,
+): Promise<void> {
+  const nonceResponse = await fetch(`${getApiBase()}/auth/link-wallet/nonce`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!nonceResponse.ok) throw new Error("Could not create wallet-link proof");
+  const { nonce } = await nonceResponse.json();
+  const message = `Link wallet to AIPG Grid identity\n\nNonce: ${nonce}`;
+  const signature = await signMessageAsync({ message });
+  const response = await fetch(`${getApiBase()}/auth/link-wallet`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, signature, address }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || "Wallet link failed");
   }
 }
 
@@ -131,7 +157,11 @@ export function signIn(params: SignInParams): Promise<void> {
   return promise;
 }
 
-async function _signIn({ address, signMessageAsync, chainId = 8453 }: SignInParams): Promise<void> {
+async function _signIn({
+  address,
+  signMessageAsync,
+  chainId = 8453,
+}: SignInParams): Promise<void> {
   // 1. Get a one-time nonce.
   const nonce = await getNonce();
 
@@ -139,9 +169,9 @@ async function _signIn({ address, signMessageAsync, chainId = 8453 }: SignInPara
   const message = new SiweMessage({
     domain: window.location.host,
     address,
-    statement: 'Sign in to AIPG Art Gallery',
+    statement: "Sign in to AIPG Art Gallery",
     uri: window.location.origin,
-    version: '1',
+    version: "1",
     chainId,
     nonce,
     issuedAt: new Date().toISOString(),
@@ -161,7 +191,10 @@ async function _signIn({ address, signMessageAsync, chainId = 8453 }: SignInPara
 
 export async function signOut() {
   try {
-    await fetch(`${getApiBase()}/auth/logout`, { method: 'POST', credentials: 'include' });
+    await fetch(`${getApiBase()}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
   } catch {
     // best-effort; clear local state regardless
   }

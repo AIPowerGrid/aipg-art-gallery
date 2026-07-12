@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Reusable client UI for the gallery, generation flow, wallet/Google auth, and layout. Presentation
-+ interaction only; data and auth logic come from `lib/`.
+Reusable client UI for the gallery, generation flow, wallet/Google auth, and
+layout. Presentation and interaction only; data and auth logic come from `lib/`.
 
 ## Ownership
 
@@ -21,6 +21,8 @@ Reusable client UI for the gallery, generation flow, wallet/Google auth, and lay
   token handling. Auth state comes from `useAuthStore`.
 - **Auth components must not read or store the JWT** — it's an httpOnly cookie. Use the store's
   markers (address, Google profile) for display and `credentials: 'include'` on any auth fetch.
+- A connected wallet under a Google session uses the exact-purpose Core link
+  challenge; connecting a wallet alone never silently merges accounts.
 - Keep components presentational; push nontrivial logic into `lib/hooks` or `lib/stores`.
 
 ## Work Guidance

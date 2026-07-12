@@ -15,7 +15,7 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `nonce-store.ts` — in-memory one-time nonce store used by the `/auth-api` routes
   (`storeNonce` / `consumeNonce` / `cleanupNonces`). Replace with Redis if multi-instance.
 - `wagmi.ts` — wagmi/RainbowKit config. `web3/` — wallet hooks/types. `supabase.ts` — Supabase
-  client. `generation-limits.ts` — anon/member generation-limit logic (UX gating only).
+  client. Core's `/account/credits` response is the only credit authority.
 - `stores/` — Zustand stores (`auth-store.ts` supports wallet + Google; `job-store.ts`).
 - `hooks/` — data + UI hooks. `storage.ts`, `utils/` (`download.ts`, `thumbnails.ts`),
   `types/create.ts`.
@@ -27,7 +27,7 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   (wallet) or the Go `/auth/google` (Google). `auth.ts` / `auth-store.ts` store only
   non-sensitive markers (wallet address, Google profile) for UI. Never store a token in
   `localStorage`. `getActiveAuthToken` / token getters must not return.
-- `generation-limits.ts` gates are **UX only** — the Go server independently caps batch size,
+- Generation requires an authenticated Google or wallet session. The Go server independently caps batch size,
   dimensions, steps. Never treat a client-side limit as a security boundary.
 - Wallet sign-in (`auth.ts`) must send the full prepared SIWE message + a fresh nonce per
   attempt; the `/auth-api/verify` route rejects reused nonces and stale/foreign-domain messages.

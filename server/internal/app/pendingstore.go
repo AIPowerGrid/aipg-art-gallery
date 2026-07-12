@@ -28,6 +28,7 @@ type pendingJob struct {
 	Status    string // "processing" | "completed" | "faulted"
 	Kind      string // "image" | "video"
 	Prompt    string
+	Owner     string
 	Err       string
 	Items     []aipg.GeneratedItem
 	Grid      *aipg.GridMeta // per-job provenance (worker, gen time) from the grid
@@ -43,7 +44,7 @@ func newPendingStore(ttl time.Duration) *pendingStore {
 }
 
 // create registers a new in-flight job and returns its opaque id.
-func (s *pendingStore) create(kind, prompt string) string {
+func (s *pendingStore) create(kind, prompt, owner string) string {
 	id := newJobID()
 	now := time.Now()
 	s.mu.Lock()
@@ -52,6 +53,7 @@ func (s *pendingStore) create(kind, prompt string) string {
 		Status:    "processing",
 		Kind:      kind,
 		Prompt:    prompt,
+		Owner:     owner,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

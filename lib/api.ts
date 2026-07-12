@@ -1,4 +1,10 @@
-import { CreateJobRequest, GalleryModel, GridStyle, JobStatus, ModelsResponse } from "@/types/models";
+import {
+  CreateJobRequest,
+  GalleryModel,
+  GridStyle,
+  JobStatus,
+  ModelsResponse,
+} from "@/types/models";
 
 const getApiBase = () =>
   process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
@@ -6,7 +12,7 @@ const getApiBase = () =>
 async function jsonFetch<T>(
   path: string,
   init?: RequestInit,
-  revalidate?: number
+  revalidate?: number,
 ): Promise<T> {
   const headers: Record<string, string> = {
     ...(init?.headers as Record<string, string>),
@@ -17,7 +23,7 @@ async function jsonFetch<T>(
     headers,
     // Send the httpOnly session cookie on authenticated requests. The JWT is
     // never read by JS; the browser attaches it automatically.
-    credentials: 'include',
+    credentials: "include",
     next: revalidate ? { revalidate } : undefined,
   });
   if (!res.ok) {
@@ -48,6 +54,19 @@ export function createJob(payload: CreateJobRequest) {
 
 export function fetchJobStatus(jobId: string) {
   return jsonFetch<JobStatus>(`/jobs/${jobId}`);
+}
+
+export interface GridCredits {
+  promotional: { remaining_usd: number; active: boolean };
+  free: { remaining_usd: number; daily_cap_usd: number; active: boolean };
+  paid: { balance_usd: number };
+  total_spendable_usd: number;
+  total_preview_usd: number;
+  charging_enabled: boolean;
+}
+
+export function fetchCredits(): Promise<GridCredits> {
+  return jsonFetch("/credits");
 }
 
 /** Curated creative styles from the grid (model→recipe→style layer). */
@@ -85,9 +104,9 @@ export interface GalleryItem {
   createdAt: number;
   params?: JobParams;
   mediaUrls?: string[];
-  seeds?: string[];  // Seeds for each image in batch mode
-  worker?: string;   // grid worker that ran it
-  genTime?: number;  // wall-clock generation seconds
+  seeds?: string[]; // Seeds for each image in batch mode
+  worker?: string; // grid worker that ran it
+  genTime?: number; // wall-clock generation seconds
 }
 
 export interface GalleryResponse {
@@ -105,15 +124,16 @@ export interface GalleryFilters {
 }
 
 export function fetchGallery(
-  typeFilter?: string, 
-  limit?: number, 
-  offset?: number, 
+  typeFilter?: string,
+  limit?: number,
+  offset?: number,
   searchQuery?: string,
-  filters?: GalleryFilters
+  filters?: GalleryFilters,
 ): Promise<GalleryResponse> {
   const params = new URLSearchParams();
   const effectiveType = filters?.type || typeFilter;
-  if (effectiveType && effectiveType !== "all") params.append("type", effectiveType);
+  if (effectiveType && effectiveType !== "all")
+    params.append("type", effectiveType);
   if (limit) params.append("limit", String(limit));
   if (offset !== undefined) params.append("offset", String(offset));
   if (searchQuery) params.append("q", searchQuery);
@@ -121,7 +141,8 @@ export function fetchGallery(
     params.append("models", filters.models.join(","));
   }
   if (filters?.aspect) params.append("aspect", filters.aspect);
-  if (filters?.nsfw && filters.nsfw !== "all") params.append("nsfw", filters.nsfw);
+  if (filters?.nsfw && filters.nsfw !== "all")
+    params.append("nsfw", filters.nsfw);
   const query = params.toString();
   return jsonFetch(`/gallery${query ? `?${query}` : ""}`);
 }
@@ -150,7 +171,9 @@ export interface AddToGalleryRequest {
   genTime?: number;
 }
 
-export function addToGallery(item: AddToGalleryRequest): Promise<{ success: boolean }> {
+export function addToGallery(
+  item: AddToGalleryRequest,
+): Promise<{ success: boolean }> {
   return jsonFetch("/gallery", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -164,11 +187,16 @@ export interface WalletGalleryResponse {
   wallet: string;
 }
 
-export function fetchGalleryByWallet(walletAddress: string, limit?: number): Promise<WalletGalleryResponse> {
+export function fetchGalleryByWallet(
+  walletAddress: string,
+  limit?: number,
+): Promise<WalletGalleryResponse> {
   const params = new URLSearchParams();
   if (limit) params.append("limit", String(limit));
   const query = params.toString();
-  return jsonFetch(`/gallery/wallet/${walletAddress}${query ? `?${query}` : ""}`);
+  return jsonFetch(
+    `/gallery/wallet/${walletAddress}${query ? `?${query}` : ""}`,
+  );
 }
 
 export function fetchMyGallery(limit?: number): Promise<WalletGalleryResponse> {
@@ -186,31 +214,42 @@ export interface GalleryMediaResponse {
   error?: string;
 }
 
-export function fetchGalleryMedia(jobId: string): Promise<GalleryMediaResponse> {
+export function fetchGalleryMedia(
+  jobId: string,
+): Promise<GalleryMediaResponse> {
   return jsonFetch(`/gallery/${jobId}/media`);
 }
 
 // Protected endpoints - require JWT authentication (handled automatically by jsonFetch)
 
-export function deleteGalleryItem(jobId: string): Promise<{ success: boolean; message: string }> {
+export function deleteGalleryItem(
+  jobId: string,
+): Promise<{ success: boolean; message: string }> {
   return jsonFetch(`/gallery/${jobId}`, {
     method: "DELETE",
   });
 }
 
-export function publishGalleryItem(jobId: string): Promise<{ success: boolean; isPublic: boolean }> {
+export function publishGalleryItem(
+  jobId: string,
+): Promise<{ success: boolean; isPublic: boolean }> {
   return jsonFetch(`/gallery/${jobId}/publish`, {
     method: "POST",
   });
 }
 
-export function unpublishGalleryItem(jobId: string): Promise<{ success: boolean; isPublic: boolean }> {
+export function unpublishGalleryItem(
+  jobId: string,
+): Promise<{ success: boolean; isPublic: boolean }> {
   return jsonFetch(`/gallery/${jobId}/unpublish`, {
     method: "POST",
   });
 }
 
-export function extractSingleImage(jobId: string, index: number): Promise<{ success: boolean; newJobId: string }> {
+export function extractSingleImage(
+  jobId: string,
+  index: number,
+): Promise<{ success: boolean; newJobId: string }> {
   return jsonFetch(`/gallery/${jobId}/extract`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -220,14 +259,17 @@ export function extractSingleImage(jobId: string, index: number): Promise<{ succ
 
 export interface UpdateGalleryItemRequest {
   mediaUrls: string[];
-  seeds?: string[];  // Seeds for each generation (batch mode has multiple)
+  seeds?: string[]; // Seeds for each generation (batch mode has multiple)
   sampler?: string;
   scheduler?: string;
-  worker?: string;   // grid worker that ran it
-  genTime?: number;  // wall-clock generation seconds
+  worker?: string; // grid worker that ran it
+  genTime?: number; // wall-clock generation seconds
 }
 
-export function updateGalleryItem(jobId: string, data: UpdateGalleryItemRequest): Promise<{ success: boolean }> {
+export function updateGalleryItem(
+  jobId: string,
+  data: UpdateGalleryItemRequest,
+): Promise<{ success: boolean }> {
   return jsonFetch(`/gallery/${jobId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -248,14 +290,22 @@ export function removeFavorite(jobId: string): Promise<{ success: boolean }> {
   });
 }
 
-export function getFavorites(walletAddress: string, limit?: number): Promise<{ items: GalleryItem[]; count: number }> {
+export function getFavorites(
+  walletAddress: string,
+  limit?: number,
+): Promise<{ items: GalleryItem[]; count: number }> {
   const params = new URLSearchParams();
   if (limit) params.append("limit", String(limit));
   const query = params.toString();
-  return jsonFetch(`/favorites/wallet/${walletAddress}${query ? `?${query}` : ""}`);
+  return jsonFetch(
+    `/favorites/wallet/${walletAddress}${query ? `?${query}` : ""}`,
+  );
 }
 
-export function checkFavorite(walletAddress: string, jobId: string): Promise<{ favorited: boolean }> {
+export function checkFavorite(
+  walletAddress: string,
+  jobId: string,
+): Promise<{ favorited: boolean }> {
   return jsonFetch(`/favorites/check/${walletAddress}/${jobId}`);
 }
 
@@ -270,7 +320,9 @@ export interface AIEnhanceResponse {
   original: string;
 }
 
-export function enhancePrompt(request: AIEnhanceRequest): Promise<AIEnhanceResponse> {
+export function enhancePrompt(
+  request: AIEnhanceRequest,
+): Promise<AIEnhanceResponse> {
   return jsonFetch("/ai/enhance", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -12,15 +12,26 @@ import { GalleryItem } from "@/lib/api";
 
 export function ActiveJobsIndicator() {
   const [mounted, setMounted] = useState(false);
-  const { jobs, getActiveJobs, startPolling, isPolling } = useJobStore();
+  const {
+    activeOwner,
+    getActiveJobs,
+    getCompletedJobs,
+    startPolling,
+    isPolling,
+  } = useJobStore();
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedJob, setSelectedJob] = useState<TrackedJob | null>(null);
   const pathname = usePathname();
-  const isOnStudio = pathname === '/create';
+  const isOnStudio = pathname === "/create";
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setSelectedJob(null);
+    setShowDropdown(false);
+  }, [activeOwner]);
 
   // Start polling if there are active jobs
   useEffect(() => {
@@ -56,7 +67,9 @@ export function ActiveJobsIndicator() {
       isPublic: false,
       walletAddress: job.walletAddress,
       createdAt: job.submittedAt,
-      mediaUrls: job.result.generations.map(g => g.url).filter((url): url is string => !!url),
+      mediaUrls: job.result.generations
+        .map((g) => g.url)
+        .filter((url): url is string => !!url),
       params: {
         width: job.width,
         height: job.height,
@@ -67,8 +80,8 @@ export function ActiveJobsIndicator() {
   if (!mounted) return null;
 
   const activeJobs = getActiveJobs();
-  const recentCompleted = jobs
-    .filter(j => j.status === 'completed')
+  const recentCompleted = getCompletedJobs()
+    .filter((j) => j.status === "completed")
     .slice(0, 5);
 
   // Don't show anything if no jobs
@@ -88,8 +101,18 @@ export function ActiveJobsIndicator() {
         {activeJobs.length > 0 ? (
           <div className="w-4 h-4 border-2 border-white/30 border-t-indigo-400 rounded-full animate-spin" />
         ) : (
-          <svg className="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          <svg
+            className="w-4 h-4 text-zinc-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
           </svg>
         )}
         <span className="text-sm font-medium">Jobs</span>
@@ -98,18 +121,23 @@ export function ActiveJobsIndicator() {
             {activeJobs.length}
           </span>
         )}
-        <svg 
-          className={`w-3 h-3 text-zinc-500 transition-transform ${showDropdown ? 'rotate-180' : ''}`}
-          fill="none" 
-          stroke="currentColor" 
+        <svg
+          className={`w-3 h-3 text-zinc-500 transition-transform ${showDropdown ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
 
       {showDropdown && (
-        <div 
+        <div
           className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-zinc-900 border border-zinc-700 shadow-2xl z-50 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
@@ -146,21 +174,33 @@ export function ActiveJobsIndicator() {
 
             {/* Completed Jobs */}
             {recentCompleted.length > 0 && (
-              <div className={`p-2 ${activeJobs.length > 0 ? 'border-t border-zinc-800' : ''}`}>
+              <div
+                className={`p-2 ${activeJobs.length > 0 ? "border-t border-zinc-800" : ""}`}
+              >
                 <div className="px-2 py-1.5 text-xs text-zinc-500 font-medium flex items-center gap-2">
-                  <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="w-3 h-3 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                   Just Finished
                 </div>
                 {recentCompleted.map((job) => (
-                  <JobItem 
-                    key={job.jobId} 
-                    job={job} 
+                  <JobItem
+                    key={job.jobId}
+                    job={job}
                     onSelect={() => {
                       setSelectedJob(job);
                       setShowDropdown(false);
-                    }} 
+                    }}
                   />
                 ))}
               </div>
@@ -176,23 +216,31 @@ export function ActiveJobsIndicator() {
       )}
 
       {/* Job Detail Modal - uses shared ImageModal component */}
-      {selectedJob && (() => {
-        const galleryItem = jobToGalleryItem(selectedJob);
-        if (!galleryItem) return null;
-        return (
-          <ImageModal
-            isOpen={true}
-            onClose={() => setSelectedJob(null)}
-            item={galleryItem}
-            onDownload={(index) => {
-              const gen = selectedJob.result?.generations[index];
-              if (gen?.url) {
-                downloadMedia(gen.url, getMediaFilename(selectedJob.jobId, gen.id, selectedJob.type === 'video'));
-              }
-            }}
-          />
-        );
-      })()}
+      {selectedJob &&
+        (() => {
+          const galleryItem = jobToGalleryItem(selectedJob);
+          if (!galleryItem) return null;
+          return (
+            <ImageModal
+              isOpen={true}
+              onClose={() => setSelectedJob(null)}
+              item={galleryItem}
+              onDownload={(index) => {
+                const gen = selectedJob.result?.generations[index];
+                if (gen?.url) {
+                  downloadMedia(
+                    gen.url,
+                    getMediaFilename(
+                      selectedJob.jobId,
+                      gen.id,
+                      selectedJob.type === "video",
+                    ),
+                  );
+                }
+              }}
+            />
+          );
+        })()}
     </div>
   );
 }
@@ -202,28 +250,33 @@ function JobItem({ job, onSelect }: { job: TrackedJob; onSelect: () => void }) {
     job.submittedAt,
     job.initialWaitTime,
     job.waitTime,
-    job.status
+    job.status,
   );
 
-  const isActive = job.status === 'queued' || job.status === 'processing';
-  const isCompleted = job.status === 'completed';
-  const isFailed = job.status === 'faulted';
-  
+  const isActive = job.status === "queued" || job.status === "processing";
+  const isCompleted = job.status === "completed";
+  const isFailed = job.status === "faulted";
+
   // Get thumbnail for completed jobs
-  const thumbnailUrl = isCompleted && job.result?.generations?.[0]?.url
-    ? getThumbnailUrl(job.result.generations[0].url, 80)
-    : null;
+  const thumbnailUrl =
+    isCompleted && job.result?.generations?.[0]?.url
+      ? getThumbnailUrl(job.result.generations[0].url, 80)
+      : null;
 
   const content = (
-    <div className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-      isCompleted ? 'hover:bg-zinc-800 cursor-pointer' : 'hover:bg-zinc-800/50'
-    }`}>
+    <div
+      className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
+        isCompleted
+          ? "hover:bg-zinc-800 cursor-pointer"
+          : "hover:bg-zinc-800/50"
+      }`}
+    >
       {/* Thumbnail or Progress */}
       <div className="w-12 h-12 flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800 flex items-center justify-center">
         {thumbnailUrl ? (
-          <img 
-            src={thumbnailUrl} 
-            alt="" 
+          <img
+            src={thumbnailUrl}
+            alt=""
             className="w-full h-full object-cover"
           />
         ) : (
@@ -248,29 +301,35 @@ function JobItem({ job, onSelect }: { job: TrackedJob; onSelect: () => void }) {
                 strokeDasharray={`${progress * 1.005} 100`}
                 strokeLinecap="round"
                 className={
-                  isFailed ? 'text-red-400' :
-                  progress >= 80 ? 'text-green-400' :
-                  job.status === 'processing' ? 'text-indigo-400' : 'text-yellow-400'
+                  isFailed
+                    ? "text-red-400"
+                    : progress >= 80
+                      ? "text-green-400"
+                      : job.status === "processing"
+                        ? "text-indigo-400"
+                        : "text-yellow-400"
                 }
               />
             </svg>
             <span className="absolute inset-0 flex items-center justify-center text-xs text-white/70 font-medium">
-              {isFailed ? '!' : `${Math.round(progress)}%`}
+              {isFailed ? "!" : `${Math.round(progress)}%`}
             </span>
           </div>
         )}
       </div>
-      
+
       {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="text-sm text-white truncate">
-          {job.prompt.length > 35 ? job.prompt.slice(0, 35) + '...' : job.prompt}
+          {job.prompt.length > 35
+            ? job.prompt.slice(0, 35) + "..."
+            : job.prompt}
         </div>
         <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-500">
           {isActive && (
             <>
               <span className="text-indigo-400">
-                {job.status === 'queued' ? 'Queued' : 'Processing'}
+                {job.status === "queued" ? "Queued" : "Processing"}
               </span>
               {job.waitTime && job.waitTime > 0 && (
                 <>
@@ -280,32 +339,34 @@ function JobItem({ job, onSelect }: { job: TrackedJob; onSelect: () => void }) {
               )}
             </>
           )}
-          {isCompleted && (
-            <span className="text-green-400">Done</span>
-          )}
-          {isFailed && (
-            <span className="text-red-400">Failed</span>
-          )}
+          {isCompleted && <span className="text-green-400">Done</span>}
+          {isFailed && <span className="text-red-400">Failed</span>}
           <span>•</span>
-          <span>{job.type === 'video' ? 'Video' : 'Image'}</span>
+          <span>{job.type === "video" ? "Video" : "Image"}</span>
         </div>
       </div>
 
       {/* Arrow for completed */}
       {isCompleted && (
-        <svg className="w-4 h-4 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        <svg
+          className="w-4 h-4 text-zinc-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5l7 7-7 7"
+          />
         </svg>
       )}
     </div>
   );
 
   if (isCompleted) {
-    return (
-      <div onClick={onSelect}>
-        {content}
-      </div>
-    );
+    return <div onClick={onSelect}>{content}</div>;
   }
 
   return content;

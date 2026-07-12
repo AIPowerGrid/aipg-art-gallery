@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // output: 'standalone',
-  distDir: process.env.NEXT_DIST_DIR || '.next',
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
     return [
       {
@@ -50,12 +50,13 @@ const nextConfig = {
     // Fix for wagmi connector module resolution issues
     config.resolve.fallback = {
       ...config.resolve.fallback,
-      'porto': false,
-      'porto/internal': false,
-      '@safe-global/safe-apps-sdk': false,
-      '@safe-global/safe-apps-provider': false,
+      porto: false,
+      "porto/internal": false,
+      "@safe-global/safe-apps-sdk": false,
+      "@safe-global/safe-apps-provider": false,
+      "@react-native-async-storage/async-storage": false,
     };
-    config.externals.push('pino-pretty', 'lokijs', 'encoding');
+    config.externals.push("pino-pretty", "lokijs", "encoding");
     return config;
   },
 };

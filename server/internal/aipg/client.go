@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -113,7 +114,7 @@ func (c *Client) FetchModelStats(ctx context.Context) ([]ModelStatus, error) {
 // blocks until the worker returns a result. kind is "image" or "video"; it
 // selects the path. The grid authenticates via the apikey header (it also
 // accepts Authorization: Bearer) and gates every knob server-side.
-func (c *Client) GenerateMedia(ctx context.Context, kind string, request GenerateRequest, apiKey, clientHeader string) (*GenerateResponse, error) {
+func (c *Client) GenerateMedia(ctx context.Context, kind string, request GenerateRequest, apiKey, assertion, clientHeader string) (*GenerateResponse, error) {
 	path := "/images/generations"
 	if kind == "video" {
 		path = "/videos/generations"
@@ -136,6 +137,9 @@ func (c *Client) GenerateMedia(ctx context.Context, kind string, request Generat
 	if apiKey != "" {
 		req.Header.Set("apikey", apiKey)
 	}
+	if assertion != "" {
+		req.Header.Set("X-Grid-User-Assertion", assertion)
+	}
 
 	resp, err := c.mediaClient.Do(req)
 	if err != nil {
@@ -153,4 +157,78 @@ func (c *Client) GenerateMedia(ctx context.Context, kind string, request Generat
 		return nil, err
 	}
 	return &parsed, nil
+}
+
+func (c *Client) accountRequest(ctx context.Context, method, path, apiKey, assertion string, body any) ([]byte, int, error) {
+	var reader io.Reader
+	if body != nil {
+		payload, err := json.Marshal(body)
+		if err != nil {
+			return nil, 0, err
+		}
+		reader = bytes.NewReader(payload)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reader)
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("apikey", apiKey)
+	req.Header.Set("X-Grid-User-Assertion", assertion)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	return raw, resp.StatusCode, err
+}
+
+func (c *Client) Credits(ctx context.Context, apiKey, assertion string) (map[string]any, error) {
+	raw, status, err := c.accountRequest(ctx, http.MethodGet, "/account/credits", apiKey, assertion, nil)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("grid credits failed (%d): %s", status, raw)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (c *Client) WalletLinkNonce(ctx context.Context) (string, error) {
+	raw, status, err := c.accountRequest(ctx, http.MethodPost, "/accounts/wallet/nonce", "", "", nil)
+	if err != nil {
+		return "", err
+	}
+	if status != http.StatusOK {
+		return "", fmt.Errorf("wallet-link nonce failed (%d)", status)
+	}
+	var result struct {
+		Nonce string `json:"nonce"`
+	}
+	if err := json.Unmarshal(raw, &result); err != nil || result.Nonce == "" {
+		return "", errors.New("invalid wallet-link nonce response")
+	}
+	return result.Nonce, nil
+}
+
+func (c *Client) LinkWallet(ctx context.Context, apiKey, assertion string, proof map[string]string) (map[string]any, error) {
+	raw, status, err := c.accountRequest(ctx, http.MethodPost, "/account/identities/wallet/link/asserted", apiKey, assertion, proof)
+	if err != nil {
+		return nil, err
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("wallet link failed (%d): %s", status, raw)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }

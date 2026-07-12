@@ -4,16 +4,30 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
-import { PromptForm, SettingsPanel, CreationsGrid, AnonLimitBanner, StylePicker, LoraInput, CollapsibleSection } from "@/components/create";
+import {
+  PromptForm,
+  SettingsPanel,
+  CreationsGrid,
+  StylePicker,
+  LoraInput,
+  CollapsibleSection,
+} from "@/components/create";
 import type { LoraSpec } from "@/components/create";
-import { useStylesConfig, getDefaultModel, getDimension } from "@/lib/hooks/use-styles-config";
+import {
+  useStylesConfig,
+  getDefaultModel,
+  getDimension,
+} from "@/lib/hooks/use-styles-config";
 import { useGridStyles } from "@/lib/hooks/use-grid-styles";
 import { GridStyle } from "@/types/models";
 import { useCreations } from "@/lib/hooks/use-creations";
 import { useGeneration } from "@/lib/hooks/use-generation";
 import { useJobStore } from "@/lib/stores/job-store";
-import { useFaviconProgress, calculateProgress } from "@/lib/hooks/use-favicon-progress";
-import { getRemainingGenerations, GENERATION_LIMIT } from "@/lib/generation-limits";
+import {
+  useFaviconProgress,
+  calculateProgress,
+} from "@/lib/hooks/use-favicon-progress";
+import { fetchCredits, type GridCredits } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { AdvancedSettings } from "@/lib/types/create";
 import { DisplayCreation } from "@/lib/storage";
@@ -39,19 +53,28 @@ export default function CreatePage() {
 
 function CreatePageContent() {
   // Wallet state
-  const { address, isConnected } = useAccount();
-  const { isAuthenticated: hasSession, authMethod } = useAuthStore();
-  const authenticated = hasSession && (authMethod === 'google' || isConnected);
+  const { address } = useAccount();
+  const {
+    isAuthenticated: hasSession,
+    authMethod,
+    address: sessionAddress,
+    googleId,
+  } = useAuthStore();
+  const authenticated = hasSession;
   const ownerIdentifier = authenticated
-    ? (authMethod === 'wallet' ? address : 'google-session')
+    ? googleId
+      ? `google:${googleId}`
+      : (sessionAddress ?? address)
     : undefined;
 
   // UI state
   const [dimensionId, setDimensionId] = useState(3);
   const [batchMode, setBatchMode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [remainingGens, setRemainingGens] = useState(GENERATION_LIMIT);
-  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({});
+  const [credits, setCredits] = useState<GridCredits | null>(null);
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(
+    {},
+  );
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
@@ -64,8 +87,8 @@ function CreatePageContent() {
   // Curated creative styles served by the grid (separate from the config blob above).
   const { gridStyles } = useGridStyles();
   const defaultModel = getDefaultModel(styles);
-  const selectedModel = selectedModelId 
-    ? styles?.models.find(m => m.id === selectedModelId) || defaultModel
+  const selectedModel = selectedModelId
+    ? styles?.models.find((m) => m.id === selectedModelId) || defaultModel
     : defaultModel;
   const selectedDimension = getDimension(styles, dimensionId);
 
@@ -76,8 +99,19 @@ function CreatePageContent() {
     }
   }, [styles?.defaultDimensionId]);
 
+  useEffect(() => {
+    if (!authenticated) {
+      setCredits(null);
+      return;
+    }
+    void fetchCredits()
+      .then(setCredits)
+      .catch(() => setCredits(null));
+  }, [authenticated]);
+
   // Creations (single source of truth)
-  const { creations, addCreation, removeCreation, hasActiveJobs, refresh } = useCreations(authenticated);
+  const { creations, addCreation, removeCreation, hasActiveJobs, refresh } =
+    useCreations(Boolean(ownerIdentifier));
 
   // Generation logic
   const {
@@ -99,7 +133,6 @@ function CreatePageContent() {
     lora,
     onCreationAdded: addCreation,
     onShowAuthModal: () => setShowAuthModal(true),
-    onRemainingGensChange: setRemainingGens,
   });
 
   // Track job progress for favicon
@@ -107,16 +140,14 @@ function CreatePageContent() {
   const activeJobs = getActiveJobs();
   const trackedJob = activeJobs.length > 0 ? activeJobs[0] : null;
   const jobProgress = trackedJob
-    ? calculateProgress(trackedJob.submittedAt, trackedJob.initialWaitTime, trackedJob.waitTime, trackedJob.status)
+    ? calculateProgress(
+        trackedJob.submittedAt,
+        trackedJob.initialWaitTime,
+        trackedJob.waitTime,
+        trackedJob.status,
+      )
     : 0;
   useFaviconProgress(jobProgress, !!trackedJob);
-
-  // Update remaining generations for anonymous users
-  useEffect(() => {
-    if (!authenticated) {
-      setRemainingGens(getRemainingGenerations());
-    }
-  }, [authenticated, creations]);
 
   const error = stylesError || generationError;
 
@@ -129,7 +160,7 @@ function CreatePageContent() {
       const m = styles.models.find(
         (mm) =>
           mm.id.toLowerCase() === style.model.toLowerCase() ||
-          mm.name.toLowerCase() === style.model.toLowerCase()
+          mm.name.toLowerCase() === style.model.toLowerCase(),
       );
       if (m) setSelectedModelId(m.id);
     }
@@ -145,7 +176,7 @@ function CreatePageContent() {
     });
     setAdvancedExpanded(true);
     // Scroll to top to see the prompt form
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -153,12 +184,16 @@ function CreatePageContent() {
       <Header />
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
-        {/* Anonymous user limit banner */}
-        <AnonLimitBanner
-          remainingGenerations={remainingGens}
-          authenticated={authenticated}
-          onSignIn={() => setShowAuthModal(true)}
-        />
+        {authenticated && credits && (
+          <div className="mb-6 flex flex-wrap gap-x-6 gap-y-2 border-b border-zinc-800 pb-4 text-sm text-zinc-300">
+            <span>Promo ${credits.promotional.remaining_usd.toFixed(2)}</span>
+            <span>Daily ${credits.free.remaining_usd.toFixed(2)}</span>
+            <span>Purchased ${credits.paid.balance_usd.toFixed(2)}</span>
+            {!credits.charging_enabled && (
+              <span className="text-zinc-500">Metering preview</span>
+            )}
+          </div>
+        )}
 
         {/* Optional creative controls — collapsed by default so the prompt stays
             the focus; each expands inline and shows its active selection. */}
@@ -167,7 +202,8 @@ function CreatePageContent() {
             title="Styles"
             hint={
               selectedStyleId
-                ? gridStyles.find((s) => s.id === selectedStyleId)?.name ?? "1 selected"
+                ? (gridStyles.find((s) => s.id === selectedStyleId)?.name ??
+                  "1 selected")
                 : undefined
             }
           >
@@ -180,7 +216,10 @@ function CreatePageContent() {
           </CollapsibleSection>
 
           {selectedModel?.type !== "video" && (
-            <CollapsibleSection title="LoRA" hint={lora ? "1 added" : undefined}>
+            <CollapsibleSection
+              title="LoRA"
+              hint={lora ? "1 added" : undefined}
+            >
               <LoraInput
                 value={lora}
                 onChange={setLora}
@@ -241,8 +280,8 @@ function CreatePageContent() {
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
-        title="Generation Limit Reached"
-        message={`You've used all ${GENERATION_LIMIT} free generations. Sign in with Google or verify a Base wallet to unlock image and video generation and save creations across devices.`}
+        title="Sign in to generate"
+        message="Continue with Google or verify a Base wallet. Both methods can be linked to one Grid account and credit balance."
       />
     </main>
   );

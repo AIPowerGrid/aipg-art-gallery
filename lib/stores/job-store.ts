@@ -4,10 +4,10 @@
  * Jobs survive page navigation and browser refresh
  */
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { fetchJobStatus, updateGalleryItem } from '@/lib/api';
-import { JobStatus } from '@/types/models';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import { fetchJobStatus, updateGalleryItem } from "@/lib/api";
+import { JobStatus } from "@/types/models";
 
 export interface TrackedJob {
   jobId: string;
@@ -15,12 +15,12 @@ export interface TrackedJob {
   modelName: string;
   prompt: string;
   negativePrompt?: string;
-  type: 'image' | 'video';
+  type: "image" | "video";
   isNsfw: boolean;
   isPublic: boolean;
   walletAddress?: string;
   submittedAt: number;
-  status: 'queued' | 'processing' | 'completed' | 'faulted' | 'cancelled';
+  status: "queued" | "processing" | "completed" | "faulted" | "cancelled";
   waitTime?: number;
   initialWaitTime?: number; // First wait time estimate (for progress calculation)
   queuePosition?: number;
@@ -35,15 +35,21 @@ export interface TrackedJob {
 interface JobStore {
   // State
   jobs: TrackedJob[];
+  activeOwner: string | null;
   isPolling: boolean;
   pollIntervalId: NodeJS.Timeout | null;
 
   // Actions
-  addJob: (job: Omit<TrackedJob, 'status' | 'submittedAt'> & { status?: TrackedJob['status'] }) => void;
+  addJob: (
+    job: Omit<TrackedJob, "status" | "submittedAt"> & {
+      status?: TrackedJob["status"];
+    },
+  ) => void;
   updateJob: (jobId: string, updates: Partial<TrackedJob>) => void;
   removeJob: (jobId: string) => void;
   clearCompletedJobs: () => void;
-  
+  setActiveOwner: (owner: string | null) => void;
+
   // Polling
   startPolling: () => void;
   stopPolling: () => void;
@@ -61,18 +67,19 @@ export const useJobStore = create<JobStore>()(
   persist(
     (set, get) => ({
       jobs: [],
+      activeOwner: null,
       isPolling: false,
       pollIntervalId: null,
 
       addJob: (job) => {
         const newJob: TrackedJob = {
           ...job,
-          status: job.status || 'queued',
+          status: job.status || "queued",
           submittedAt: Date.now(),
         };
-        
+
         set((state) => ({
-          jobs: [newJob, ...state.jobs.filter(j => j.jobId !== job.jobId)],
+          jobs: [newJob, ...state.jobs.filter((j) => j.jobId !== job.jobId)],
         }));
 
         // Start polling if not already running
@@ -85,7 +92,7 @@ export const useJobStore = create<JobStore>()(
       updateJob: (jobId, updates) => {
         set((state) => ({
           jobs: state.jobs.map((job) =>
-            job.jobId === jobId ? { ...job, ...updates } : job
+            job.jobId === jobId ? { ...job, ...updates } : job,
           ),
         }));
       },
@@ -99,17 +106,32 @@ export const useJobStore = create<JobStore>()(
       clearCompletedJobs: () => {
         set((state) => ({
           jobs: state.jobs.filter(
-            (job) => job.status !== 'completed' && job.status !== 'faulted' && job.status !== 'cancelled'
+            (job) =>
+              job.walletAddress !== state.activeOwner ||
+              (job.status !== "completed" &&
+                job.status !== "faulted" &&
+                job.status !== "cancelled"),
           ),
         }));
+      },
+
+      setActiveOwner: (owner) => {
+        const normalized = owner?.toLowerCase() ?? null;
+        const previous = get().activeOwner;
+        if (previous === normalized) return;
+        get().stopPolling();
+        set({ activeOwner: normalized });
+        if (normalized && get().getActiveJobs().length > 0) {
+          get().startPolling();
+        }
       },
 
       startPolling: () => {
         const store = get();
         if (store.isPolling || store.pollIntervalId) return;
 
-        console.log('[JobStore] Starting job polling');
-        
+        console.log("[JobStore] Starting job polling");
+
         // Poll immediately
         store.pollOnce();
 
@@ -127,7 +149,7 @@ export const useJobStore = create<JobStore>()(
           clearInterval(store.pollIntervalId);
         }
         set({ isPolling: false, pollIntervalId: null });
-        console.log('[JobStore] Stopped job polling');
+        console.log("[JobStore] Stopped job polling");
       },
 
       pollOnce: async () => {
@@ -145,34 +167,38 @@ export const useJobStore = create<JobStore>()(
           activeJobs.map(async (job) => {
             try {
               const status = await fetchJobStatus(job.jobId);
-              
+
               // Determine job status from response
-              let newStatus: TrackedJob['status'] = job.status;
-              
-              if (status.status === 'completed') {
-                newStatus = 'completed';
-                
+              let newStatus: TrackedJob["status"] = job.status;
+
+              if (status.status === "completed") {
+                newStatus = "completed";
+
                 // Update gallery with media URLs and seeds if user was authenticated
-                if (job.walletAddress && status.generations && status.generations.length > 0) {
+                if (
+                  job.walletAddress &&
+                  status.generations &&
+                  status.generations.length > 0
+                ) {
                   const mediaUrls = status.generations
-                    .map(g => g.url)
+                    .map((g) => g.url)
                     .filter((url): url is string => !!url);
-                  
+
                   // Extract seeds from each generation
                   // Grid workers often return the same base seed for all batch images
                   // In SD, batch images use seed + index, so we generate unique seeds
                   let seeds = status.generations
-                    .map(g => g.seed || '')
+                    .map((g) => g.seed || "")
                     .filter((seed): seed is string => !!seed);
-                  
+
                   // If all seeds are identical (batch with same base), generate unique seeds
-                  if (seeds.length > 1 && seeds.every(s => s === seeds[0])) {
+                  if (seeds.length > 1 && seeds.every((s) => s === seeds[0])) {
                     const baseSeed = parseInt(seeds[0], 10);
                     if (!isNaN(baseSeed)) {
                       seeds = seeds.map((_, idx) => String(baseSeed + idx));
                     }
                   }
-                  
+
                   if (mediaUrls.length > 0) {
                     try {
                       await updateGalleryItem(job.jobId, {
@@ -182,24 +208,34 @@ export const useJobStore = create<JobStore>()(
                         worker: status.worker,
                         genTime: status.genTime,
                       });
-                      console.log('[JobStore] Updated gallery item with media and seeds:', job.jobId, seeds);
+                      console.log(
+                        "[JobStore] Updated gallery item with media and seeds:",
+                        job.jobId,
+                        seeds,
+                      );
                     } catch (err) {
-                      console.error('[JobStore] Failed to update gallery item:', err);
+                      console.error(
+                        "[JobStore] Failed to update gallery item:",
+                        err,
+                      );
                     }
                   }
                 }
-              } else if (status.status === 'faulted' || status.faulted) {
-                newStatus = 'faulted';
-              } else if (status.status === 'processing') {
-                newStatus = 'processing';
+              } else if (status.status === "faulted" || status.faulted) {
+                newStatus = "faulted";
+              } else if (status.status === "processing") {
+                newStatus = "processing";
               } else {
-                newStatus = 'queued';
+                newStatus = "queued";
               }
 
               // Track initial wait time for progress calculation
               const existingJob = store.getJob(job.jobId);
-              const initialWaitTime = existingJob?.initialWaitTime || 
-                (status.waitTime && status.waitTime > 0 ? status.waitTime : undefined);
+              const initialWaitTime =
+                existingJob?.initialWaitTime ||
+                (status.waitTime && status.waitTime > 0
+                  ? status.waitTime
+                  : undefined);
 
               // Always update result with latest status (including partial generations)
               // This allows batch images to appear as they complete
@@ -209,28 +245,35 @@ export const useJobStore = create<JobStore>()(
                 initialWaitTime,
                 queuePosition: status.queuePosition,
                 result: status, // Always update with latest status for progressive loading
-                error: status.faulted ? 'Job failed' : undefined,
+                error: status.faulted ? "Job failed" : undefined,
                 pollFailures: 0, // Reset failure count on success
               });
-
             } catch (error: unknown) {
               const failures = (job.pollFailures || 0) + 1;
-              console.error(`[JobStore] Failed to poll job ${job.jobId} (attempt ${failures}):`, error);
-              
+              console.error(
+                `[JobStore] Failed to poll job ${job.jobId} (attempt ${failures}):`,
+                error,
+              );
+
               // If we get a 404 or similar, mark as faulted immediately
-              const errorMessage = error instanceof Error ? error.message : '';
-              if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+              const errorMessage = error instanceof Error ? error.message : "";
+              if (
+                errorMessage.includes("404") ||
+                errorMessage.includes("not found")
+              ) {
                 store.updateJob(job.jobId, {
-                  status: 'faulted',
-                  error: 'Job not found - may have expired',
+                  status: "faulted",
+                  error: "Job not found - may have expired",
                   pollFailures: failures,
                 });
               } else if (failures >= 10) {
                 // After 10 consecutive failures, give up
-                console.error(`[JobStore] Giving up on job ${job.jobId} after ${failures} failures`);
+                console.error(
+                  `[JobStore] Giving up on job ${job.jobId} after ${failures} failures`,
+                );
                 store.updateJob(job.jobId, {
-                  status: 'faulted',
-                  error: 'Failed to get job status - server may be unavailable',
+                  status: "faulted",
+                  error: "Failed to get job status - server may be unavailable",
                   pollFailures: failures,
                 });
               } else {
@@ -238,19 +281,29 @@ export const useJobStore = create<JobStore>()(
                 store.updateJob(job.jobId, { pollFailures: failures });
               }
             }
-          })
+          }),
         );
       },
 
       getActiveJobs: () => {
+        const owner = get().activeOwner;
+        if (!owner) return [];
         return get().jobs.filter(
-          (job) => job.status === 'queued' || job.status === 'processing'
+          (job) =>
+            job.walletAddress?.toLowerCase() === owner &&
+            (job.status === "queued" || job.status === "processing"),
         );
       },
 
       getCompletedJobs: () => {
+        const owner = get().activeOwner;
+        if (!owner) return [];
         return get().jobs.filter(
-          (job) => job.status === 'completed' || job.status === 'faulted' || job.status === 'cancelled'
+          (job) =>
+            job.walletAddress?.toLowerCase() === owner &&
+            (job.status === "completed" ||
+              job.status === "faulted" ||
+              job.status === "cancelled"),
         );
       },
 
@@ -259,7 +312,7 @@ export const useJobStore = create<JobStore>()(
       },
     }),
     {
-      name: 'aipg-job-store',
+      name: "aipg-job-store",
       // Only persist the jobs array, not polling state
       partialize: (state) => ({ jobs: state.jobs }),
       // On rehydrate, clean up old jobs and restart polling if there are active jobs
@@ -267,46 +320,41 @@ export const useJobStore = create<JobStore>()(
         if (state) {
           const now = Date.now();
           const MAX_JOB_AGE = 24 * 60 * 60 * 1000; // 24 hours
-          
+
           // Filter out jobs older than 24 hours
           const validJobs = state.jobs.filter((job) => {
             const age = now - job.submittedAt;
             if (age > MAX_JOB_AGE) {
-              console.log(`[JobStore] Removing stale job ${job.jobId} (${Math.round(age / 3600000)}h old)`);
+              console.log(
+                `[JobStore] Removing stale job ${job.jobId} (${Math.round(age / 3600000)}h old)`,
+              );
               return false;
             }
             return true;
           });
-          
+
           // Update state if we removed any jobs
           if (validJobs.length !== state.jobs.length) {
             useJobStore.setState({ jobs: validJobs });
           }
-          
-          const activeJobs = validJobs.filter(
-            (job) => job.status === 'queued' || job.status === 'processing'
-          );
-          if (activeJobs.length > 0) {
-            console.log(`[JobStore] Rehydrated with ${activeJobs.length} active jobs, starting polling`);
-            // Delay to ensure store is ready
-            setTimeout(() => {
-              state.startPolling();
-            }, 100);
-          }
+
+          // Polling starts only after the auth provider selects an owner. This
+          // keeps persisted jobs from another account invisible on shared
+          // browsers and avoids sending their job IDs under the wrong session.
         }
       },
-    }
-  )
+    },
+  ),
 );
 
 // Hook to initialize polling on mount (call this in a provider or layout)
 export function useJobPolling() {
   const { jobs, isPolling, startPolling, getActiveJobs } = useJobStore();
-  
+
   // Start polling if there are active jobs and not already polling
   if (!isPolling && getActiveJobs().length > 0) {
     startPolling();
   }
-  
+
   return { activeCount: getActiveJobs().length };
 }
