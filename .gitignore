@@ -45,6 +45,8 @@ bin/
 # Testing
 # ===================
 /coverage
+/playwright-report/
+/test-results/
 
 # ===================
 # OS & Misc

@@ -64,11 +64,24 @@ type GenerateRequest struct {
 	CfgScale       float64 `json:"cfg_scale,omitempty"`
 	Sampler        string  `json:"sampler,omitempty"`
 	Scheduler      string  `json:"scheduler,omitempty"`
-	Seconds        float64 `json:"seconds,omitempty"` // video only
-	FPS            int     `json:"fps,omitempty"`     // video only
-	Worker         string  `json:"worker,omitempty"`  // soft-affinity: prefer this worker (account must own it)
-	Style          string  `json:"style,omitempty"`   // curated style id; expanded server-side by the grid
+	Seconds        float64 `json:"seconds,omitempty"`        // video only
+	FPS            int     `json:"fps,omitempty"`            // video only
+	Worker         string  `json:"worker,omitempty"`         // soft-affinity: prefer this worker (account must own it)
+	Style          string  `json:"style,omitempty"`          // curated style id; expanded server-side by the grid
 	ProgressToken  string  `json:"progress_token,omitempty"` // poll live % at GET /v1/progress/{token}
+}
+
+// AudioRequest is the strict body accepted by Core's governed ACE-Step route.
+// Keep it separate from GenerateRequest: the audio API names its quality knob
+// inference_steps and rejects image/video fields.
+type AudioRequest struct {
+	Prompt         string  `json:"prompt"`
+	Lyrics         string  `json:"lyrics,omitempty"`
+	Model          string  `json:"model"`
+	Seconds        float64 `json:"seconds"`
+	InferenceSteps int     `json:"inference_steps"`
+	Seed           *int64  `json:"seed,omitempty"`
+	ProgressToken  string  `json:"progress_token,omitempty"`
 }
 
 // Style is one entry from the grid's GET /v1/styles registry.
@@ -99,9 +112,9 @@ type GeneratedItem struct {
 // GridMeta is the per-job provenance the grid attaches to a generation: which
 // worker ran it, how long it took, and (text only) ttft / tokens-per-second.
 type GridMeta struct {
-	Worker      string   `json:"worker"`
-	GenTime     *float64 `json:"gen_time"`
-	Model       string   `json:"model"`
-	TTFT        *float64 `json:"ttft,omitempty"`
-	TokensPerS  *float64 `json:"tokens_per_s,omitempty"`
+	Worker     string   `json:"worker"`
+	GenTime    *float64 `json:"gen_time"`
+	Model      string   `json:"model"`
+	TTFT       *float64 `json:"ttft,omitempty"`
+	TokensPerS *float64 `json:"tokens_per_s,omitempty"`
 }

@@ -10,7 +10,8 @@ package owns one concern; `app/app.go` wires them together.
 - `app/` — router + HTTP handlers (owned by `server/AGENTS.md`, not re-described here).
 - `config/` — typed `Config` + `Load()`; the single home for `os.Getenv`.
 - `aipg/` — HTTP client for the new grid `/v1` (OpenAI-shaped). `GenerateMedia` is a
-  single synchronous call to `/v1/images|videos/generations`; `FetchModelStats` reads
+  single synchronous call to `/v1/images|videos/generations`; `GenerateAudio`
+  uses the strict governed `/v1/audio/generations` body and longer deadline; `FetchModelStats` reads
   `/v1/status/models`. `types.go` holds the request/response shapes. The async POST
   /jobs + poll contract the frontend uses is bridged in `app/pendingstore.go`.
   `client.go` exchanges namespaced gallery subjects for short-lived Core user

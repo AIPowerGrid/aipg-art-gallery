@@ -32,13 +32,14 @@ concrete detail in children. Delete stale notes instead of explaining history.
 
 ---
 
-# aipg-art-gallery — free AI image gallery + generation frontend
+# aipg-art-gallery — public creative gallery + generation frontend
 
 ## Purpose
 
-The creative frontend for the AI Power Grid: describe an image, distributed GPU workers
-generate it, results land in a public gallery. No account required to browse; wallet
-sign-in (SIWE on Base) unlocks personal creations, publishing, and favorites. Two
+The creative frontend for the AI Power Grid: distributed GPU workers generate images,
+video, 3D, and ACE-Step music; image/video results can land in the public gallery. No
+account is required to browse. Google or wallet sign-in unlocks credit-backed generation,
+personal creations, publishing, and favorites. Two
 deployables in one repo: a Next.js 14 web app and a Go API server that brokers generation
 jobs to the grid and serves gallery/media.
 
@@ -51,6 +52,7 @@ jobs to the grid and serves gallery/media.
   blockchain vaults, R2, and Postgres. Owned in its own AGENTS.md.
 - **`scripts/`** — one-off Node/Python ops + data-import + Supabase-setup scripts. Owned in
   its own AGENTS.md.
+- **`tests/e2e/`** — production-build browser coverage. Owned in `tests/AGENTS.md`.
 - **`supabase/schema.sql`**, **`config/styles.json`**, **`data/gallery.json`** — DB schema,
   prompt-style presets, seed/file-store gallery data.
 - **`docs/`** — `SECURITY_AUDIT_REPORT.md`, `GALLERY_OPTIMIZATION.md` (reference, read before
@@ -121,6 +123,7 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 ## Verification
 
 - `npm run test:all` (Jest frontend + `go test ./...` backend). `npm run lint`, `npm run build`.
+- `npm run test:e2e` for authenticated consumer-route browser flows and responsive checks.
 - Backend alone: `cd server && go test ./... && go build ./...`.
 
 ## Child DOX Index
@@ -130,3 +133,4 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 - [components/AGENTS.md](components/AGENTS.md) — React UI components.
 - [lib/AGENTS.md](lib/AGENTS.md) — frontend client logic: API client, web3, stores, hooks.
 - [scripts/AGENTS.md](scripts/AGENTS.md) — ops, data-import, and Supabase-setup scripts.
+- [tests/AGENTS.md](tests/AGENTS.md) — production-build Playwright route tests.

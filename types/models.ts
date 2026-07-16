@@ -112,6 +112,14 @@ export interface CreateJobRequest {
   }>;
 }
 
+export interface CreateAudioJobRequest {
+  prompt: string;
+  lyrics?: string;
+  seconds: number;
+  inferenceSteps?: number;
+  seed?: number;
+}
+
 /** One curated style from GET /api/styles/grid (grid-served creative presets). */
 export interface GridStyle {
   id: string;
@@ -127,6 +135,7 @@ export interface JobStatus {
   jobId: string;
   status: "queued" | "processing" | "completed" | "faulted";
   faulted: boolean;
+  error?: string;
   waitTime: number;
   queuePosition: number;
   /** Number of jobs currently being processed */
@@ -147,7 +156,7 @@ export interface JobStatus {
 export interface GenerationView {
   id: string;
   seed: string;
-  kind: "image" | "video";
+  kind: "image" | "video" | "audio";
   mimeType?: string;
   url?: string;
   base64?: string;

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -164,9 +166,9 @@ func New(cfg config.Config) (*App, error) {
 		favoritesStore:    favoritesStore,
 		cache:             queryCache,
 		aiClient:          aiClient,
-		// Bridge for the new grid's synchronous /v1 generation. Entries live
-		// only long enough for the frontend to poll the result (10 min TTL).
-		pending: newPendingStore(10 * time.Minute),
+		// Audio's governed cold-start ceiling is 32 minutes, so pending state
+		// must outlive the Core request and the browser's final status poll.
+		pending: newPendingStore(40 * time.Minute),
 	}, nil
 }
 
@@ -176,7 +178,7 @@ func (a *App) Router() http.Handler {
 	// CORS
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   a.allowedOrigins(),
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type", "apikey", "Authorization"},
 		AllowCredentials: true,
 	}))
@@ -218,6 +220,7 @@ func (a *App) Router() http.Handler {
 			protected.Post("/auth/link-wallet", a.handleWalletLink)
 			protected.Get("/credits", a.handleCredits)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
+			protected.With(httprate.LimitByIP(4, time.Minute)).Post("/audio/jobs", a.handleCreateAudioJob)
 			protected.Get("/jobs/{id}", a.handleJobStatus)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/ai/enhance", a.handleAIEnhance)
 			protected.Get("/gallery/me", a.handleListMyGallery)
@@ -1083,6 +1086,126 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("✅ Grid %s job %s done: %d result(s)", kind, jobID, len(resp.Data))
 		a.pending.complete(jobID, resp.Data, resp.Grid)
+	}()
+
+	writeJSON(w, http.StatusAccepted, map[string]any{
+		"jobId":  jobID,
+		"status": "queued",
+	})
+}
+
+const (
+	defaultAudioModel      = "ace-step-v1.5-turbo"
+	defaultAudioSeconds    = 30.0
+	defaultAudioSteps      = 8
+	minAudioSeconds        = 10.0
+	maxAudioSeconds        = 300.0
+	maxAudioPromptRunes    = 2000
+	maxAudioLyricsRunes    = 20000
+	maxAudioSeed           = int64(1<<53 - 1)
+	maxAudioRequestBytes   = 24 * 1024
+	audioGenerationTimeout = 33 * time.Minute
+)
+
+type CreateAudioJobRequest struct {
+	Prompt         string  `json:"prompt"`
+	Lyrics         string  `json:"lyrics"`
+	Seconds        float64 `json:"seconds"`
+	InferenceSteps int     `json:"inferenceSteps"`
+	Seed           *int64  `json:"seed"`
+}
+
+func (r CreateAudioJobRequest) normalized() (aipg.AudioRequest, error) {
+	prompt := strings.TrimSpace(r.Prompt)
+	if prompt == "" {
+		return aipg.AudioRequest{}, errors.New("prompt is required")
+	}
+	if utf8.RuneCountInString(prompt) > maxAudioPromptRunes {
+		return aipg.AudioRequest{}, fmt.Errorf("prompt too long (max %d characters)", maxAudioPromptRunes)
+	}
+	if utf8.RuneCountInString(r.Lyrics) > maxAudioLyricsRunes {
+		return aipg.AudioRequest{}, fmt.Errorf("lyrics too long (max %d characters)", maxAudioLyricsRunes)
+	}
+	seconds := r.Seconds
+	if seconds == 0 {
+		seconds = defaultAudioSeconds
+	}
+	if seconds < minAudioSeconds || seconds > maxAudioSeconds {
+		return aipg.AudioRequest{}, fmt.Errorf("seconds must be between %.0f and %.0f", minAudioSeconds, maxAudioSeconds)
+	}
+	steps := r.InferenceSteps
+	if steps == 0 {
+		steps = defaultAudioSteps
+	}
+	if steps < 1 || steps > 20 {
+		return aipg.AudioRequest{}, errors.New("inferenceSteps must be between 1 and 20")
+	}
+	if r.Seed != nil && (*r.Seed < 0 || *r.Seed > maxAudioSeed) {
+		return aipg.AudioRequest{}, fmt.Errorf("seed must be between 0 and %d", maxAudioSeed)
+	}
+	return aipg.AudioRequest{
+		Prompt:         prompt,
+		Lyrics:         r.Lyrics,
+		Model:          defaultAudioModel,
+		Seconds:        seconds,
+		InferenceSteps: steps,
+		Seed:           r.Seed,
+	}, nil
+}
+
+func (a *App) handleCreateAudioJob(w http.ResponseWriter, r *http.Request) {
+	var request CreateAudioJobRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxAudioRequestBytes))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeError(w, http.StatusRequestEntityTooLarge, errors.New("audio request is too large"))
+			return
+		}
+		writeError(w, http.StatusBadRequest, fmt.Errorf("invalid payload: %w", err))
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, errors.New("payload must contain one JSON object"))
+		return
+	}
+	gridRequest, err := request.normalized()
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if a.cfg.DefaultAPIKey == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("Grid bridge is not configured"))
+		return
+	}
+	userToken, err := a.gridUserToken(r.Context(), r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+	owner := getGalleryOwnerIdentifier(r)
+	if owner == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authenticated owner required"))
+		return
+	}
+
+	jobID := a.pending.create("audio", gridRequest.Prompt, owner)
+	gridRequest.ProgressToken = jobID
+	clientAgent := a.cfg.ClientAgent
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), audioGenerationTimeout)
+		defer cancel()
+		response, err := a.client.GenerateAudio(
+			ctx, gridRequest, a.cfg.DefaultAPIKey, userToken, clientAgent,
+		)
+		if err != nil {
+			log.Printf("Grid audio job %s failed: %v", jobID, err)
+			a.pending.fail(jobID, err.Error())
+			return
+		}
+		log.Printf("Grid audio job %s done", jobID)
+		a.pending.complete(jobID, response.Data, response.Grid)
 	}()
 
 	writeJSON(w, http.StatusAccepted, map[string]any{

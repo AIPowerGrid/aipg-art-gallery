@@ -29,6 +29,7 @@ export function Header() {
   const navItems = [
     { href: "/", label: "Gallery", active: isActive("/") },
     { href: "/create", label: "Studio", active: isActive("/create") },
+    { href: "/audio", label: "Music", active: isActive("/audio") },
     ...(authMethod === 'google' ? [] : [
       { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
     ]),

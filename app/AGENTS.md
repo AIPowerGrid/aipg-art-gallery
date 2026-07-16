@@ -7,8 +7,8 @@ route handlers for things that must not run in the browser — including wallet 
 
 ## Ownership
 
-- Pages: `page.tsx` (home), `create/`, `gallery/`, `favorites/`, `profile/`, `join/`,
-  `auth/login/`. `layout.tsx` + `globals.css` — shell + global styles.
+- Pages: `page.tsx` (home), `create/`, `audio/`, `3d/`, `gallery/`, `favorites/`,
+  `profile/`, `join/`, `auth/login/`. `layout.tsx` + `globals.css` — shell + global styles.
 - Wallet-auth route handlers (server-side), the LIVE wallet sign-in path:
   - `auth-api/nonce/route.ts` — issues a one-time nonce (`lib/nonce-store`).
   - `auth-api/verify/route.ts` — verifies the SIWE signature with **viem** (handles ECDSA,
@@ -29,6 +29,10 @@ route handlers for things that must not run in the browser — including wallet 
   page. Auth state comes from `lib/` stores/hooks.
 - Generation requires Google or wallet authentication and displays Core's
   promotional, daily, and purchased credit pockets. No local free counter.
+- `/audio` submits bounded ACE-Step jobs through `lib/api.ts`, polls the same
+  owner-bound job status route as image/video, and stores only recent public
+  output URLs plus display metadata on the user's device. Lyrics are not saved
+  in browser history.
 - **Route handlers run on the server.** The `download` proxy must keep its exact-hostname
   allowlist + `redirect: 'manual'`. Any new outbound-fetch handler needs the same discipline.
 - **`auth-api/verify` is security-critical:** never return the JWT in the body (httpOnly cookie

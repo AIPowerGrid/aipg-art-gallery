@@ -3,8 +3,8 @@
 ## Purpose
 
 The backend (chi router, Go ≥1.24). The only component that talks to the grid, the on-chain
-vaults, Cloudflare R2, and Postgres. Brokers image/video generation jobs, serves the gallery +
-media, validates auth sessions, runs Google One Tap sign-in, and proxies prompt enhancement.
+vaults, Cloudflare R2, and Postgres. Brokers image, video, 3D, and audio generation jobs,
+serves the gallery + media, validates auth sessions, runs Google One Tap sign-in, and proxies prompt enhancement.
 Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app/app.go`.
 
 ## Ownership
@@ -35,10 +35,11 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - Private gallery reads use protected `/gallery/me`; the legacy wallet path is owner-checked.
   Never expose unpublished prompts or media through an unauthenticated wallet lookup.
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
-  steps, dimensions, prompt length). `allowedOrigins()` fails closed — never returns `*`;
+  steps, dimensions, prompt length); audio independently caps body size, duration,
+  inference steps, prompt/lyrics length, and seed. `allowedOrigins()` fails closed — never returns `*`;
   production MUST set `GALLERY_ALLOWED_ORIGINS`.
 - **Grid passthrough:** generation goes through `internal/aipg` to the grid **`/v1`**
-  (`POST /v1/images/generations`, synchronous; the legacy horde `/api/v2` is RETIRED —
+  (`POST /v1/images|videos|audio/generations`, synchronous; the legacy horde `/api/v2` is RETIRED —
   410 Gone). `internal/app/pendingstore.go` bridges the gallery's async `POST /api/jobs`
   and poll contract onto the synchronous grid call. The server holds the grid key, the
     client never does. Config paths are CWD-relative (`config/styles.json`,
@@ -48,6 +49,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   sends the resulting short-lived `X-Grid-User-Token`; request bodies never
   supply a Grid key. Public 3D is explicitly service-owned and bounded by the
   service account's Core spending ceilings. Pending job status is owner-bound.
+- Audio uses Core's fixed governed model name and a 33-minute client deadline.
+  Pending state must outlive that deadline; do not reduce its TTL below the
+  audio ceiling.
 
 ## Work Guidance
 

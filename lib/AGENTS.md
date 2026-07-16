@@ -7,7 +7,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 
 ## Ownership
 
-- `api.ts` — the single typed client for the Go API. Sends the session cookie via
+- `api.ts` — the single typed client for the Go API, including image/video and
+  governed audio job submission. Sends the session cookie via
   `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
 - `auth.ts` — wallet sign-in (calls the Next `/auth-api/*` routes), session helpers, and the
   non-sensitive session marker (address + expiry). Exposes `signIn`, `signOut` (→ Go
@@ -28,7 +29,7 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   non-sensitive markers (wallet address, Google profile) for UI. Never store a token in
   `localStorage`. `getActiveAuthToken` / token getters must not return.
 - Generation requires an authenticated Google or wallet session. The Go server independently caps batch size,
-  dimensions, steps. Never treat a client-side limit as a security boundary.
+  dimensions, steps, audio duration, prompt/lyrics length, and seed. Never treat a client-side limit as a security boundary.
 - Wallet sign-in (`auth.ts`) must send the full prepared SIWE message + a fresh nonce per
   attempt; the `/auth-api/verify` route rejects reused nonces and stale/foreign-domain messages.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
