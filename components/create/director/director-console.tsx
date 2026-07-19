@@ -105,6 +105,8 @@ export function DirectorConsole({ styles, walletAddress, authenticated }: Direct
   const updateSegment = useDirectorStore((s) => s.updateSegment);
   const removeSegment = useDirectorStore((s) => s.removeSegment);
   const moveSegment = useDirectorStore((s) => s.moveSegment);
+  const reorderSegment = useDirectorStore((s) => s.reorderSegment);
+  const splitSegment = useDirectorStore((s) => s.splitSegment);
   const duplicateSegment = useDirectorStore((s) => s.duplicateSegment);
 
   const { renderSegment, renderPending, stopQueue, error, model } = useDirector({
@@ -227,9 +229,10 @@ export function DirectorConsole({ styles, walletAddress, authenticated }: Direct
       audioB64,
       fileName: file.name,
       durationSec,
-      // One full-file slice to start; breakpoints split it on the timeline.
+      // One full-file clip at timeline 0; breakpoints split it, and clips can
+      // then be moved/cropped freely with gaps between them.
       slices: durationSec
-        ? [{ id: `s${Date.now().toString(36)}`, trimStartSec: 0, trimEndSec: durationSec }]
+        ? [{ id: `s${Date.now().toString(36)}`, timelineStartSec: 0, trimStartSec: 0, trimEndSec: durationSec }]
         : undefined,
     });
   };
@@ -523,6 +526,10 @@ export function DirectorConsole({ styles, walletAddress, authenticated }: Direct
             onResize={(id, frames) => updateSegment(id, { lengthFrames: frames })}
             onToggleChain={handleToggleChain}
             onAddSegment={addSegment}
+            onDuplicateSegment={(id) => duplicateSegment(id)}
+            onRemoveSegment={removeSegment}
+            onReorderSegment={reorderSegment}
+            onSplitSegment={splitSegment}
             onAddAudio={() => audioInputRef.current?.click()}
             onRemoveAudio={removeAudio}
             onAudioChange={updateAudio}

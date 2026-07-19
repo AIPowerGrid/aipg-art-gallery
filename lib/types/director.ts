@@ -62,12 +62,15 @@ export interface DirectorSegment {
   anchorStale?: boolean;
 }
 
-/** One window into the audio file. Slices are laid CONTIGUOUSLY on the
- *  timeline starting at second 0 (in array order); each is independently
- *  cropable/expandable, and splitting a slice adds a breakpoint. */
+/** One audio clip: a window into the file placed at an explicit position on
+ *  the timeline. Clips can sit anywhere (gaps/silence allowed, clips before and
+ *  after a gap), be dragged to reposition, and be independently cropped. */
 export interface DirectorAudioSlice {
   id: string;
-  /** Window into the FILE, in seconds. */
+  /** Where the clip's left edge sits on the assembled timeline (seconds).
+   *  Independent of the file window, so gaps and free positioning are allowed. */
+  timelineStartSec: number;
+  /** Window into the FILE (seconds). Clip length = trimEndSec - trimStartSec. */
   trimStartSec: number;
   trimEndSec: number;
 }
@@ -91,18 +94,33 @@ export interface DirectorAudio {
   trimEndSec?: number;
 }
 
-/** Normalized slice list. Falls back to the legacy trim window, then to the
- *  whole file. Empty when the duration was never decoded (no crop support). */
+/** Normalized clip list, every entry carrying an explicit `timelineStartSec`.
+ *  Older data (contiguous slices without a position) is laid back-to-back from
+ *  0 on read, so it migrates transparently. Empty when the duration was never
+ *  decoded (no crop/positioning support). */
 export function audioSlices(audio: DirectorAudio): DirectorAudioSlice[] {
-  if (audio.slices && audio.slices.length > 0) return audio.slices;
+  if (audio.slices && audio.slices.length > 0) {
+    let cursor = 0;
+    return audio.slices.map((s) => {
+      const start = Number.isFinite(s.timelineStartSec) ? s.timelineStartSec : cursor;
+      cursor = start + (s.trimEndSec - s.trimStartSec);
+      return { ...s, timelineStartSec: start };
+    });
+  }
   if (audio.durationSec === undefined) return [];
   return [
     {
       id: 'full',
+      timelineStartSec: 0,
       trimStartSec: audio.trimStartSec ?? 0,
       trimEndSec: audio.trimEndSec ?? audio.durationSec,
     },
   ];
+}
+
+/** Timeline seconds a clip occupies: [timelineStartSec, +clip length]. */
+export function sliceTimelineEnd(s: DirectorAudioSlice): number {
+  return s.timelineStartSec + (s.trimEndSec - s.trimStartSec);
 }
 
 export interface DirectorSettings {

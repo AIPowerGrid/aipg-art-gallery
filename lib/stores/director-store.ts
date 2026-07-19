@@ -22,6 +22,7 @@ import {
   DEFAULT_PANEL_SIZES,
   clampSegmentFrames,
   DIRECTOR_FPS,
+  MIN_SEGMENT_FRAMES,
 } from '@/lib/types/director';
 
 function genId(): string {
@@ -93,6 +94,12 @@ interface DirectorStore {
   removeSegment: (id: string) => void;
   /** Move a segment one position left/right; fixes chain state at the edges. */
   moveSegment: (id: string, delta: -1 | 1) => void;
+  /** Move a segment to an arbitrary index (drag-to-reorder). Chained segments
+   *  re-backfill from their new predecessor. */
+  reorderSegment: (id: string, toIndex: number) => void;
+  /** Split a segment into two at a fraction of its length (a video breakpoint).
+   *  The second half chains from the first; both reset to unrendered. */
+  splitSegment: (id: string, atFraction: number) => void;
   duplicateSegment: (id: string) => string | null;
   reset: () => void;
 
@@ -234,6 +241,57 @@ export const useDirectorStore = create<DirectorStore>()(
               segments.map((x) => (x.id === seg.id || x.id === s.segments[to]?.id ? invalidate(x) : x))
             ),
           };
+        });
+      },
+
+      reorderSegment: (id, toIndex) => {
+        set((s) => {
+          const from = s.segments.findIndex((x) => x.id === id);
+          if (from < 0) return s;
+          const to = Math.max(0, Math.min(toIndex, s.segments.length - 1));
+          if (to === from) return s;
+          const segments = [...s.segments];
+          const [seg] = segments.splice(from, 1);
+          segments.splice(to, 0, seg);
+          // Any chained segment may now follow a different clip — drop the stale
+          // backfill so effect 3 re-pulls the new predecessor's last frame.
+          const relinked = segments.map((x) =>
+            x.chained ? { ...x, startImage: null, sourceJobId: undefined, anchorStale: false } : x
+          );
+          return { segments: normalize(relinked), selectedId: id };
+        });
+      },
+
+      splitSegment: (id, atFraction) => {
+        set((s) => {
+          const idx = s.segments.findIndex((x) => x.id === id);
+          if (idx < 0) return s;
+          const seg = s.segments[idx];
+          const firstLen = clampSegmentFrames(Math.round(seg.lengthFrames * atFraction));
+          const secondLen = seg.lengthFrames - firstLen;
+          // Refuse a split that would leave either half under the 1s minimum.
+          if (firstLen < MIN_SEGMENT_FRAMES || secondLen < MIN_SEGMENT_FRAMES) return s;
+          // Both halves are new clips of different length — reset render state.
+          const first: DirectorSegment = {
+            ...seg,
+            lengthFrames: firstLen,
+            status: 'idle',
+            jobId: undefined,
+            outputUrl: undefined,
+            lastFrame: null,
+            progress: undefined,
+            error: undefined,
+          };
+          const second = newSegment({
+            prompt: seg.prompt,
+            negativePrompt: seg.negativePrompt,
+            lengthFrames: secondLen,
+            chained: true,
+            strength: seg.strength,
+          });
+          const segments = [...s.segments];
+          segments.splice(idx, 1, first, second);
+          return { segments: normalize(segments), selectedId: second.id };
         });
       },
 

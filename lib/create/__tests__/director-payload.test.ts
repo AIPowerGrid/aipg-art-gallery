@@ -134,11 +134,11 @@ describe('buildSegmentPayload', () => {
         audioB64: 'data:audio/wav;base64,BEAT',
         fileName: 'beat.wav',
         durationSec: 30,
-        // slice A: file 0–5s (timeline frames 0–120)
-        // slice B: file 10–20s (timeline frames 120–360)
+        // clip A: file 0–5s at timeline 0s (frames 0–120)
+        // clip B: file 10–20s at timeline 5s (frames 120–360)
         slices: [
-          { id: 'a', trimStartSec: 0, trimEndSec: 5 },
-          { id: 'b', trimStartSec: 10, trimEndSec: 20 },
+          { id: 'a', timelineStartSec: 0, trimStartSec: 0, trimEndSec: 5 },
+          { id: 'b', timelineStartSec: 5, trimStartSec: 10, trimEndSec: 20 },
         ],
       }],
     });
@@ -163,14 +163,14 @@ describe('buildSegmentPayload', () => {
           audioB64: 'data:audio/wav;base64,MUSIC',
           fileName: 'music.mp3',
           durationSec: 30,
-          slices: [{ id: 'm', trimStartSec: 0, trimEndSec: 30 }],
+          slices: [{ id: 'm', timelineStartSec: 0, trimStartSec: 0, trimEndSec: 30 }],
         },
         {
           id: 'track-two',
           audioB64: 'data:audio/wav;base64,VOICE',
           fileName: 'voice.wav',
           durationSec: 10,
-          slices: [{ id: 'v', trimStartSec: 5, trimEndSec: 8 }],
+          slices: [{ id: 'v', timelineStartSec: 0, trimStartSec: 5, trimEndSec: 8 }],
         },
       ],
     });
@@ -192,6 +192,25 @@ describe('buildSegmentPayload', () => {
     // Track-id prefix keeps audioFile unique across same-named uploads.
     expect(t.audioSegments[0].audioFile).toBe('track-on_music.mp3');
     expect(t.audioSegments[1].audioFile).toBe('track-tw_voice.wav');
+  });
+
+  it('honours gaps — a segment falling in a silence gets no audio', () => {
+    const track = {
+      id: 't',
+      audioB64: 'data:audio/wav;base64,BEAT',
+      fileName: 'beat.wav',
+      durationSec: 30,
+      // clip sits at timeline 5s (frames 120+) — timeline 0–5s is a silent gap.
+      slices: [{ id: 'c', timelineStartSec: 5, trimStartSec: 0, trimEndSec: 4 }],
+    };
+    // Segment fully inside the gap (frames 0–96) → no audio.
+    const gapJson = buildSegmentTimeline({ segment, offsetFrames: 0, globalPrompt: '', settings: SETTINGS, audios: [track] });
+    expect(JSON.parse(gapJson).audioSegments).toHaveLength(0);
+    // Segment over the clip (frames 120–216) → audio, from the file start.
+    const hitJson = buildSegmentTimeline({ segment, offsetFrames: 120, globalPrompt: '', settings: SETTINGS, audios: [track] });
+    const hit = JSON.parse(hitJson).audioSegments;
+    expect(hit).toHaveLength(1);
+    expect(hit[0]).toMatchObject({ start: 0, length: 96, trimStart: 0 });
   });
 });
 

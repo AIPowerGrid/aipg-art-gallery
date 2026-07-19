@@ -137,21 +137,23 @@ export function buildAudioSegments(
   }> = [];
   const segStart = offsetFrames;
   const segEnd = offsetFrames + frames;
-  let cursor = 0; // slice's start position on the assembled timeline (frames)
+  // Each clip sits at its own timeline position (gaps allowed): intersect its
+  // [timelineStart, timelineEnd) span with this segment's window; a gap simply
+  // yields no overlap, so that stretch of video hears silence.
   for (const slice of slices) {
+    const sliceStart = Math.round(slice.timelineStartSec * DIRECTOR_FPS);
     const sliceFrames = Math.max(0, Math.round((slice.trimEndSec - slice.trimStartSec) * DIRECTOR_FPS));
-    const overlapStart = Math.max(segStart, cursor);
-    const overlapEnd = Math.min(segEnd, cursor + sliceFrames);
+    const sliceEnd = sliceStart + sliceFrames;
+    const overlapStart = Math.max(segStart, sliceStart);
+    const overlapEnd = Math.min(segEnd, sliceEnd);
     if (overlapEnd > overlapStart) {
       out.push({
         ...base,
         start: overlapStart - segStart,
         length: overlapEnd - overlapStart,
-        trimStart: Math.round(slice.trimStartSec * DIRECTOR_FPS) + (overlapStart - cursor),
+        trimStart: Math.round(slice.trimStartSec * DIRECTOR_FPS) + (overlapStart - sliceStart),
       });
     }
-    cursor += sliceFrames;
-    if (cursor >= segEnd) break;
   }
   return out;
 }
