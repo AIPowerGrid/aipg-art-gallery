@@ -26,6 +26,10 @@ route handlers for things that must not run in the browser — including wallet 
 
 - Pages talk to the backend through `lib/api.ts` — do not `fetch` the Go API directly from a
   page. Auth state comes from `lib/` stores/hooks.
+- **`middleware.ts` (repo root)** sets per-request CSP. `connect-src` must include the origin
+  derived from `NEXT_PUBLIC_GALLERY_API` so cross-port Go API calls work in dev.
+- **`layout.tsx`** loads `Providers` with `dynamic(..., { ssr: false })` so wallet libs never
+  touch `indexedDB` during SSR.
 - **Route handlers run on the server.** The `download` proxy must keep its exact-hostname
   allowlist + `redirect: 'manual'`. Any new outbound-fetch handler needs the same discipline.
 - **`auth-api/verify` is security-critical:** never return the JWT in the body (httpOnly cookie

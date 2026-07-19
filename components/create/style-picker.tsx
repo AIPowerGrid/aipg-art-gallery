@@ -8,6 +8,8 @@ interface StylePickerProps {
   onSelect: (style: GridStyle | null) => void;
   /** Only show styles matching the current media type (image|video). */
   modelType?: string;
+  /** Render just the chips (no outer card/header) — for nesting inside a group. */
+  bare?: boolean;
 }
 
 function chip(active: boolean) {
@@ -19,9 +21,30 @@ function chip(active: boolean) {
   ].join(" ");
 }
 
-export function StylePicker({ styles, selectedStyleId, onSelect, modelType = "image" }: StylePickerProps) {
+export function StylePicker({ styles, selectedStyleId, onSelect, modelType = "image", bare = false }: StylePickerProps) {
   const visible = styles.filter((s) => s.job_type === modelType);
   if (visible.length === 0) return null;
+
+  const chips = (
+    <div className="flex flex-wrap gap-2">
+      <button type="button" onClick={() => onSelect(null)} className={chip(selectedStyleId === null)}>
+        None
+      </button>
+      {visible.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          onClick={() => onSelect(s)}
+          title={s.description}
+          className={chip(selectedStyleId === s.id)}
+        >
+          {s.name}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (bare) return chips;
 
   return (
     <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
@@ -29,22 +52,7 @@ export function StylePicker({ styles, selectedStyleId, onSelect, modelType = "im
         <span>Style</span>
         <span className="text-zinc-600">— curated prompt + settings (locks the right knobs)</span>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => onSelect(null)} className={chip(selectedStyleId === null)}>
-          None
-        </button>
-        {visible.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            onClick={() => onSelect(s)}
-            title={s.description}
-            className={chip(selectedStyleId === s.id)}
-          >
-            {s.name}
-          </button>
-        ))}
-      </div>
+      {chips}
     </div>
   );
 }

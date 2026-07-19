@@ -100,6 +100,19 @@ export interface CreateJobRequest {
     n?: number; // Number of images to generate in batch (1-4)
   };
   sourceImage?: string;
+  /** End-frame anchor for first-last-frame "fill-between" video recipes (backend passthrough wired in P3). */
+  sourceImageEnd?: string;
+  /**
+   * LTX Director timeline (Director recipes only): the serialized editor state —
+   * keyframe images ride inline as base64 inside segment objects.
+   */
+  timelineData?: string;
+  /** Director prompt relay: "|"-delimited per-segment prompts. */
+  localPrompts?: string;
+  /** Director prompt relay: ","-delimited per-segment frame counts. */
+  segmentLengths?: string;
+  /** Director image guides: ","-delimited strengths. */
+  guideStrength?: string;
   sourceMask?: string;
   sourceProcessing?: "txt2img" | "img2img" | "inpainting" | "txt2video" | "img2video";
   mediaType?: "image" | "video";
@@ -124,6 +137,8 @@ export interface JobStatus {
   jobId: string;
   status: "queued" | "processing" | "completed" | "faulted";
   faulted: boolean;
+  /** The grid's actual failure message when faulted (e.g. the 404 model-not-available detail). */
+  error?: string;
   waitTime: number;
   queuePosition: number;
   /** Number of jobs currently being processed */

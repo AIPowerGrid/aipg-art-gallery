@@ -16,6 +16,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   gallery/favorites writes. CORS + IP rate limits (100/min global, 20/min on job create).
 - `internal/config` — typed `Config` + `Load()` (all env reads live here).
 - `config/model_presets.json` — local model defaults/limits merged with on-chain models.
+  Create-page UI models come from repo-root `config/styles.json` via `STYLES_CONFIG_PATH`
+  (default `config/styles.json` relative to process cwd).
 
 ## Local Contracts
 
@@ -36,6 +38,11 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   production MUST set `GALLERY_ALLOWED_ORIGINS`.
 - **Grid passthrough:** generation goes through `internal/aipg` to the grid `/api/v2`; the server
   holds the grid key, the client never does.
+- **Director timeline passthrough:** `CreateJobRequest.timelineData/localPrompts/segmentLengths/
+  guideStrength` forward as `timeline/local_prompts/segment_lengths/guide_strength` on the grid
+  request (the wire field is `timeline`, per the grid API guide). Validation: relay strings
+  ≤16k chars; timeline ≤25MB and must be valid JSON (it's an opaque blob — media rides inline
+  as base64 inside it, so no per-image checks are possible server-side).
 
 ## Work Guidance
 

@@ -1,10 +1,15 @@
 export { PromptForm } from './prompt-form';
-export { SettingsPanel } from './settings-panel';
+export { StudioRail } from './studio-rail';
+export type { StudioTab } from './studio-rail';
 export { CreationsGrid } from './creations-grid';
 export { AnonLimitBanner } from './anon-limit-banner';
-export { AdvancedSettingsPanel } from './advanced-settings';
 export { StylePicker } from './style-picker';
 export { ImageUpload } from './image-upload';
 export { LoraInput } from './lora-input';
 export type { LoraSpec } from './lora-input';
-export { CollapsibleSection } from './collapsible-section';
+export { ModelPicker } from './model-picker';
+export { SizePicker } from './size-picker';
+export { BatchToggle } from './batch-toggle';
+export { ControlGroup } from './control-group';
+export { SamplingControls, MotionControls } from './fine-controls';
+export { DirectorConsole } from './director';

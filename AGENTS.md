@@ -1,34 +1,10 @@
-# DOX framework
+# DOX framework — binding work contracts for subtree owners.
 
-- DOX is a hierarchy of AGENTS.md files that carry the durable contracts for this repo.
-- Agents must follow the DOX chain on every edit.
-
-## Core Contract
-
-- AGENTS.md files are binding work contracts for their subtrees.
-- Any work product must stay understandable from the nearest AGENTS.md plus every parent above it.
-
-## Read Before Editing
-
-1. Read this root AGENTS.md.
-2. Identify every path you expect to touch.
-3. Walk from repo root to each target, reading every AGENTS.md on the way.
-4. The nearest AGENTS.md is the local contract; parents hold repo-wide rules.
-5. If docs conflict, the closer doc controls local detail, but no child may weaken DOX.
-
-Do not rely on memory — re-read the applicable chain in-session before editing.
-
-## Update After Editing
-
-Every meaningful change requires a DOX pass before the task is done. Update the closest
-owning AGENTS.md when a change affects: purpose/scope/ownership; durable structure,
-contracts, or workflows; inputs/outputs/permissions/side-effects; or the Child DOX Index.
-Remove stale text immediately. Refresh affected parent and child indexes.
-
-## Style
-
-Concise, current, operational. Stable contracts, not diary entries. Broad rules in parents,
-concrete detail in children. Delete stale notes instead of explaining history.
+AGENTS.md files are hierarchies. **Read before editing:** walk repo root → each target,
+reading every AGENTS.md on the way. Closer doc controls local detail; no child may weaken DOX.
+**Update after editing:** refresh the nearest owner when a change affects purpose, structure,
+contracts, workflows, I/O, permissions, or the Child DOX Index. Remove stale text immediately.
+**Style:** concise, current, operational. Delete stale notes instead of explaining history.
 
 ---
 
@@ -39,12 +15,12 @@ concrete detail in children. Delete stale notes instead of explaining history.
 The creative frontend for the AI Power Grid: describe an image, distributed GPU workers
 generate it, results land in a public gallery. No account required to browse; wallet
 sign-in (SIWE on Base) unlocks personal creations, publishing, and favorites. Two
-deployables in one repo: a Next.js 14 web app and a Go API server that brokers generation
+deployables in one repo: a Next.js (App Router) web app and a Go API server that brokers generation
 jobs to the grid and serves gallery/media.
 
 ## Ownership
 
-- **`app/`** + **`components/`** + **`lib/`** + **`types/`** — the Next.js 14 (App Router)
+- **`app/`** + **`components/`** + **`lib/`** + **`types/`** — the Next.js (App Router)
   frontend. Owned by `app/AGENTS.md` (routes), `components/AGENTS.md` (UI), `lib/AGENTS.md`
   (client logic, web3, API client).
 - **`server/`** — the Go API server (chi). The only thing that talks to the grid, the
@@ -66,8 +42,9 @@ jobs to the grid and serves gallery/media.
   creds. All of that lives in `server/`. The frontend talks only to the Go API
   (`NEXT_PUBLIC_GALLERY_API`, default `http://localhost:4000/api`).
 - **Two ports:** frontend on 3000 (`npm run dev`), API on 4000 (`cd server && go run ./cmd/api`).
-- **Auth:** SIWE → the Go server issues an HS256 JWT (`JWT_SECRET`); the frontend sends it as
-  `Authorization: Bearer`. Same secret must be set both sides of any deploy.
+- **Auth:** SIWE → the Go or Next issuer sets an HS256 JWT as an httpOnly `aipg_auth` cookie.
+  The frontend sends it automatically via `credentials: 'include'`; no JS access. Bearer
+  `Authorization` header fallback for non-browser CLI clients. Same `JWT_SECRET` both sides.
 - **Models are blockchain-sourced:** the live model list comes from the on-chain ModelVault
   (merged with local presets for defaults/limits), not a hardcoded list. RecipeVault supplies
   workflow recipes. Do not hardcode a model catalog in the frontend.
@@ -99,13 +76,6 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 - **Validate before trusting the doc.** A finding marked "fixed" here or in
   `docs/SECURITY_AUDIT_REPORT.md` must be re-checked against the code before you rely on it.
 
-## Tips for future agents
-
-- Run the audit-relevant checks before claiming security work is done: `cd server && go test
-  ./... && go vet ./...`, `npm run build`, and `npm audit` for dependency drift.
-- When you touch auth, gallery writes, or any new outbound fetch/exec, re-read this section and
-  the nearest AGENTS.md, then update them if the contract changed.
-
 ## Work Guidance
 
 - New generation capability → backend handler in `server/` first, then `lib/api.ts` client +
@@ -120,6 +90,7 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 ## Child DOX Index
 
 - [server/AGENTS.md](server/AGENTS.md) — Go API server (grid broker, gallery, auth, vaults).
+- [server/internal/AGENTS.md](server/internal/AGENTS.md) — provider/domain packages.
 - [app/AGENTS.md](app/AGENTS.md) — Next.js App Router pages + route handlers.
 - [components/AGENTS.md](components/AGENTS.md) — React UI components.
 - [lib/AGENTS.md](lib/AGENTS.md) — frontend client logic: API client, web3, stores, hooks.

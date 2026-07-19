@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
-import { PromptForm, SettingsPanel, CreationsGrid, AnonLimitBanner, StylePicker, LoraInput, CollapsibleSection } from "@/components/create";
-import type { LoraSpec } from "@/components/create";
+import Link from "next/link";
+import { PromptForm, StudioRail, CreationsGrid, AnonLimitBanner } from "@/components/create";
+import type { LoraSpec, StudioTab } from "@/components/create";
 import { useStylesConfig, getDefaultModel, getDimension } from "@/lib/hooks/use-styles-config";
 import { useGridStyles } from "@/lib/hooks/use-grid-styles";
 import { GridStyle } from "@/types/models";
@@ -48,7 +49,7 @@ function CreatePageContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [remainingGens, setRemainingGens] = useState(GENERATION_LIMIT);
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({});
-  const [advancedExpanded, setAdvancedExpanded] = useState(false);
+  const [railTab, setRailTab] = useState<StudioTab>("basic");
   const [prompt, setPrompt] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
@@ -139,7 +140,7 @@ function CreatePageContent() {
       steps: creation.params?.steps,
       cfgScale: creation.params?.cfgScale,
     });
-    setAdvancedExpanded(true);
+    setRailTab("advanced");
     // Scroll to top to see the prompt form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -155,81 +156,87 @@ function CreatePageContent() {
           authenticated={authenticated}
         />
 
-        {/* Optional creative controls — collapsed by default so the prompt stays
-            the focus; each expands inline and shows its active selection. */}
-        <div className="flex flex-col gap-3 mb-6">
-          <CollapsibleSection
-            title="Styles"
-            hint={
-              selectedStyleId
-                ? gridStyles.find((s) => s.id === selectedStyleId)?.name ?? "1 selected"
-                : undefined
-            }
-          >
-            <StylePicker
-              styles={gridStyles}
-              selectedStyleId={selectedStyleId}
-              onSelect={handleStyleSelect}
-              modelType={selectedModel?.type === "video" ? "video" : "image"}
+        {/* Director launch: the video timeline tool is a full-screen console on
+            its own route (merged Storyboard + Director). */}
+        <Link
+          href="/create/director"
+          className="group mb-6 flex items-center gap-5 overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-r from-zinc-900/90 via-zinc-900/40 to-zinc-900/90 px-5 py-3 transition-colors hover:border-amber-500/40"
+        >
+          {/* mini timeline illustration */}
+          <div className="flex flex-shrink-0 items-center" aria-hidden>
+            <span className="h-7 w-11 rounded-md border border-amber-500/40 bg-gradient-to-br from-amber-500/50 to-amber-900/30 transition-transform group-hover:-translate-y-[1px]" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" className="mx-[3px] h-3 w-3 text-amber-500/70">
+              <path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            <span className="h-7 w-8 rounded-md border border-zinc-600/50 bg-zinc-700/50 transition-transform delay-75 group-hover:-translate-y-[1px]" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" className="mx-[3px] h-3 w-3 text-zinc-600">
+              <path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            <span className="h-7 w-12 rounded-md border border-zinc-700/50 bg-zinc-800/60 transition-transform delay-150 group-hover:-translate-y-[1px]" />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <span className="text-sm font-semibold text-zinc-100">Director</span>
+            <span className="ml-2.5 hidden text-xs text-zinc-500 transition-colors group-hover:text-zinc-400 sm:inline">
+              Chain image-driven segments into one continuous video
+            </span>
+          </div>
+
+          <span className="flex-shrink-0 text-sm text-amber-400/70 transition-all group-hover:translate-x-0.5 group-hover:text-amber-300">
+            Open →
+          </span>
+        </Link>
+
+        {/* Workspace: prompt + creations in the main column, the vertical control
+            rail alongside. The rail keeps every knob one persistent Basic/Advanced
+            tab away, with Advanced's groups collapsible so it never turns into a
+            long scroll. */}
+        <div className="flex flex-col md:flex-row md:items-start gap-6">
+          <div className="flex-1 min-w-0 flex flex-col gap-8">
+            <PromptForm
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              onGenerate={generate}
+              onEnhance={enhance}
+              isGenerating={isGenerating || hasActiveJobs}
+              isEnhancing={isEnhancing}
+              error={error}
+              selectedModel={selectedModel}
+              batchMode={batchMode}
+              trackedJobStatus={trackedJob?.status}
+              sourceImage={sourceImage}
+              onSourceChange={setSourceImage}
             />
-          </CollapsibleSection>
 
-          {selectedModel?.type !== "video" && (
-            <CollapsibleSection title="LoRA" hint={lora ? "1 added" : undefined}>
-              <LoraInput
-                value={lora}
-                onChange={setLora}
-                hint={
-                  selectedModel?.id?.toLowerCase().includes("klein")
-                    ? "CivitAI link/version id — use Flux.2 Klein 4B LoRAs only"
-                    : "CivitAI link/version id — z-image LoRAs work best"
-                }
-              />
-            </CollapsibleSection>
-          )}
-        </div>
+            <CreationsGrid
+              creations={creations}
+              onDelete={removeCreation}
+              onEditInStudio={handleEditInStudio}
+              onRefresh={refresh}
+              isGenerating={isGenerating || hasActiveJobs}
+            />
+          </div>
 
-        {/* Generate Section */}
-        <div className="flex flex-col md:flex-row md:items-stretch gap-6 mb-12">
-          <PromptForm
-            prompt={prompt}
-            onPromptChange={setPrompt}
-            onGenerate={generate}
-            onEnhance={enhance}
-            isGenerating={isGenerating || hasActiveJobs}
-            isEnhancing={isEnhancing}
-            error={error}
-            selectedModel={selectedModel}
-            batchMode={batchMode}
-            trackedJobStatus={trackedJob?.status}
-            sourceImage={sourceImage}
-            onSourceChange={setSourceImage}
-          />
-
-          <SettingsPanel
+          <StudioRail
             styles={styles}
+            gridStyles={gridStyles}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModelId}
             dimensionId={dimensionId}
             onDimensionChange={setDimensionId}
             batchMode={batchMode}
             onBatchModeChange={setBatchMode}
-            selectedModel={selectedModel}
-            onModelChange={setSelectedModelId}
             authenticated={authenticated}
+            selectedStyleId={selectedStyleId}
+            onStyleSelect={handleStyleSelect}
+            lora={lora}
+            onLoraChange={setLora}
             advancedSettings={advancedSettings}
             onAdvancedSettingsChange={setAdvancedSettings}
-            advancedExpanded={advancedExpanded}
-            onAdvancedExpandedChange={setAdvancedExpanded}
+            activeTab={railTab}
+            onActiveTabChange={setRailTab}
           />
         </div>
-
-        {/* Creations Grid */}
-        <CreationsGrid
-          creations={creations}
-          onDelete={removeCreation}
-          onEditInStudio={handleEditInStudio}
-          onRefresh={refresh}
-          isGenerating={isGenerating || hasActiveJobs}
-        />
       </div>
 
       {/* Auth Modal */}

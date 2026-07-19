@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createPublicClient, http } from 'viem';
 import { base } from 'viem/chains';
 import { SiweMessage } from 'siwe';
-import jwt from 'jsonwebtoken';
+import * as jwt from 'jsonwebtoken';
 import { consumeNonce } from '@/lib/nonce-store';
 
 // Create viem client for Base mainnet

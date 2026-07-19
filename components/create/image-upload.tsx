@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { toast } from "sonner";
 
 interface ImageUploadProps {
   /** data: URI of the source image, or null. */
@@ -17,7 +18,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
   const handleFile = (file?: File) => {
     if (!file) return;
     if (file.size > MAX_BYTES) {
-      alert("Image too large (max 12MB).");
+      toast.error("Image too large (max 12MB).");
       return;
     }
     const reader = new FileReader();

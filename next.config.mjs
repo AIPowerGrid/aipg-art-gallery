@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'standalone',
+    // output: 'standalone',
+  allowedDevOrigins: ['192.168.66.52'],
   distDir: process.env.NEXT_DIST_DIR || '.next',
   async headers() {
     return [
@@ -37,6 +38,11 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "images.aipg.art",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "media.aipg.art",
         pathname: "/**",
       },
       {

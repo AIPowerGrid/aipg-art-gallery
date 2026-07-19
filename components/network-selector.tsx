@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { base, baseSepolia } from 'wagmi/chains';
-import { MODELVAULT_CONTRACTS, DEFAULT_CHAIN_ID } from "@/lib/wagmi";
+import { MODELVAULT_CONTRACTS, DEFAULT_CHAIN_ID } from "@/lib/chains";
 
 // Extend Window for ethereum provider
 declare global {

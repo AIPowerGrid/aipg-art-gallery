@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchStylesConfig } from '@/lib/api';
 import { StylesConfig } from '@/lib/types/create';
 
 interface UseStylesConfigReturn {
@@ -20,10 +21,7 @@ export function useStylesConfig(): UseStylesConfigReturn {
 
     async function fetchStyles() {
       try {
-        const res = await fetch('/api/styles');
-        if (!res.ok) throw new Error('Failed to load configuration');
-        
-        const data = await res.json();
+        const data = await fetchStylesConfig();
         if (!cancelled) {
           setStyles(data);
           setError(null);

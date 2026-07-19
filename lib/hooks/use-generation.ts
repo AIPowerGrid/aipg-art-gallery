@@ -5,6 +5,7 @@ import { generateTagsFromPrompt, DisplayCreation } from '@/lib/storage';
 import { getRemainingGenerations, recordAnonGeneration } from '@/lib/generation-limits';
 import { isAuthenticated } from '@/lib/auth';
 import { StylesConfig, Model, Dimension, AdvancedSettings } from '@/lib/types/create';
+import { fitVideoDimensions } from '@/lib/create/build-job-payload';
 
 interface GenerationState {
   isGenerating: boolean;
@@ -97,6 +98,11 @@ export function useGeneration({
       return false;
     }
 
+    if (selectedModel.requiresImage && !sourceImage) {
+      setError(`${selectedModel.name} is image-to-video only — add a source image first.`);
+      return false;
+    }
+
     const generationsNeeded = batchMode ? 4 : 1;
     if (!authenticated && getRemainingGenerations() < generationsNeeded) {
       setError("Not enough free generations remaining.");
@@ -107,7 +113,11 @@ export function useGeneration({
     setState(prev => ({ ...prev, isGenerating: true, error: null }));
 
     try {
-      // Use advanced settings if provided, otherwise fall back to model/defaults
+      // Use advanced settings if provided, otherwise fall back to model/defaults.
+      // Models that don't declare a `limits.steps` band have no steps knob in
+      // their recipe (e.g. LTX-2.3 Audio's sampling is fixed via baked sigmas) —
+      // omit the field entirely rather than sending an inert/undeclared value.
+      const supportsSteps = !!selectedModel.limits?.steps;
       const steps = advancedSettings.steps ?? selectedModel.settings?.steps ?? styles.defaults.steps ?? 28;
       const cfgScale = advancedSettings.cfgScale ?? selectedModel.settings?.cfgScale ?? styles.defaults.cfgScale ?? 3.5;
       const seed = advancedSettings.seed || undefined;
@@ -117,23 +127,26 @@ export function useGeneration({
         ? (isVideo ? "img2video" : "img2img")
         : (isVideo ? "txt2video" : "txt2img");
 
-      // Video guards: LTX clamps each side to [512,1280]; scale to fit (keep
-      // aspect), round to /32. And video batch is capped at 2 grid-side.
-      let width = selectedDimension.width;
-      let height = selectedDimension.height;
+      // Video guards: clamp each side to [512,1280], scale to fit (keep aspect),
+      // round to /64 (some video recipes 2x-upscale from a halved base, which
+      // requires 64-divisibility — 32 would silently snap under the hood).
+      // Video width/height/duration are user-adjustable (Advanced panel);
+      // image dimensions still come from the aspect-ratio picker.
+      let width = isVideo
+        ? (advancedSettings.width ?? selectedModel.settings?.width ?? selectedDimension.width)
+        : selectedDimension.width;
+      let height = isVideo
+        ? (advancedSettings.height ?? selectedModel.settings?.height ?? selectedDimension.height)
+        : selectedDimension.height;
       if (isVideo) {
-        const CAP = 1280, FLOOR = 512;
-        const longest = Math.max(width, height);
-        if (longest > CAP) { const s = CAP / longest; width = Math.round(width * s); height = Math.round(height * s); }
-        const fit = (v: number) => Math.max(FLOOR, Math.min(CAP, Math.round(v / 32) * 32));
-        width = fit(width); height = fit(height);
+        ({ width, height } = fitVideoDimensions(width, height));
       }
       const batchN = authenticated && batchMode ? (isVideo ? 2 : 4) : 1;
 
       const resp = await createJob({
         modelId: selectedModel.id,
         prompt: prompt.trim(),
-        negativePrompt: "",
+        negativePrompt: advancedSettings.negativePrompt ?? "",
         nsfw: false,
         public: true,
         walletAddress,
@@ -145,12 +158,15 @@ export function useGeneration({
         params: {
           width,
           height,
-          steps,
+          ...(supportsSteps ? { steps } : {}),
           cfgScale,
           sampler: selectedModel.settings?.sampler ?? styles.defaults.sampler ?? "euler",
           scheduler: styles.defaults.scheduler ?? "normal",
           n: batchN,
-          ...(isVideo ? { length: selectedModel.settings?.length ?? 96, fps: selectedModel.settings?.fps ?? 24 } : {}),
+          ...(isVideo ? {
+            length: advancedSettings.length ?? selectedModel.settings?.length ?? 96,
+            fps: selectedModel.settings?.fps ?? 24,
+          } : {}),
           ...(seed ? { seed } : {}),
         },
       });

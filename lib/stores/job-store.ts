@@ -209,7 +209,9 @@ export const useJobStore = create<JobStore>()(
                 initialWaitTime,
                 queuePosition: status.queuePosition,
                 result: status, // Always update with latest status for progressive loading
-                error: status.faulted ? 'Job failed' : undefined,
+                // Keep the grid's real failure text — consumers (e.g. the
+                // Director's recipe-offline fallback) match on it.
+                error: status.faulted ? (status.error ?? 'Job failed') : undefined,
                 pollFailures: 0, // Reset failure count on success
               });
 

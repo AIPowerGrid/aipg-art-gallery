@@ -11,6 +11,7 @@ type Config struct {
 	ClientAgent      string
 	DefaultAPIKey    string
 	ModelPresetPath  string
+	StylesConfigPath string
 	AllowedOrigins   []string
 	GalleryStorePath string
 	JWTSecret        string
@@ -46,6 +47,15 @@ type Config struct {
 	// Worker targeting
 	TargetWorkerID string // Target specific worker for all jobs (optional)
 
+	// TEMPORARY dev debug: Director web→ComfyUI workflow export. When
+	// DirectorExportDir is non-empty, every Director-tab submission is written
+	// out as a runnable ComfyUI API-format graph (recipe + injected vars) plus a
+	// debug sidecar, so the exact web→graph translation is inspectable. Disabled
+	// unless DIRECTOR_EXPORT_DIR is set. Delete these two fields + director_export.go
+	// to remove the feature entirely.
+	DirectorExportDir  string
+	DirectorRecipePath string
+
 	// Google OAuth
 	GoogleClientID string
 
@@ -67,6 +77,9 @@ func Load() Config {
 		ClientAgent:      getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v3"),
 		DefaultAPIKey:    os.Getenv("AIPG_API_KEY"),
 		ModelPresetPath:  getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
+		// Create-page model list (config/styles.json). When running from server/ use
+		// STYLES_CONFIG_PATH=../config/styles.json so edits to the repo-root file apply.
+		StylesConfigPath: getEnv("STYLES_CONFIG_PATH", "config/styles.json"),
 		AllowedOrigins:   splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
 		GalleryStorePath: getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
 		JWTSecret:        os.Getenv("JWT_SECRET"),
@@ -102,6 +115,11 @@ func Load() Config {
 
 		// Worker targeting
 		TargetWorkerID: os.Getenv("TARGET_WORKER_ID"),
+
+		// TEMPORARY dev debug: Director workflow export (see struct docs).
+		DirectorExportDir: os.Getenv("DIRECTOR_EXPORT_DIR"),
+		DirectorRecipePath: getEnv("DIRECTOR_RECIPE_PATH",
+			"/home/contractor/ltx-directory-delivery/recipe/ltx-director-web.json"),
 
 		// Google OAuth (use NEXT_PUBLIC_ version so only one env var needed)
 		GoogleClientID: getEnv("GOOGLE_CLIENT_ID", os.Getenv("NEXT_PUBLIC_GOOGLE_CLIENT_ID")),

@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Masonry from "react-masonry-css";
+import { toast } from "sonner";
+import { confirmDialog } from "@/components/confirm-dialog";
 import { fetchGallery, deleteGalleryItem, GalleryItem, addFavorite, removeFavorite, GalleryFilters } from "@/lib/api";
 import { GalleryFilter } from "@/components/gallery-filter";
 import { ImageModal } from "@/components/image-modal";
@@ -139,18 +141,24 @@ export default function GalleryPage() {
 
   async function handleDelete(jobId: string, itemWallet?: string) {
     if (!isConnected || !address) {
-      alert("Please connect your wallet to delete items");
+      toast.warning("Please connect your wallet to delete items");
       return;
     }
     if (!isAuthenticated()) {
-      alert("Please sign in with your wallet first");
+      toast.warning("Please sign in with your wallet first");
       return;
     }
     if (itemWallet && itemWallet.toLowerCase() !== address.toLowerCase()) {
-      alert("You can only delete your own gallery items");
+      toast.warning("You can only delete your own gallery items");
       return;
     }
-    if (!confirm("Delete this item from the gallery?")) return;
+    const ok = await confirmDialog({
+      title: "Delete this item?",
+      message: "It will be removed from the gallery permanently.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     
     setDeleting(jobId);
     try {
@@ -159,7 +167,7 @@ export default function GalleryPage() {
       if (selectedItem?.jobId === jobId) setSelectedItem(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      alert(`Failed to delete: ${message}`);
+      toast.error(`Failed to delete: ${message}`);
     } finally {
       setDeleting(null);
     }

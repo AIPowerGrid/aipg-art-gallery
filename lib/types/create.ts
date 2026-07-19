@@ -9,11 +9,16 @@ export interface ModelSettings {
   scheduler?: string;
   length?: number; // video: frame count
   fps?: number;    // video: frames per second
+  width?: number;  // video: default width (image dims come from the Dimension picker instead)
+  height?: number; // video: default height
 }
 
 export interface ModelLimits {
   steps?: { min: number; max: number };
   cfgScale?: { min: number; max: number };
+  width?: { min: number; max: number; step: number };
+  height?: { min: number; max: number; step: number };
+  length?: { min: number; max: number; step: number }; // video: frame count bounds
 }
 
 export interface Model {
@@ -25,12 +30,18 @@ export interface Model {
   default: boolean;
   settings?: ModelSettings;
   limits?: ModelLimits;
+  /** True for i2v-only recipes with no text-to-video path — a source image is mandatory. */
+  requiresImage?: boolean;
 }
 
 export interface AdvancedSettings {
   seed?: string;
   steps?: number;
   cfgScale?: number;
+  negativePrompt?: string;
+  width?: number;  // video only
+  height?: number; // video only
+  length?: number; // video only: frame count (duration slider stores frames, displays seconds)
 }
 
 export interface Dimension {

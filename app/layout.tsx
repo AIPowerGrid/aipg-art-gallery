@@ -1,8 +1,10 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Providers } from "@/components/providers";
+import { ProvidersDynamic } from "@/components/providers-dynamic";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { AppToaster } from "@/components/app-toaster";
+import { ConfirmDialogHost } from "@/components/confirm-dialog";
 
 const title = "AI Power Grid - Art Gallery";
 const description =
@@ -50,7 +52,7 @@ export default async function RootLayout({
         <link rel="dns-prefetch" href="https://images.aipg.art" />
       </head>
       <body className="bg-black text-white antialiased">
-        <Providers cookie={cookie}>
+        <ProvidersDynamic cookie={cookie}>
           <div className="fixed inset-0 -z-10 bg-aipg-grid">
             <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_60%)]" />
@@ -61,7 +63,9 @@ export default async function RootLayout({
               {children}
             </ErrorBoundary>
           </div>
-        </Providers>
+          <AppToaster />
+          <ConfirmDialogHost />
+        </ProvidersDynamic>
       </body>
     </html>
   );

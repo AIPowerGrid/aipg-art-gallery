@@ -826,19 +826,139 @@ func lookupModelStats(presetID string, byName map[string]aipg.ModelStatus) aipg.
 	return aipg.ModelStatus{}
 }
 
-// handleGetStyles returns the curated styles/models configuration
+// handleGetStyles returns the curated styles/models configuration for the create
+// page. The model presets (server/config/model_presets.json, merged into the
+// catalog) are the single source of truth for per-model *limits and numeric
+// defaults*; styles.json owns only presentation (which models to show, names,
+// enabled/default flags, grid-safe sampler) plus dimensions. We overlay the
+// catalog onto styles.json here so the two can't drift — edit a recipe's limits
+// once, in the presets, and the UI follows.
 func (a *App) handleGetStyles(w http.ResponseWriter, r *http.Request) {
-	// Read styles.json from config directory
-	stylesPath := "config/styles.json"
-	data, err := os.ReadFile(stylesPath)
+	data, err := os.ReadFile(a.cfg.StylesConfigPath)
 	if err != nil {
-		log.Printf("Error reading styles.json: %v", err)
+		log.Printf("Error reading styles config (%s): %v", a.cfg.StylesConfigPath, err)
 		writeError(w, http.StatusInternalServerError, fmt.Errorf("styles config not found"))
 		return
 	}
 
+	// Graceful degradation: if the overlay fails for any reason, serve the raw
+	// styles.json (its hand-maintained limits act as the fallback).
+	if merged, mErr := mergeStylesWithCatalog(data, a.catalog); mErr == nil {
+		data = merged
+	} else {
+		log.Printf("styles/catalog merge failed, serving raw styles.json: %v", mErr)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(data)
+}
+
+// mergeStylesWithCatalog overlays each model's recipe limits + numeric defaults
+// from the preset catalog onto the styles config. Presentation fields (name,
+// description, enabled, default, type, requiresImage) and the grid-safe
+// sampler/scheduler are kept from styles.json. Models with no matching preset
+// (e.g. ones not yet in model_presets.json) keep their styles.json values.
+func mergeStylesWithCatalog(raw []byte, catalog models.Catalog) ([]byte, error) {
+	var doc map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse styles config: %w", err)
+	}
+	rawModels, ok := doc["models"]
+	if !ok {
+		return raw, nil // nothing to merge
+	}
+	var mods []map[string]any
+	if err := json.Unmarshal(rawModels, &mods); err != nil {
+		return nil, fmt.Errorf("parse styles models: %w", err)
+	}
+
+	for _, m := range mods {
+		id, _ := m["id"].(string)
+		if id == "" {
+			continue
+		}
+		preset, found := catalog.Get(id)
+		if !found {
+			continue // no recipe → keep styles.json limits/settings as-is
+		}
+		m["limits"] = mergeLimits(m["limits"], preset)
+		m["settings"] = mergeSettings(m["settings"], preset)
+	}
+
+	newModels, err := json.Marshal(mods)
+	if err != nil {
+		return nil, err
+	}
+	doc["models"] = newModels
+	return json.Marshal(doc)
+}
+
+// mergeLimits overlays the preset's limits onto whatever styles.json declared,
+// field by field: the catalog wins for every range it specifies, and any range
+// styles.json had that the catalog omits (e.g. a cfg cap the preset leaves open)
+// is preserved rather than dropped.
+func mergeLimits(existing any, p models.ModelPreset) map[string]any {
+	out := map[string]any{}
+	if m, ok := existing.(map[string]any); ok {
+		for k, v := range m {
+			out[k] = v
+		}
+	}
+	if r := p.Limits.Steps; r != nil {
+		out["steps"] = map[string]any{"min": r.Min, "max": r.Max}
+	}
+	if r := p.Limits.CfgScale; r != nil {
+		out["cfgScale"] = map[string]any{"min": r.Min, "max": r.Max}
+	}
+	if r := p.Limits.Width; r != nil {
+		out["width"] = map[string]any{"min": r.Min, "max": r.Max, "step": r.Step}
+	}
+	if r := p.Limits.Height; r != nil {
+		out["height"] = map[string]any{"min": r.Min, "max": r.Max, "step": r.Step}
+	}
+	if r := p.Limits.Length; r != nil {
+		out["length"] = map[string]any{"min": r.Min, "max": r.Max, "step": r.Step}
+	}
+	return out
+}
+
+// mergeSettings overlays the preset's numeric defaults onto the model's existing
+// settings, preserving the grid-safe sampler/scheduler already set in
+// styles.json (the preset's sampler may be a horde-style name the grid rejects).
+func mergeSettings(existing any, p models.ModelPreset) map[string]any {
+	out := map[string]any{}
+	if m, ok := existing.(map[string]any); ok {
+		for k, v := range m {
+			out[k] = v // keep sampler, scheduler, and any other curated fields
+		}
+	}
+	d := p.Defaults
+	if d.Steps > 0 {
+		out["steps"] = d.Steps
+	}
+	if d.CfgScale > 0 {
+		out["cfgScale"] = d.CfgScale
+	}
+	if d.Length > 0 {
+		out["length"] = d.Length
+	}
+	if d.FPS > 0 {
+		out["fps"] = d.FPS
+	}
+	if d.Width > 0 {
+		out["width"] = d.Width
+	}
+	if d.Height > 0 {
+		out["height"] = d.Height
+	}
+	// Only fall back to the preset's sampler/scheduler if styles.json omitted one.
+	if _, has := out["sampler"]; !has && d.Sampler != "" {
+		out["sampler"] = d.Sampler
+	}
+	if _, has := out["scheduler"]; !has && d.Scheduler != "" {
+		out["scheduler"] = d.Scheduler
+	}
+	return out
 }
 
 // handleGridStyles proxies the grid's curated creative-style registry
@@ -942,6 +1062,10 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	// Use the bridge job id as the progress token so the grid stashes the
 	// worker's live % under it; handleJobStatus polls it while processing.
 	gen.ProgressToken = jobID
+
+	// TEMPORARY dev debug: dump the web→ComfyUI Director graph (no-op unless
+	// DIRECTOR_EXPORT_DIR is set). See director_export.go.
+	a.exportDirectorWorkflow(gen, req, jobID)
 
 	clientAgent := a.cfg.ClientAgent
 	go func() {
@@ -1094,8 +1218,20 @@ type CreateJobRequest struct {
 	NSFW             bool             `json:"nsfw"`
 	Public           bool             `json:"public"`
 	SourceImage      string           `json:"sourceImage"`
+	// End-frame anchor for first-last-frame "fill-between" video recipes. Passed
+	// through to the grid as image_end; must match the published FLF recipe's var.
+	SourceImageEnd   string           `json:"sourceImageEnd"`
 	SourceMask       string           `json:"sourceMask"`
 	SourceProcessing string           `json:"sourceProcessing"`
+	// LTX Director timeline fields (Director recipes only; empty otherwise).
+	// TimelineData is the LTXDirector node's serialized editor state — segments may
+	// embed keyframe images inline as base64 (`imageB64`), which is how per-segment
+	// images travel without a multi-image upload path. The three flat strings are
+	// the prompt-relay inputs the web editor derives from the same segments.
+	TimelineData   string `json:"timelineData,omitempty"`
+	LocalPrompts   string `json:"localPrompts,omitempty"`   // "|"-delimited per-segment prompts
+	SegmentLengths string `json:"segmentLengths,omitempty"` // ","-delimited frame counts
+	GuideStrength  string `json:"guideStrength,omitempty"`  // ","-delimited image-guide strengths
 	MediaType        string           `json:"mediaType"` // "image" or "video"
 	Style            string           `json:"style"`     // curated style id (grid expands it)
 	// CivitAI LoRAs to inject: [{name, model, clip, is_version}]. Passed through
@@ -1127,6 +1263,12 @@ const (
 	maxBatchN    = 4
 	maxSteps     = 150
 	maxDimension = 2048
+	// Director timeline caps. The flat relay strings are text-only; timeline_data
+	// additionally embeds base64 keyframe images (~12MB each client-capped), so it
+	// gets a generous-but-bounded ceiling to keep one request from monopolising
+	// the decoder.
+	maxRelayStringLen  = 16000
+	maxTimelineDataLen = 25 << 20 // 25MB — the grid's documented total-request budget for Director timelines
 )
 
 func (r CreateJobRequest) Validate() error {
@@ -1151,6 +1293,16 @@ func (r CreateJobRequest) Validate() error {
 	if r.Params.Width < 0 || r.Params.Width > maxDimension ||
 		r.Params.Height < 0 || r.Params.Height > maxDimension {
 		return fmt.Errorf("dimensions must not exceed %d", maxDimension)
+	}
+	if len(r.LocalPrompts) > maxRelayStringLen || len(r.SegmentLengths) > maxRelayStringLen ||
+		len(r.GuideStrength) > maxRelayStringLen {
+		return fmt.Errorf("timeline relay strings too long (max %d chars)", maxRelayStringLen)
+	}
+	if len(r.TimelineData) > maxTimelineDataLen {
+		return fmt.Errorf("timeline data too large (max %d bytes)", maxTimelineDataLen)
+	}
+	if r.TimelineData != "" && !json.Valid([]byte(r.TimelineData)) {
+		return errors.New("timeline data must be valid JSON")
 	}
 	return nil
 }
@@ -1192,6 +1344,26 @@ func buildGenerateRequest(req CreateJobRequest, preset models.ModelPreset) aipg.
 	// img2img / img2video source frame (inline base64 / data URI).
 	if req.SourceImage != "" {
 		gen.Image = req.SourceImage
+	}
+
+	// End-frame anchor for fill-between (first-last-frame) video recipes.
+	if req.SourceImageEnd != "" {
+		gen.ImageEnd = req.SourceImageEnd
+	}
+
+	// LTX Director timeline passthrough (Director recipes declare these vars;
+	// the grid rejects them for models that don't).
+	if req.TimelineData != "" {
+		gen.TimelineData = req.TimelineData
+	}
+	if req.LocalPrompts != "" {
+		gen.LocalPrompts = req.LocalPrompts
+	}
+	if req.SegmentLengths != "" {
+		gen.SegmentLengths = req.SegmentLengths
+	}
+	if req.GuideStrength != "" {
+		gen.GuideStrength = req.GuideStrength
 	}
 
 	// User-supplied CivitAI LoRAs (grid gates + downloads them).
