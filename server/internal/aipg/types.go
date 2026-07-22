@@ -55,6 +55,11 @@ type GenerateRequest struct {
 	N              int     `json:"n,omitempty"`
 	Size           string  `json:"size,omitempty"`            // "WxH"; omit to let grid/source decide
 	Image          string  `json:"image,omitempty"`           // img2img / img2video source (base64 / data URI)
+	ImageEnd       string  `json:"image_end,omitempty"`       // fill-between end-frame anchor (base64 / data URI); FLF recipes
+	TimelineData   string  `json:"timeline,omitempty"`        // LTX Director editor state, stringified (segments may embed imageB64/audioB64 media)
+	LocalPrompts   string  `json:"local_prompts,omitempty"`   // Director prompt relay: "|"-delimited per-segment prompts
+	SegmentLengths string  `json:"segment_lengths,omitempty"` // Director prompt relay: ","-delimited frame counts
+	GuideStrength  string  `json:"guide_strength,omitempty"`  // Director image guides: ","-delimited strengths
 	Loras          []any   `json:"loras,omitempty"`           // CivitAI passthrough (grid-gated + blacklisted)
 	OutputFormat   string  `json:"output_format,omitempty"`   // png|jpeg|webp (image only)
 	ResponseFormat string  `json:"response_format,omitempty"` // url|b64_json

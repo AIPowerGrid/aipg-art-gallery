@@ -1,3 +1,4 @@
+import { StylesConfig } from "@/lib/types/create";
 import {
   CreateAudioJobRequest,
   CreateJobRequest,
@@ -81,6 +82,11 @@ export function fetchCredits(): Promise<GridCredits> {
 /** Curated creative styles from the grid (model→recipe→style layer). */
 export function fetchGridStyles(): Promise<{ styles: GridStyle[] }> {
   return jsonFetch("/styles/grid", undefined, 60);
+}
+
+/** Frontend UI config (models, dimensions, defaults) from config/styles.json. */
+export function fetchStylesConfig(): Promise<StylesConfig> {
+  return jsonFetch("/styles", undefined, 60);
 }
 
 // Gallery API

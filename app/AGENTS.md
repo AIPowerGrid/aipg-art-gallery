@@ -33,6 +33,13 @@ route handlers for things that must not run in the browser — including wallet 
   owner-bound job status route as image/video, and stores only recent public
   output URLs plus display metadata on the user's device. Lyrics are not saved
   in browser history.
+- `/create/director` is the authenticated timeline editor for chained image-conditioned
+  video segments. It uses the same owner-bound job API and Core credit enforcement as the
+  standard create page; browser project/audio persistence is local convenience, not authority.
+- **`proxy.ts` (repo root)** sets per-request CSP. `connect-src` must include the origin
+  derived from `NEXT_PUBLIC_GALLERY_API` so cross-port Go API calls work in dev.
+- **`layout.tsx`** passes the request cookie into the SSR-enabled wagmi provider; keep
+  wallet storage cookie-backed so public gallery content remains server-renderable.
 - **Route handlers run on the server.** The `download` proxy must keep its exact-hostname
   allowlist + `redirect: 'manual'`. Any new outbound-fetch handler needs the same discipline.
 - **`auth-api/verify` is security-critical:** never return the JWT in the body (httpOnly cookie

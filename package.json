@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:server": "cd server && go run ./cmd/api",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint .",
@@ -56,7 +57,7 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.24.0",
     "mini-svg-data-uri": "^1.4.4",
-    "next": "^16.2.10",
+    "next": "^16.2.11",
     "next-themes": "^0.4.6",
     "prop-types": "^15.8.1",
     "react": "^19.2.5",
@@ -98,13 +99,19 @@
     "typescript": "^5"
   },
   "overrides": {
+    "axios": "1.18.1",
     "@walletconnect/core": "2.23.10",
     "@walletconnect/ethereum-provider": "2.23.10",
     "@walletconnect/sign-client": "2.23.10",
     "@walletconnect/universal-provider": "2.23.10",
     "@walletconnect/utils": "2.23.10",
     "js-yaml": "3.15.0",
+    "hono": "4.12.31",
+    "minimatch@3.1.5": {
+      "brace-expansion": "1.1.16"
+    },
     "postcss": "$postcss",
+    "sharp": "0.35.3",
     "uuid": "11.1.1",
     "ws": "8.21.0"
   }

@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+/** Origins allowed in connect-src for cross-port calls to the Go gallery API. */
+function galleryApiConnectOrigins(): string {
+  const origins = new Set<string>();
+  const apiBase =
+    process.env.NEXT_PUBLIC_GALLERY_API ?? 'http://localhost:4000/api';
+  try {
+    origins.add(new URL(apiBase).origin);
+  } catch {
+    /* ignore malformed env */
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    origins.add('http://localhost:4000');
+    origins.add('http://127.0.0.1:4000');
+  }
+  return [...origins].join(' ');
+}
+
 // Per-request Content-Security-Policy with a unique nonce.
 //
-// Why middleware instead of a static header: a nonce lets us drop 'unsafe-inline'
+// Why proxy instead of a static header: a nonce lets us drop 'unsafe-inline'
 // from script-src. Modern browsers ignore 'unsafe-inline' once a nonce or
 // 'strict-dynamic' is present, so inline-script injection (the main XSS vector)
 // is blocked while Next.js's own scripts — which inherit the nonce — keep working.
@@ -13,7 +30,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // NOTE: enabling a nonce opts pages into dynamic rendering. Verify in a browser
 // (wallet connect + Google One Tap + navigation) before relying on this; to roll
 // back, delete this file and restore the static CSP in next.config.mjs.
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
   const isDev = process.env.NODE_ENV !== 'production';
 
@@ -35,9 +52,11 @@ export function middleware(request: NextRequest) {
     `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline' https://accounts.google.com",
     "img-src 'self' data: https:",
-    "media-src 'self' https:",
+    // blob: — the Director's stitched export plays proxy-fetched clips from
+    // object URLs; without it the <video> errors ("metadata failed").
+    "media-src 'self' blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https: wss:",
+    `connect-src 'self' https: wss: ${galleryApiConnectOrigins()}`,
     "frame-src https://accounts.google.com",
     "frame-ancestors 'none'",
     "base-uri 'self'",

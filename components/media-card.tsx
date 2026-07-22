@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { GalleryItem } from "@/lib/api";
+import { extractFrame } from "@/lib/utils/video-frames";
+import { useDirectorStore } from "@/lib/stores/director-store";
 
 interface MediaCardProps {
   item: GalleryItem;
@@ -38,11 +42,33 @@ export function MediaCard({
   const [imageLoaded, setImageLoaded] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [isExtending, setIsExtending] = useState(false);
+  const router = useRouter();
 
   // Use thumbnail URL if provided, otherwise fall back to full URL
   const mediaSrc = thumbnailUrl || item.mediaUrls?.[0];
   const isVideo = item.type === "video";
   const hasMedia = !!mediaSrc;
+  const videoUrl = item.mediaUrls?.[0];
+
+  // Extend this clip in a fresh Director project (last frame → start image).
+  const handleExtendInDirector = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoUrl || isExtending) return;
+    setIsExtending(true);
+    try {
+      const frame = await extractFrame(videoUrl, 'last');
+      useDirectorStore.getState().startProjectFromClip({
+        image: frame,
+        name: (item.prompt || 'Extended clip').slice(0, 40),
+      });
+      router.push('/create/director');
+    } catch (err) {
+      console.error('Extend in Director failed:', err);
+      toast.error('Could not read the clip’s last frame.');
+      setIsExtending(false);
+    }
+  };
 
   // Hide completely if no media or failed to load
   if (!hasMedia || imageError) {
@@ -95,6 +121,25 @@ export function MediaCard({
             
             {/* Top right action buttons */}
             <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+              {/* Extend in Director (videos): last frame → new project */}
+              {isVideo && videoUrl && (
+                <button
+                  onClick={handleExtendInDirector}
+                  disabled={isExtending}
+                  className="p-1.5 rounded-full bg-black/60 hover:bg-amber-600 text-white/80 hover:text-white transition-colors"
+                  title="Extend in Director — continue this clip from its last frame"
+                >
+                  {isExtending ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 17H7A5 5 0 0 1 7 7h2" />
+                      <path d="M15 7h2a5 5 0 1 1 0 10h-2" />
+                      <line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
+                  )}
+                </button>
+              )}
               {/* Favorite star - only for logged in users */}
               {isLoggedIn && onToggleFavorite && (
                 <button

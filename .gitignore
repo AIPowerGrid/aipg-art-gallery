@@ -128,3 +128,23 @@ bun.lockb
 gallery.env
 gallery-server
 tsconfig.tsbuildinfo
+
+
+# ===================
+# Vendored reference clones & recipe dumps (NOT part of the app build)
+# repos/ holds external git checkouts (grid-core, WhatDreamsCost-ComfyUI,
+# aipg-smart-contracts) used only for reference; recipes/ is a copy of
+# grid-core's recipe catalog. Neither is imported by the gallery.
+# ===================
+repos/
+recipes/
+
+# ===================
+# Dev/scratch artifacts dropped into the repo root
+# ===================
+LTX_Director_2_gorgadon_fixed.json
+RecipeVault.sol
+flux2_klein_4b_api.json
+message.txt
+config/*.bak.*
+config/*.bak.premodels

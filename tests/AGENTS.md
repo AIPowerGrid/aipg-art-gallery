@@ -8,6 +8,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
 
 - `e2e/audio.spec.ts` - authenticated audio submission, progress, completed
   playback/download, browser errors, and mobile overflow.
+- `e2e/director.spec.ts` - authenticated keyframe upload and Director timeline
+  submission, including the no-client-wallet-identity request invariant.
 
 ## Local Contracts
 

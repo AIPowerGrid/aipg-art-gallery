@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
+import { toast } from "sonner";
 import { fetchGalleryByWallet, fetchGalleryMedia, GalleryItem, getFavorites, publishGalleryItem, removeFavorite } from "@/lib/api";
 import { JobStatus } from "@/types/models";
 import { ImageModal } from "@/components/image-modal";
@@ -76,7 +77,7 @@ export default function ProfilePage() {
 
   async function handlePublish(jobId: string) {
     if (!address || !isAuthenticated()) {
-      alert("Please sign in with your wallet first");
+      toast.warning("Please sign in with your wallet first");
       return;
     }
     setPublishingId(jobId);
@@ -90,7 +91,7 @@ export default function ProfilePage() {
       ));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      alert(`Failed to publish: ${message}`);
+      toast.error(`Failed to publish: ${message}`);
     } finally {
       setPublishingId(null);
     }
@@ -110,7 +111,7 @@ export default function ProfilePage() {
       setFavorites(prev => prev.filter(item => item.jobId !== jobId));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      alert(`Failed to remove favorite: ${message}`);
+      toast.error(`Failed to remove favorite: ${message}`);
     }
   }
 

@@ -37,6 +37,7 @@ export function PromptForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const sourceEnabled = !!onSourceChange;
+  const needsSourceImage = !!selectedModel?.requiresImage && !sourceImage;
 
   const readImageFile = (file: File | undefined | null) => {
     if (!file || !file.type.startsWith('image/') || !onSourceChange) return;
@@ -119,13 +120,17 @@ export function PromptForm({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                title="Add a source image (img2img / img2video) — click or drag & drop"
-                className="w-[60px] h-[60px] rounded-lg border border-dashed border-zinc-600 hover:border-indigo-500 hover:bg-zinc-700/40 text-zinc-400 hover:text-zinc-200 flex flex-col items-center justify-center gap-0.5 transition-colors"
+                title={needsSourceImage ? "Required — this model is image-to-video only" : "Add a source image (img2img / img2video) — click or drag & drop"}
+                className={`w-[60px] h-[60px] rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                  needsSourceImage
+                    ? 'border-amber-500/70 hover:border-amber-400 bg-amber-500/10 text-amber-400 hover:text-amber-300'
+                    : 'border-zinc-600 hover:border-indigo-500 hover:bg-zinc-700/40 text-zinc-400 hover:text-zinc-200'
+                }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-[9px] leading-none">Source</span>
+                <span className="text-[9px] leading-none">{needsSourceImage ? 'Required' : 'Source'}</span>
               </button>
             )}
           </div>
@@ -159,7 +164,8 @@ export function PromptForm({
 
         <button
           onClick={handleGenerate}
-          disabled={isGenerating || !prompt.trim()}
+          disabled={isGenerating || !prompt.trim() || needsSourceImage}
+          title={needsSourceImage ? `${selectedModel?.name} needs a source image — add one above` : undefined}
           className="px-6 md:px-10 py-3 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-100 text-zinc-900 font-semibold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-default hover:brightness-110 transition-all"
         >
           {isGenerating ? (
@@ -180,6 +186,12 @@ export function PromptForm({
           )}
         </button>
       </div>
+
+      {needsSourceImage && !error && (
+        <p className="mt-3 text-amber-400 text-sm">
+          {selectedModel?.name} is image-to-video only — add a source image above to enable Generate.
+        </p>
+      )}
 
       {error && (
         <p className="mt-3 text-red-400 text-sm">{error}</p>

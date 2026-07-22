@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { confirmDialog } from "@/components/confirm-dialog";
 import Masonry from "react-masonry-css";
 import { useAccount } from "wagmi";
 import { getFavorites, removeFavorite, GalleryItem } from "@/lib/api";
@@ -66,14 +68,19 @@ export default function FavoritesPage() {
 
   async function handleRemoveFavorite(jobId: string) {
     if (!address || !isAuthenticated()) return;
-    if (!confirm('Remove from favorites?')) return;
+    const ok = await confirmDialog({
+      title: 'Remove from favorites?',
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     
     try {
       await removeFavorite(jobId);
       setFavorites(prev => prev.filter(item => item.jobId !== jobId));
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      alert(`Failed to remove favorite: ${message}`);
+      toast.error(`Failed to remove favorite: ${message}`);
     }
   }
 

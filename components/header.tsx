@@ -48,12 +48,13 @@ export function Header() {
               height={32}
               className="w-8 h-8 md:w-10 md:h-10"
             />
-            <Image 
-              src="/aipg-weblogo.png" 
-              alt="AI Power Grid" 
-              width={70} 
+            <Image
+              src="/aipg-weblogo.png"
+              alt="AI Power Grid"
+              width={70}
               height={16}
               className="h-4 w-auto hidden sm:block"
+              style={{ width: 'auto' }}
             />
           </Link>
 

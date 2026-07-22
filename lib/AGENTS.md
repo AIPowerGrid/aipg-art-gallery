@@ -18,6 +18,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `wagmi.ts` — wagmi/RainbowKit config. `web3/` — wallet hooks/types. `supabase.ts` — Supabase
   client. Core's `/account/credits` response is the only credit authority.
 - `stores/` — Zustand stores (`auth-store.ts` supports wallet + Google; `job-store.ts`).
+- `create/` — pure Studio helpers. `capabilities.ts` (`getModelCapabilities`) maps a model's
+  declared `type`/`limits`/flags to the control groups the create rail renders — the single place
+  that decides which Advanced knobs a model exposes (keep new per-model UI gating here, not in JSX).
 - `hooks/` — data + UI hooks. `storage.ts`, `utils/` (`download.ts`, `thumbnails.ts`),
   `types/create.ts`.
 
@@ -35,6 +38,15 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
   is optimistic UI only.
 - Keep request/response types aligned with `types/models.ts` and the Go structs.
+- **Director wire contract** (`create/director-payload.ts` → `hooks/use-director.ts`): each
+  timeline SEGMENT renders as its own job against the `LTX Director 2.0` recipe — image keyframe
+  at frame 0 + one prompt + optional audio slice, all inside one `timelineData` string (media
+  rides inline as base64). Per-job cap is the recipe's 8s clamp; the timeline total is unbounded
+  (chaining = N jobs). `segment_lengths` is **frames at 24fps** (verified live — the API guide's
+  "seconds" comment is wrong) and must pair 1:1 with `local_prompts`; `normalDurationFrames` is
+  `frames+1`; the timeline's `global_prompt` stays empty (top-level `prompt` wins); audio
+  segments need a truthy `audioFile` or the node inpaints over the upload, and `trimStart`
+  (frames) windows each segment's slice of the shared track; timeline ≤ ~24MB client-side.
 
 ## Work Guidance
 

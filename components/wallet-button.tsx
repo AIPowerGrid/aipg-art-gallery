@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAccount, useConnect, useDisconnect, useEnsName, useSignMessage } from "wagmi";
 import { base } from 'wagmi/chains';
-import { MODELVAULT_CONTRACTS } from "@/lib/wagmi";
+import { MODELVAULT_CONTRACTS } from "@/lib/chains";
 import { signIn, signOut, isAuthenticated, clearAuthToken } from "@/lib/auth";
 
 // Always use Base mainnet

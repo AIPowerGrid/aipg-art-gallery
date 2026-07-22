@@ -41,6 +41,11 @@ const nextConfig = {
       },
       {
         protocol: "https",
+        hostname: "media.aipg.art",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
         hostname: "a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com",
         pathname: "/**",
       },

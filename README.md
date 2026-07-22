@@ -33,11 +33,17 @@ npm install
 # Run frontend (port 3000)
 npm run dev
 
-# Run backend (port 4000)
+# Run backend (port 4000) — must run from server/ (Go module lives there)
 cd server && go run ./cmd/api
+# or: npm run dev:server
 ```
 
 Copy `.env.example` to `.env` and fill in your credentials.
+
+**Do not** run `go mod init` at the repo root — the Go module is `server/go.mod`.
+Running `go run ./server/cmd/api` from the repo root will fail; always `cd server` first.
+The API discovers the canonical repo-root `config/styles.json` whether it is
+started from the repo root or from `server/`; `STYLES_CONFIG_PATH` is only an override.
 
 ## Learn More
 

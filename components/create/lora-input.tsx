@@ -13,6 +13,8 @@ interface LoraInputProps {
   onChange: (lora: LoraSpec | null) => void;
   /** Hint shown about which models LoRAs work best on. */
   hint?: string;
+  /** Render without the outer card/header — for nesting inside a group. */
+  bare?: boolean;
 }
 
 // Pull the most precise id out of a CivitAI link or a bare id.
@@ -26,7 +28,7 @@ function parseCivitai(input: string): { name: string; is_version: boolean } | nu
   return null;
 }
 
-export function LoraInput({ value, onChange, hint }: LoraInputProps) {
+export function LoraInput({ value, onChange, hint, bare = false }: LoraInputProps) {
   const [text, setText] = useState("");
   const [strength, setStrength] = useState(0.8);
 
@@ -36,13 +38,8 @@ export function LoraInput({ value, onChange, hint }: LoraInputProps) {
     onChange({ name: parsed.name, model: strength, is_version: parsed.is_version });
   };
 
-  return (
-    <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
-      <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
-        <span>LoRA</span>
-        <span className="text-zinc-600">— {hint || "CivitAI link or version id (optional)"}</span>
-      </div>
-
+  const body = (
+    <>
       {value ? (
         <div className="flex items-center gap-3">
           <div className="flex-1 font-mono text-sm text-zinc-200 truncate">
@@ -85,6 +82,18 @@ export function LoraInput({ value, onChange, hint }: LoraInputProps) {
           </button>
         </div>
       )}
+    </>
+  );
+
+  if (bare) return body;
+
+  return (
+    <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
+      <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
+        <span>LoRA</span>
+        <span className="text-zinc-600">— {hint || "CivitAI link or version id (optional)"}</span>
+      </div>
+      {body}
     </div>
   );
 }

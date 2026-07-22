@@ -24,6 +24,7 @@ WORKDIR /app
 
 COPY --from=builder /app/api .
 COPY --from=builder /app/config ./config
+COPY config/styles.json ./config/styles.json
 
 EXPOSE 4000
 

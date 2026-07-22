@@ -8,6 +8,7 @@ import {
   Dimension,
   AdvancedSettings,
 } from "@/lib/types/create";
+import { fitVideoDimensions } from "@/lib/create/build-job-payload";
 
 interface GenerationState {
   isGenerating: boolean;
@@ -99,7 +100,14 @@ export function useGeneration({
       setState((prev) => ({ ...prev, isGenerating: true, error: null }));
 
       try {
-        // Use advanced settings if provided, otherwise fall back to model/defaults
+        if (selectedModel.requiresImage && !sourceImage) {
+          setError(`${selectedModel.name} requires a source image.`);
+          setState((prev) => ({ ...prev, isGenerating: false }));
+          return false;
+        }
+
+        // Omit steps for recipes that do not expose that control.
+        const supportsSteps = Boolean(selectedModel.limits?.steps);
         const steps =
           advancedSettings.steps ??
           selectedModel.settings?.steps ??
@@ -121,30 +129,25 @@ export function useGeneration({
             ? "txt2video"
             : "txt2img";
 
-        // Video guards: LTX clamps each side to [512,1280]; scale to fit (keep
-        // aspect), round to /32. And video batch is capped at 2 grid-side.
-        let width = selectedDimension.width;
-        let height = selectedDimension.height;
+        let width = isVideo
+          ? (advancedSettings.width ??
+            selectedModel.settings?.width ??
+            selectedDimension.width)
+          : selectedDimension.width;
+        let height = isVideo
+          ? (advancedSettings.height ??
+            selectedModel.settings?.height ??
+            selectedDimension.height)
+          : selectedDimension.height;
         if (isVideo) {
-          const CAP = 1280,
-            FLOOR = 512;
-          const longest = Math.max(width, height);
-          if (longest > CAP) {
-            const s = CAP / longest;
-            width = Math.round(width * s);
-            height = Math.round(height * s);
-          }
-          const fit = (v: number) =>
-            Math.max(FLOOR, Math.min(CAP, Math.round(v / 32) * 32));
-          width = fit(width);
-          height = fit(height);
+          ({ width, height } = fitVideoDimensions(width, height));
         }
         const batchN = authenticated && batchMode ? (isVideo ? 2 : 4) : 1;
 
         const resp = await createJob({
           modelId: selectedModel.id,
           prompt: prompt.trim(),
-          negativePrompt: "",
+          negativePrompt: advancedSettings.negativePrompt ?? "",
           nsfw: false,
           public: true,
           mediaType: isVideo ? "video" : "image",
@@ -155,7 +158,7 @@ export function useGeneration({
           params: {
             width,
             height,
-            steps,
+            ...(supportsSteps ? { steps } : {}),
             cfgScale,
             sampler:
               selectedModel.settings?.sampler ??
@@ -165,7 +168,10 @@ export function useGeneration({
             n: batchN,
             ...(isVideo
               ? {
-                  length: selectedModel.settings?.length ?? 96,
+                  length:
+                    advancedSettings.length ??
+                    selectedModel.settings?.length ??
+                    96,
                   fps: selectedModel.settings?.fps ?? 24,
                 }
               : {}),

@@ -16,8 +16,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
-  const isAllowedDomain = 
+  const isAllowedDomain =
     parsedUrl.hostname === 'images.aipg.art' ||
+    parsedUrl.hostname === 'media.aipg.art' ||
     parsedUrl.hostname.endsWith('.r2.cloudflarestorage.com');
 
   if (!isAllowedDomain) {

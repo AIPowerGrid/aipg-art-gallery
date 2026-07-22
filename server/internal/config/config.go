@@ -11,6 +11,7 @@ type Config struct {
 	ClientAgent      string
 	DefaultAPIKey    string
 	ModelPresetPath  string
+	StylesConfigPath string
 	AllowedOrigins   []string
 	GalleryStorePath string
 	JWTSecret        string
@@ -27,14 +28,14 @@ type Config struct {
 
 	// R2 storage configuration for direct media access
 	// Uses same env vars as system-core for consistency
-	R2Enabled            bool
-	R2TransientEndpoint  string
-	R2TransientBucket    string
-	R2PermanentBucket    string
-	R2AccessKeyID        string
-	R2AccessKeySecret    string
-	R2SharedAccessKeyID  string
-	R2SharedAccessKey    string
+	R2Enabled           bool
+	R2TransientEndpoint string
+	R2TransientBucket   string
+	R2PermanentBucket   string
+	R2AccessKeyID       string
+	R2AccessKeySecret   string
+	R2SharedAccessKeyID string
+	R2SharedAccessKey   string
 
 	// PostgreSQL configuration
 	PostgresEnabled bool
@@ -59,7 +60,7 @@ type Config struct {
 
 func Load() Config {
 	return Config{
-		Address:          getEnv("GALLERY_SERVER_ADDR", ":4000"),
+		Address: getEnv("GALLERY_SERVER_ADDR", ":4000"),
 		// New grid is OpenAI-shaped and lives under /v1 (no more /api/v2 async horde).
 		// Override AIPG_API_URL during DNS cutover if api.aipowergrid.io hasn't
 		// propagated yet (e.g. point it at the box's grid.aipowergrid.io/v1).
@@ -67,6 +68,7 @@ func Load() Config {
 		ClientAgent:      getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v3"),
 		DefaultAPIKey:    os.Getenv("AIPG_API_KEY"),
 		ModelPresetPath:  getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
+		StylesConfigPath: getEnv("STYLES_CONFIG_PATH", defaultStylesConfigPath()),
 		AllowedOrigins:   splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
 		GalleryStorePath: getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
 		JWTSecret:        os.Getenv("JWT_SECRET"),
@@ -82,14 +84,14 @@ func Load() Config {
 		RecipeVaultContractAddress: getEnv("RECIPESVAULT_CONTRACT", getEnv("MODELVAULT_CONTRACT", "0x79F39f2a0eA476f53994812e6a8f3C8CFe08c609")),
 
 		// R2 storage configuration (uses same env vars as system-core)
-		R2Enabled:            os.Getenv("AWS_ACCESS_KEY_ID") != "" || os.Getenv("SHARED_AWS_ACCESS_ID") != "",
-		R2TransientEndpoint:  getEnv("R2_TRANSIENT_ACCOUNT", "https://a223539ccf6caa2d76459c9727d276e6.r2.cloudflarestorage.com"),
-		R2TransientBucket:    getEnv("R2_TRANSIENT_BUCKET", "horde-transient"),
-		R2PermanentBucket:    getEnv("R2_PERMANENT_BUCKET", "horde-permanent"),
-		R2AccessKeyID:        os.Getenv("AWS_ACCESS_KEY_ID"),
-		R2AccessKeySecret:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
-		R2SharedAccessKeyID:  os.Getenv("SHARED_AWS_ACCESS_ID"),
-		R2SharedAccessKey:    os.Getenv("SHARED_AWS_ACCESS_KEY"),
+		R2Enabled:           os.Getenv("AWS_ACCESS_KEY_ID") != "" || os.Getenv("SHARED_AWS_ACCESS_ID") != "",
+		R2TransientEndpoint: getEnv("R2_TRANSIENT_ACCOUNT", "https://a223539ccf6caa2d76459c9727d276e6.r2.cloudflarestorage.com"),
+		R2TransientBucket:   getEnv("R2_TRANSIENT_BUCKET", "horde-transient"),
+		R2PermanentBucket:   getEnv("R2_PERMANENT_BUCKET", "horde-permanent"),
+		R2AccessKeyID:       os.Getenv("AWS_ACCESS_KEY_ID"),
+		R2AccessKeySecret:   os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		R2SharedAccessKeyID: os.Getenv("SHARED_AWS_ACCESS_ID"),
+		R2SharedAccessKey:   os.Getenv("SHARED_AWS_ACCESS_KEY"),
 
 		// PostgreSQL configuration
 		PostgresEnabled: getEnv("POSTGRES_ENABLED", "true") == "true",
@@ -117,6 +119,15 @@ func getEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func defaultStylesConfigPath() string {
+	for _, candidate := range []string{"config/styles.json", "../config/styles.json"} {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return "config/styles.json"
 }
 
 func splitAndClean(raw string) []string {

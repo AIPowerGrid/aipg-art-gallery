@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { AppToaster } from "@/components/app-toaster";
+import { ConfirmDialogHost } from "@/components/confirm-dialog";
 
 const title = "AI Power Grid - Art Gallery";
 const description =
@@ -61,6 +63,8 @@ export default async function RootLayout({
               {children}
             </ErrorBoundary>
           </div>
+          <AppToaster />
+          <ConfirmDialogHost />
         </Providers>
       </body>
     </html>
