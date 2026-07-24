@@ -28,8 +28,8 @@ export function Header() {
 
   const navItems = [
     { href: "/", label: "Gallery", active: isActive("/") },
-    { href: "/create", label: "Studio", active: isActive("/create") },
-    { href: "/audio", label: "Music", active: isActive("/audio") },
+    { href: "/create", label: "Studio", active: pathname === "/create" },
+    { href: "/create/director", label: "Director", active: isActive("/create/director") },
     ...(authMethod === 'google' ? [] : [
       { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
     ]),

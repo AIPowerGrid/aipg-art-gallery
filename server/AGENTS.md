@@ -3,7 +3,7 @@
 ## Purpose
 
 The backend (chi router, Go ≥1.24). The only component that talks to the grid, the on-chain
-vaults, Cloudflare R2, and Postgres. Brokers image, video, 3D, and audio generation jobs,
+vaults, Cloudflare R2, and Postgres. Brokers image, video, and 3D generation jobs,
 serves the gallery + media, validates auth sessions, runs Google One Tap sign-in, and proxies prompt enhancement.
 Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app/app.go`.
 
@@ -41,11 +41,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - Private gallery reads use protected `/gallery/me`; the legacy wallet path is owner-checked.
   Never expose unpublished prompts or media through an unauthenticated wallet lookup.
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
-  steps, dimensions, prompt length); audio independently caps body size, duration,
-  inference steps, prompt/lyrics length, and seed. `allowedOrigins()` fails closed — never returns `*`;
+  steps, dimensions, prompt length). `allowedOrigins()` fails closed — never returns `*`;
   production MUST set `GALLERY_ALLOWED_ORIGINS`.
 - **Grid passthrough:** generation goes through `internal/aipg` to the grid **`/v1`**
-  (`POST /v1/images|videos|audio/generations`, synchronous; the legacy horde `/api/v2` is RETIRED —
+  (`POST /v1/images|videos|3d/generations`, synchronous; the legacy horde `/api/v2` is RETIRED —
   410 Gone). `internal/app/pendingstore.go` bridges the gallery's async `POST /api/jobs`
   and poll contract onto the synchronous grid call. The server holds the grid key, the
     client never does. Config paths are CWD-relative (`config/styles.json`,
@@ -57,9 +56,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   `inference.submit`, `identity.exchange`, and `identity.assert`; it is bounded
   by Core service spending ceilings. Public 3D is explicitly service-owned.
   Pending job status is owner-bound.
-- Audio uses Core's fixed governed model name and a 33-minute client deadline.
-  Pending state must outlive that deadline; do not reduce its TTL below the
-  audio ceiling.
+- Standalone music belongs to `aipg.music`; this service intentionally exposes
+  no ACE-Step or `/api/audio/jobs` surface. Director timeline audio remains
+  embedded in video requests.
 - Image/video generation uses the shared `aipg.MediaGenerationTimeout`
   deadline, currently 11 minutes so it remains beyond Core's 10-minute video
   ceiling. Keep the detached job context and HTTP client on that same constant.

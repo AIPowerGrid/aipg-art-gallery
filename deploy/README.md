@@ -50,7 +50,8 @@ npm run build
 ln -sfn "$release" /opt/aipg-gallery-current
 install -m 0644 deploy/systemd/*.service /etc/systemd/system/
 install -m 0644 deploy/nginx/aipg-gallery.conf /etc/nginx/sites-available/aipg-gallery
-ln -sfn /etc/nginx/sites-available/aipg-gallery /etc/nginx/sites-enabled/default
+rm -f /etc/nginx/sites-enabled/default
+ln -sfn /etc/nginx/sites-available/aipg-gallery /etc/nginx/sites-enabled/aipg-gallery
 systemctl daemon-reload
 nginx -t
 systemctl restart aipg-gallery aipg-gallery-web

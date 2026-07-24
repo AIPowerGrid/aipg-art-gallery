@@ -125,14 +125,6 @@ export interface CreateJobRequest {
   }>;
 }
 
-export interface CreateAudioJobRequest {
-  prompt: string;
-  lyrics?: string;
-  seconds: number;
-  inferenceSteps?: number;
-  seed?: number;
-}
-
 /** One curated style from GET /api/styles/grid (grid-served creative presets). */
 export interface GridStyle {
   id: string;

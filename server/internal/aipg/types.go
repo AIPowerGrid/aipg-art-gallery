@@ -76,19 +76,6 @@ type GenerateRequest struct {
 	ProgressToken  string  `json:"progress_token,omitempty"` // poll live % at GET /v1/progress/{token}
 }
 
-// AudioRequest is the strict body accepted by Core's governed ACE-Step route.
-// Keep it separate from GenerateRequest: the audio API names its quality knob
-// inference_steps and rejects image/video fields.
-type AudioRequest struct {
-	Prompt         string  `json:"prompt"`
-	Lyrics         string  `json:"lyrics,omitempty"`
-	Model          string  `json:"model"`
-	Seconds        float64 `json:"seconds"`
-	InferenceSteps int     `json:"inference_steps"`
-	Seed           *int64  `json:"seed,omitempty"`
-	ProgressToken  string  `json:"progress_token,omitempty"`
-}
-
 // Style is one entry from the grid's GET /v1/styles registry.
 type Style struct {
 	ID          string   `json:"id"`
@@ -100,7 +87,7 @@ type Style struct {
 	Locked      []string `json:"locked"`
 }
 
-// GenerateResponse is the OpenAI-style envelope returned by both endpoints.
+// GenerateResponse is the OpenAI-style media generation envelope.
 type GenerateResponse struct {
 	Created int64           `json:"created"`
 	Data    []GeneratedItem `json:"data"`

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
-import Link from "next/link";
 import { PromptForm, StudioRail, CreationsGrid } from "@/components/create";
 import type { LoraSpec, StudioTab } from "@/components/create";
 import { useStylesConfig, getDefaultModel, getDimension } from "@/lib/hooks/use-styles-config";
@@ -181,37 +180,6 @@ function CreatePageContent() {
             )}
           </div>
         )}
-
-        {/* Director launch: the video timeline tool is a full-screen console on
-            its own route (merged Storyboard + Director). */}
-        <Link
-          href="/create/director"
-          className="group mb-6 flex items-center gap-5 overflow-hidden rounded-2xl border border-zinc-800 bg-gradient-to-r from-zinc-900/90 via-zinc-900/40 to-zinc-900/90 px-5 py-3 transition-colors hover:border-amber-500/40"
-        >
-          {/* mini timeline illustration */}
-          <div className="flex flex-shrink-0 items-center" aria-hidden>
-            <span className="h-7 w-11 rounded-md border border-amber-500/40 bg-gradient-to-br from-amber-500/50 to-amber-900/30 transition-transform group-hover:-translate-y-[1px]" />
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" className="mx-[3px] h-3 w-3 text-amber-500/70">
-              <path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-            <span className="h-7 w-8 rounded-md border border-zinc-600/50 bg-zinc-700/50 transition-transform delay-75 group-hover:-translate-y-[1px]" />
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" className="mx-[3px] h-3 w-3 text-zinc-600">
-              <path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M15 7h2a5 5 0 1 1 0 10h-2" /><line x1="8" y1="12" x2="16" y2="12" />
-            </svg>
-            <span className="h-7 w-12 rounded-md border border-zinc-700/50 bg-zinc-800/60 transition-transform delay-150 group-hover:-translate-y-[1px]" />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <span className="text-sm font-semibold text-zinc-100">Director</span>
-            <span className="ml-2.5 hidden text-xs text-zinc-500 transition-colors group-hover:text-zinc-400 sm:inline">
-              Chain image-driven segments into one continuous video
-            </span>
-          </div>
-
-          <span className="flex-shrink-0 text-sm text-amber-400/70 transition-all group-hover:translate-x-0.5 group-hover:text-amber-300">
-            Open →
-          </span>
-        </Link>
 
         {/* Workspace: prompt + creations in the main column, the vertical control
             rail alongside. The rail keeps every knob one persistent Basic/Advanced

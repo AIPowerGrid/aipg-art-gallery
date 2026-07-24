@@ -13,7 +13,7 @@ contracts, workflows, I/O, permissions, or the Child DOX Index. Remove stale tex
 ## Purpose
 
 The creative frontend for the AI Power Grid: distributed GPU workers generate images,
-video, 3D, and ACE-Step music; the Director provides a browser-side timeline for chained
+video, and 3D; the Director provides a browser-side timeline for chained
 image-conditioned video segments. Image/video results can land in the public gallery. No
 account is required to browse. Google or wallet sign-in unlocks credit-backed generation,
 personal creations, publishing, and favorites. Two
@@ -46,6 +46,10 @@ jobs to the grid and serves gallery/media.
   creds. All of that lives in `server/`. The frontend talks only to the Go API
   (`NEXT_PUBLIC_GALLERY_API`, default `http://localhost:4000/api`).
 - **Two ports:** frontend on 3000 (`npm run dev`), API on 4000 (`cd server && go run ./cmd/api`).
+- **Product boundary:** `aipg.art` owns Gallery, Studio, and Director. Standalone
+  music generation belongs to `aipg.music`; do not add an audio/music route or
+  ACE-Step API surface back to this repo. Director may still use audio as part
+  of a video timeline.
 - **Auth:** Google or SIWE yields an HS256 JWT in an httpOnly cookie. A proved
   wallet can be linked to Google through Core's proof-of-both merge path.
 - **Grid identity:** `AIPG_API_KEY` is the server-only bounded `aipg-art`

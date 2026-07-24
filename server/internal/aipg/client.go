@@ -16,7 +16,6 @@ type Client struct {
 	baseURL     string
 	httpClient  *http.Client
 	mediaClient *http.Client
-	audioClient *http.Client
 	clientAgent string
 }
 
@@ -36,11 +35,6 @@ func NewClient(baseURL, clientAgent string) *Client {
 		// client stays just beyond Core's video ceiling.
 		mediaClient: &http.Client{
 			Timeout: MediaGenerationTimeout,
-		},
-		// Core permits long ACE-Step jobs while a cold runtime downloads or loads
-		// models. Stay just beyond Core's 32-minute request ceiling.
-		audioClient: &http.Client{
-			Timeout: 33 * time.Minute,
 		},
 	}
 }
@@ -227,50 +221,6 @@ func (c *Client) GenerateMedia(ctx context.Context, kind string, request Generat
 	var parsed GenerateResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
 		return nil, err
-	}
-	return &parsed, nil
-}
-
-// GenerateAudio calls Core's governed ACE-Step endpoint. The service key stays
-// server-side while userToken attributes authorization, quota, and credits to
-// the authenticated Gallery account.
-func (c *Client) GenerateAudio(ctx context.Context, request AudioRequest, apiKey, userToken, clientHeader string) (*GenerateResponse, error) {
-	payload, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-
-	log.Printf("Grid /v1 audio: model=%s, seconds=%.0f, steps=%d, lyrics_len=%d, prompt_len=%d",
-		request.Model, request.Seconds, request.InferenceSteps, len(request.Lyrics), len(request.Prompt))
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/audio/generations", bytes.NewReader(payload))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Client-Agent", clientHeader)
-	if apiKey != "" {
-		req.Header.Set("apikey", apiKey)
-	}
-	if userToken != "" {
-		req.Header.Set("X-Grid-User-Token", userToken)
-	}
-
-	resp, err := c.audioClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("grid audio generation failed (%d): %s", resp.StatusCode, body)
-	}
-
-	var parsed GenerateResponse
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, err
-	}
-	if len(parsed.Data) != 1 || parsed.Data[0].URL == "" {
-		return nil, errors.New("grid audio generation returned no playable output")
 	}
 	return &parsed, nil
 }

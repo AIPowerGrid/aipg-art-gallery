@@ -1,6 +1,5 @@
 import { StylesConfig } from "@/lib/types/create";
 import {
-  CreateAudioJobRequest,
   CreateJobRequest,
   GalleryModel,
   GridStyle,
@@ -48,14 +47,6 @@ export function fetchModels(): Promise<ModelsResponse> {
 
 export function createJob(payload: CreateJobRequest) {
   return jsonFetch<{ jobId: string; status: string }>("/jobs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
-export function createAudioJob(payload: CreateAudioJobRequest) {
-  return jsonFetch<{ jobId: string; status: string }>("/audio/jobs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

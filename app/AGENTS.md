@@ -7,7 +7,7 @@ route handlers for things that must not run in the browser — including wallet 
 
 ## Ownership
 
-- Pages: `page.tsx` (home), `create/`, `audio/`, `3d/`, `gallery/`, `favorites/`,
+- Pages: `page.tsx` (home), `create/` (Studio + Director), `3d/`, `gallery/`, `favorites/`,
   `profile/`, `join/`, `auth/login/`. `layout.tsx` + `globals.css` — shell + global styles.
 - Wallet-auth route handlers (server-side), the LIVE wallet sign-in path:
   - `auth-api/nonce/route.ts` — issues a one-time nonce (`lib/nonce-store`).
@@ -29,10 +29,8 @@ route handlers for things that must not run in the browser — including wallet 
   page. Auth state comes from `lib/` stores/hooks.
 - Generation requires Google or wallet authentication and displays Core's
   promotional, daily, and purchased credit pockets. No local free counter.
-- `/audio` submits bounded ACE-Step jobs through `lib/api.ts`, polls the same
-  owner-bound job status route as image/video, and stores only recent public
-  output URLs plus display metadata on the user's device. Lyrics are not saved
-  in browser history.
+- Standalone music is intentionally absent from `aipg.art`; it belongs to
+  `aipg.music`. Do not restore an `/audio` page here.
 - `/create/director` is the authenticated timeline editor for chained image-conditioned
   video segments. It uses the same owner-bound job API and Core credit enforcement as the
   standard create page; browser project/audio persistence is local convenience, not authority.

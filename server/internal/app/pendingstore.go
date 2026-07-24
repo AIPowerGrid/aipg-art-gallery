@@ -26,7 +26,7 @@ type pendingStore struct {
 
 type pendingJob struct {
 	Status    string // "processing" | "completed" | "faulted"
-	Kind      string // "image" | "video" | "audio"
+	Kind      string // "image" | "video" | "3d"
 	Prompt    string
 	Owner     string
 	Err       string
