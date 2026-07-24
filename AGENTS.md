@@ -29,6 +29,7 @@ jobs to the grid and serves gallery/media.
   blockchain vaults, R2, and Postgres. Owned in its own AGENTS.md.
 - **`scripts/`** — one-off Node/Python ops + data-import + Supabase-setup scripts. Owned in
   its own AGENTS.md.
+- **`deploy/`** — pinned-release LXC deployment assets and runbook.
 - **`tests/e2e/`** — production-build browser coverage. Owned in `tests/AGENTS.md`.
 - **`supabase/schema.sql`**, **`config/styles.json`**, **`data/gallery.json`** — DB schema,
   prompt-style presets, seed/file-store gallery data.
@@ -52,9 +53,11 @@ jobs to the grid and serves gallery/media.
   Gallery-local subject. Authenticated generation carries the resulting
   short-lived `X-Grid-User-Token`; Core owns credits. Public 3D jobs are
   explicitly service-owned and constrained by the service spending ceilings.
-- **Models are blockchain-sourced:** the live model list comes from the on-chain ModelVault
-  (merged with local presets for defaults/limits), not a hardcoded list. RecipeVault supplies
-  workflow recipes. Do not hardcode a model catalog in the frontend.
+- **Model authority is layered:** Core `/v1/status/models` is the operational
+  source for online capacity, including recipe-backed public aliases. Local
+  presets shape UX defaults and limits. ModelVault enriches governance metadata.
+  RecipeVault is opt-in until its checkpoint names are migrated to those public
+  aliases; never filter public model IDs against raw workflow filenames.
 - **Images:** generated media lives in Cloudflare R2 / `images.aipg.art`; the frontend only
   loads from allowed hosts in `next.config.mjs` — add a host there before referencing it.
 - Secrets come from `.env` (copy `.env.example`). Never commit creds; `POSTGRES_CONN_STR` has
@@ -111,3 +114,4 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 - [lib/AGENTS.md](lib/AGENTS.md) — frontend client logic: API client, web3, stores, hooks.
 - [scripts/AGENTS.md](scripts/AGENTS.md) — ops, data-import, and Supabase-setup scripts.
 - [tests/AGENTS.md](tests/AGENTS.md) — production-build Playwright route tests.
+- [deploy/AGENTS.md](deploy/AGENTS.md) — production LXC deployment contract.

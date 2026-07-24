@@ -1,0 +1,18 @@
+[Unit]
+Description=AIPG Art Gallery backend (Go)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/aipg-gallery-current
+EnvironmentFile=/opt/aipg-gallery/gallery.env
+ExecStart=/opt/aipg-gallery-current/gallery-server
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

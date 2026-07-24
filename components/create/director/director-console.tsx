@@ -294,17 +294,21 @@ export function DirectorConsole({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#0a0a0c] font-sans text-[14px] text-[#e9e9ec]">
+    <div
+      data-testid="director-console"
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#0a0a0c] font-sans text-[14px] text-[#e9e9ec]"
+    >
       {/* ===== top bar ===== */}
-      <div className="flex flex-shrink-0 items-center justify-between gap-4 border-b border-[#242429] px-5 py-3">
-        <div className="flex flex-shrink-0 items-center gap-3">
+      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-[#242429] px-3 py-2 sm:gap-4 sm:px-5 sm:py-3 max-sm:flex-wrap">
+        <div className="flex min-w-0 flex-shrink-0 items-center gap-2 sm:gap-3 max-sm:w-full">
           <button
             type="button"
             onClick={() => router.push("/create")}
             title="Back to Studio"
             className="flex items-center gap-1 rounded-lg border border-[#313138] bg-[#17171b] py-[6px] pl-1.5 pr-2.5 text-[12px] text-[#8f8f99] hover:text-[#e9e9ec]"
           >
-            <IconChevronLeft className="h-[13px] w-[13px]" /> Studio
+            <IconChevronLeft className="h-[13px] w-[13px]" />
+            <span className="max-sm:hidden">Studio</span>
           </button>
           <h1 className="text-[16px] font-semibold">Director</h1>
 
@@ -316,7 +320,7 @@ export function DirectorConsole({
                 saveActiveProject();
                 setProjectMenuOpen((v) => !v);
               }}
-              className="flex items-center gap-1.5 rounded-lg border border-[#242429] bg-[#121215] px-2.5 py-[6px] text-[12px] text-[#8f8f99] hover:text-[#e9e9ec]"
+              className="flex max-w-[150px] items-center gap-1.5 rounded-lg border border-[#242429] bg-[#121215] px-2.5 py-[6px] text-[12px] text-[#8f8f99] hover:text-[#e9e9ec] sm:max-w-none"
             >
               <span className="max-w-[160px] truncate text-[#e9e9ec]">{activeProjectName}</span>
               <IconChevronDown className="h-[12px] w-[12px]" />
@@ -325,7 +329,7 @@ export function DirectorConsole({
             {projectMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setProjectMenuOpen(false)} />
-                <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-[280px] rounded-lg border border-[#313138] bg-[#17171b] p-1.5 shadow-xl">
+                <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-[280px] max-w-[calc(100vw-24px)] rounded-lg border border-[#313138] bg-[#17171b] p-1.5 shadow-xl">
                   <input
                     value={activeProjectName}
                     onChange={(e) => renameActiveProject(e.target.value)}
@@ -388,9 +392,9 @@ export function DirectorConsole({
           </div>
         </div>
 
-        <div className="min-w-0 flex-1" />
+        <div className="min-w-0 flex-1 max-sm:hidden" />
 
-        <div className="flex flex-shrink-0 items-center gap-2">
+        <div className="flex min-w-0 flex-shrink-0 items-center gap-2 max-sm:w-full max-sm:justify-end">
           <button
             type="button"
             onClick={() =>
@@ -401,7 +405,7 @@ export function DirectorConsole({
                 ? "Try the rows layout: controls on top, preview middle, timeline bottom"
                 : "Back to the console layout: big stage with a right rail"
             }
-            className="flex h-[27px] w-[30px] items-center justify-center rounded-md border border-[#242429] text-[#8f8f99] hover:border-[#4a4a53] hover:text-[#e9e9ec]"
+            className="flex h-[27px] w-[30px] items-center justify-center rounded-md border border-[#242429] text-[#8f8f99] hover:border-[#4a4a53] hover:text-[#e9e9ec] max-sm:hidden"
           >
             {(panels.layout ?? "console") === "console" ? (
               <IconLayoutRows className="h-[14px] w-[14px]" />
@@ -409,7 +413,7 @@ export function DirectorConsole({
               <IconLayoutConsole className="h-[14px] w-[14px]" />
             )}
           </button>
-          <span className="rounded-md border border-[#242429] px-2.5 py-1 text-[11.5px] text-[#8f8f99]">
+          <span className="rounded-md border border-[#242429] px-2.5 py-1 text-[11.5px] text-[#8f8f99] max-sm:hidden">
             Total <b className="tabular-nums text-[#e9e9ec]">{totalSec.toFixed(1)}s</b>
           </span>
           <span className="rounded-md border border-[#242429] px-2.5 py-1 text-[11.5px] text-[#8f8f99]">
@@ -554,7 +558,7 @@ export function DirectorConsole({
               {/* top controls band — ALL SEGMENTS (global) first, then the
                   selected segment; each column scrolls on its own */}
               <div
-                className="flex min-h-0 flex-shrink-0 gap-3 px-4 pt-3"
+                className="flex min-h-0 flex-shrink-0 gap-3 px-4 pt-3 max-sm:!h-auto max-sm:flex-col"
                 style={{ height: panels.controlsHeight ?? 280 }}
               >
                 <div className="min-w-0 flex-1 overflow-y-auto pb-1">{settingsEl}</div>
@@ -570,7 +574,7 @@ export function DirectorConsole({
               </div>
 
               {/* middle preview */}
-              <div className="flex min-h-0 flex-1">
+              <div className="flex min-h-0 flex-1 max-sm:min-h-[280px] max-sm:flex-none">
                 <PreviewStage segments={segments} onPlayhead={setPlayheadSec} seekRequest={seekRequest} />
               </div>
 
@@ -588,9 +592,9 @@ export function DirectorConsole({
         // the left column stacks preview + timeline, so the rail runs
         // top-to-bottom beside BOTH (no scrolling needed for controls). =====
         return (
-          <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1 max-sm:flex-col max-sm:overflow-y-auto">
             {/* left column: preview over timeline */}
-            <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col max-sm:min-h-[510px] max-sm:flex-none">
               <PreviewStage segments={segments} onPlayhead={setPlayheadSec} seekRequest={seekRequest} />
 
               {timelineDivider}
@@ -603,14 +607,15 @@ export function DirectorConsole({
             {/* vertical divider (full height) */}
             <div
               onPointerDown={(e) => dragDivider(e, "rail")}
-              className="group flex w-[7px] flex-shrink-0 cursor-col-resize items-center justify-center"
+              className="group flex w-[7px] flex-shrink-0 cursor-col-resize items-center justify-center max-sm:hidden"
             >
               <div className="h-full w-px bg-[#242429] transition-colors group-hover:w-[3px] group-hover:bg-[#f5b544]/50" />
             </div>
 
             {/* right rail — spans down beside the timeline too */}
             <div
-              className="flex flex-shrink-0 flex-col gap-3 overflow-y-auto py-4 pr-4"
+              data-testid="director-rail"
+              className="flex flex-shrink-0 flex-col gap-3 overflow-y-auto py-4 pr-4 max-sm:!w-full max-sm:overflow-visible max-sm:px-3"
               style={{ width: panels.railWidth }}
             >
               {inspectorEl}

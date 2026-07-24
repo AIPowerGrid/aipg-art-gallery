@@ -78,8 +78,9 @@ func Load() Config {
 		ModelVaultRPCURL:          getEnv("MODELVAULT_RPC_URL", "https://mainnet.base.org"),
 		ModelVaultContractAddress: getEnv("MODELVAULT_CONTRACT", "0x79F39f2a0eA476f53994812e6a8f3C8CFe08c609"),
 
-		// RecipeVault blockchain configuration (enabled by default, uses same contract as ModelVault - diamond proxy)
-		RecipeVaultEnabled:         getEnv("RECIPESVAULT_ENABLED", "true") == "true",
+		// RecipeVault is opt-in until its checkpoint names are migrated to the
+		// canonical public model aliases returned by Core.
+		RecipeVaultEnabled:         getEnv("RECIPESVAULT_ENABLED", "false") == "true",
 		RecipeVaultRPCURL:          getEnv("RECIPESVAULT_RPC_URL", getEnv("MODELVAULT_RPC_URL", "https://mainnet.base.org")),
 		RecipeVaultContractAddress: getEnv("RECIPESVAULT_CONTRACT", getEnv("MODELVAULT_CONTRACT", "0x79F39f2a0eA476f53994812e6a8f3C8CFe08c609")),
 
@@ -97,10 +98,9 @@ func Load() Config {
 		PostgresEnabled: getEnv("POSTGRES_ENABLED", "true") == "true",
 		PostgresConnStr: os.Getenv("POSTGRES_CONN_STR"), // Required - no default for security
 
-		// AI Text Generation (prompt enhancement) — must be a text model the new
-		// grid serves on /v1/chat/completions. Override AI_MODEL to match what's
-		// actually online (see /v1/status/models).
-		AIModel: getEnv("AI_MODEL", "gpt-oss-20b"),
+		// Let Core select an online text model for prompt enhancement unless an
+		// operator deliberately pins one.
+		AIModel: getEnv("AI_MODEL", "auto"),
 
 		// Worker targeting
 		TargetWorkerID: os.Getenv("TARGET_WORKER_ID"),

@@ -1,0 +1,17 @@
+[Unit]
+Description=AIPG Art Gallery frontend (Next.js)
+After=network-online.target aipg-gallery.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/aipg-gallery-current
+EnvironmentFile=/opt/aipg-gallery/gallery.env
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/opt/aipg-gallery-current/node_modules/.bin/next start -p 3000 -H 127.0.0.1
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

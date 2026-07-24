@@ -26,6 +26,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   in its `internal/*` package. Env reads only in `internal/config`.
 - **Graceful degradation:** if ModelVault / RecipeVault / Postgres / R2 init fails, the app logs
   and continues with a fallback. Preserve this — a missing optional dependency must not crash.
+- Core `/v1/status/models` determines live capacity. Local presets provide UX
+  shape and ModelVault enriches metadata. RecipeVault filtering is disabled by
+  default until its raw checkpoint names are migrated to canonical public model
+  aliases.
 - **Auth:** wallet sign-in is NOT handled here — it lives in the Next `/auth-api/*` routes
   (viem/ERC-6492), which mint the JWT and set the httpOnly `aipg_auth` cookie. The Go server:
   (a) mints+sets the same cookie for Google One Tap (`/auth/google`); (b) validates the cookie
@@ -49,8 +53,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - Jobs, prompt enhancement, and credits require the session cookie. The server
   exchanges its namespaced local subject through a scoped service account and
   sends the resulting short-lived `X-Grid-User-Token`; request bodies never
-  supply a Grid key. Public 3D is explicitly service-owned and bounded by the
-  service account's Core spending ceilings. Pending job status is owner-bound.
+  supply a Grid key. The `aipg-art` key requires `account.read`,
+  `inference.submit`, `identity.exchange`, and `identity.assert`; it is bounded
+  by Core service spending ceilings. Public 3D is explicitly service-owned.
+  Pending job status is owner-bound.
 - Audio uses Core's fixed governed model name and a 33-minute client deadline.
   Pending state must outlive that deadline; do not reduce its TTL below the
   audio ceiling.

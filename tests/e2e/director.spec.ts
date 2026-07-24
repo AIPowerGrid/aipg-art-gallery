@@ -149,3 +149,33 @@ test("submits a Director segment through the authenticated job contract", async 
   expect(browserErrors, `browser errors:\n${browserErrors.join("\n")}`).toEqual([]);
   await page.screenshot({ path: "test-results/director-submitted.png", fullPage: true });
 });
+
+test("stacks the Director workspace inside a mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installDirectorMocks(page);
+
+  await page.goto("/create/director", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Director" })).toBeVisible();
+
+  const bounds = await page.evaluate(() => {
+    const root = document.querySelector('[data-testid="director-console"]');
+    const rail = document.querySelector('[data-testid="director-rail"]');
+    const rootRect = root?.getBoundingClientRect();
+    const railRect = rail?.getBoundingClientRect();
+    return {
+      viewportWidth: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      rootLeft: rootRect?.left,
+      rootRight: rootRect?.right,
+      railLeft: railRect?.left,
+      railRight: railRect?.right,
+    };
+  });
+
+  expect(bounds.documentWidth).toBeLessThanOrEqual(bounds.viewportWidth);
+  expect(bounds.rootLeft).toBeGreaterThanOrEqual(0);
+  expect(bounds.rootRight).toBeLessThanOrEqual(bounds.viewportWidth);
+  expect(bounds.railLeft).toBeGreaterThanOrEqual(0);
+  expect(bounds.railRight).toBeLessThanOrEqual(bounds.viewportWidth);
+  await page.screenshot({ path: "test-results/director-mobile.png", fullPage: true });
+});
