@@ -54,6 +54,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - Audio uses Core's fixed governed model name and a 33-minute client deadline.
   Pending state must outlive that deadline; do not reduce its TTL below the
   audio ceiling.
+- Image/video generation uses the shared `aipg.MediaGenerationTimeout`
+  deadline, currently 11 minutes so it remains beyond Core's 10-minute video
+  ceiling. Keep the detached job context and HTTP client on that same constant.
 - **Director timeline passthrough:** `CreateJobRequest.timelineData/localPrompts/segmentLengths/
   guideStrength` forward as `timeline/local_prompts/segment_lengths/guide_strength` on the grid
   request (the wire field is `timeline`, per the grid API guide). Validation: relay strings

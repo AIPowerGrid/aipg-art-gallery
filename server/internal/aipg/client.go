@@ -20,6 +20,10 @@ type Client struct {
 	clientAgent string
 }
 
+// MediaGenerationTimeout stays just beyond Core's 10-minute video ceiling so
+// the gallery does not abandon a job that Core still considers live.
+const MediaGenerationTimeout = 11 * time.Minute
+
 func NewClient(baseURL, clientAgent string) *Client {
 	return &Client{
 		baseURL:     baseURL,
@@ -29,9 +33,9 @@ func NewClient(baseURL, clientAgent string) *Client {
 		},
 		// Media generation on the new grid is synchronous — the POST blocks
 		// until the worker finishes. Video (LTX) can take minutes, so this
-		// client gets a much longer ceiling than the status/stats client.
+		// client stays just beyond Core's video ceiling.
 		mediaClient: &http.Client{
-			Timeout: 6 * time.Minute,
+			Timeout: MediaGenerationTimeout,
 		},
 		// Core permits long ACE-Step jobs while a cold runtime downloads or loads
 		// models. Stay just beyond Core's 32-minute request ceiling.

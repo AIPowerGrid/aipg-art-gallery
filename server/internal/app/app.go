@@ -1200,8 +1200,9 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	clientAgent := a.cfg.ClientAgent
 	go func() {
 		// Detached from the request: the HTTP handler has already returned.
-		// Bound only by the media client's own timeout.
-		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+		// Use the same ceiling as the media client so the two layers cannot
+		// disagree about whether a Core job is still live.
+		ctx, cancel := context.WithTimeout(context.Background(), aipg.MediaGenerationTimeout)
 		defer cancel()
 
 		resp, err := a.client.GenerateMedia(ctx, kind, gen, a.cfg.DefaultAPIKey, userToken, clientAgent)

@@ -11,7 +11,9 @@ package owns one concern; `app/app.go` wires them together.
 - `config/` — typed `Config` + `Load()`; the single home for `os.Getenv`.
 - `aipg/` — HTTP client for the new grid `/v1` (OpenAI-shaped). `GenerateMedia` is a
   single synchronous call to `/v1/images|videos/generations`; `GenerateAudio`
-  uses the strict governed `/v1/audio/generations` body and longer deadline; `FetchModelStats` reads
+  uses the strict governed `/v1/audio/generations` body and longer deadline.
+  `MediaGenerationTimeout` is the shared image/video client + detached-job
+  deadline and must stay beyond Core's video ceiling. `FetchModelStats` reads
   `/v1/status/models`. `types.go` holds the request/response shapes. The async POST
   /jobs + poll contract the frontend uses is bridged in `app/pendingstore.go`.
   `client.go` exchanges namespaced gallery subjects for short-lived Core user
