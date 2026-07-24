@@ -62,10 +62,13 @@ systemctl reload nginx
 
 ```bash
 systemctl is-active aipg-gallery aipg-gallery-web nginx
-curl -fsS http://127.0.0.1:4000/api/health
+curl -fsS http://127.0.0.1:4000/health
 curl -fsS http://127.0.0.1:3000/create/director >/dev/null
 curl -fsS https://aipg.art/api/models
 curl -fsS https://aipg.art/create/director >/dev/null
+test "$(curl -sS -o /dev/null -w '%{http_code}' https://aipg.art/audio)" = 404
+test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+  https://aipg.art/api/audio/jobs)" = 404
 ```
 
 Then run one authenticated Director canary. Confirm the result URL is readable,
