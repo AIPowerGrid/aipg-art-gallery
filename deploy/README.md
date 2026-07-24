@@ -41,7 +41,7 @@ cd "$release"
 npm ci
 npm run build
 (cd server && GOTOOLCHAIN=auto go test ./... && go vet ./...)
-GOTOOLCHAIN=auto go build -o gallery-server ./server/cmd/api
+(cd server && GOTOOLCHAIN=auto go build -o ../gallery-server ./cmd/api)
 ```
 
 ## Activate
