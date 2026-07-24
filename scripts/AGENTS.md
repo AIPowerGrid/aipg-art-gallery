@@ -10,7 +10,7 @@ and gallery maintenance. Run by hand, not part of the app runtime.
 - Supabase/DB setup: `setup-supabase*.{js,ts,py}`, `run-sql-schema*.js`, `execute-sql-*.js`,
   `open-setup.js`, `setup-with-browser.js`, `verify-setup.js`, `setup-complete.md`. Apply
   `supabase/schema.sql` (`npm run setup:supabase` → `setup-supabase.js`).
-- Data import / migration: `import-piwigo.js`, `import-tarball.js`, `batch-generate.js`.
+- Data import / migration: `import-piwigo.js`, `import-tarball.js`.
 - Maintenance: `shuffle-gallery.{js,sh}`, `fix-dimensions.js`, `update-model-name.js`,
   `verify-model-update.js`.
 
@@ -19,6 +19,8 @@ and gallery maintenance. Run by hand, not part of the app runtime.
 - These are throwaway/admin scripts, not the source of truth: schema lives in
   `supabase/schema.sql`, runtime persistence is the Go `server/internal/gallery` store. Keep
   scripts consistent with those, not the reverse.
+- Generation automation must use the authenticated Gallery/Core account flow.
+  Do not restore the retired unauthenticated submit-and-poll batch generator.
 - Read creds from env/`.env`; never hardcode keys or connection strings — not even as a
   `process.env.X || "literal"` fallback (that literal is a committed secret).
 - Shell out with argv arrays (`execFileSync(cmd, [args])`), never interpolated command strings

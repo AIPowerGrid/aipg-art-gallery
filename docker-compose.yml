@@ -10,7 +10,7 @@ services:
       - .env
     environment:
       - GALLERY_SERVER_ADDR=:4000
-      - AIPG_API_URL=${AIPG_API_URL:-https://api.aipowergrid.io/api/v2}
+      - AIPG_API_URL=${AIPG_API_URL:-https://api.aipowergrid.io/v1}
       - AIPG_API_KEY=${AIPG_API_KEY:-}
       - AIPG_CLIENT_AGENT=${AIPG_CLIENT_AGENT:-AIPG-Art-Gallery:v2}
       - MODEL_PRESETS_PATH=/app/config/model_presets.json
@@ -56,4 +56,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-
