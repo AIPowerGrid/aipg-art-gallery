@@ -71,6 +71,7 @@ interface ConsoleTimelineProps {
   /** Update one audio track (clip crops, moves, splits, removals). */
   onAudioChange: (trackId: string, patch: Partial<DirectorAudio>) => void;
   onSeek: (sec: number) => void;
+  coachStep?: "add-segment" | "select-segment" | null;
 }
 
 /** Live drag state for an audio clip (move or edge trim). */
@@ -101,6 +102,7 @@ export function ConsoleTimeline({
   onRemoveAudio,
   onAudioChange,
   onSeek,
+  coachStep = null,
 }: ConsoleTimelineProps) {
   const [preview, setPreview] = useState<{ id: string; frames: number } | null>(null);
   const [audioDrag, setAudioDrag] = useState<AudioDrag | null>(null);
@@ -400,9 +402,16 @@ export function ConsoleTimeline({
                 <button
                   type="button"
                   onClick={onAddSegment}
-                  className="absolute inset-0 flex items-center justify-center text-[12px] text-[#5a5a64] hover:text-[#8f8f99]"
+                  aria-describedby={coachStep === "add-segment" ? "director-coach-add-segment" : undefined}
+                  className={`absolute inset-0 flex items-center justify-center text-[12px] hover:text-[#e9e9ec] ${
+                    coachStep === "add-segment"
+                      ? "border border-[#f5b544]/65 bg-[#f5b544]/5 text-[#f5b544] motion-safe:animate-pulse"
+                      : "text-[#5a5a64]"
+                  }`}
                 >
-                  + Add your first segment
+                  <span id="director-coach-add-segment">
+                    {coachStep === "add-segment" ? "Start here: add your first segment" : "+ Add your first segment"}
+                  </span>
                 </button>
               )}
 
@@ -410,6 +419,7 @@ export function ConsoleTimeline({
                 const left = framesToSeconds(offsets[i]) * pxPerSec;
                 const width = framesToSeconds(seg.lengthFrames) * pxPerSec;
                 const selected = seg.id === selectedId;
+                const coachSelect = coachStep === "select-segment" && i === 0;
                 const dragging = segDrag?.id === seg.id;
                 const thumb = seg.startImage || seg.lastFrame;
                 return (
@@ -421,8 +431,21 @@ export function ConsoleTimeline({
                         onSplitSegment(seg.id, (e.clientX - rect.left) / rect.width);
                       }}
                       title="Drag to reorder · double-click to split"
+                      aria-label={`Select segment ${i + 1}`}
+                      aria-describedby={coachSelect ? "director-coach-select-segment" : undefined}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelect(seg.id);
+                        }
+                      }}
                       className={`group/seg absolute bottom-[5px] top-[5px] flex cursor-grab select-none items-end rounded-lg border bg-cover bg-center active:cursor-grabbing ${
-                        selected ? "z-[15] border-[#f5b544] shadow-[0_0_0_1px_#f5b544]" : "overflow-hidden border-[#313138] hover:border-[#4a4a53]"
+                        selected
+                          ? "z-[15] border-[#f5b544] shadow-[0_0_0_1px_#f5b544]"
+                          : coachSelect
+                            ? "z-[15] border-[#f5b544] shadow-[0_0_0_2px_rgba(245,181,68,0.7)] motion-safe:animate-pulse"
+                            : "overflow-hidden border-[#313138] hover:border-[#4a4a53]"
                       } ${dragging ? "opacity-60" : ""}`}
                       style={{
                         left,
@@ -435,6 +458,14 @@ export function ConsoleTimeline({
                         <i className={`h-[6px] w-[6px] rounded-full ${STATUS_DOT[seg.status]}`} />
                         {seg.chained && <ChainIcon className="h-[9px] w-[9px] text-[#f5b544]" />}
                       </span>
+                      {coachSelect && (
+                        <span
+                          id="director-coach-select-segment"
+                          className="pointer-events-none absolute inset-x-1 bottom-1 z-20 rounded bg-[#1b160c]/95 px-1.5 py-1 text-center text-[9.5px] font-semibold leading-3 text-[#f5b544]"
+                        >
+                          Click segment 1
+                        </span>
+                      )}
 
                       {/* inline actions (duplicate / delete) */}
                       <span className="absolute right-[4px] top-[3px] flex items-center gap-[3px] opacity-0 transition-opacity group-hover/seg:opacity-100">

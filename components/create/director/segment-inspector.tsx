@@ -15,7 +15,10 @@ import {
   secondsToFrames,
 } from "@/lib/types/director";
 import { ChainIcon } from "./chain-icon";
+import { CoachTip } from "./coach-tip";
 import { IconChevronLeft, IconChevronRight, IconDownload } from "./icons";
+
+export type SegmentCoachStep = "upload-image" | "prompt" | "render" | null;
 
 interface SegmentInspectorProps {
   segment: DirectorSegment;
@@ -30,6 +33,7 @@ interface SegmentInspectorProps {
   onRemove: () => void;
   onMove: (delta: -1 | 1) => void;
   onDownload?: () => void;
+  coachStep?: SegmentCoachStep;
 }
 
 const STATUS_LABEL: Record<DirectorSegment["status"], { text: string; cls: string }> = {
@@ -53,6 +57,7 @@ export function SegmentInspector({
   onRemove,
   onMove,
   onDownload,
+  coachStep = null,
 }: SegmentInspectorProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const seconds = framesToSeconds(segment.lengthFrames);
@@ -93,6 +98,11 @@ export function SegmentInspector({
       </h3>
 
       {/* thumbnail + meta */}
+      {coachStep === "upload-image" && (
+        <CoachTip id="director-coach-upload" label="Required">
+          Upload the first frame for this segment.
+        </CoachTip>
+      )}
       <div className="mb-3 flex gap-3">
         <div
           className="relative aspect-[3/2] w-[104px] flex-shrink-0 rounded-lg border border-[#313138] bg-cover bg-center"
@@ -130,7 +140,12 @@ export function SegmentInspector({
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="rounded-md border border-[#f5b544]/50 bg-[#f5b544]/10 px-2 py-[3px] text-[11px] text-[#f5b544] hover:bg-[#f5b544]/20"
+                  aria-describedby={coachStep === "upload-image" ? "director-coach-upload" : undefined}
+                  className={`rounded-md border border-[#f5b544]/50 bg-[#f5b544]/10 px-2 py-[3px] text-[11px] text-[#f5b544] hover:bg-[#f5b544]/20 ${
+                    coachStep === "upload-image"
+                      ? "ring-2 ring-[#f5b544]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
+                      : ""
+                  }`}
                 >
                   {segment.startImage ? "Replace" : "Upload"}
                 </button>
@@ -161,6 +176,11 @@ export function SegmentInspector({
       </div>
 
       <div className="mb-3">
+        {coachStep === "prompt" && (
+          <CoachTip id="director-coach-prompt" label="Required">
+            Describe what should happen during this segment.
+          </CoachTip>
+        )}
         <label
           htmlFor={`segment-prompt-${segment.id}`}
           className="mb-1 block text-[11px] text-[#8f8f99]"
@@ -172,7 +192,12 @@ export function SegmentInspector({
           rows={3}
           value={segment.prompt}
           onChange={(e) => onUpdate({ prompt: e.target.value })}
-          className="w-full resize-y rounded-md border border-[#242429] bg-[#17171b] px-2.5 py-2 text-[12.5px] text-[#e9e9ec] outline-none focus:border-[#4a4a53]"
+          aria-describedby={coachStep === "prompt" ? "director-coach-prompt" : undefined}
+          className={`w-full resize-y rounded-md border bg-[#17171b] px-2.5 py-2 text-[12.5px] text-[#e9e9ec] outline-none focus:border-[#4a4a53] ${
+            coachStep === "prompt"
+              ? "border-[#f5b544]/70 ring-2 ring-[#f5b544]/45 ring-offset-2 ring-offset-[#121215]"
+              : "border-[#242429]"
+          }`}
         />
         <label
           htmlFor={`segment-negative-${segment.id}`}
@@ -258,12 +283,22 @@ export function SegmentInspector({
         <p className="mb-2 text-[11px] text-[#5a5a64]">This segment {blockers.join("; ")}.</p>
       )}
 
+      {coachStep === "render" && (
+        <CoachTip id="director-coach-render" label="Ready">
+          Render this segment. Sign-in will open here if needed.
+        </CoachTip>
+      )}
       <div className="flex flex-wrap items-center gap-[7px]">
         <button
           type="button"
           onClick={onRender}
           disabled={blockers.length > 0 || segment.status === "queued" || segment.status === "rendering"}
-          className="rounded-lg bg-[#f5b544] px-3 py-[5px] text-[11.5px] font-semibold text-[#141414] disabled:opacity-40"
+          aria-describedby={coachStep === "render" ? "director-coach-render" : undefined}
+          className={`rounded-lg bg-[#f5b544] px-3 py-[5px] text-[11.5px] font-semibold text-[#141414] disabled:opacity-40 ${
+            coachStep === "render"
+              ? "ring-2 ring-[#f5b544]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
+              : ""
+          }`}
         >
           {segment.status === "done" ? "Re-render" : "Render segment"}
         </button>

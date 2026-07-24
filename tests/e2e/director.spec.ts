@@ -41,7 +41,10 @@ async function installDirectorMocks(page: Page) {
     localStorage.setItem("aipg_google_name", "Director Preview");
     localStorage.setItem("aipg_google_picture", "");
     localStorage.setItem("aipg_google_expiry", String(Date.now() + 3_600_000));
-    localStorage.removeItem("aipg-director-store");
+    if (!sessionStorage.getItem("director-e2e-initialized")) {
+      localStorage.removeItem("aipg-director-store");
+      sessionStorage.setItem("director-e2e-initialized", "1");
+    }
   });
 
   await page.route("**/api-preview/**", async (route) => {
@@ -132,10 +135,7 @@ test("submits a Director segment through the authenticated job contract", async 
   await expect(page.getByRole("button", { name: "Sign in" })).toHaveCount(0);
   await page.getByRole("button", { name: "Add your first segment" }).click();
 
-  const onePixelPng = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nK0AAAAASUVORK5CYII=",
-    "base64",
-  );
+  const onePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nK0AAAAASUVORK5CYII=", "base64");
   await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
     name: "keyframe.png",
     mimeType: "image/png",
@@ -147,7 +147,40 @@ test("submits a Director segment through the authenticated job contract", async 
   await expect(page.getByText("1 / 1 rendered")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Stop queue" })).toHaveCount(0);
   expect(browserErrors, `browser errors:\n${browserErrors.join("\n")}`).toEqual([]);
-  await page.screenshot({ path: "test-results/director-submitted.png", fullPage: true });
+  await page.screenshot({
+    path: "test-results/director-submitted.png",
+    fullPage: true,
+  });
+});
+
+test("guides a first-time Director through each required setup step", async ({ page }) => {
+  await installDirectorMocks(page);
+
+  await page.goto("/create/director", { waitUntil: "networkidle" });
+  await expect(page.getByText("Start here: add your first segment")).toBeVisible();
+  await page.getByRole("button", { name: "Start here: add your first segment" }).click();
+  await expect(page.getByText("Upload the first frame for this segment.")).toBeVisible();
+
+  // The project persists, but the selected segment intentionally does not.
+  // This was the confusing production path that prompted the coach marks.
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.getByText("Click segment 1 in the timeline to open its required fields.")).toBeVisible();
+  await page.locator('[aria-label="Select segment 1"]').click();
+  await expect(page.getByText("Upload the first frame for this segment.")).toBeVisible();
+  await page.screenshot({
+    path: "test-results/director-onboarding.png",
+    fullPage: true,
+  });
+
+  const onePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nK0AAAAASUVORK5CYII=", "base64");
+  await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
+    name: "keyframe.png",
+    mimeType: "image/png",
+    buffer: onePixelPng,
+  });
+  await expect(page.getByText("Describe what should happen during this segment.")).toBeVisible();
+  await page.getByLabel("Segment prompt").fill("camera glides forward");
+  await expect(page.getByText("Render this segment. Sign-in will open here if needed.")).toBeVisible();
 });
 
 test("stacks the Director workspace inside a mobile viewport", async ({ page }) => {
@@ -177,5 +210,8 @@ test("stacks the Director workspace inside a mobile viewport", async ({ page }) 
   expect(bounds.rootRight).toBeLessThanOrEqual(bounds.viewportWidth);
   expect(bounds.railLeft).toBeGreaterThanOrEqual(0);
   expect(bounds.railRight).toBeLessThanOrEqual(bounds.viewportWidth);
-  await page.screenshot({ path: "test-results/director-mobile.png", fullPage: true });
+  await page.screenshot({
+    path: "test-results/director-mobile.png",
+    fullPage: true,
+  });
 });

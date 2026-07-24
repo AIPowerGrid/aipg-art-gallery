@@ -20,8 +20,9 @@ import { cropImageToRenderSize } from "@/lib/utils/crop-image";
 import { exportStitched } from "@/lib/utils/export-stitched";
 import { StylesConfig } from "@/lib/types/create";
 import { ConsoleTimeline } from "./console-timeline";
+import { CoachTip } from "./coach-tip";
 import { PreviewStage } from "./preview-stage";
-import { SegmentInspector } from "./segment-inspector";
+import { SegmentInspector, type SegmentCoachStep } from "./segment-inspector";
 import { RenderSettingsPanel } from "./render-settings-panel";
 import {
   IconChevronDown,
@@ -43,6 +44,12 @@ const TIMELINE_MIN = 150;
 const TIMELINE_MAX = 360;
 const CONTROLS_MIN = 200;
 const CONTROLS_MAX = 480;
+
+type DirectorCoachStep =
+  | "add-segment"
+  | "select-segment"
+  | Exclude<SegmentCoachStep, null>
+  | null;
 
 interface DirectorConsoleProps {
   styles: StylesConfig | null;
@@ -116,6 +123,23 @@ export function DirectorConsole({
   const selectedIndex = selected ? segments.findIndex((s) => s.id === selected.id) : -1;
   const doneCount = segments.filter((s) => s.status === "done").length;
   const pendingCount = segments.filter((s) => s.status === "idle" || s.status === "error").length;
+  const selectedBlockers = selected
+    ? segmentBlockers(selected, selectedIndex, globalPrompt)
+    : [];
+  const coachStep: DirectorCoachStep =
+    doneCount > 0
+      ? null
+      : segments.length === 0
+        ? "add-segment"
+        : !selected
+          ? "select-segment"
+          : !selected.startImage && !(selected.chained && selectedIndex > 0)
+            ? "upload-image"
+            : !globalPrompt.trim() && !selected.prompt.trim()
+              ? "prompt"
+              : selectedBlockers.length === 0 && selected.status === "idle"
+                ? "render"
+                : null;
   const totalSec = segments.reduce((a, s) => a + s.lengthFrames, 0) / 24;
   const hasAudio = audios.length > 0;
   const modelReady =
@@ -491,7 +515,12 @@ export function DirectorConsole({
             segment={selected}
             index={selectedIndex}
             count={segments.length}
-            blockers={segmentBlockers(selected, selectedIndex, globalPrompt)}
+            blockers={selectedBlockers}
+            coachStep={
+              coachStep === "upload-image" || coachStep === "prompt" || coachStep === "render"
+                ? coachStep
+                : null
+            }
             onUpdate={(patch) => updateSegment(selected.id, patch)}
             onToggleChain={() => handleToggleChain(selected.id)}
             onUploadImage={(f) => handleUploadImage(selected.id)(f)}
@@ -504,9 +533,17 @@ export function DirectorConsole({
             }
           />
         ) : (
-          <div className="rounded-[10px] border border-dashed border-[#242429] p-4 text-[12px] text-[#5a5a64]">
-            Select a segment to edit it.
-          </div>
+          <>
+            {coachStep === "select-segment" ? (
+              <CoachTip id="director-coach-select" label="Start here" className="mb-0">
+                Click segment 1 in the timeline to open its required fields.
+              </CoachTip>
+            ) : (
+              <div className="rounded-[10px] border border-dashed border-[#242429] p-4 text-[12px] text-[#5a5a64]">
+                Select a segment to edit it.
+              </div>
+            )}
+          </>
         );
         const settingsEl = (
           <RenderSettingsPanel
@@ -540,6 +577,11 @@ export function DirectorConsole({
               setPlayheadSec(sec);
               setSeekRequest((prev) => ({ sec, n: (prev?.n ?? 0) + 1 }));
             }}
+            coachStep={
+              coachStep === "add-segment" || coachStep === "select-segment"
+                ? coachStep
+                : null
+            }
           />
         );
         const timelineDivider = (

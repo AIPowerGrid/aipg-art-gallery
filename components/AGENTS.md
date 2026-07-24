@@ -14,6 +14,9 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
 - Gallery/media: `creation-card.tsx`, `media-card.tsx`, `image-modal.tsx`, `gallery-filter.tsx`,
   `creations-grid.tsx`, `active-jobs-indicator.tsx`. Create flow: `create/*`. Misc: `header.tsx`,
   `network-selector.tsx`, `dimension-slider.tsx`, `error-boundary.tsx`.
+- Director onboarding: `create/director/*` exposes one contextual coach mark at a time in the required
+  first-render order: add a segment, select it, upload a start frame, enter a prompt, then render.
+  Coach marks stop after the project has a completed segment.
 
 ## Local Contracts
 

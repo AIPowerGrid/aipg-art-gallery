@@ -7,8 +7,9 @@ Production-build Playwright coverage for consumer-facing generation routes.
 ## Ownership
 
 - `e2e/director.spec.ts` - authenticated keyframe upload and Director timeline
-  submission, including the no-client-wallet-identity request invariant and
-  mobile workspace overflow coverage.
+  submission, including the no-client-wallet-identity request invariant,
+  first-render onboarding progression/reload recovery, and mobile workspace
+  overflow coverage.
 - `e2e/navigation.spec.ts` - top-level Director discovery and the retired
   `aipg.art/audio` route contract.
 
