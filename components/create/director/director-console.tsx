@@ -59,6 +59,7 @@ interface DirectorConsoleProps {
     checked: boolean;
     director: boolean;
     fallback: boolean;
+    krea: boolean;
   };
 }
 
@@ -103,7 +104,7 @@ export function DirectorConsole({
   const splitSegment = useDirectorStore((s) => s.splitSegment);
   const duplicateSegment = useDirectorStore((s) => s.duplicateSegment);
 
-  const { renderSegment, renderPending, stopQueue, error, model } = useDirector({
+  const { renderSegment, generateFirstFrame, renderPending, stopQueue, error, model } = useDirector({
     styles,
     ownerIdentifier,
     authenticated,
@@ -133,10 +134,10 @@ export function DirectorConsole({
         ? "add-segment"
         : !selected
           ? "select-segment"
-          : !selected.startImage && !(selected.chained && selectedIndex > 0)
-            ? "upload-image"
-            : !globalPrompt.trim() && !selected.prompt.trim()
-              ? "prompt"
+          : !globalPrompt.trim() && !selected.prompt.trim()
+            ? "prompt"
+            : !selected.startImage && !(selected.chained && selectedIndex > 0)
+              ? "source-image"
               : selectedBlockers.length === 0 && selected.status === "idle"
                 ? "render"
                 : null;
@@ -198,12 +199,24 @@ export function DirectorConsole({
         updateSegment(segmentId, {
           startImage: cropped,
           startImageName: file.name,
+          startImageJobId: undefined,
+          startImageStatus: undefined,
+          startImageUrl: undefined,
+          startImageError: undefined,
           chained: false,
           sourceJobId: undefined,
           anchorStale: false,
         });
       } catch {
-        updateSegment(segmentId, { startImage: reader.result, startImageName: file.name, chained: false });
+        updateSegment(segmentId, {
+          startImage: reader.result,
+          startImageName: file.name,
+          startImageJobId: undefined,
+          startImageStatus: undefined,
+          startImageUrl: undefined,
+          startImageError: undefined,
+          chained: false,
+        });
       }
     };
     reader.readAsDataURL(file);
@@ -263,6 +276,10 @@ export function DirectorConsole({
       chained: !seg.chained,
       startImage: null,
       startImageName: undefined,
+      startImageJobId: undefined,
+      startImageStatus: undefined,
+      startImageUrl: undefined,
+      startImageError: undefined,
       sourceJobId: undefined,
       anchorStale: false,
     });
@@ -517,13 +534,16 @@ export function DirectorConsole({
             count={segments.length}
             blockers={selectedBlockers}
             coachStep={
-              coachStep === "upload-image" || coachStep === "prompt" || coachStep === "render"
+              coachStep === "source-image" || coachStep === "prompt" || coachStep === "render"
                 ? coachStep
                 : null
             }
             onUpdate={(patch) => updateSegment(selected.id, patch)}
             onToggleChain={() => handleToggleChain(selected.id)}
             onUploadImage={(f) => handleUploadImage(selected.id)(f)}
+            onGenerateImage={() => generateFirstFrame(selected.id)}
+            kreaAvailable={modelAvailability.checked && modelAvailability.krea}
+            canGenerateImage={Boolean(selected.prompt.trim() || globalPrompt.trim())}
             onRender={() => renderSegment(selected.id, { manual: true })}
             onDuplicate={() => duplicateSegment(selected.id)}
             onRemove={() => removeSegment(selected.id)}

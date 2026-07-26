@@ -18,7 +18,7 @@ import { ChainIcon } from "./chain-icon";
 import { CoachTip } from "./coach-tip";
 import { IconChevronLeft, IconChevronRight, IconDownload } from "./icons";
 
-export type SegmentCoachStep = "upload-image" | "prompt" | "render" | null;
+export type SegmentCoachStep = "source-image" | "prompt" | "render" | null;
 
 interface SegmentInspectorProps {
   segment: DirectorSegment;
@@ -28,6 +28,9 @@ interface SegmentInspectorProps {
   onUpdate: (patch: Partial<DirectorSegment>) => void;
   onToggleChain: () => void;
   onUploadImage: (file: File) => void;
+  onGenerateImage: () => void;
+  kreaAvailable: boolean;
+  canGenerateImage: boolean;
   onRender: () => void;
   onDuplicate: () => void;
   onRemove: () => void;
@@ -52,6 +55,9 @@ export function SegmentInspector({
   onUpdate,
   onToggleChain,
   onUploadImage,
+  onGenerateImage,
+  kreaAvailable,
+  canGenerateImage,
   onRender,
   onDuplicate,
   onRemove,
@@ -81,6 +87,9 @@ export function SegmentInspector({
 
   const status = STATUS_LABEL[segment.status];
   const chained = segment.chained && index > 0;
+  const sourceBusy =
+    segment.startImageStatus === "queued" || segment.startImageStatus === "generating";
+  const renderBusy = segment.status === "queued" || segment.status === "rendering";
 
   return (
     <div className="rounded-[10px] border border-[#242429] bg-[#121215] p-4">
@@ -98,9 +107,9 @@ export function SegmentInspector({
       </h3>
 
       {/* thumbnail + meta */}
-      {coachStep === "upload-image" && (
-        <CoachTip id="director-coach-upload" label="Required">
-          Upload the first frame for this segment.
+      {coachStep === "source-image" && (
+        <CoachTip id="director-coach-source" label="Required">
+          Generate the first frame with Krea 2 Turbo, or upload your own image.
         </CoachTip>
       )}
       <div className="mb-3 flex gap-3">
@@ -134,20 +143,39 @@ export function SegmentInspector({
           ) : (
             <>
               <b className="max-w-full truncate text-[#e9e9ec]">
-                {segment.startImageName ?? (segment.startImage ? "uploaded image" : "no image yet")}
+                {sourceBusy
+                  ? "Krea 2 Turbo is generating…"
+                  : segment.startImageName ?? (segment.startImage ? "start image" : "no image yet")}
               </b>
-              <span className="flex flex-wrap gap-1.5">
+              <span className="flex w-full flex-col gap-1.5">
                 <button
                   type="button"
-                  onClick={() => fileRef.current?.click()}
-                  aria-describedby={coachStep === "upload-image" ? "director-coach-upload" : undefined}
-                  className={`rounded-md border border-[#f5b544]/50 bg-[#f5b544]/10 px-2 py-[3px] text-[11px] text-[#f5b544] hover:bg-[#f5b544]/20 ${
-                    coachStep === "upload-image"
+                  onClick={onGenerateImage}
+                  disabled={!canGenerateImage || !kreaAvailable || sourceBusy || renderBusy}
+                  title={
+                    !canGenerateImage
+                      ? "Add a segment or global prompt first"
+                      : !kreaAvailable
+                        ? "Krea 2 Turbo is offline"
+                        : "Generate a private first frame with Krea 2 Turbo"
+                  }
+                  aria-describedby={coachStep === "source-image" ? "director-coach-source" : undefined}
+                  className={`rounded-md border border-[#f5b544]/50 bg-[#f5b544]/10 px-2 py-[3px] text-[11px] text-[#f5b544] hover:bg-[#f5b544]/20 disabled:cursor-not-allowed disabled:opacity-40 ${
+                    coachStep === "source-image"
                       ? "ring-2 ring-[#f5b544]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
                       : ""
                   }`}
                 >
-                  {segment.startImage ? "Replace" : "Upload"}
+                  {sourceBusy ? "Generating…" : "Generate with Krea 2 Turbo"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={sourceBusy || renderBusy}
+                  aria-describedby={coachStep === "source-image" ? "director-coach-source" : undefined}
+                  className="rounded-md border border-[#313138] bg-[#17171b] px-2 py-[3px] text-[11px] text-[#e9e9ec] hover:border-[#4a4a53] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {segment.startImage ? "Upload replacement" : "Upload image"}
                 </button>
                 {index > 0 && (
                   <button
@@ -174,6 +202,9 @@ export function SegmentInspector({
           }}
         />
       </div>
+      {segment.startImageStatus === "error" && segment.startImageError && (
+        <p className="mb-3 text-[11px] text-[#f87171]">{segment.startImageError}</p>
+      )}
 
       <div className="mb-3">
         {coachStep === "prompt" && (

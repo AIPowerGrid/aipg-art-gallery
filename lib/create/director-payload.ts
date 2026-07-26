@@ -29,6 +29,7 @@ import {
 } from '@/lib/types/director';
 
 export const DIRECTOR_MODEL_ID = 'LTX Director 2.0';
+export const FIRST_FRAME_MODEL_ID = 'Krea 2 Turbo';
 /** Live i2v recipe used as an automatic fallback when the Director recipe is
  *  offline and the timeline has no audio track (plain image→video+audio). */
 export const FALLBACK_MODEL_ID = 'LTX-2.3 Audio';
@@ -46,6 +47,33 @@ export interface BuildSegmentPayloadArgs {
   audios?: DirectorAudio[];
   /** Resolved seed for this job (segment override / locked shared seed). */
   seed?: string;
+}
+
+/** Compile a segment's visual direction into a private Krea first-frame job. */
+export function buildFirstFramePayload(
+  segment: DirectorSegment,
+  globalPrompt: string,
+  settings: DirectorSettings
+): CreateJobRequest {
+  const prompt = [globalPrompt.trim(), segment.prompt.trim()].filter(Boolean).join('. ');
+  return {
+    modelId: FIRST_FRAME_MODEL_ID,
+    prompt,
+    negativePrompt: segment.negativePrompt?.trim() || settings.negativePrompt,
+    nsfw: false,
+    public: false,
+    mediaType: 'image',
+    sourceProcessing: 'txt2img',
+    params: {
+      width: settings.width,
+      height: settings.height,
+      steps: 8,
+      cfgScale: 1,
+      sampler: 'er_sde',
+      scheduler: 'simple',
+      n: 1,
+    },
+  };
 }
 
 /** The serialized single-segment LTXDirector timeline for one job. */
@@ -233,6 +261,9 @@ export function segmentBlockers(
   globalPrompt: string
 ): string[] {
   const blockers: string[] = [];
+  if (segment.startImageStatus === 'queued' || segment.startImageStatus === 'generating') {
+    blockers.push('is still generating its start image');
+  }
   if (!segment.startImage) {
     blockers.push(
       segment.chained && index > 0

@@ -32,6 +32,7 @@ jest.mock('@/lib/utils/crop-image', () => ({
 }));
 import { createJob } from '@/lib/api';
 import { extractFrame } from '@/lib/utils/video-frames';
+import { cropImageToRenderSize } from '@/lib/utils/crop-image';
 
 const STYLES: StylesConfig = {
   models: [
@@ -105,7 +106,7 @@ describe('useDirector', () => {
       useDirector({
         styles: STYLES,
         authenticated: true,
-        modelAvailability: { checked: true, director: false, fallback: false },
+        modelAvailability: { checked: true, director: false, fallback: false, krea: true },
         onAuthRequired: jest.fn(),
       }),
     );
@@ -128,7 +129,7 @@ describe('useDirector', () => {
       useDirector({
         styles: STYLES,
         authenticated: true,
-        modelAvailability: { checked: true, director: false, fallback: true },
+        modelAvailability: { checked: true, director: false, fallback: true, krea: true },
         onAuthRequired: jest.fn(),
       }),
     );
@@ -176,6 +177,71 @@ describe('useDirector', () => {
     expect(ok).toBe(false);
     expect(createJob).not.toHaveBeenCalled();
     expect(result.current.error).toMatch(/start image/i);
+  });
+
+  it('generates and reconciles a private Krea first frame without using the video job id', async () => {
+    const store = useDirectorStore.getState();
+    const id = store.addSegment();
+    store.updateSegment(id, { prompt: 'a luminous train crosses the desert' });
+    (createJob as jest.Mock).mockResolvedValueOnce({ jobId: 'krea-job-1', status: 'queued' });
+    (cropImageToRenderSize as jest.Mock).mockResolvedValueOnce('data:image/jpeg;base64,KREA');
+
+    const { result } = setup();
+    await act(async () => {
+      expect(await result.current.generateFirstFrame(id)).toBe(true);
+    });
+
+    const payload = (createJob as jest.Mock).mock.calls[0][0];
+    expect(payload.modelId).toBe('Krea 2 Turbo');
+    expect(payload.public).toBe(false);
+    expect(payload.params).toMatchObject({ width: 768, height: 512, steps: 8 });
+    let segment = useDirectorStore.getState().segments[0];
+    expect(segment.startImageJobId).toBe('krea-job-1');
+    expect(segment.jobId).toBeUndefined();
+
+    act(() => {
+      useJobStore.setState((state) => ({
+        jobs: state.jobs.map((job) =>
+          job.jobId === 'krea-job-1'
+            ? {
+                ...job,
+                status: 'completed' as const,
+                result: {
+                  jobId: 'krea-job-1',
+                  status: 'completed',
+                  faulted: false,
+                  waitTime: 0,
+                  queuePosition: 0,
+                  processing: 0,
+                  finished: 1,
+                  waiting: 0,
+                  generations: [
+                    {
+                      id: 'frame',
+                      seed: '7',
+                      kind: 'image' as const,
+                      url: 'https://media.aipg.art/image/frame.webp',
+                    },
+                  ],
+                },
+              }
+            : job
+        ),
+      }));
+    });
+
+    await waitFor(() => {
+      segment = useDirectorStore.getState().segments[0];
+      expect(segment.startImage).toBe('data:image/jpeg;base64,KREA');
+      expect(segment.startImageStatus).toBe('done');
+      expect(segment.startImageUrl).toBe('https://media.aipg.art/image/frame.webp');
+      expect(segment.jobId).toBeUndefined();
+    });
+    expect(cropImageToRenderSize).toHaveBeenCalledWith(
+      '/api/download?url=https%3A%2F%2Fmedia.aipg.art%2Fimage%2Fframe.webp',
+      768,
+      512
+    );
   });
 
   it('mirrors completion, extracts the last frame, and backfills the chained segment', async () => {

@@ -8,7 +8,8 @@
  * as a whole is unbounded: N segments = N jobs = N × 8s max.
  *
  * A segment either CHAINS (starts from the previous segment's extracted last
- * frame — seamless join) or carries its own uploaded start image (hard cut).
+ * frame — seamless join) or carries its own uploaded/generated start image
+ * (hard cut).
  */
 
 export const DIRECTOR_FPS = 24;
@@ -19,6 +20,7 @@ export const MIN_SEGMENT_FRAMES = MIN_SEGMENT_SECONDS * DIRECTOR_FPS;
 export const MAX_SEGMENT_FRAMES = MAX_SEGMENT_SECONDS * DIRECTOR_FPS;
 
 export type SegmentStatus = 'idle' | 'queued' | 'rendering' | 'done' | 'error';
+export type StartImageStatus = 'queued' | 'generating' | 'done' | 'error';
 
 export interface DirectorSegment {
   /** Stable identity — anchors chaining across reorders. */
@@ -32,8 +34,15 @@ export interface DirectorSegment {
   /** Start image as a data URI. For chained segments this is backfilled from
    *  the previous segment's extracted last frame. */
   startImage: string | null;
-  /** Original filename of an uploaded start image (label only). */
+  /** Original filename or generated-frame label (display only). */
   startImageName?: string;
+  /** Private Krea job used to generate this segment's own start image. */
+  startImageJobId?: string;
+  /** Reconciled state of the generated start-image job. */
+  startImageStatus?: StartImageStatus;
+  /** Durable CDN source used to restore generated frames after a reload. */
+  startImageUrl?: string;
+  startImageError?: string;
   /** Image-guide strength 0..1. */
   strength: number;
   /** Per-segment seed override (empty = the shared/locked seed or random). */

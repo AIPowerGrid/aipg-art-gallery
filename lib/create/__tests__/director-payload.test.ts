@@ -2,10 +2,12 @@ import {
   buildSegmentPayload,
   buildSegmentTimeline,
   buildSegmentFallbackPayload,
+  buildFirstFramePayload,
   isModelUnavailableError,
   segmentBlockers,
   DIRECTOR_MODEL_ID,
   FALLBACK_MODEL_ID,
+  FIRST_FRAME_MODEL_ID,
 } from '@/lib/create/director-payload';
 import { newSegment } from '@/lib/stores/director-store';
 import { DEFAULT_DIRECTOR_SETTINGS } from '@/lib/types/director';
@@ -214,6 +216,38 @@ describe('buildSegmentPayload', () => {
   });
 });
 
+describe('first-frame payload', () => {
+  it('uses Krea 2 Turbo privately at the Director render geometry', () => {
+    const payload = buildFirstFramePayload(
+      {
+        ...newSegment(),
+        prompt: 'a rider enters a neon canyon',
+        negativePrompt: 'text',
+      },
+      'cinematic science fiction',
+      SETTINGS
+    );
+
+    expect(payload).toMatchObject({
+      modelId: FIRST_FRAME_MODEL_ID,
+      prompt: 'cinematic science fiction. a rider enters a neon canyon',
+      negativePrompt: 'text',
+      public: false,
+      mediaType: 'image',
+      sourceProcessing: 'txt2img',
+      params: {
+        width: SETTINGS.width,
+        height: SETTINGS.height,
+        steps: 8,
+        cfgScale: 1,
+        sampler: 'er_sde',
+        scheduler: 'simple',
+        n: 1,
+      },
+    });
+  });
+});
+
 describe('fallback payload (Director recipe offline)', () => {
   it('compiles the segment for the plain i2v recipe with merged prompts', () => {
     const p = buildSegmentFallbackPayload({
@@ -255,5 +289,15 @@ describe('segmentBlockers', () => {
   it('describes a chained segment as waiting on its source', () => {
     const seg = { ...newSegment(), chained: true, startImage: null, prompt: 'p' };
     expect(segmentBlockers(seg, 1, '')[0]).toMatch(/previous segment/);
+  });
+
+  it('blocks video submission while its generated start frame is in flight', () => {
+    const seg = {
+      ...newSegment(),
+      startImage: 'data:image/jpeg;base64,OLD',
+      startImageStatus: 'generating' as const,
+      prompt: 'p',
+    };
+    expect(segmentBlockers(seg, 0, '')).toContain('is still generating its start image');
   });
 });

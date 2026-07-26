@@ -50,6 +50,10 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   `frames+1`; the timeline's `global_prompt` stays empty (top-level `prompt` wins); audio
   segments need a truthy `audioFile` or the node inpaints over the upload, and `trimStart`
   (frames) windows each segment's slice of the shared track; timeline ≤ ~24MB client-side.
+  A segment's own first frame may be uploaded or generated as a separate private `Krea 2 Turbo`
+  image job. The shared job store polls it; `useDirectorSync` fetches the finished CDN image
+  through `/api/download`, crops it to the Director geometry, and stores it inline. Never reuse
+  the image job id as the segment's video `jobId`.
 
 ## Work Guidance
 

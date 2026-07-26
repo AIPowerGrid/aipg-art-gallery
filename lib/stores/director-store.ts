@@ -304,6 +304,8 @@ export const useDirectorStore = create<DirectorStore>()(
           chained: src.chained,
           startImage: src.chained ? null : src.startImage,
           startImageName: src.startImageName,
+          startImageUrl: src.chained ? undefined : src.startImageUrl,
+          startImageStatus: src.chained || !src.startImageUrl ? undefined : 'done',
           strength: src.strength,
           seed: src.seed,
         });

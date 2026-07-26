@@ -110,4 +110,22 @@ describe('director store', () => {
     expect(seg.jobId).toBeUndefined();
     expect(seg.startImage).toBeNull(); // chained → backfills from its predecessor
   });
+
+  it('duplicates a generated own-image source without copying its in-flight job', () => {
+    const s = useDirectorStore.getState();
+    const id = s.addSegment();
+    s.updateSegment(id, {
+      startImage: 'data:frame',
+      startImageName: 'Krea 2 Turbo',
+      startImageUrl: 'https://media.aipg.art/image/frame.webp',
+      startImageJobId: 'krea-job',
+      startImageStatus: 'done',
+    });
+
+    const copy = s.duplicateSegment(id)!;
+    const segment = useDirectorStore.getState().segments.find((candidate) => candidate.id === copy)!;
+    expect(segment.startImageUrl).toBe('https://media.aipg.art/image/frame.webp');
+    expect(segment.startImageStatus).toBe('done');
+    expect(segment.startImageJobId).toBeUndefined();
+  });
 });

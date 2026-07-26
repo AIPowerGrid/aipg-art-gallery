@@ -19,11 +19,13 @@ import { useJobStore } from '@/lib/stores/job-store';
 import { useDirectorStore } from '@/lib/stores/director-store';
 import {
   buildSegmentPayload,
+  buildFirstFramePayload,
   buildSegmentFallbackPayload,
   isModelUnavailableError,
   segmentBlockers,
   randomSeed,
   DIRECTOR_MODEL_ID,
+  FIRST_FRAME_MODEL_ID,
   FALLBACK_MODEL_ID,
   MAX_TIMELINE_BYTES,
 } from '@/lib/create/director-payload';
@@ -40,6 +42,7 @@ interface UseDirectorOptions {
     checked: boolean;
     director: boolean;
     fallback: boolean;
+    krea: boolean;
   };
   onAuthRequired: () => void;
 }
@@ -63,9 +66,109 @@ export function useDirector({
 }: UseDirectorOptions) {
   const [error, setError] = useState<string | null>(null);
   const submitting = useRef<Set<string>>(new Set());
+  const generatingFrames = useRef<Set<string>>(new Set());
   const { addJob } = useJobStore();
 
   const model = styles?.models.find((m) => m.id === DIRECTOR_MODEL_ID) ?? null;
+
+  const generateFirstFrame = useCallback(
+    async (segmentId: string): Promise<boolean> => {
+      if (!authenticated) {
+        setError("Sign in with Google or a Base wallet to generate a first frame.");
+        onAuthRequired();
+        return false;
+      }
+
+      const state = useDirectorStore.getState();
+      const segment = state.segments.find((candidate) => candidate.id === segmentId);
+      if (!segment || generatingFrames.current.has(segmentId)) return false;
+      if (!state.globalPrompt.trim() && !segment.prompt.trim()) {
+        setError("Add a segment or global prompt before generating the first frame.");
+        return false;
+      }
+      if (modelAvailability && !modelAvailability.checked) {
+        setError("Checking Krea 2 Turbo worker availability. Try again in a moment.");
+        return false;
+      }
+      if (modelAvailability?.checked && !modelAvailability.krea) {
+        setError("Krea 2 Turbo is offline. Upload a first frame or try again later.");
+        return false;
+      }
+
+      generatingFrames.current.add(segmentId);
+      setError(null);
+      state.updateSegment(segmentId, {
+        startImageStatus: 'queued',
+        startImageError: undefined,
+        chained: false,
+        sourceJobId: undefined,
+        anchorStale: false,
+      });
+
+      const prompt =
+        [state.globalPrompt.trim(), segment.prompt.trim()].filter(Boolean).join('. ') ||
+        'director first frame';
+      try {
+        const payload = buildFirstFramePayload(segment, state.globalPrompt, state.settings);
+        const resp = await createJob(payload);
+        useDirectorStore.getState().updateSegment(segmentId, {
+          startImageJobId: resp.jobId,
+          startImageStatus: 'queued',
+          startImageUrl: undefined,
+          startImageError: undefined,
+          startImageName: 'Krea 2 Turbo',
+        });
+
+        addJob({
+          jobId: resp.jobId,
+          modelId: FIRST_FRAME_MODEL_ID,
+          modelName: FIRST_FRAME_MODEL_ID,
+          prompt,
+          negativePrompt: payload.negativePrompt,
+          type: 'image',
+          isNsfw: false,
+          isPublic: false,
+          walletAddress: ownerIdentifier,
+          width: state.settings.width,
+          height: state.settings.height,
+          expectedGenerations: 1,
+        });
+
+        addToGallery({
+          jobId: resp.jobId,
+          modelId: FIRST_FRAME_MODEL_ID,
+          modelName: FIRST_FRAME_MODEL_ID,
+          prompt,
+          negativePrompt: payload.negativePrompt,
+          type: 'image',
+          isNsfw: false,
+          isPublic: false,
+          walletAddress: ownerIdentifier,
+          params: {
+            width: state.settings.width,
+            height: state.settings.height,
+            steps: 8,
+            cfgScale: 1,
+            sampler: 'er_sde',
+            scheduler: 'simple',
+          },
+          mediaUrls: [],
+        }).catch((err) => console.error('[Director] first-frame gallery save failed:', err));
+        return true;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'First-frame generation failed';
+        useDirectorStore.getState().updateSegment(segmentId, {
+          startImageStatus: 'error',
+          startImageError: message,
+        });
+        setError(message);
+        return false;
+      } finally {
+        generatingFrames.current.delete(segmentId);
+      }
+    },
+    [ownerIdentifier, authenticated, modelAvailability, onAuthRequired, addJob]
+  );
 
   const renderSegment = useCallback(
     async (segmentId: string, opts?: { manual?: boolean }): Promise<boolean> => {
@@ -238,7 +341,15 @@ export function useDirector({
     useDirectorStore.getState().setQueueActive(false);
   }, []);
 
-  return { renderSegment, renderPending, stopQueue, error, clearError: () => setError(null), model };
+  return {
+    renderSegment,
+    generateFirstFrame,
+    renderPending,
+    stopQueue,
+    error,
+    clearError: () => setError(null),
+    model,
+  };
 }
 
 /** Segments the auto-queue may submit: idle ONLY. An errored segment stops the
@@ -255,6 +366,7 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
   const queueActive = useDirectorStore((s) => s.queueActive);
   const updateSegment = useDirectorStore((s) => s.updateSegment);
   const inflightFrames = useRef<Set<string>>(new Set());
+  const inflightStartImages = useRef<Set<string>>(new Set());
   const queueSubmitting = useRef(false);
 
   // 0. Reload recovery: a segment stuck queued/rendering with no tracked job
@@ -325,6 +437,80 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
       if (Object.keys(patch).length > 0) updateSegment(seg.id, patch);
     }
   }, [jobs, segments, audios, updateSegment]);
+
+  // 1b. Reconcile private Krea first-frame jobs. Director keyframes must ride
+  //     inline, so fetch the completed CDN image through the allowlisted
+  //     same-origin proxy, crop it to the render geometry, and store the data
+  //     URI on the segment. startImageUrl survives reloads; startImage does not.
+  useEffect(() => {
+    for (const seg of segments) {
+      const job = seg.startImageJobId
+        ? jobs.find((candidate) => candidate.jobId === seg.startImageJobId)
+        : undefined;
+
+      if (job?.status === 'queued' && seg.startImageStatus !== 'queued') {
+        updateSegment(seg.id, { startImageStatus: 'queued', startImageError: undefined });
+        continue;
+      }
+      if (job?.status === 'processing' && seg.startImageStatus !== 'generating') {
+        updateSegment(seg.id, { startImageStatus: 'generating', startImageError: undefined });
+        continue;
+      }
+      if (job?.status === 'faulted' || job?.status === 'cancelled') {
+        const message = job.error ?? 'First-frame generation failed';
+        if (seg.startImageStatus !== 'error' || seg.startImageError !== message) {
+          updateSegment(seg.id, { startImageStatus: 'error', startImageError: message });
+        }
+        continue;
+      }
+
+      const completedUrl =
+        job?.status === 'completed'
+          ? job.result?.generations?.find((generation) => !!generation.url)?.url
+          : seg.startImageStatus === 'done'
+            ? seg.startImageUrl
+            : undefined;
+      if (job?.status === 'completed' && !completedUrl) {
+        const message = 'Krea completed without returning an image';
+        if (seg.startImageStatus !== 'error' || seg.startImageError !== message) {
+          updateSegment(seg.id, { startImageStatus: 'error', startImageError: message });
+        }
+        continue;
+      }
+      if (seg.startImageStatus === 'error' && seg.startImageUrl === completedUrl) continue;
+      if (!completedUrl || (seg.startImage && seg.startImageUrl === completedUrl)) continue;
+
+      const key = `${seg.id}:${seg.startImageJobId ?? completedUrl}`;
+      if (inflightStartImages.current.has(key)) continue;
+      inflightStartImages.current.add(key);
+      const proxyUrl = `/api/download?url=${encodeURIComponent(completedUrl)}`;
+      const { width, height } = useDirectorStore.getState().settings;
+      cropImageToRenderSize(proxyUrl, width, height)
+        .then((dataUri) => {
+          const current = useDirectorStore.getState().segments.find((candidate) => candidate.id === seg.id);
+          if (!current || current.startImageJobId !== seg.startImageJobId) return;
+          updateSegment(seg.id, {
+            startImage: dataUri,
+            startImageName: 'Krea 2 Turbo',
+            startImageUrl: completedUrl,
+            startImageStatus: 'done',
+            startImageError: undefined,
+            chained: false,
+            sourceJobId: undefined,
+            anchorStale: false,
+          });
+        })
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : 'Could not load the generated frame';
+          updateSegment(seg.id, {
+            startImageUrl: completedUrl,
+            startImageStatus: 'error',
+            startImageError: message,
+          });
+        })
+        .finally(() => inflightStartImages.current.delete(key));
+    }
+  }, [jobs, segments, updateSegment]);
 
   // 2. Extract the last frame once a segment has a playable output. The frame
   //    is cropped/scaled to the EXACT render size (same as uploads) so the
