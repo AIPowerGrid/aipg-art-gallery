@@ -1,6 +1,7 @@
 /**
  * Types for the Create page and related components
  */
+import type { ModelCapability } from "@/types/models";
 
 export interface ModelSettings {
   steps?: number;
@@ -30,6 +31,10 @@ export interface Model {
   default: boolean;
   settings?: ModelSettings;
   limits?: ModelLimits;
+  /** Authoritative generation modes, refreshed from Core when available. */
+  capabilities?: ModelCapability[];
+  status?: "online" | "offline";
+  onlineWorkers?: number;
   /** True for i2v-only recipes with no text-to-video path — a source image is mandatory. */
   requiresImage?: boolean;
 }

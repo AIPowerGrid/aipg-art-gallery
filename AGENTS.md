@@ -61,7 +61,9 @@ jobs to the grid and serves gallery/media.
   source for online capacity, including recipe-backed public aliases. Local
   presets shape UX defaults and limits. ModelVault enriches governance metadata.
   RecipeVault is opt-in until its checkpoint names are migrated to those public
-  aliases; never filter public model IDs against raw workflow filenames.
+  aliases; never filter public model IDs against raw workflow filenames. Core's
+  recipe-derived generation modes are authoritative for source-image support;
+  local preset capabilities are only a graceful-degradation fallback.
 - **Images:** generated media lives in Cloudflare R2 / `images.aipg.art`; the frontend only
   loads from allowed hosts in `next.config.mjs` — add a host there before referencing it.
 - Secrets come from `.env` (copy `.env.example`). Never commit creds; `POSTGRES_CONN_STR` has

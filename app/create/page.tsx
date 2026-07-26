@@ -20,6 +20,7 @@ import { fetchCredits, type GridCredits } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { AdvancedSettings } from "@/lib/types/create";
 import { DisplayCreation } from "@/lib/storage";
+import { acceptsSourceImage } from "@/lib/create/capabilities";
 
 export default function CreatePage() {
   const [mounted, setMounted] = useState(false);
@@ -137,6 +138,14 @@ function CreatePageContent() {
 
   const error = stylesError || generationError;
 
+  const handleModelChange = (modelID: string) => {
+    const next = styles?.models.find((model) => model.id === modelID) ?? null;
+    setSelectedModelId(modelID);
+    if (!acceptsSourceImage(next)) {
+      setSourceImage(null);
+    }
+  };
+
   // Selecting a style switches the model to the one it's tuned for (matched
   // case-insensitively against the local model list). The grid still enforces
   // the style's locked params + prompt template server-side.
@@ -148,7 +157,7 @@ function CreatePageContent() {
           mm.id.toLowerCase() === style.model.toLowerCase() ||
           mm.name.toLowerCase() === style.model.toLowerCase(),
       );
-      if (m) setSelectedModelId(m.id);
+      if (m) handleModelChange(m.id);
     }
   };
 
@@ -215,7 +224,7 @@ function CreatePageContent() {
             styles={styles}
             gridStyles={gridStyles}
             selectedModel={selectedModel}
-            onModelChange={setSelectedModelId}
+            onModelChange={handleModelChange}
             dimensionId={dimensionId}
             onDimensionChange={setDimensionId}
             batchMode={batchMode}

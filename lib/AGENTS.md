@@ -33,6 +33,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   `localStorage`. `getActiveAuthToken` / token getters must not return.
 - Generation requires an authenticated Google or wallet session. The Go server independently caps batch size,
   dimensions, steps, audio duration, prompt/lyrics length, and seed. Never treat a client-side limit as a security boundary.
+- `useStylesConfig` overlays Core-backed `/models` generation modes onto the
+  presentation catalog. Capability fetch failure falls back to catalog metadata,
+  while Core still rejects unsupported source images server-side.
 - Wallet sign-in (`auth.ts`) must send the full prepared SIWE message + a fresh nonce per
   attempt; the `/auth-api/verify` route rejects reused nonces and stale/foreign-domain messages.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`

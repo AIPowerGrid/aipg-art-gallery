@@ -21,7 +21,8 @@
       "sgm_uniform"
     ],
     "capabilities": [
-      "txt2img"
+      "txt2img",
+      "img2img"
     ],
     "defaults": {
       "width": 896,
@@ -355,7 +356,8 @@
       "sgm_uniform"
     ],
     "capabilities": [
-      "txt2img"
+      "txt2img",
+      "img2img"
     ],
     "defaults": {
       "width": 1280,

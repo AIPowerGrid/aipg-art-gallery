@@ -26,6 +26,8 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   markers (address, Google profile) for display and `credentials: 'include'` on any auth fetch.
 - A connected wallet under a Google session uses the exact-purpose Core link
   challenge; connecting a wallet alone never silently merges accounts.
+- Source-image controls render only when the selected model declares
+  `img2img`/`img2video` (or requires an image). Do not infer support from modality.
 - Keep components presentational; push nontrivial logic into `lib/hooks` or `lib/stores`.
 
 ## Work Guidance

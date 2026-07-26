@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
 )
 
@@ -31,6 +32,7 @@ func TestMergeStylesWithCatalog(t *testing.T) {
 	catalog := loadTestCatalog(t, `[
 	  {
 	    "id": "LTX-2.3", "type": "video",
+	    "capabilities": ["txt2video", "img2video"],
 	    "defaults": {"width":768,"height":512,"steps":12,"cfgScale":3,"length":96,"fps":24},
 	    "limits": {
 	      "width":{"min":512,"max":1280,"step":64},
@@ -67,11 +69,12 @@ func TestMergeStylesWithCatalog(t *testing.T) {
 	var doc struct {
 		Dimensions []map[string]any `json:"dimensions"`
 		Models     []struct {
-			ID       string         `json:"id"`
-			Name     string         `json:"name"`
-			Enabled  bool           `json:"enabled"`
-			Settings map[string]any `json:"settings"`
-			Limits   map[string]any `json:"limits"`
+			ID           string         `json:"id"`
+			Name         string         `json:"name"`
+			Enabled      bool           `json:"enabled"`
+			Capabilities []string       `json:"capabilities"`
+			Settings     map[string]any `json:"settings"`
+			Limits       map[string]any `json:"limits"`
 		} `json:"models"`
 	}
 	if err := json.Unmarshal(out, &doc); err != nil {
@@ -89,6 +92,9 @@ func TestMergeStylesWithCatalog(t *testing.T) {
 	// Presentation preserved.
 	if ltx.Name != "LTX-2.3 Video" || !ltx.Enabled {
 		t.Errorf("presentation fields not preserved: %+v", ltx)
+	}
+	if len(ltx.Capabilities) != 2 || ltx.Capabilities[1] != "img2video" {
+		t.Errorf("capabilities should come from preset, got %v", ltx.Capabilities)
 	}
 	// Grid-safe sampler preserved (not overwritten by the preset).
 	if ltx.Settings["sampler"] != "euler" {
@@ -168,5 +174,21 @@ func TestMergeStylesWithRealConfig(t *testing.T) {
 				t.Errorf("LTX-2.3 sampler must stay grid-safe 'euler', got %v", m.Settings["sampler"])
 			}
 		}
+	}
+}
+
+func TestBuildModelViewPrefersCoreCapabilities(t *testing.T) {
+	preset := models.ModelPreset{
+		ID:           "z-image-turbo",
+		Type:         "image",
+		Capabilities: []string{"txt2img"},
+	}
+	status := aipg.ModelStatus{
+		Capabilities: []string{"txt2img", "img2img"},
+	}
+
+	view := buildModelView(preset, status, nil)
+	if len(view.Capabilities) != 2 || view.Capabilities[1] != "img2img" {
+		t.Fatalf("expected Core capabilities to replace preset fallback, got %v", view.Capabilities)
 	}
 }

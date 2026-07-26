@@ -6,13 +6,14 @@ import (
 )
 
 type ModelStatus struct {
-	Name        string          `json:"name"`
-	Performance json.RawMessage `json:"performance"`
-	Queued      json.RawMessage `json:"queued"`
-	Jobs        json.RawMessage `json:"jobs"`
-	Eta         json.RawMessage `json:"eta"`
-	Type        string          `json:"type"`
-	Count       json.RawMessage `json:"count"`
+	Name         string          `json:"name"`
+	Performance  json.RawMessage `json:"performance"`
+	Queued       json.RawMessage `json:"queued"`
+	Jobs         json.RawMessage `json:"jobs"`
+	Eta          json.RawMessage `json:"eta"`
+	Type         string          `json:"type"`
+	Count        json.RawMessage `json:"count"`
+	Capabilities []string        `json:"capabilities"`
 }
 
 func (m ModelStatus) ParsePerformance() float64 { return parseFloat(m.Performance) }

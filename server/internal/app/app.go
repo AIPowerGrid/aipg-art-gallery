@@ -1006,6 +1006,7 @@ func mergeStylesWithCatalog(raw []byte, catalog models.Catalog) ([]byte, error) 
 		}
 		m["limits"] = mergeLimits(m["limits"], preset)
 		m["settings"] = mergeSettings(m["settings"], preset)
+		m["capabilities"] = preset.Capabilities
 	}
 
 	newModels, err := json.Marshal(mods)
@@ -1282,13 +1283,18 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel
 		status = "online"
 	}
 
+	capabilities := preset.Capabilities
+	if len(stat.Capabilities) > 0 {
+		capabilities = stat.Capabilities
+	}
+
 	view := ModelView{
 		ID:                   preset.ID,
 		DisplayName:          preset.DisplayName,
 		Type:                 preset.Type,
 		Description:          preset.Description,
 		Tags:                 preset.Tags,
-		Capabilities:         preset.Capabilities,
+		Capabilities:         capabilities,
 		Samplers:             preset.Samplers,
 		Schedulers:           preset.Schedulers,
 		Status:               status,

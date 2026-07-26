@@ -1,4 +1,4 @@
-import { getModelCapabilities, listModalities, defaultModelIdForType } from '@/lib/create/capabilities';
+import { acceptsSourceImage, getModelCapabilities, listModalities, defaultModelIdForType } from '@/lib/create/capabilities';
 import { Model } from '@/lib/types/create';
 
 const base: Model = {
@@ -22,6 +22,7 @@ describe('getModelCapabilities', () => {
       supportsLora: false,
       supportsSize: false,
       requiresImage: false,
+      acceptsImage: false,
     });
   });
 
@@ -79,6 +80,19 @@ describe('getModelCapabilities', () => {
   it('flags a mandatory source image for i2v-only recipes', () => {
     const caps = getModelCapabilities({ ...base, type: 'video', requiresImage: true });
     expect(caps.requiresImage).toBe(true);
+    expect(caps.acceptsImage).toBe(true);
+  });
+
+  it('only accepts source images for declared img2img/img2video modes', () => {
+    expect(acceptsSourceImage({ ...base, capabilities: ["txt2img"] })).toBe(false);
+    expect(acceptsSourceImage({ ...base, capabilities: ["txt2img", "img2img"] })).toBe(true);
+    expect(
+      acceptsSourceImage({
+        ...base,
+        type: "video",
+        capabilities: ["txt2video", "img2video"],
+      }),
+    ).toBe(true);
   });
 });
 

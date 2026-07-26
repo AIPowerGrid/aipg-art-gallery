@@ -33,6 +33,16 @@ export interface ModelCapabilities {
   supportsSize: boolean;
   /** A source image is mandatory (i2v-only recipes) — not merely optional. */
   requiresImage: boolean;
+  /** The selected model has an approved img2img/img2video recipe. */
+  acceptsImage: boolean;
+}
+
+export function acceptsSourceImage(model: Model | null): boolean {
+  return Boolean(
+    model?.requiresImage ||
+    model?.capabilities?.includes("img2img") ||
+    model?.capabilities?.includes("img2video"),
+  );
 }
 
 export function getModelCapabilities(model: Model | null): ModelCapabilities {
@@ -46,6 +56,7 @@ export function getModelCapabilities(model: Model | null): ModelCapabilities {
     supportsLora: !!model && model.type !== 'video',
     supportsSize: !!model && !isVideo,
     requiresImage: !!model?.requiresImage,
+    acceptsImage: acceptsSourceImage(model),
   };
 }
 

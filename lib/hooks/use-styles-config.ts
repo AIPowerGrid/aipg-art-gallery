@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchStylesConfig } from '@/lib/api';
+import { fetchModels, fetchStylesConfig } from '@/lib/api';
 import { StylesConfig } from '@/lib/types/create';
 
 interface UseStylesConfigReturn {
@@ -22,6 +22,27 @@ export function useStylesConfig(): UseStylesConfigReturn {
     async function fetchStyles() {
       try {
         const data = await fetchStylesConfig();
+        try {
+          const live = await fetchModels();
+          const byID = new Map(
+            live.models.map((model) => [model.id.toLowerCase(), model]),
+          );
+          data.models = data.models.map((model) => {
+            const status = byID.get(model.id.toLowerCase());
+            if (!status) return model;
+            return {
+              ...model,
+              capabilities:
+                status.capabilities.length > 0
+                  ? status.capabilities
+                  : model.capabilities,
+              status: status.status,
+              onlineWorkers: status.onlineWorkers,
+            };
+          });
+        } catch {
+          // Keep the catalog-derived capabilities if live status is unavailable.
+        }
         if (!cancelled) {
           setStyles(data);
           setError(null);

@@ -2,6 +2,7 @@
 
 import { KeyboardEvent, DragEvent, useRef, useState } from 'react';
 import { Model } from '@/lib/types/create';
+import { acceptsSourceImage } from '@/lib/create/capabilities';
 
 interface PromptFormProps {
   prompt: string;
@@ -36,7 +37,7 @@ export function PromptForm({
   const setPrompt = onPromptChange;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const sourceEnabled = !!onSourceChange;
+  const sourceEnabled = !!onSourceChange && acceptsSourceImage(selectedModel);
   const needsSourceImage = !!selectedModel?.requiresImage && !sourceImage;
 
   const readImageFile = (file: File | undefined | null) => {

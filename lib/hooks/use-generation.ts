@@ -9,6 +9,7 @@ import {
   AdvancedSettings,
 } from "@/lib/types/create";
 import { fitVideoDimensions } from "@/lib/create/build-job-payload";
+import { acceptsSourceImage } from "@/lib/create/capabilities";
 
 interface GenerationState {
   isGenerating: boolean;
@@ -102,6 +103,11 @@ export function useGeneration({
       try {
         if (selectedModel.requiresImage && !sourceImage) {
           setError(`${selectedModel.name} requires a source image.`);
+          setState((prev) => ({ ...prev, isGenerating: false }));
+          return false;
+        }
+        if (sourceImage && !acceptsSourceImage(selectedModel)) {
+          setError(`${selectedModel.name} does not accept a source image.`);
           setState((prev) => ({ ...prev, isGenerating: false }));
           return false;
         }
