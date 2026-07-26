@@ -39,6 +39,7 @@ export function PromptForm({
   const [dragOver, setDragOver] = useState(false);
   const sourceEnabled = !!onSourceChange && acceptsSourceImage(selectedModel);
   const needsSourceImage = !!selectedModel?.requiresImage && !sourceImage;
+  const modelOffline = selectedModel?.status === "offline";
 
   const readImageFile = (file: File | undefined | null) => {
     if (!file || !file.type.startsWith('image/') || !onSourceChange) return;
@@ -55,7 +56,7 @@ export function PromptForm({
   };
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || modelOffline) return;
     const success = await onGenerate(prompt);
     if (success) {
       setPrompt("");
@@ -71,7 +72,7 @@ export function PromptForm({
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && prompt.trim()) {
+    if (e.key === 'Enter' && !e.shiftKey && prompt.trim() && !modelOffline) {
       e.preventDefault();
       handleGenerate();
     }
@@ -165,8 +166,14 @@ export function PromptForm({
 
         <button
           onClick={handleGenerate}
-          disabled={isGenerating || !prompt.trim() || needsSourceImage}
-          title={needsSourceImage ? `${selectedModel?.name} needs a source image — add one above` : undefined}
+          disabled={isGenerating || !prompt.trim() || needsSourceImage || modelOffline}
+          title={
+            modelOffline
+              ? `No ${selectedModel?.name} workers are online`
+              : needsSourceImage
+                ? `${selectedModel?.name} needs a source image — add one above`
+                : undefined
+          }
           className="px-6 md:px-10 py-3 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-100 text-zinc-900 font-semibold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-default hover:brightness-110 transition-all"
         >
           {isGenerating ? (
@@ -191,6 +198,12 @@ export function PromptForm({
       {needsSourceImage && !error && (
         <p className="mt-3 text-amber-400 text-sm">
           {selectedModel?.name} is image-to-video only — add a source image above to enable Generate.
+        </p>
+      )}
+
+      {modelOffline && !error && (
+        <p className="mt-3 text-amber-400 text-sm" role="status">
+          No {selectedModel?.name} workers are online right now. Try another model.
         </p>
       )}
 

@@ -31,6 +31,8 @@ route handlers for things that must not run in the browser — including wallet 
   promotional, daily, and purchased credit pockets. No local free counter.
 - `/create` clears an uploaded source when selection moves to a model without
   `img2img`/`img2video`; incompatible source state must never ride a later job.
+- `/create` treats an explicit live-model `offline` status as unavailable:
+  identify the model as offline and disable both button and Enter-key submission.
 - Standalone music is intentionally absent from `aipg.art`; it belongs to
   `aipg.music`. Do not restore an `/audio` page here.
 - `/create/director` is the authenticated timeline editor for chained image-conditioned

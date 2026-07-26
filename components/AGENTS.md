@@ -28,6 +28,8 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   challenge; connecting a wallet alone never silently merges accounts.
 - Source-image controls render only when the selected model declares
   `img2img`/`img2video` (or requires an image). Do not infer support from modality.
+- Model controls surface Core-derived offline state, and generation controls
+  must not submit a model that is explicitly offline.
 - Keep components presentational; push nontrivial logic into `lib/hooks` or `lib/stores`.
 
 ## Work Guidance

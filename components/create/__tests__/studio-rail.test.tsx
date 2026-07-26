@@ -31,6 +31,7 @@ const VIDEO_MODEL = {
   type: "video",
   enabled: true,
   default: false,
+  status: "offline" as const,
   settings: { steps: 12, cfgScale: 3, sampler: "euler", length: 96, fps: 24, width: 768, height: 512 },
   limits: {
     steps: { min: 4, max: 20 },
@@ -183,6 +184,13 @@ describe("StudioRail", () => {
     selectModality(/video/i);
     const row = screen.getByText("LTX-2.3 Audio").closest("button")!;
     expect(within(row).getByText(/needs image/i)).toBeInTheDocument();
+  });
+
+  it("marks models with no live workers as offline", () => {
+    render(<Harness />);
+    selectModality(/video/i);
+    const row = screen.getByText("LTX-2.3 Video").closest("button")!;
+    expect(within(row).getByText(/offline/i)).toBeInTheDocument();
   });
 
   it("surfaces a Reset control once an Advanced value is edited", () => {

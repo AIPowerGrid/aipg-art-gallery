@@ -33,14 +33,24 @@ export function ModelPicker({ models, selectedModel, onModelChange }: ModelPicke
             }`}
           >
             <span className="text-[13px] font-medium text-white truncate">{model.name}</span>
-            {model.requiresImage && (
-              <span
-                className="shrink-0 text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400"
-                title="This model needs a source image"
-              >
-                needs image
-              </span>
-            )}
+            <span className="flex shrink-0 items-center gap-1">
+              {model.status === "offline" && (
+                <span
+                  className="text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-500/15 text-red-400"
+                  title="No workers are online for this model"
+                >
+                  offline
+                </span>
+              )}
+              {model.requiresImage && (
+                <span
+                  className="text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400"
+                  title="This model needs a source image"
+                >
+                  needs image
+                </span>
+              )}
+            </span>
           </button>
         );
       })}

@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { PromptForm } from "@/components/create/prompt-form";
 import type { Model } from "@/lib/types/create";
 
@@ -41,5 +41,48 @@ describe("PromptForm source image gate", () => {
       capabilities: ["txt2img", "img2img"],
     });
     expect(screen.getByTitle(/add a source image/i)).toBeInTheDocument();
+  });
+});
+
+describe("PromptForm worker availability", () => {
+  it("blocks an explicitly offline model", () => {
+    render(
+      <PromptForm
+        prompt="make a video"
+        onPromptChange={() => {}}
+        onGenerate={async () => true}
+        onEnhance={async () => null}
+        isGenerating={false}
+        isEnhancing={false}
+        error={null}
+        selectedModel={{ ...BASE_MODEL, type: "video", status: "offline" }}
+        batchMode={false}
+        onSourceChange={() => {}}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /generate with model/i })).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent(/no model workers are online/i);
+  });
+
+  it("does not submit an offline model with the Enter shortcut", () => {
+    const onGenerate = jest.fn(async () => true);
+    render(
+      <PromptForm
+        prompt="make a video"
+        onPromptChange={() => {}}
+        onGenerate={onGenerate}
+        onEnhance={async () => null}
+        isGenerating={false}
+        isEnhancing={false}
+        error={null}
+        selectedModel={{ ...BASE_MODEL, type: "video", status: "offline" }}
+        batchMode={false}
+        onSourceChange={() => {}}
+      />,
+    );
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(onGenerate).not.toHaveBeenCalled();
   });
 });
