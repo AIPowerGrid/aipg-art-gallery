@@ -9,12 +9,10 @@ route handlers for things that must not run in the browser — including wallet 
 
 - Pages: `page.tsx` (home), `create/` (Studio + Director), `3d/`, `gallery/`, `favorites/`,
   `profile/`, `join/`, `auth/login/`. `layout.tsx` + `globals.css` — shell + global styles.
-- Wallet-auth route handlers (server-side), the LIVE wallet sign-in path:
-  - `auth-api/nonce/route.ts` — issues a one-time nonce (`lib/nonce-store`).
-  - `auth-api/verify/route.ts` — verifies the SIWE signature with **viem** (handles ECDSA,
-    EIP-1271, ERC-6492 smart wallets), **consumes the nonce**, validates the SIWE envelope
-    (domain, address, freshness), mints the HS256 JWT, and sets the **httpOnly `aipg_auth`
-    cookie**. Fails closed if `JWT_SECRET` is unset.
+- Retired wallet-auth route handlers:
+  - `auth-api/nonce/route.ts` and `auth-api/verify/route.ts` return `410`.
+    The live path is the Go `/api/auth/wallet/*` broker to Core so wallet and
+    Google sessions share one canonical account.
 - Other route handlers:
   - `api/download/route.ts` — proxied media download with a **strict CDN hostname allowlist**
     (`images.aipg.art`, `*.r2.cloudflarestorage.com`), `redirect: 'manual'` (no redirect
@@ -44,9 +42,9 @@ route handlers for things that must not run in the browser — including wallet 
   wallet storage cookie-backed so public gallery content remains server-renderable.
 - **Route handlers run on the server.** The `download` proxy must keep its exact-hostname
   allowlist + `redirect: 'manual'`. Any new outbound-fetch handler needs the same discipline.
-- **`auth-api/verify` is security-critical:** never return the JWT in the body (httpOnly cookie
-  only), never skip nonce consumption or SIWE validation, never add a `JWT_SECRET` fallback. Keep
-  the JWT shape (HS256, `address` claim) identical to the Go `internal/auth` verifier.
+- **Do not revive a local wallet issuer.** Core must issue and consume the
+  service-, subject-, origin-, wallet-, and nonce-bound challenge. The Go server
+  alone mints the Gallery cookie after Core returns the canonical account.
 - Only `NEXT_PUBLIC_*` env vars are safe in client components; route handlers may read non-public
   vars (`JWT_SECRET`, `AUTH_COOKIE_DOMAIN`, `AUTH_COOKIE_SECURE`).
 

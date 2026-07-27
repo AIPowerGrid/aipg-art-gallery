@@ -23,6 +23,9 @@ type Claims struct {
 	// Short-lived Core step-up token. The JWT is httpOnly and server-read only;
 	// this token is never exposed in an API response or browser JavaScript.
 	GridAccessToken string `json:"grid_access_token,omitempty"`
+	// Canonical Core account id. Safe to return for diagnostics, but it is not
+	// an authentication credential and must never replace token verification.
+	GridAccountID string `json:"grid_account_id,omitempty"`
 	// Common fields
 	IssuedAt  int64 `json:"iat"`
 	ExpiresAt int64 `json:"exp"`
@@ -46,31 +49,40 @@ func (c *Claims) AuthMethod() string {
 
 // GenerateJWT creates a JWT token for a wallet address
 func GenerateJWT(walletAddress string) (string, error) {
-	claims := Claims{
-		WalletAddress: strings.ToLower(walletAddress),
-		IssuedAt:      time.Now().Unix(),
-		ExpiresAt:     time.Now().Add(24 * time.Hour).Unix(),
-	}
-	return generateJWTFromClaims(claims)
+	return GenerateWalletJWT(walletAddress, "", "")
 }
 
-// GenerateGoogleJWT creates a JWT token for a Google user
-func GenerateGoogleJWT(googleID, email, name, gridAccessToken string) (string, error) {
+func GenerateWalletJWT(walletAddress, gridAccessToken, gridAccountID string) (string, error) {
 	claims := Claims{
-		GoogleID:        googleID,
-		Email:           email,
-		Name:            name,
+		WalletAddress:   strings.ToLower(walletAddress),
 		GridAccessToken: gridAccessToken,
+		GridAccountID:   gridAccountID,
 		IssuedAt:        time.Now().Unix(),
 		ExpiresAt:       time.Now().Add(24 * time.Hour).Unix(),
 	}
 	return generateJWTFromClaims(claims)
 }
 
-func GenerateLinkedJWT(googleID, email, name, walletAddress, gridAccessToken string) (string, error) {
+// GenerateGoogleJWT creates a JWT token for a Google user
+func GenerateGoogleJWT(googleID, email, name, gridAccessToken, gridAccountID string) (string, error) {
+	claims := Claims{
+		GoogleID:        googleID,
+		Email:           email,
+		Name:            name,
+		GridAccessToken: gridAccessToken,
+		GridAccountID:   gridAccountID,
+		IssuedAt:        time.Now().Unix(),
+		ExpiresAt:       time.Now().Add(24 * time.Hour).Unix(),
+	}
+	return generateJWTFromClaims(claims)
+}
+
+func GenerateLinkedJWT(
+	googleID, email, name, walletAddress, gridAccessToken, gridAccountID string,
+) (string, error) {
 	claims := Claims{
 		GoogleID: googleID, Email: email, Name: name, GridAccessToken: gridAccessToken,
-		WalletAddress: strings.ToLower(walletAddress), IssuedAt: time.Now().Unix(),
+		GridAccountID: gridAccountID, WalletAddress: strings.ToLower(walletAddress), IssuedAt: time.Now().Unix(),
 		ExpiresAt: time.Now().Add(24 * time.Hour).Unix(),
 	}
 	return generateJWTFromClaims(claims)

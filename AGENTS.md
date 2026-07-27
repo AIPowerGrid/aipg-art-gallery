@@ -50,11 +50,13 @@ jobs to the grid and serves gallery/media.
   music generation belongs to `aipg.music`; do not add an audio/music route or
   ACE-Step API surface back to this repo. Director may still use audio as part
   of a video timeline.
-- **Auth:** Google or SIWE yields an HS256 JWT in an httpOnly cookie. A proved
-  wallet can be linked to Google through Core's proof-of-both merge path.
+- **Auth:** Google or Core-issued SIWE yields an HS256 JWT in an httpOnly
+  cookie. Core verifies the provider/wallet proof and returns the canonical
+  account; a proved wallet can be linked to Google through Core's proof-of-both
+  merge path. Local-only auth is forbidden because it creates split balances.
 - **Grid identity:** `AIPG_API_KEY` is the server-only bounded `aipg-art`
-  service key. Google proof is verified by Core; wallet/app sessions exchange a
-  Gallery-local subject. Authenticated generation carries the resulting
+  service key. Google and wallet proof are verified by Core; subsequent app
+  sessions exchange a server-derived Gallery-local subject. Authenticated generation carries the resulting
   short-lived `X-Grid-User-Token`; Core owns credits. Public 3D jobs are
   explicitly service-owned and constrained by the service spending ceilings.
 - **Model authority is layered:** Core `/v1/status/models` is the operational

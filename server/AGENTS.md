@@ -30,12 +30,16 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   shape and ModelVault enriches metadata. RecipeVault filtering is disabled by
   default until its raw checkpoint names are migrated to canonical public model
   aliases.
-- **Auth:** wallet sign-in is NOT handled here — it lives in the Next `/auth-api/*` routes
-  (viem/ERC-6492), which mint the JWT and set the httpOnly `aipg_auth` cookie. The Go server:
-  (a) mints+sets the same cookie for Google One Tap (`/auth/google`); (b) validates the cookie
-  on protected routes via `authMiddleware` (Bearer header fallback for CLI); (c) serves
-  `/auth/me` and `/auth/logout`. `authMiddleware` enforces an Origin allowlist on cookie-borne
-  mutations (CSRF). `jwt.go` verifies HS256 with a constant-time compare + explicit `alg` check.
+- **Auth:** the Go server brokers both proof paths to Core: `/auth/google`
+  forwards the Google ID token, while `/auth/wallet/challenge` and
+  `/auth/wallet/exchange` proxy Core-issued SIWE without exposing the Gallery
+  service key. The server derives `wallet:<address>` itself; it never accepts an
+  app subject from the browser. Successful proof mints the httpOnly `aipg_auth`
+  cookie with the canonical Core account id and short-lived step-up token.
+  Local-only login is fail-closed. The server validates cookies on protected
+  routes via `authMiddleware` (Bearer fallback), serves `/auth/me` and
+  `/auth/logout`, and enforces the Origin allowlist on cookie mutations.
+  `jwt.go` verifies HS256 with a constant-time compare + explicit `alg` check.
   Cookie attributes come from `AUTH_COOKIE_DOMAIN` / `AUTH_COOKIE_SECURE` (Secure auto-set for
   HTTPS). There is intentionally no Go wallet `/auth/verify` (removed dead, replay-prone path).
 - Private gallery reads use protected `/gallery/me`; the legacy wallet path is owner-checked.
@@ -52,7 +56,7 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server
-  exchanges its namespaced local subject through a scoped service account and
+  exchanges its server-derived namespaced local subject through a scoped service account and
   sends the resulting short-lived `X-Grid-User-Token`; request bodies never
   supply a Grid key. The `aipg-art` key requires `account.read`,
   `inference.submit`, `identity.exchange`, and `identity.assert`; it is bounded

@@ -19,6 +19,19 @@ type Client struct {
 	clientAgent string
 }
 
+type IdentityExchange struct {
+	AccessToken string `json:"access_token"`
+	AccountID   string `json:"account_id"`
+	Wallet      string `json:"wallet,omitempty"`
+}
+
+type WalletChallenge struct {
+	Nonce     string `json:"nonce"`
+	Message   string `json:"message"`
+	ExpiresIn int    `json:"expires_in"`
+	ChainID   int    `json:"chain_id"`
+}
+
 // MediaGenerationTimeout stays just beyond Core's 10-minute video ceiling so
 // the gallery does not abandon a job that Core still considers live.
 const MediaGenerationTimeout = 11 * time.Minute
@@ -145,32 +158,91 @@ func (c *Client) ExchangeServiceIdentity(ctx context.Context, apiKey, subject st
 
 // ExchangeGoogle asks Core to verify the same Google ID token and bind the
 // gallery-local subject to the global canonical Google account.
-func (c *Client) ExchangeGoogle(ctx context.Context, apiKey, idToken, appSubject string) (string, error) {
+func (c *Client) ExchangeGoogle(ctx context.Context, apiKey, idToken, appSubject string) (*IdentityExchange, error) {
 	payload, _ := json.Marshal(map[string]string{
 		"id_token": idToken, "app_subject": appSubject,
 	})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/auth/google/exchange", bytes.NewReader(payload))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("apikey", apiKey)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("grid Google exchange failed (%d): %s", resp.StatusCode, raw)
+		return nil, fmt.Errorf("grid Google exchange failed (%d): %s", resp.StatusCode, raw)
 	}
-	var result struct {
-		AccessToken string `json:"access_token"`
+	var result IdentityExchange
+	if err := json.Unmarshal(raw, &result); err != nil || result.AccessToken == "" || result.AccountID == "" {
+		return nil, errors.New("grid Google exchange returned an incomplete identity")
 	}
-	if err := json.Unmarshal(raw, &result); err != nil || result.AccessToken == "" {
-		return "", errors.New("grid Google exchange returned no token")
+	return &result, nil
+}
+
+func (c *Client) WalletChallenge(
+	ctx context.Context,
+	apiKey, address, domain, uri, appSubject string,
+) (*WalletChallenge, error) {
+	payload, _ := json.Marshal(map[string]any{
+		"address": address, "domain": domain, "uri": uri,
+		"chain_id": 8453, "app_subject": appSubject,
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/auth/wallet/challenge", bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
 	}
-	return result.AccessToken, nil
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("grid wallet challenge failed (%d): %s", resp.StatusCode, raw)
+	}
+	var result WalletChallenge
+	if err := json.Unmarshal(raw, &result); err != nil || result.Message == "" || result.Nonce == "" {
+		return nil, errors.New("grid wallet challenge returned an incomplete proof")
+	}
+	return &result, nil
+}
+
+func (c *Client) ExchangeWallet(
+	ctx context.Context,
+	apiKey, message, signature, address, appSubject string,
+) (*IdentityExchange, error) {
+	payload, _ := json.Marshal(map[string]string{
+		"message": message, "signature": signature,
+		"address": address, "app_subject": appSubject,
+	})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/auth/wallet/exchange", bytes.NewReader(payload))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("grid wallet exchange failed (%d): %s", resp.StatusCode, raw)
+	}
+	var result IdentityExchange
+	if err := json.Unmarshal(raw, &result); err != nil ||
+		result.AccessToken == "" || result.AccountID == "" || result.Wallet == "" {
+		return nil, errors.New("grid wallet exchange returned an incomplete identity")
+	}
+	return &result, nil
 }
 
 // GenerateMedia calls the new grid's synchronous OpenAI-style endpoint and

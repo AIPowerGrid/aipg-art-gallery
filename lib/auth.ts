@@ -1,8 +1,3 @@
-import { SiweMessage } from "siwe";
-
-// Wallet sign-in uses the Next.js /auth-api routes (viem / ERC-6492 support).
-const getAuthBase = () => "/auth-api";
-
 // Session checks (/auth/me, /auth/logout) live on the Go API.
 export const getApiBase = () =>
   process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
@@ -51,16 +46,18 @@ export function isAuthenticated(): boolean {
 // API calls
 // ============================================================================
 
-async function getNonce(): Promise<string> {
-  const response = await fetch(`${getAuthBase()}/nonce`, {
+async function getWalletChallenge(address: string): Promise<{ message: string }> {
+  const response = await fetch(`${getApiBase()}/auth/wallet/challenge`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     credentials: "include",
+    body: JSON.stringify({ address }),
   });
   if (!response.ok) {
-    throw new Error("Failed to get nonce");
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.error || "Failed to create wallet proof");
   }
-  const data = await response.json();
-  return data.nonce;
+  return response.json();
 }
 
 async function verifySignature(
@@ -68,7 +65,7 @@ async function verifySignature(
   signature: string,
   address: string,
 ): Promise<{ address: string }> {
-  const response = await fetch(`${getAuthBase()}/verify`, {
+  const response = await fetch(`${getApiBase()}/auth/wallet/exchange`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include", // let the browser store the httpOnly session cookie
@@ -162,30 +159,19 @@ async function _signIn({
   signMessageAsync,
   chainId = 8453,
 }: SignInParams): Promise<void> {
-  // 1. Get a one-time nonce.
-  const nonce = await getNonce();
+  if (chainId !== 8453) {
+    throw new Error("Switch to Base before signing in");
+  }
+  // Core issues the exact service-, subject-, origin-, wallet-, and
+  // nonce-bound EIP-4361 message. The app signs it unchanged.
+  const { message } = await getWalletChallenge(address);
 
-  // 2. Build the SIWE message.
-  const message = new SiweMessage({
-    domain: window.location.host,
-    address,
-    statement: "Sign in to AIPG Art Gallery",
-    uri: window.location.origin,
-    version: "1",
-    chainId,
-    nonce,
-    issuedAt: new Date().toISOString(),
-  });
+  const signature = await signMessageAsync({ message });
 
-  const preparedMessage = message.prepareMessage();
+  // Core verifies the proof and the Gallery server sets the httpOnly session.
+  await verifySignature(message, signature, address);
 
-  // 3. Sign with the wallet.
-  const signature = await signMessageAsync({ message: preparedMessage });
-
-  // 4. Verify — the server sets the httpOnly cookie on success (handles ERC-6492).
-  await verifySignature(preparedMessage, signature, address);
-
-  // 5. Record only the public marker for UI state.
+  // Record only the public marker for optimistic UI state.
   setSession(address);
 }
 

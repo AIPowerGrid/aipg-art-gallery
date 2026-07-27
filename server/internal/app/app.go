@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -189,11 +190,12 @@ func (a *App) Router() http.Handler {
 	})
 
 	r.Route("/api", func(api chi.Router) {
-		// Auth endpoints (no authentication required).
-		// Wallet sign-in (SIWE/viem, ERC-6492) is handled by the Next.js
-		// /auth-api/* routes, which mint the JWT and set the httpOnly cookie;
-		// there is intentionally no Go wallet-verify endpoint (removed dead path).
+		// Auth endpoints (no authentication required). Wallet proof is issued
+		// and verified by Core through this server; the browser never sees the
+		// bounded Gallery service key.
 		api.Post("/auth/google", a.handleGoogleAuth)
+		api.With(httprate.LimitByIP(30, time.Minute)).Post("/auth/wallet/challenge", a.handleWalletChallenge)
+		api.With(httprate.LimitByIP(10, time.Minute)).Post("/auth/wallet/exchange", a.handleWalletExchange)
 		api.Post("/auth/logout", a.handleLogout)
 
 		api.Get("/models", a.handleListModels)
@@ -457,6 +459,7 @@ func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 		"email":      claims.Email,
 		"name":       claims.Name,
 		"authMethod": claims.AuthMethod(),
+		"accountId":  claims.GridAccountID,
 	})
 }
 
@@ -514,23 +517,28 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Core independently verifies the provider token and binds this gallery-local
-	// subject to the universal Google account. Login remains available if Core is
-	// temporarily down; the next successful Google login repairs the link.
-	gridAccessToken := ""
-	if a.cfg.DefaultAPIKey != "" {
-		gridCtx, gridCancel := context.WithTimeout(r.Context(), 10*time.Second)
-		defer gridCancel()
-		gridAccessToken, err = a.client.ExchangeGoogle(
-			gridCtx, a.cfg.DefaultAPIKey, req.Credential, "google:"+googleID,
-		)
-		if err != nil {
-			log.Printf("Auth: Grid Google exchange deferred: %v", err)
-		}
+	// Core independently verifies the provider token and binds the
+	// server-derived Gallery subject to the universal account. Fail closed:
+	// a local-only session would create a second balance identity.
+	if a.cfg.DefaultAPIKey == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("Grid identity service not configured"))
+		return
+	}
+	gridCtx, gridCancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer gridCancel()
+	gridIdentity, err := a.client.ExchangeGoogle(
+		gridCtx, a.cfg.DefaultAPIKey, req.Credential, "google:"+googleID,
+	)
+	if err != nil {
+		log.Printf("Auth: Grid Google exchange failed: %v", err)
+		writeError(w, http.StatusServiceUnavailable, errors.New("Grid sign-in is temporarily unavailable"))
+		return
 	}
 
 	// Generate JWT for the Google user
-	token, err := auth.GenerateGoogleJWT(googleID, email, name, gridAccessToken)
+	token, err := auth.GenerateGoogleJWT(
+		googleID, email, name, gridIdentity.AccessToken, gridIdentity.AccountID,
+	)
 	if err != nil {
 		log.Printf("Auth: JWT generation error for Google user: %v", err)
 		writeError(w, http.StatusInternalServerError, errors.New("failed to generate token"))
@@ -548,6 +556,111 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 		"email":    email,
 		"name":     name,
 		"picture":  picture,
+	})
+}
+
+func (a *App) authOrigin(r *http.Request) (*url.URL, error) {
+	raw := strings.TrimSuffix(strings.TrimSpace(r.Header.Get("Origin")), "/")
+	if raw == "" || !a.isAllowedRequestOrigin(r) {
+		return nil, errors.New("allowed browser origin required")
+	}
+	origin, err := url.Parse(raw)
+	if err != nil || origin.Host == "" || origin.User != nil ||
+		(origin.Scheme != "https" && origin.Scheme != "http") ||
+		origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" {
+		return nil, errors.New("invalid browser origin")
+	}
+	return origin, nil
+}
+
+func walletAppSubject(address string) string {
+	return "wallet:" + strings.ToLower(strings.TrimSpace(address))
+}
+
+func (a *App) handleWalletChallenge(w http.ResponseWriter, r *http.Request) {
+	if a.cfg.DefaultAPIKey == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("Grid identity service not configured"))
+		return
+	}
+	var proof struct {
+		Address string `json:"address"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2048))
+	if err := decoder.Decode(&proof); err != nil || strings.TrimSpace(proof.Address) == "" {
+		writeError(w, http.StatusBadRequest, errors.New("wallet address is required"))
+		return
+	}
+	origin, err := a.authOrigin(r)
+	if err != nil {
+		writeError(w, http.StatusForbidden, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	challenge, err := a.client.WalletChallenge(
+		ctx,
+		a.cfg.DefaultAPIKey,
+		proof.Address,
+		origin.Host,
+		origin.String(),
+		walletAppSubject(proof.Address),
+	)
+	if err != nil {
+		log.Printf("Auth: Grid wallet challenge failed: %v", err)
+		writeError(w, http.StatusBadGateway, errors.New("wallet sign-in is temporarily unavailable"))
+		return
+	}
+	writeJSON(w, http.StatusOK, challenge)
+}
+
+func (a *App) handleWalletExchange(w http.ResponseWriter, r *http.Request) {
+	if a.cfg.DefaultAPIKey == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("Grid identity service not configured"))
+		return
+	}
+	if _, err := a.authOrigin(r); err != nil {
+		writeError(w, http.StatusForbidden, err)
+		return
+	}
+	var proof struct {
+		Message   string `json:"message"`
+		Signature string `json:"signature"`
+		Address   string `json:"address"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192))
+	if err := decoder.Decode(&proof); err != nil ||
+		proof.Message == "" || proof.Signature == "" || proof.Address == "" {
+		writeError(w, http.StatusBadRequest, errors.New("complete wallet proof is required"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	gridIdentity, err := a.client.ExchangeWallet(
+		ctx,
+		a.cfg.DefaultAPIKey,
+		proof.Message,
+		proof.Signature,
+		proof.Address,
+		walletAppSubject(proof.Address),
+	)
+	if err != nil {
+		log.Printf("Auth: Grid wallet exchange failed: %v", err)
+		writeError(w, http.StatusUnauthorized, errors.New("wallet proof was rejected"))
+		return
+	}
+	token, err := auth.GenerateWalletJWT(
+		gridIdentity.Wallet,
+		gridIdentity.AccessToken,
+		gridIdentity.AccountID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, errors.New("failed to create wallet session"))
+		return
+	}
+	a.setAuthCookie(w, r, token)
+	writeJSON(w, http.StatusOK, map[string]string{
+		"address":   gridIdentity.Wallet,
+		"accountId": gridIdentity.AccountID,
 	})
 }
 
@@ -618,7 +731,8 @@ func (a *App) handleWalletLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	token, err := auth.GenerateLinkedJWT(
-		claims.GoogleID, claims.Email, claims.Name, verifiedWallet, claims.GridAccessToken,
+		claims.GoogleID, claims.Email, claims.Name, verifiedWallet,
+		claims.GridAccessToken, claims.GridAccountID,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, errors.New("failed to refresh linked session"))

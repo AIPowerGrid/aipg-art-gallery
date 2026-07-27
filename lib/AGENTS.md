@@ -10,7 +10,7 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `api.ts` — the single typed client for the Go API, including image/video and
   governed audio job submission. Sends the session cookie via
   `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
-- `auth.ts` — wallet sign-in (calls the Next `/auth-api/*` routes), session helpers, and the
+- `auth.ts` — wallet sign-in (calls the Go `/api/auth/wallet/*` Core broker), session helpers, and the
   non-sensitive session marker (address + expiry). Exposes `signIn`, `signOut` (→ Go
   `/auth/logout`), `fetchSession` (→ Go `/auth/me`), `isAuthenticated`, `getApiBase`.
 - `nonce-store.ts` — in-memory one-time nonce store used by the `/auth-api` routes
@@ -36,8 +36,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `useStylesConfig` overlays Core-backed `/models` generation modes onto the
   presentation catalog. Capability fetch failure falls back to catalog metadata,
   while Core still rejects unsupported source images server-side.
-- Wallet sign-in (`auth.ts`) must send the full prepared SIWE message + a fresh nonce per
-  attempt; the `/auth-api/verify` route rejects reused nonces and stale/foreign-domain messages.
+- Wallet sign-in (`auth.ts`) must sign Core's returned SIWE message unchanged.
+  The Go broker derives the app subject and Core rejects reused,
+  stale, cross-service, cross-subject, or foreign-origin challenges.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
   is optimistic UI only.
 - Keep request/response types aligned with `types/models.ts` and the Go structs.

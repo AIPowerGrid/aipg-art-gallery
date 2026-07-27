@@ -15,8 +15,9 @@ package owns one concern; `app/app.go` wires them together.
   deadline and must stay beyond Core's video ceiling. `FetchModelStats` reads
   `/v1/status/models`. `types.go` holds the request/response shapes. The async POST
   /jobs + poll contract the frontend uses is bridged in `app/pendingstore.go`.
-  `client.go` exchanges namespaced gallery subjects for short-lived Core user
-  tokens; the service key is server-only.
+  `client.go` exchanges namespaced gallery subjects and Core-verified
+  Google/SIWE proofs for short-lived Core user tokens; the service key is
+  server-only.
 - `ai/` — client for grid text generation (prompt enhancement) via `/v1/chat/completions`.
 - `prompts/` — model-aware prompt enhancement / category detection. Has tests.
 - `gallery/` — storage layer. `GalleryStore` interface with two backends: `postgres_store.go`
@@ -36,8 +37,9 @@ package owns one concern; `app/app.go` wires them together.
   and implemented in BOTH backends so degraded mode works.
 - **On-chain reads are cached**; vault clients tolerate a disabled/failed chain (return empty,
   log) rather than erroring the request. Vault clients are read-only (no transactions signed).
-- **JWT claims are shared with the Next.js issuer** — the `address` JSON field and HS256 algorithm
-  must stay identical to `app/auth-api/verify/route.ts`, or cookies won't validate cross-issuer.
+- **JWT claims are Go-issued.** Keep the `address`, `grid_access_token`, and
+  `grid_account_id` fields server-only inside the httpOnly cookie. The retired
+  Next auth routes return `410` and must not become a second issuer.
 
 ## Work Guidance
 
