@@ -42,6 +42,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   `jwt.go` verifies HS256 with a constant-time compare + explicit `alg` check.
   Cookie attributes come from `AUTH_COOKIE_DOMAIN` / `AUTH_COOKIE_SECURE` (Secure auto-set for
   HTTPS). There is intentionally no Go wallet `/auth/verify` (removed dead, replay-prone path).
+- The Gallery `users.wallet_address` column is nullable because Google and
+  wallet are independent login methods. `UserStore.EnsureSchema()` repairs
+  legacy `NOT NULL` schemas before Google-only profiles are written.
 - Private gallery reads use protected `/gallery/me`; the legacy wallet path is owner-checked.
   Never expose unpublished prompts or media through an unauthenticated wallet lookup.
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,

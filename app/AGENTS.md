@@ -27,6 +27,9 @@ route handlers for things that must not run in the browser — including wallet 
   page. Auth state comes from `lib/` stores/hooks.
 - Generation requires Google or wallet authentication and displays Core's
   promotional, daily, and purchased credit pockets. No local free counter.
+- `/join` redirects an already-authenticated Google or wallet session to
+  `/create`; never leave the authenticated branch on an indefinite loading
+  state.
 - `/create` clears an uploaded source when selection moves to a model without
   `img2img`/`img2video`; incompatible source state must never ride a later job.
 - `/create` treats an explicit live-model `offline` status as unavailable:

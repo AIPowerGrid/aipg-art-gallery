@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { GoogleSignInButton } from "@/components/google-one-tap";
@@ -9,11 +11,18 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 export const dynamic = 'force-dynamic';
 
 export default function JoinPage() {
+  const router = useRouter();
   const { isConnected } = useAccount();
   const { isAuthenticated, authMethod } = useAuthStore();
+  const hasSession = isAuthenticated && (authMethod === "google" || isConnected);
 
-  // If already authenticated, show nothing while WalletButton handles redirect
-  if (isAuthenticated && (authMethod === 'google' || isConnected)) {
+  useEffect(() => {
+    if (hasSession) {
+      router.replace("/create");
+    }
+  }, [hasSession, router]);
+
+  if (hasSession) {
     return (
       <main className="flex-1 w-full min-h-screen bg-black">
         <Header />

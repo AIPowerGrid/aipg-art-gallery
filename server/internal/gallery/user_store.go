@@ -30,8 +30,10 @@ func NewUserStore(db *sql.DB) *UserStore {
 
 // EnsureSchema creates the users table with Google auth columns if they don't exist
 func (s *UserStore) EnsureSchema() error {
-	// Add Google columns if they don't exist (safe to run multiple times)
+	// Wallet and Google are independent login methods. Legacy schemas required
+	// wallet_address, which prevents a Google-only user from being persisted.
 	migrations := []string{
+		`ALTER TABLE users ALTER COLUMN wallet_address DROP NOT NULL`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`,
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT`,
