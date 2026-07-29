@@ -34,8 +34,12 @@ production `NEXT_PUBLIC_*` variables while building because Next.js embeds them.
 ```bash
 commit="$(git rev-parse origin/main)"
 release="/opt/aipg-gallery-releases/gallery-${commit:0:8}"
-git clone --no-checkout https://github.com/AIPowerGrid/aipg-art-gallery.git "$release"
-git -C "$release" checkout --detach "$commit"
+test ! -e "$release"
+mkdir -p "$release"
+git -C "$release" init
+git -C "$release" remote add origin https://github.com/AIPowerGrid/aipg-art-gallery.git
+git -C "$release" fetch --depth=1 origin "$commit"
+git -C "$release" checkout --detach FETCH_HEAD
 set -a
 . /opt/aipg-gallery/gallery.env
 set +a
