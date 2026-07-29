@@ -58,7 +58,8 @@ jobs to the grid and serves gallery/media.
   service key. Google and wallet proof are verified by Core; subsequent app
   sessions exchange a server-derived Gallery-local subject. Authenticated generation carries the resulting
   short-lived `X-Grid-User-Token`; Core owns credits. Public 3D jobs are
-  explicitly service-owned and constrained by the service spending ceilings.
+  authenticated and delegated exactly like image and video jobs. The Gallery
+  bridge key must not have direct service-inference authority.
 - **Model authority is layered:** Core `/v1/status/models` is the operational
   source for online capacity, including recipe-backed public aliases. Local
   presets shape UX defaults and limits. ModelVault enriches governance metadata.

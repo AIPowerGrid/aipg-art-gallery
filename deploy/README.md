@@ -22,7 +22,9 @@ are migrated to canonical public model aliases.
 `AIPG_API_KEY` must be a Core service key bound to service client `aipg-art`
 with `account.read`, `inference.submit`, `identity.exchange`, and
 `identity.assert`. Configure conservative per-request and daily spend ceilings
-in Core. Never use an unscoped user key as the bridge credential.
+in Core. It must not have `inference.service_submit`: every image, video, and 3D
+job carries a delegated canonical-user token. Never use an unscoped user key as
+the bridge credential.
 
 ## Build a release
 

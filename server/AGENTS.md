@@ -63,8 +63,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   sends the resulting short-lived `X-Grid-User-Token`; request bodies never
   supply a Grid key. The `aipg-art` key requires `account.read`,
   `inference.submit`, `identity.exchange`, and `identity.assert`; it is bounded
-  by Core service spending ceilings. Public 3D is explicitly service-owned.
-  Pending job status is owner-bound.
+  by Core service spending ceilings and must not carry
+  `inference.service_submit`. Image, video, and 3D generation are all delegated
+  to the authenticated canonical user. Pending job status is owner-bound.
 - Standalone music belongs to `aipg.music`; this service intentionally exposes
   no ACE-Step or `/api/audio/jobs` surface. Director timeline audio remains
   embedded in video requests.
