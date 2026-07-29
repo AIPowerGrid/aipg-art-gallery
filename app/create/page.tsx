@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
@@ -16,11 +16,28 @@ import {
   useFaviconProgress,
   calculateProgress,
 } from "@/lib/hooks/use-favicon-progress";
-import { fetchCredits, type GridCredits } from "@/lib/api";
+import {
+  fetchCredits,
+  fetchCreditQuote,
+  type GridCredits,
+  type GridCreditQuote,
+} from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { AdvancedSettings } from "@/lib/types/create";
 import { DisplayCreation } from "@/lib/storage";
 import { acceptsSourceImage } from "@/lib/create/capabilities";
+
+const fundingURL =
+  "https://console.aipowergrid.io/dashboard/funding?returnTo=https%3A%2F%2Faipg.art%2Fcreate";
+
+function formatUSD(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: value > 0 && value < 0.01 ? 4 : 3,
+  }).format(value);
+}
 
 export default function CreatePage() {
   const [mounted, setMounted] = useState(false);
@@ -61,6 +78,7 @@ function CreatePageContent() {
   const [batchMode, setBatchMode] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [credits, setCredits] = useState<GridCredits | null>(null);
+  const [creditQuote, setCreditQuote] = useState<GridCreditQuote | null>(null);
   const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({});
   const [railTab, setRailTab] = useState<StudioTab>("basic");
   const [prompt, setPrompt] = useState("");
@@ -89,6 +107,7 @@ function CreatePageContent() {
   useEffect(() => {
     if (!authenticated) {
       setCredits(null);
+      setCreditQuote(null);
       return;
     }
     void fetchCredits()
@@ -96,9 +115,67 @@ function CreatePageContent() {
       .catch(() => setCredits(null));
   }, [authenticated]);
 
+  useEffect(() => {
+    if (!authenticated || !selectedModel) {
+      setCreditQuote(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      const isVideo = selectedModel.type === "video";
+      void fetchCreditQuote(
+        {
+          modelId: selectedModel.id,
+          n: batchMode ? (isVideo ? 2 : 4) : 1,
+          ...(isVideo
+            ? {
+                length:
+                  advancedSettings.length ??
+                  selectedModel.settings?.length ??
+                  96,
+                fps: selectedModel.settings?.fps ?? 24,
+              }
+            : {}),
+        },
+        controller.signal,
+      )
+        .then((quote) => {
+          setCreditQuote(quote);
+          setCredits(quote);
+        })
+        .catch((error: unknown) => {
+          if (!(error instanceof DOMException && error.name === "AbortError")) {
+            setCreditQuote(null);
+          }
+        });
+    }, 150);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [
+    authenticated,
+    selectedModel,
+    batchMode,
+    advancedSettings.length,
+  ]);
+
   // Creations (single source of truth)
   const { creations, addCreation, removeCreation, hasActiveJobs, refresh } =
     useCreations(Boolean(ownerIdentifier));
+  const hadActiveJobs = useRef(false);
+
+  useEffect(() => {
+    if (hasActiveJobs) {
+      hadActiveJobs.current = true;
+      return;
+    }
+    if (!hadActiveJobs.current || !authenticated) return;
+    hadActiveJobs.current = false;
+    void fetchCredits()
+      .then(setCredits)
+      .catch(() => undefined);
+  }, [authenticated, hasActiveJobs]);
 
   // Generation logic
   const {
@@ -180,13 +257,35 @@ function CreatePageContent() {
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
         {authenticated && credits && (
-          <div className="mb-6 flex flex-wrap gap-x-6 gap-y-2 border-b border-zinc-800 pb-4 text-sm text-zinc-300">
-            <span>Promo ${credits.promotional.remaining_usd.toFixed(2)}</span>
-            <span>Daily ${credits.free.remaining_usd.toFixed(2)}</span>
-            <span>Purchased ${credits.paid.balance_usd.toFixed(2)}</span>
+          <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-zinc-800 pb-4 text-sm text-zinc-300">
+            <span className="font-medium text-white">
+              Spendable {formatUSD(credits.total_spendable_usd)}
+            </span>
+            {credits.promotional.active && (
+              <span>Promo {formatUSD(credits.promotional.remaining_usd)}</span>
+            )}
+            {credits.free.active && (
+              <span>Daily {formatUSD(credits.free.remaining_usd)}</span>
+            )}
+            <span>Purchased {formatUSD(credits.paid.balance_usd)}</span>
+            {creditQuote?.estimate.priced &&
+              creditQuote.estimate.cost_usd !== null && (
+                <span>
+                  Estimated {formatUSD(creditQuote.estimate.cost_usd)}
+                </span>
+              )}
+            {creditQuote && !creditQuote.estimate.priced && (
+              <span className="text-amber-400">Price unavailable</span>
+            )}
             {!credits.charging_enabled && (
               <span className="text-zinc-500">Metering preview</span>
             )}
+            <a
+              href={fundingURL}
+              className="ml-auto text-indigo-300 hover:text-indigo-200"
+            >
+              Add credits
+            </a>
           </div>
         )}
 
@@ -209,6 +308,7 @@ function CreatePageContent() {
               trackedJobStatus={trackedJob?.status}
               sourceImage={sourceImage}
               onSourceChange={setSourceImage}
+              fundingUrl={fundingURL}
             />
 
             <CreationsGrid

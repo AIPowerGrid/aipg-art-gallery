@@ -111,3 +111,51 @@ type GridMeta struct {
 	TTFT       *float64 `json:"ttft,omitempty"`
 	TokensPerS *float64 `json:"tokens_per_s,omitempty"`
 }
+
+type CreditQuoteRequest struct {
+	Model    string  `json:"model"`
+	Modality string  `json:"modality"`
+	N        int     `json:"n,omitempty"`
+	Seconds  float64 `json:"seconds,omitempty"`
+}
+
+type CreditPocket struct {
+	RemainingMicro int64   `json:"remaining_micro"`
+	RemainingUSD   float64 `json:"remaining_usd"`
+	Active         bool    `json:"active"`
+}
+
+type PaidCreditPocket struct {
+	BalanceMicro int64   `json:"balance_micro"`
+	BalanceUSD   float64 `json:"balance_usd"`
+}
+
+type CreditEstimate struct {
+	Model                string   `json:"model"`
+	Modality             string   `json:"modality"`
+	Priced               bool     `json:"priced"`
+	Reason               *string  `json:"reason"`
+	CostMicro            *int64   `json:"cost_micro"`
+	CostUSD              *float64 `json:"cost_usd"`
+	BalanceSufficient    bool     `json:"balance_sufficient"`
+	FromPromotionalMicro *int64   `json:"from_promotional_micro"`
+	FromDailyMicro       *int64   `json:"from_daily_micro"`
+	FromPaidMicro        *int64   `json:"from_paid_micro"`
+	ShortfallMicro       *int64   `json:"shortfall_micro"`
+	N                    *int     `json:"n"`
+	Seconds              *float64 `json:"seconds"`
+}
+
+type CreditQuote struct {
+	AccountID           string           `json:"account_id"`
+	Promotional         CreditPocket     `json:"promotional"`
+	Free                CreditPocket     `json:"free"`
+	Paid                PaidCreditPocket `json:"paid"`
+	TotalSpendableMicro int64            `json:"total_spendable_micro"`
+	TotalSpendableUSD   float64          `json:"total_spendable_usd"`
+	TotalPreviewMicro   int64            `json:"total_preview_micro"`
+	TotalPreviewUSD     float64          `json:"total_preview_usd"`
+	ChargingEnabled     bool             `json:"charging_enabled"`
+	ChargingMode        string           `json:"charging_mode"`
+	Estimate            CreditEstimate   `json:"estimate"`
+}

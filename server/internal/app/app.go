@@ -219,6 +219,7 @@ func (a *App) Router() http.Handler {
 			protected.Post("/auth/link-wallet/nonce", a.handleWalletLinkNonce)
 			protected.Post("/auth/link-wallet", a.handleWalletLink)
 			protected.Get("/credits", a.handleCredits)
+			protected.With(httprate.LimitByIP(60, time.Minute)).Post("/credits/quote", a.handleCreditQuote)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
 			protected.Get("/jobs/{id}", a.handleJobStatus)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/ai/enhance", a.handleAIEnhance)
@@ -678,6 +679,43 @@ func (a *App) handleCredits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, credits)
+}
+
+func (a *App) handleCreditQuote(w http.ResponseWriter, r *http.Request) {
+	var request CreditQuoteRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid credit quote request"))
+		return
+	}
+	preset, ok := a.catalog.Get(request.ModelID)
+	if !ok {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("unknown model: %s", request.ModelID))
+		return
+	}
+	if err := request.Validate(preset); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	userToken, err := a.gridUserToken(r.Context(), r)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	quote, err := a.client.CreditQuote(
+		ctx,
+		a.cfg.DefaultAPIKey,
+		userToken,
+		buildCreditQuoteRequest(request.GenerationRequest(), preset),
+	)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("Grid credit quote is unavailable"))
+		return
+	}
+	writeJSON(w, http.StatusOK, quote)
 }
 
 func (a *App) handleWalletLinkNonce(w http.ResponseWriter, r *http.Request) {
@@ -1290,6 +1328,26 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	if preset.Type == "video" || req.MediaType == "video" {
 		kind = "video"
 	}
+	quoteContext, quoteCancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer quoteCancel()
+	quote, err := a.client.CreditQuote(
+		quoteContext,
+		a.cfg.DefaultAPIKey,
+		userToken,
+		buildCreditQuoteRequest(req, preset),
+	)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("Grid credit quote is unavailable"))
+		return
+	}
+	if quote.ChargingEnabled && !quote.Estimate.Priced {
+		writeError(w, http.StatusServiceUnavailable, errors.New("this model is not priced for paid generation"))
+		return
+	}
+	if quote.ChargingEnabled && !quote.Estimate.BalanceSufficient {
+		writeError(w, http.StatusPaymentRequired, errors.New("insufficient Grid credits - add credits to continue"))
+		return
+	}
 
 	// Prefer our own worker when configured. TARGET_WORKER_ID is the worker NAME
 	// on the new grid; the gallery's account must own it (the grid 403s otherwise).
@@ -1503,6 +1561,76 @@ type GenerationParams struct {
 	Tiling    bool    `json:"tiling"`
 	HiresFix  bool    `json:"hiresFix"`
 	N         int     `json:"n"` // Number of images to generate (batch size, 1-4)
+}
+
+type CreditQuoteRequest struct {
+	ModelID string `json:"modelId"`
+	N       int    `json:"n"`
+	Length  int    `json:"length"`
+	FPS     int    `json:"fps"`
+}
+
+func (r CreditQuoteRequest) Validate(preset models.ModelPreset) error {
+	if strings.TrimSpace(r.ModelID) == "" {
+		return errors.New("modelId is required")
+	}
+	if r.N < 0 || r.N > maxBatchN {
+		return fmt.Errorf("n must be between 1 and %d", maxBatchN)
+	}
+	if r.Length < 0 ||
+		(r.Length > 0 && preset.Limits.Length != nil &&
+			(r.Length < preset.Limits.Length.Min || r.Length > preset.Limits.Length.Max)) {
+		return errors.New("video length is outside the model limit")
+	}
+	if r.FPS < 0 ||
+		(r.FPS > 0 && preset.Limits.FPS != nil &&
+			(r.FPS < preset.Limits.FPS.Min || r.FPS > preset.Limits.FPS.Max)) {
+		return errors.New("video fps is outside the model limit")
+	}
+	return nil
+}
+
+func (r CreditQuoteRequest) GenerationRequest() CreateJobRequest {
+	return CreateJobRequest{
+		ModelID: r.ModelID,
+		Params: GenerationParams{
+			N:      r.N,
+			Length: r.Length,
+			FPS:    r.FPS,
+		},
+	}
+}
+
+func buildCreditQuoteRequest(
+	request CreateJobRequest,
+	preset models.ModelPreset,
+) aipg.CreditQuoteRequest {
+	generation := buildGenerateRequest(request, preset)
+	modality := "image"
+	if preset.Type == "video" || request.MediaType == "video" {
+		modality = "video"
+	}
+	n := generation.N
+	if n <= 0 {
+		n = 1
+	}
+	seconds := generation.Seconds
+	if modality == "video" && seconds <= 0 {
+		length := preset.Defaults.Length
+		fps := preset.Defaults.FPS
+		if fps <= 0 {
+			fps = 24
+		}
+		if length > 0 {
+			seconds = float64(length) / float64(fps)
+		}
+	}
+	return aipg.CreditQuoteRequest{
+		Model:    generation.Model,
+		Modality: modality,
+		N:        n,
+		Seconds:  seconds,
+	}
 }
 
 // Server-side generation caps. The frontend gates batch/limits for UX, but the

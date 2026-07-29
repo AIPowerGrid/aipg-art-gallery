@@ -339,6 +339,33 @@ func (c *Client) Credits(ctx context.Context, apiKey, userToken string) (map[str
 	return result, nil
 }
 
+func (c *Client) CreditQuote(
+	ctx context.Context,
+	apiKey string,
+	userToken string,
+	request CreditQuoteRequest,
+) (CreditQuote, error) {
+	raw, status, err := c.accountRequest(
+		ctx,
+		http.MethodPost,
+		"/account/credits/quote",
+		apiKey,
+		userToken,
+		request,
+	)
+	if err != nil {
+		return CreditQuote{}, err
+	}
+	if status != http.StatusOK {
+		return CreditQuote{}, fmt.Errorf("grid credit quote failed (%d): %s", status, raw)
+	}
+	var result CreditQuote
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return CreditQuote{}, err
+	}
+	return result, nil
+}
+
 func (c *Client) WalletLinkNonce(ctx context.Context) (string, error) {
 	raw, status, err := c.accountRequest(ctx, http.MethodPost, "/accounts/wallet/nonce", "", "", nil)
 	if err != nil {

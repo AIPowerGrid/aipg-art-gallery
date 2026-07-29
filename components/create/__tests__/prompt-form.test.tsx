@@ -86,3 +86,28 @@ describe("PromptForm worker availability", () => {
     expect(onGenerate).not.toHaveBeenCalled();
   });
 });
+
+describe("PromptForm funding recovery", () => {
+  it("turns a 402 into an add-credits action", () => {
+    render(
+      <PromptForm
+        prompt="make an image"
+        onPromptChange={() => {}}
+        onGenerate={async () => false}
+        onEnhance={async () => null}
+        isGenerating={false}
+        isEnhancing={false}
+        error="402: insufficient Grid credits"
+        selectedModel={BASE_MODEL}
+        batchMode={false}
+        fundingUrl="https://console.aipowergrid.io/dashboard/funding"
+      />,
+    );
+
+    expect(screen.getByText("insufficient Grid credits")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Add credits" })).toHaveAttribute(
+      "href",
+      "https://console.aipowergrid.io/dashboard/funding",
+    );
+  });
+});

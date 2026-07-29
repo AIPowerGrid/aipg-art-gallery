@@ -18,6 +18,7 @@ interface PromptFormProps {
   /** Optional img2img / img2video source frame (data URI), shown as a square in the box. */
   sourceImage?: string | null;
   onSourceChange?: (dataUri: string | null) => void;
+  fundingUrl?: string;
 }
 
 export function PromptForm({
@@ -33,6 +34,7 @@ export function PromptForm({
   trackedJobStatus,
   sourceImage,
   onSourceChange,
+  fundingUrl,
 }: PromptFormProps) {
   const setPrompt = onPromptChange;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -208,7 +210,17 @@ export function PromptForm({
       )}
 
       {error && (
-        <p className="mt-3 text-red-400 text-sm">{error}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+          <p className="text-red-400">{error.replace(/^402:\s*/, "")}</p>
+          {error.startsWith("402:") && fundingUrl && (
+            <a
+              href={fundingUrl}
+              className="font-medium text-indigo-300 hover:text-indigo-200"
+            >
+              Add credits
+            </a>
+          )}
+        </div>
       )}
     </div>
   );

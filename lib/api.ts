@@ -58,16 +58,54 @@ export function fetchJobStatus(jobId: string) {
 }
 
 export interface GridCredits {
+  account_id: string;
   promotional: { remaining_usd: number; active: boolean };
   free: { remaining_usd: number; daily_cap_usd: number; active: boolean };
   paid: { balance_usd: number };
+  total_spendable_micro: number;
   total_spendable_usd: number;
   total_preview_usd: number;
   charging_enabled: boolean;
+  charging_mode: "off" | "allowlist" | "on";
 }
 
 export function fetchCredits(): Promise<GridCredits> {
   return jsonFetch("/credits");
+}
+
+export interface GridCreditQuote extends GridCredits {
+  estimate: {
+    model: string;
+    modality: "image" | "video";
+    priced: boolean;
+    reason: string | null;
+    cost_micro: number | null;
+    cost_usd: number | null;
+    balance_sufficient: boolean;
+    from_promotional_micro: number | null;
+    from_daily_micro: number | null;
+    from_paid_micro: number | null;
+    shortfall_micro: number | null;
+    n: number | null;
+    seconds: number | null;
+  };
+}
+
+export function fetchCreditQuote(
+  request: {
+    modelId: string;
+    n?: number;
+    length?: number;
+    fps?: number;
+  },
+  signal?: AbortSignal,
+): Promise<GridCreditQuote> {
+  return jsonFetch("/credits/quote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
 }
 
 /** Curated creative styles from the grid (model→recipe→style layer). */

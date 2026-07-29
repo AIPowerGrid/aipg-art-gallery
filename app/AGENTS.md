@@ -25,8 +25,11 @@ route handlers for things that must not run in the browser — including wallet 
 
 - Pages talk to the backend through `lib/api.ts` — do not `fetch` the Go API directly from a
   page. Auth state comes from `lib/` stores/hooks.
-- Generation requires Google or wallet authentication and displays Core's
-  promotional, daily, and purchased credit pockets. No local free counter.
+- Generation requires Google or wallet authentication. The create page displays
+  Core's total spendable and purchased balances, shows promotional/daily
+  pockets only when their Core `active` flags are true, and renders the
+  Core-owned model quote before submission. No local free counter or price book.
+  A `402` links to Console funding with a return target.
 - `/join` redirects an already-authenticated Google or wallet session to
   `/create`; never leave the authenticated branch on an indefinite loading
   state.

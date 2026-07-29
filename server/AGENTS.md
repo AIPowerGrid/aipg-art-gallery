@@ -66,6 +66,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   by Core service spending ceilings and must not carry
   `inference.service_submit`. Image, video, and 3D generation are all delegated
   to the authenticated canonical user. Pending job status is owner-bound.
+- `POST /api/credits/quote` maps the local catalog model and duration to Core's
+  canonical quote endpoint. Job creation repeats that preflight for immediate
+  insufficient-credit UX, but Core's atomic reservation remains authoritative
+  against balance races.
 - Standalone music belongs to `aipg.music`; this service intentionally exposes
   no ACE-Step or `/api/audio/jobs` surface. Director timeline audio remains
   embedded in video requests.

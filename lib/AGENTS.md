@@ -7,8 +7,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 
 ## Ownership
 
-- `api.ts` — the single typed client for the Go API, including image/video and
-  governed audio job submission. Sends the session cookie via
+- `api.ts` — the single typed client for the Go API, including image/video job
+  submission and the canonical Core-backed credit quote. Sends the session cookie via
   `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
 - `auth.ts` — wallet sign-in (calls the Go `/api/auth/wallet/*` Core broker), session helpers, and the
   non-sensitive session marker (address + expiry). Exposes `signIn`, `signOut` (→ Go
@@ -16,7 +16,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `nonce-store.ts` — in-memory one-time nonce store used by the `/auth-api` routes
   (`storeNonce` / `consumeNonce` / `cleanupNonces`). Replace with Redis if multi-instance.
 - `wagmi.ts` — wagmi/RainbowKit config. `web3/` — wallet hooks/types. `supabase.ts` — Supabase
-  client. Core's `/account/credits` response is the only credit authority.
+  client. Core's `/account/credits` and `/account/credits/quote` responses are
+  the only balance and price authorities.
 - `stores/` — Zustand stores (`auth-store.ts` supports wallet + Google; `job-store.ts`).
 - `create/` — pure Studio helpers. `capabilities.ts` (`getModelCapabilities`) maps a model's
   declared `type`/`limits`/flags to the control groups the create rail renders — the single place
