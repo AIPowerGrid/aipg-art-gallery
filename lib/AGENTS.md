@@ -43,6 +43,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
   is optimistic UI only.
 - Keep request/response types aligned with `types/models.ts` and the Go structs.
+- Preserve Core's `grid.job_id` as `gridJobId` through job polling, Gallery
+  persistence, local creation state, and generation details.
 - **Director wire contract** (`create/director-payload.ts` → `hooks/use-director.ts`): each
   timeline SEGMENT renders as its own job against the `LTX Director 2.0` recipe — image keyframe
   at frame 0 + one prompt + optional audio slice, all inside one `timelineData` string (media

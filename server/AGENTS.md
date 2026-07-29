@@ -70,6 +70,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   canonical quote endpoint. Job creation repeats that preflight for immediate
   insufficient-credit UX, but Core's atomic reservation remains authoritative
   against balance races.
+- Successful Core media responses persist `grid.job_id` as nullable
+  `gallery_items.grid_job_id`; this receipt identifier is distinct from the
+  Gallery's polling/publishing `job_id`.
 - Standalone music belongs to `aipg.music`; this service intentionally exposes
   no ACE-Step or `/api/audio/jobs` surface. Director timeline audio remains
   embedded in video requests.

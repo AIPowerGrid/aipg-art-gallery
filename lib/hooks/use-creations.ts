@@ -64,6 +64,7 @@ function completedJobToCreation(job: ReturnType<typeof useJobStore.getState>['jo
     })),
     worker: job.result?.worker,
     genTime: job.result?.genTime,
+    gridJobId: job.result?.gridJobId,
     tags: generateTagsFromPrompt(job.prompt),
     walletAddress: job.walletAddress,
     width: job.width,
@@ -105,6 +106,7 @@ function galleryItemToCreation(item: GalleryItem): DisplayCreation {
     params: item.params,
     worker: item.worker,
     genTime: item.genTime,
+    gridJobId: item.gridJobId,
     isGenerating: false,
   };
 }
@@ -273,6 +275,7 @@ export function useCreations(authenticated: boolean): UseCreationsReturn {
             })),
             worker: job.result?.worker,
             genTime: job.result?.genTime,
+            gridJobId: job.result?.gridJobId,
             params: { ...existingParams, seed: firstSeed },
           };
           changed = true;

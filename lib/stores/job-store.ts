@@ -204,9 +204,6 @@ export const useJobStore = create<JobStore>()(
                       await updateGalleryItem(job.jobId, {
                         mediaUrls,
                         seeds: seeds.length > 0 ? seeds : undefined,
-                        // Per-job provenance from the grid (persists the ⓘ data).
-                        worker: status.worker,
-                        genTime: status.genTime,
                       });
                       console.log(
                         "[JobStore] Updated gallery item with media and seeds:",

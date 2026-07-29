@@ -43,6 +43,7 @@ export interface StoredCreation {
   walletAddress?: string;
   isPublic?: boolean;
   // Per-job provenance from the grid (which worker ran it + how long it took).
+  gridJobId?: string;
   worker?: string;
   genTime?: number;
 }
@@ -413,5 +414,4 @@ export function clearActiveJobs(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(ACTIVE_JOBS_KEY);
 }
-
 

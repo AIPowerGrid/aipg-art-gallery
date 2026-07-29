@@ -69,6 +69,9 @@ jobs to the grid and serves gallery/media.
   local preset capabilities are only a graceful-degradation fallback.
 - **Images:** generated media lives in Cloudflare R2 / `images.aipg.art`; the frontend only
   loads from allowed hosts in `next.config.mjs` — add a host there before referencing it.
+- Gallery rows retain both the Gallery polling/publishing `jobId` and Core's
+  `gridJobId`. Never conflate them: `gridJobId` is the receipt handle joining
+  the generation to Core's completion and credit ledgers.
 - Secrets come from `.env` (copy `.env.example`). Never commit creds; `POSTGRES_CONN_STR` has
   no default by design.
 

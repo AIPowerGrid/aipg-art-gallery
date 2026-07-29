@@ -24,6 +24,20 @@ func (s *PostgresStore) DB() *sql.DB {
 	return s.db
 }
 
+// EnsureSchema applies additive, backwards-compatible gallery metadata changes.
+func (s *PostgresStore) EnsureSchema() error {
+	migrations := []string{
+		`ALTER TABLE gallery_items ADD COLUMN IF NOT EXISTS grid_job_id TEXT`,
+		`CREATE INDEX IF NOT EXISTS idx_gallery_items_grid_job_id ON gallery_items(grid_job_id) WHERE grid_job_id IS NOT NULL`,
+	}
+	for _, migration := range migrations {
+		if _, err := s.db.Exec(migration); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewPostgresStore creates a new PostgreSQL-backed gallery store
 func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	db, err := sql.Open("postgres", connStr)
@@ -37,8 +51,8 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	}
 
 	// Set connection pool settings (scaled for production)
-	db.SetMaxOpenConns(100)      // Max connections (up from 25)
-	db.SetMaxIdleConns(25)       // Keep 25 ready to go (up from 5)
+	db.SetMaxOpenConns(100) // Max connections (up from 25)
+	db.SetMaxIdleConns(25)  // Keep 25 ready to go (up from 5)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetConnMaxIdleTime(2 * time.Minute) // Close idle connections after 2 min
 
@@ -46,6 +60,10 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 		db:        db,
 		UserStore: &UserStore{db: db},
 		JobStore:  &JobStore{db: db},
+	}
+	if err := store.EnsureSchema(); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to migrate gallery schema: %w", err)
 	}
 
 	return store, nil
@@ -58,7 +76,7 @@ func parseMediaURLs(mediaURL string) []string {
 	if mediaURL == "" {
 		return []string{}
 	}
-	
+
 	// Try parsing as JSON array first
 	if strings.HasPrefix(mediaURL, "[") {
 		var urls []string
@@ -66,7 +84,7 @@ func parseMediaURLs(mediaURL string) []string {
 			return urls
 		}
 	}
-	
+
 	// Fall back to single URL (legacy format)
 	return []string{mediaURL}
 }
@@ -82,6 +100,13 @@ func encodeMediaURLs(urls []string) string {
 	// Multiple URLs stored as JSON array
 	data, _ := json.Marshal(urls)
 	return string(data)
+}
+
+func nullIfEmpty(value string) any {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	return value
 }
 
 // Add inserts a new gallery item
@@ -106,15 +131,16 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 
 	query := `
 		INSERT INTO gallery_items (
-			job_id, model, prompt, negative_prompt,
+			job_id, grid_job_id, model, prompt, negative_prompt,
 			media_url, is_public, wallet_address,
 			width, height, steps, cfg_scale, sampler, scheduler, seed,
 			type, created_at, worker, gen_time
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		ON CONFLICT (job_id) DO UPDATE SET
 			media_url = EXCLUDED.media_url,
 			is_public = EXCLUDED.is_public,
 			type = EXCLUDED.type,
+			grid_job_id = COALESCE(EXCLUDED.grid_job_id, gallery_items.grid_job_id),
 			worker = COALESCE(EXCLUDED.worker, gallery_items.worker),
 			gen_time = COALESCE(EXCLUDED.gen_time, gallery_items.gen_time)
 	`
@@ -137,6 +163,7 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 
 	_, err := s.db.Exec(query,
 		item.JobID,
+		nullIfEmpty(item.GridJobID),
 		item.ModelName, // Use ModelName as 'model'
 		item.Prompt,
 		item.NegativePrompt,
@@ -156,7 +183,7 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 // Get retrieves a single gallery item by job ID
 func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	query := `
-		SELECT job_id, model, prompt, negative_prompt,
+		SELECT job_id, grid_job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
 			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
 			   created_at, worker, gen_time
@@ -166,7 +193,7 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 
 	var item GalleryItem
 	var mediaURL string
-	var walletAddr, model, prompt, negPrompt sql.NullString
+	var gridJobID, walletAddr, model, prompt, negPrompt sql.NullString
 	var createdAt time.Time
 	var width, height, steps sql.NullInt64
 	var cfgScale sql.NullFloat64
@@ -178,6 +205,7 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 
 	err := s.db.QueryRow(query, jobID).Scan(
 		&item.JobID,
+		&gridJobID,
 		&model,
 		&prompt,
 		&negPrompt,
@@ -194,6 +222,9 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 
 	if worker.Valid {
 		item.Worker = worker.String
+	}
+	if gridJobID.Valid {
+		item.GridJobID = gridJobID.String
 	}
 	if genTime.Valid {
 		item.GenTime = &genTime.Float64
@@ -244,7 +275,7 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 		seedStr := fmt.Sprintf("%d", seed.Int64)
 		item.Params.Seed = &seedStr
 	}
-	
+
 	// Set seeds array for batch mode
 	if len(seeds) > 0 {
 		item.Seeds = seeds
@@ -360,7 +391,7 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 
 	// Get items ordered by pre-computed random sort (shuffled every 5 min via cron)
 	query := fmt.Sprintf(`
-		SELECT job_id, model, prompt, negative_prompt,
+		SELECT job_id, grid_job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
 			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
 			   type, created_at, worker, gen_time
@@ -382,7 +413,7 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 	for rows.Next() {
 		var item GalleryItem
 		var mediaURL string
-		var walletAddr, prompt, negPrompt, model sql.NullString
+		var gridJobID, walletAddr, prompt, negPrompt, model sql.NullString
 		var itemType sql.NullString
 		var createdAt time.Time
 		var width, height, steps sql.NullInt64
@@ -395,6 +426,7 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 
 		err := rows.Scan(
 			&item.JobID,
+			&gridJobID,
 			&model,
 			&prompt,
 			&negPrompt,
@@ -414,6 +446,9 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 		if worker.Valid {
 			item.Worker = worker.String
 		}
+		if gridJobID.Valid {
+			item.GridJobID = gridJobID.String
+		}
 		if genTime.Valid {
 			item.GenTime = &genTime.Float64
 		}
@@ -430,7 +465,7 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 		}
 		item.MediaURLs = parseMediaURLs(mediaURL)
 		item.CreatedAt = createdAt.UnixMilli()
-		
+
 		// Set type from database, defaulting to "image" if not set
 		if itemType.Valid && itemType.String != "" {
 			item.Type = itemType.String
@@ -469,7 +504,7 @@ func (s *PostgresStore) ListAdvanced(typeFilter string, limit, offset int, searc
 			seedStr := fmt.Sprintf("%d", seed.Int64)
 			item.Params.Seed = &seedStr
 		}
-		
+
 		// Set seeds array for batch mode
 		if len(seeds) > 0 {
 			item.Seeds = seeds
@@ -491,7 +526,7 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 	items := make([]GalleryItem, 0) // Initialize to empty array, not nil
 
 	query := `
-		SELECT job_id, model, prompt, negative_prompt,
+		SELECT job_id, grid_job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
 			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
 			   created_at, worker, gen_time
@@ -511,7 +546,7 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 	for rows.Next() {
 		var item GalleryItem
 		var mediaURL string
-		var walletAddr, model, prompt, negPrompt sql.NullString
+		var gridJobID, walletAddr, model, prompt, negPrompt sql.NullString
 		var createdAt time.Time
 		var width, height, steps sql.NullInt64
 		var cfgScale sql.NullFloat64
@@ -523,6 +558,7 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 
 		err := rows.Scan(
 			&item.JobID,
+			&gridJobID,
 			&model,
 			&prompt,
 			&negPrompt,
@@ -539,6 +575,9 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 
 		if worker.Valid {
 			item.Worker = worker.String
+		}
+		if gridJobID.Valid {
+			item.GridJobID = gridJobID.String
 		}
 		if genTime.Valid {
 			item.GenTime = &genTime.Float64
@@ -561,7 +600,7 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 		if walletAddr.Valid {
 			item.WalletAddress = walletAddr.String
 		}
-		
+
 		// Set seeds array for batch mode
 		if len(seeds) > 0 {
 			item.Seeds = seeds
@@ -627,8 +666,8 @@ func (s *PostgresStore) UpdateMediaURLs(jobID string, mediaURLs []string) error 
 	return err
 }
 
-// UpdateGalleryItemMedia updates media URLs, seeds, and other settings for a gallery item
-func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []string, sampler, scheduler, worker string, genTime *float64) error {
+// UpdateGalleryItemMedia updates media URLs, the Core receipt id, and other settings.
+func (s *PostgresStore) UpdateGalleryItemMedia(jobID, gridJobID string, mediaURLs, seeds []string, sampler, scheduler, worker string, genTime *float64) error {
 	if len(mediaURLs) == 0 {
 		return nil // Nothing to update
 	}
@@ -644,12 +683,18 @@ func (s *PostgresStore) UpdateGalleryItemMedia(jobID string, mediaURLs, seeds []
 	args := []any{string(urlsJSON)}
 	argNum := 2
 
+	if gridJobID != "" {
+		query += fmt.Sprintf(", grid_job_id = $%d", argNum)
+		args = append(args, gridJobID)
+		argNum++
+	}
+
 	// Store seeds array for batch mode (each image has its own seed)
 	if len(seeds) > 0 {
 		query += fmt.Sprintf(", seeds = $%d", argNum)
 		args = append(args, pq.Array(seeds))
 		argNum++
-		
+
 		// Also store first seed in legacy column for backwards compatibility
 		if seeds[0] != "" {
 			seedInt, parseErr := strconv.ParseInt(seeds[0], 10, 64)

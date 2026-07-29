@@ -149,6 +149,7 @@ export interface GalleryItem {
   params?: JobParams;
   mediaUrls?: string[];
   seeds?: string[]; // Seeds for each image in batch mode
+  gridJobId?: string; // Core receipt handle joining completion and charge ledgers
   worker?: string; // grid worker that ran it
   genTime?: number; // wall-clock generation seconds
 }
@@ -306,8 +307,6 @@ export interface UpdateGalleryItemRequest {
   seeds?: string[]; // Seeds for each generation (batch mode has multiple)
   sampler?: string;
   scheduler?: string;
-  worker?: string; // grid worker that ran it
-  genTime?: number; // wall-clock generation seconds
 }
 
 export function updateGalleryItem(

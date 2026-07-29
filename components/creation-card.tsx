@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { Check, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/confirm-dialog";
@@ -30,6 +31,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   const [isPublishing, setIsPublishing] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isExtending, setIsExtending] = useState(false);
+  const [copiedGridJob, setCopiedGridJob] = useState(false);
   const router = useRouter();
   const [showFeedback, setShowFeedback] = useState<'published' | 'unpublished' | 'extracted' | null>(null);
   const [localIsPublic, setLocalIsPublic] = useState(creation.isPublic);
@@ -94,6 +96,18 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
       toast.error(localIsPublic ? 'Failed to unpublish' : 'Failed to publish');
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleCopyGridJob = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (!creation.gridJobId) return;
+    try {
+      await navigator.clipboard.writeText(creation.gridJobId);
+      setCopiedGridJob(true);
+      setTimeout(() => setCopiedGridJob(false), 1500);
+    } catch {
+      toast.error("Could not copy the Grid job ID");
     }
   };
 
@@ -352,7 +366,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
           {(!showSpinner || batchHasImages) && (
             <div className="absolute top-2 right-2 flex gap-1.5 z-10">
               {/* Job info (worker + timing from the grid) — ⓘ with hover panel */}
-              {(creation.worker || creation.genTime != null || firstGen?.seed) && (
+              {(creation.gridJobId || creation.worker || creation.genTime != null || firstGen?.seed) && (
                 <div className="relative group/info">
                   <button
                     onClick={(e) => e.stopPropagation()}
@@ -381,6 +395,23 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                       )}
                       {firstGen?.seed && (
                         <div className="flex justify-between gap-2"><dt className="text-zinc-500">Seed</dt><dd className="text-right font-mono truncate">{firstGen.seed}</dd></div>
+                      )}
+                      {creation.gridJobId && (
+                        <div className="flex items-center justify-between gap-2">
+                          <dt className="text-zinc-500">Grid job</dt>
+                          <dd className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={handleCopyGridJob}
+                              className="flex max-w-full items-center gap-1 text-right font-mono text-zinc-200 hover:text-white"
+                              title={creation.gridJobId}
+                              aria-label="Copy Grid job ID"
+                            >
+                              <span className="truncate">{creation.gridJobId.slice(0, 8)}…</span>
+                              {copiedGridJob ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </dd>
+                        </div>
                       )}
                     </dl>
                   </div>

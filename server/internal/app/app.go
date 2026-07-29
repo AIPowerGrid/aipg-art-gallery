@@ -1803,9 +1803,10 @@ type JobView struct {
 	Waiting       int              `json:"waiting"`
 	Generations   []GenerationView `json:"generations"`
 	// Per-job provenance from the grid (worker that ran it + wall-clock seconds).
-	Worker  string   `json:"worker,omitempty"`
-	GenTime *float64 `json:"genTime,omitempty"`
-	Model   string   `json:"model,omitempty"`
+	GridJobID string   `json:"gridJobId,omitempty"`
+	Worker    string   `json:"worker,omitempty"`
+	GenTime   *float64 `json:"genTime,omitempty"`
+	Model     string   `json:"model,omitempty"`
 }
 
 type GenerationView struct {
@@ -1838,6 +1839,7 @@ func buildJobView(jobID string, job pendingJob) JobView {
 	}
 
 	if job.Grid != nil {
+		view.GridJobID = job.Grid.JobID
 		view.Worker = job.Grid.Worker
 		view.GenTime = job.Grid.GenTime
 		view.Model = job.Grid.Model
@@ -1865,6 +1867,17 @@ func buildJobView(jobID string, job pendingJob) JobView {
 	view.Generations = views
 
 	return view
+}
+
+func verifiedGridMeta(store *pendingStore, jobID, owner string) *aipg.GridMeta {
+	pending, ok := store.get(jobID)
+	if !ok ||
+		pending.Status != "completed" ||
+		pending.Owner != owner ||
+		pending.Grid == nil {
+		return nil
+	}
+	return pending.Grid
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -2217,8 +2230,6 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 		Seeds     []string `json:"seeds,omitempty"`
 		Sampler   string   `json:"sampler,omitempty"`
 		Scheduler string   `json:"scheduler,omitempty"`
-		Worker    string   `json:"worker,omitempty"`
-		GenTime   *float64 `json:"genTime,omitempty"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, err)
@@ -2242,8 +2253,19 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update the media URLs and seeds
-	err := a.galleryStore.UpdateGalleryItemMedia(jobID, req.MediaURLs, req.Seeds, req.Sampler, req.Scheduler, req.Worker, req.GenTime)
+	// The Core receipt is server-observed provenance. Never accept a browser
+	// claim for it: bind only the completed pending job owned by this session.
+	gridJobID := ""
+	worker := ""
+	var genTime *float64
+	if grid := verifiedGridMeta(a.pending, jobID, requestWallet); grid != nil {
+		gridJobID = grid.JobID
+		worker = grid.Worker
+		genTime = grid.GenTime
+	}
+
+	// Update the media URLs, seeds, and server-observed receipt.
+	err := a.galleryStore.UpdateGalleryItemMedia(jobID, gridJobID, req.MediaURLs, req.Seeds, req.Sampler, req.Scheduler, worker, genTime)
 	if err != nil {
 		log.Printf("Failed to update gallery item %s: %v", jobID, err)
 		writeError(w, http.StatusInternalServerError, errors.New("failed to update gallery item"))

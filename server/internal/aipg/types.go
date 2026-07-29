@@ -102,9 +102,10 @@ type GeneratedItem struct {
 	Seed          *int64 `json:"seed,omitempty"`
 }
 
-// GridMeta is the per-job provenance the grid attaches to a generation: which
-// worker ran it, how long it took, and (text only) ttft / tokens-per-second.
+// GridMeta is the per-job provenance the grid attaches to a generation,
+// including the durable Core job identifier used by completion and credit ledgers.
 type GridMeta struct {
+	JobID      string   `json:"job_id"`
 	Worker     string   `json:"worker"`
 	GenTime    *float64 `json:"gen_time"`
 	Model      string   `json:"model"`

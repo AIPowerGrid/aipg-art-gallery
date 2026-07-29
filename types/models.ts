@@ -154,6 +154,7 @@ export interface JobStatus {
   progress?: number | null;
   generations: GenerationView[];
   /** Per-job provenance from the grid: worker that ran it + wall-clock seconds. */
+  gridJobId?: string;
   worker?: string;
   genTime?: number;
   model?: string;
