@@ -18,6 +18,8 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   first-render order: add a segment, select it, enter a prompt, generate a private Krea 2 Turbo start
   frame or upload one, then render.
   Coach marks stop after the project has a completed segment.
+- Director billing UI shows only Core-owned balances and quotes, links `402`
+  recovery to Console funding, and copies only server-observed Core receipt IDs.
 
 ## Local Contracts
 

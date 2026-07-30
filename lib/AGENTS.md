@@ -57,7 +57,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   A segment's own first frame may be uploaded or generated as a separate private `Krea 2 Turbo`
   image job. The shared job store polls it; `useDirectorSync` fetches the finished CDN image
   through `/api/download`, crops it to the Director geometry, and stores it inline. Never reuse
-  the image job id as the segment's video `jobId`.
+  the image job id as the segment's video `jobId`. Credit displays and estimates come only
+  from Core's `/credits` and `/credits/quote`; completed first-frame and segment receipts
+  come only from the server-observed polling result.
 
 ## Work Guidance
 

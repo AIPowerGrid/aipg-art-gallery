@@ -99,6 +99,7 @@ export function useDirector({
       setError(null);
       state.updateSegment(segmentId, {
         startImageStatus: 'queued',
+        startImageGridJobId: undefined,
         startImageError: undefined,
         chained: false,
         sourceJobId: undefined,
@@ -243,7 +244,12 @@ export function useDirector({
       submitting.current.add(segmentId);
       setError(null);
       const prev = idx > 0 ? state.segments[idx - 1] : undefined;
-      state.updateSegment(segmentId, { status: 'queued', error: undefined, progress: undefined });
+      state.updateSegment(segmentId, {
+        status: 'queued',
+        gridJobId: undefined,
+        error: undefined,
+        progress: undefined,
+      });
 
       try {
         let usedModelId = DIRECTOR_MODEL_ID;
@@ -406,6 +412,9 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
       if (job.status === 'completed') {
         const url = job.result?.generations?.find((g) => !!g.url)?.url;
         if (url && url !== seg.outputUrl) patch.outputUrl = url;
+        if (job.result?.gridJobId && job.result.gridJobId !== seg.gridJobId) {
+          patch.gridJobId = job.result.gridJobId;
+        }
         if (seg.progress !== undefined) patch.progress = undefined;
         if (seg.error) patch.error = undefined; // a successful re-render clears stale failures
       }
@@ -470,6 +479,13 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
           : seg.startImageStatus === 'done'
             ? seg.startImageUrl
             : undefined;
+      if (
+        job?.status === 'completed' &&
+        job.result?.gridJobId &&
+        job.result.gridJobId !== seg.startImageGridJobId
+      ) {
+        updateSegment(seg.id, { startImageGridJobId: job.result.gridJobId });
+      }
       if (job?.status === 'completed' && !completedUrl) {
         const message = 'Krea completed without returning an image';
         if (seg.startImageStatus !== 'error' || seg.startImageError !== message) {

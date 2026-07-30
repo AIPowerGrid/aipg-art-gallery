@@ -38,6 +38,8 @@ export interface DirectorSegment {
   startImageName?: string;
   /** Private Krea job used to generate this segment's own start image. */
   startImageJobId?: string;
+  /** Core receipt for the completed private Krea first-frame job. */
+  startImageGridJobId?: string;
   /** Reconciled state of the generated start-image job. */
   startImageStatus?: StartImageStatus;
   /** Durable CDN source used to restore generated frames after a reload. */
@@ -55,6 +57,8 @@ export interface DirectorSegment {
   jobId?: string;
   /** Which recipe the current jobId was submitted against. */
   modelUsed?: string;
+  /** Core receipt for the completed segment render. */
+  gridJobId?: string;
   /** Guard: this segment already auto-resubmitted via the fallback recipe. */
   autoFellBack?: boolean;
   /** The previous segment's jobId at the time this segment's startImage was

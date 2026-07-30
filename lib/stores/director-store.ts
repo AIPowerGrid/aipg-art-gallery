@@ -277,6 +277,7 @@ export const useDirectorStore = create<DirectorStore>()(
             lengthFrames: firstLen,
             status: 'idle',
             jobId: undefined,
+            gridJobId: undefined,
             outputUrl: undefined,
             lastFrame: null,
             progress: undefined,

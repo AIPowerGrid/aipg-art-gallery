@@ -101,6 +101,7 @@ describe('director store', () => {
       startImage: 'data:frame',
       status: 'done',
       jobId: 'j1',
+      gridJobId: 'grid-j1',
       outputUrl: 'https://x/1.mp4',
     });
     const copy = s.duplicateSegment(b)!;
@@ -108,6 +109,7 @@ describe('director store', () => {
     expect(seg.prompt).toBe('orbit');
     expect(seg.status).toBe('idle');
     expect(seg.jobId).toBeUndefined();
+    expect(seg.gridJobId).toBeUndefined();
     expect(seg.startImage).toBeNull(); // chained → backfills from its predecessor
   });
 

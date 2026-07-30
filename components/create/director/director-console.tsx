@@ -15,6 +15,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { confirmDialog } from "@/components/confirm-dialog";
 import { useDirectorStore } from "@/lib/stores/director-store";
 import { useDirector, useDirectorSync } from "@/lib/hooks/use-director";
+import { useDirectorBilling } from "@/lib/hooks/use-director-billing";
 import { segmentBlockers } from "@/lib/create/director-payload";
 import { cropImageToRenderSize } from "@/lib/utils/crop-image";
 import { exportStitched } from "@/lib/utils/export-stitched";
@@ -44,6 +45,17 @@ const TIMELINE_MIN = 150;
 const TIMELINE_MAX = 360;
 const CONTROLS_MIN = 200;
 const CONTROLS_MAX = 480;
+const FUNDING_URL =
+  "https://console.aipowergrid.io/dashboard/funding?returnTo=https%3A%2F%2Faipg.art%2Fcreate%2Fdirector";
+
+function formatUSD(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: value > 0 && value < 0.01 ? 4 : 3,
+  }).format(value);
+}
 
 type DirectorCoachStep =
   | "add-segment"
@@ -148,6 +160,12 @@ export function DirectorConsole({
     modelAvailability.checked &&
     (modelAvailability.director || (!hasAudio && modelAvailability.fallback));
   const degradedMode = !modelAvailability.director && !hasAudio && modelAvailability.fallback;
+  const { credits, firstFrameQuote, segmentQuote } = useDirectorBilling({
+    authenticated,
+    selected,
+    hasAudio,
+    modelAvailability,
+  });
 
   // --- panel dividers (LeetCode-style) ---
   const dragDivider = useCallback(
@@ -200,6 +218,7 @@ export function DirectorConsole({
           startImage: cropped,
           startImageName: file.name,
           startImageJobId: undefined,
+          startImageGridJobId: undefined,
           startImageStatus: undefined,
           startImageUrl: undefined,
           startImageError: undefined,
@@ -212,6 +231,7 @@ export function DirectorConsole({
           startImage: reader.result,
           startImageName: file.name,
           startImageJobId: undefined,
+          startImageGridJobId: undefined,
           startImageStatus: undefined,
           startImageUrl: undefined,
           startImageError: undefined,
@@ -277,6 +297,7 @@ export function DirectorConsole({
       startImage: null,
       startImageName: undefined,
       startImageJobId: undefined,
+      startImageGridJobId: undefined,
       startImageStatus: undefined,
       startImageUrl: undefined,
       startImageError: undefined,
@@ -520,9 +541,49 @@ export function DirectorConsole({
         </div>
       </div>
 
+      {authenticated && credits && (
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-b border-[#242429] bg-[#0f0f12] px-5 py-2 text-[11.5px] text-[#8f8f99]">
+          <span className="font-medium text-[#e9e9ec]">
+            Spendable {formatUSD(credits.total_spendable_usd)}
+          </span>
+          {credits.promotional.active && (
+            <span>Promo {formatUSD(credits.promotional.remaining_usd)}</span>
+          )}
+          {credits.free.active && <span>Daily {formatUSD(credits.free.remaining_usd)}</span>}
+          <span>Purchased {formatUSD(credits.paid.balance_usd)}</span>
+          {segmentQuote?.estimate.priced && segmentQuote.estimate.cost_usd !== null && (
+            <span className={segmentQuote.estimate.balance_sufficient ? "" : "text-[#f5b544]"}>
+              Segment estimate {formatUSD(segmentQuote.estimate.cost_usd)}
+              {!segmentQuote.estimate.balance_sufficient && " · add credits"}
+            </span>
+          )}
+          {segmentQuote && !segmentQuote.estimate.priced && (
+            <span className="text-[#f5b544]">Segment price unavailable</span>
+          )}
+          {firstFrameQuote?.estimate.priced && firstFrameQuote.estimate.cost_usd !== null && (
+            <span>First frame {formatUSD(firstFrameQuote.estimate.cost_usd)}</span>
+          )}
+          {firstFrameQuote && !firstFrameQuote.estimate.priced && (
+            <span className="text-[#f5b544]">First-frame price unavailable</span>
+          )}
+          {!credits.charging_enabled && <span className="text-[#5a5a64]">Metering preview</span>}
+          <a
+            href={FUNDING_URL}
+            className="ml-auto font-medium text-[#f5b544] hover:text-[#ffd27a]"
+          >
+            Add credits
+          </a>
+        </div>
+      )}
+
       {error && (
-        <div className="flex-shrink-0 border-b border-[#3d2626] bg-[#1a0f0f] px-5 py-1.5 text-[12px] text-[#f87171]">
-          {error}
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-[#3d2626] bg-[#1a0f0f] px-5 py-1.5 text-[12px] text-[#f87171]">
+          <span>{error.replace(/^402:\s*/, "")}</span>
+          {error.startsWith("402:") && (
+            <a href={FUNDING_URL} className="font-medium text-[#f5b544] hover:text-[#ffd27a]">
+              Add credits
+            </a>
+          )}
         </div>
       )}
 

@@ -182,7 +182,10 @@ describe('useDirector', () => {
   it('generates and reconciles a private Krea first frame without using the video job id', async () => {
     const store = useDirectorStore.getState();
     const id = store.addSegment();
-    store.updateSegment(id, { prompt: 'a luminous train crosses the desert' });
+    store.updateSegment(id, {
+      prompt: 'a luminous train crosses the desert',
+      startImageGridJobId: 'stale-frame-receipt',
+    });
     (createJob as jest.Mock).mockResolvedValueOnce({ jobId: 'krea-job-1', status: 'queued' });
     (cropImageToRenderSize as jest.Mock).mockResolvedValueOnce('data:image/jpeg;base64,KREA');
 
@@ -197,6 +200,7 @@ describe('useDirector', () => {
     expect(payload.params).toMatchObject({ width: 768, height: 512, steps: 8 });
     let segment = useDirectorStore.getState().segments[0];
     expect(segment.startImageJobId).toBe('krea-job-1');
+    expect(segment.startImageGridJobId).toBeUndefined();
     expect(segment.jobId).toBeUndefined();
 
     act(() => {
@@ -215,6 +219,7 @@ describe('useDirector', () => {
                   processing: 0,
                   finished: 1,
                   waiting: 0,
+                  gridJobId: 'grid-frame-1',
                   generations: [
                     {
                       id: 'frame',
@@ -235,6 +240,7 @@ describe('useDirector', () => {
       expect(segment.startImage).toBe('data:image/jpeg;base64,KREA');
       expect(segment.startImageStatus).toBe('done');
       expect(segment.startImageUrl).toBe('https://media.aipg.art/image/frame.webp');
+      expect(segment.startImageGridJobId).toBe('grid-frame-1');
       expect(segment.jobId).toBeUndefined();
     });
     expect(cropImageToRenderSize).toHaveBeenCalledWith(
@@ -249,12 +255,16 @@ describe('useDirector', () => {
     store.setGlobalPrompt('x');
     const a = store.addSegment();
     const b = store.addSegment(); // chained by default
-    store.updateSegment(a, { startImage: 'data:image/jpeg;base64,IMG' });
+    store.updateSegment(a, {
+      startImage: 'data:image/jpeg;base64,IMG',
+      gridJobId: 'stale-video-receipt',
+    });
 
     const { result } = setup();
     await act(async () => {
       await result.current.renderSegment(a);
     });
+    expect(useDirectorStore.getState().segments[0].gridJobId).toBeUndefined();
 
     // Simulate the shared job store reporting completion.
     act(() => {
@@ -273,6 +283,7 @@ describe('useDirector', () => {
                   processing: 0,
                   finished: 1,
                   waiting: 0,
+                  gridJobId: 'grid-video-1',
                   generations: [{ id: 'g', seed: '1', kind: 'video' as const, url: 'https://cdn/x.mp4' }],
                 },
               }
@@ -285,6 +296,7 @@ describe('useDirector', () => {
       const segs = useDirectorStore.getState().segments;
       expect(segs[0].status).toBe('done');
       expect(segs[0].outputUrl).toBe('https://cdn/x.mp4');
+      expect(segs[0].gridJobId).toBe('grid-video-1');
       expect(segs[0].lastFrame).toBe('data:image/jpeg;base64,LASTFRAME');
       // chained backfill: b's start image is a's last frame
       expect(segs.find((s) => s.id === b)!.startImage).toBe('data:image/jpeg;base64,LASTFRAME');

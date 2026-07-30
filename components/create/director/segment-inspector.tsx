@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { Check, Copy } from "lucide-react";
 import {
   DirectorSegment,
   MIN_SEGMENT_SECONDS,
@@ -68,7 +69,14 @@ export function SegmentInspector({
   const fileRef = useRef<HTMLInputElement>(null);
   const seconds = framesToSeconds(segment.lengthFrames);
   const [lenText, setLenText] = useState(seconds.toFixed(1));
+  const [copiedReceipt, setCopiedReceipt] = useState<"frame" | "segment" | null>(null);
   useEffect(() => setLenText(seconds.toFixed(1)), [seconds]);
+
+  const copyReceipt = async (kind: "frame" | "segment", receipt: string) => {
+    await navigator.clipboard.writeText(receipt);
+    setCopiedReceipt(kind);
+    window.setTimeout(() => setCopiedReceipt(null), 1500);
+  };
 
   const commitLength = (raw: string) => {
     const v = parseFloat(raw.replace(",", "."));
@@ -204,6 +212,40 @@ export function SegmentInspector({
       </div>
       {segment.startImageStatus === "error" && segment.startImageError && (
         <p className="mb-3 text-[11px] text-[#f87171]">{segment.startImageError}</p>
+      )}
+      {(segment.startImageGridJobId || segment.gridJobId) && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {segment.startImageGridJobId && (
+            <button
+              type="button"
+              onClick={() => copyReceipt("frame", segment.startImageGridJobId!)}
+              title={`Copy first-frame Core receipt ${segment.startImageGridJobId}`}
+              className="flex min-w-0 items-center gap-1 rounded-md border border-[#313138] bg-[#17171b] px-2 py-1 text-[10.5px] text-[#8f8f99] hover:text-[#e9e9ec]"
+            >
+              {copiedReceipt === "frame" ? (
+                <Check className="h-3 w-3 text-[#34d399]" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              Frame receipt {segment.startImageGridJobId.slice(0, 8)}…
+            </button>
+          )}
+          {segment.gridJobId && (
+            <button
+              type="button"
+              onClick={() => copyReceipt("segment", segment.gridJobId!)}
+              title={`Copy segment Core receipt ${segment.gridJobId}`}
+              className="flex min-w-0 items-center gap-1 rounded-md border border-[#313138] bg-[#17171b] px-2 py-1 text-[10.5px] text-[#8f8f99] hover:text-[#e9e9ec]"
+            >
+              {copiedReceipt === "segment" ? (
+                <Check className="h-3 w-3 text-[#34d399]" />
+              ) : (
+                <Copy className="h-3 w-3" />
+              )}
+              Segment receipt {segment.gridJobId.slice(0, 8)}…
+            </button>
+          )}
+        </div>
       )}
 
       <div className="mb-3">

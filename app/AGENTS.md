@@ -44,7 +44,9 @@ route handlers for things that must not run in the browser — including wallet 
   `aipg.music`. Do not restore an `/audio` page here.
 - `/create/director` is the authenticated timeline editor for chained image-conditioned
   video segments. It uses the same owner-bound job API and Core credit enforcement as the
-  standard create page; browser project/audio persistence is local convenience, not authority.
+  standard create page. It displays Core-owned first-frame and selected-segment quotes,
+  links `402` responses to Console funding, and exposes copyable Core receipt IDs after
+  completion. Browser project/audio persistence is local convenience, not authority.
 - **`proxy.ts` (repo root)** sets per-request CSP. `connect-src` must include the origin
   derived from `NEXT_PUBLIC_GALLERY_API` so cross-port Go API calls work in dev.
 - **`layout.tsx`** passes the request cookie into the SSR-enabled wagmi provider; keep
