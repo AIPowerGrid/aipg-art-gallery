@@ -361,16 +361,31 @@ func getUserIdentifier(r *http.Request) string {
 	return getWalletFromContext(r)
 }
 
-func (a *App) gridUserToken(ctx context.Context, r *http.Request) (string, error) {
+func (a *App) gridUserIdentity(ctx context.Context, r *http.Request) (*aipg.IdentityExchange, error) {
 	claims := getClaimsFromContext(r)
 	if claims == nil {
-		return "", errors.New("authenticated Grid identity required")
+		return nil, errors.New("authenticated Grid identity required")
 	}
 	subject := "wallet:" + strings.ToLower(strings.TrimSpace(claims.WalletAddress))
 	if claims.GoogleID != "" {
 		subject = "google:" + claims.GoogleID
 	}
-	return a.client.ExchangeServiceIdentity(ctx, a.cfg.DefaultAPIKey, subject)
+	identity, err := a.client.ExchangeServiceIdentity(ctx, a.cfg.DefaultAPIKey, subject)
+	if err != nil {
+		return nil, err
+	}
+	if claims.GridAccountID == "" || identity.AccountID != claims.GridAccountID {
+		return nil, errors.New("Grid account identity mismatch")
+	}
+	return identity, nil
+}
+
+func (a *App) gridUserToken(ctx context.Context, r *http.Request) (string, error) {
+	identity, err := a.gridUserIdentity(ctx, r)
+	if err != nil {
+		return "", err
+	}
+	return identity.AccessToken, nil
 }
 
 // getGalleryOwnerIdentifier returns the durable owner key stored with private

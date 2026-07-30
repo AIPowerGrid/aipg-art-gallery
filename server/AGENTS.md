@@ -65,7 +65,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   `inference.submit`, `identity.exchange`, and `identity.assert`; it is bounded
   by Core service spending ceilings and must not carry
   `inference.service_submit`. Image, video, and 3D generation are all delegated
-  to the authenticated canonical user. Pending job status is owner-bound.
+  to the authenticated canonical user. A service exchange whose Core
+  `account_id` differs from the signed Gallery session fails closed before any
+  credit read, quote, enhancement, or generation. Pending job status is
+  owner-bound.
 - `POST /api/credits/quote` maps the local catalog model and duration to Core's
   canonical quote endpoint. Job creation repeats that preflight for immediate
   insufficient-credit UX, but Core's atomic reservation remains authoritative

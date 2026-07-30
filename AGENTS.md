@@ -59,7 +59,9 @@ jobs to the grid and serves gallery/media.
   sessions exchange a server-derived Gallery-local subject. Authenticated generation carries the resulting
   short-lived `X-Grid-User-Token`; Core owns credits. Public 3D jobs are
   authenticated and delegated exactly like image and video jobs. The Gallery
-  bridge key must not have direct service-inference authority.
+  bridge key must not have direct service-inference authority. The canonical
+  account returned by each service exchange must match the account in the
+  signed Gallery session before credits, quotes, or generation continue.
 - **Model authority is layered:** Core `/v1/status/models` is the operational
   source for online capacity, including recipe-backed public aliases. Local
   presets shape UX defaults and limits. ModelVault enriches governance metadata.

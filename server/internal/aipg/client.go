@@ -130,30 +130,29 @@ func (c *Client) FetchModelStats(ctx context.Context) ([]ModelStatus, error) {
 // ExchangeServiceIdentity turns one gallery-local authenticated subject into a
 // short-lived Core user token. The service key remains the backend credential;
 // the token carries user billing attribution without global impersonation.
-func (c *Client) ExchangeServiceIdentity(ctx context.Context, apiKey, subject string) (string, error) {
+func (c *Client) ExchangeServiceIdentity(ctx context.Context, apiKey, subject string) (*IdentityExchange, error) {
 	payload, _ := json.Marshal(map[string]string{"subject": subject})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/auth/service/exchange", bytes.NewReader(payload))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("apikey", apiKey)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("grid identity exchange failed (%d): %s", resp.StatusCode, raw)
+		return nil, fmt.Errorf("grid identity exchange failed (%d): %s", resp.StatusCode, raw)
 	}
-	var result struct {
-		AccessToken string `json:"access_token"`
+	var result IdentityExchange
+	if err := json.Unmarshal(raw, &result); err != nil ||
+		result.AccessToken == "" || result.AccountID == "" {
+		return nil, errors.New("grid identity exchange returned an incomplete identity")
 	}
-	if err := json.Unmarshal(raw, &result); err != nil || result.AccessToken == "" {
-		return "", errors.New("grid identity exchange returned no token")
-	}
-	return result.AccessToken, nil
+	return &result, nil
 }
 
 // ExchangeGoogle asks Core to verify the same Google ID token and bind the
