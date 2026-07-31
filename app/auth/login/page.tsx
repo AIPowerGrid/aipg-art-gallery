@@ -52,13 +52,11 @@ function LoginPageClient() {
           <p className="text-white/70">Continue with Google or verify your wallet</p>
         </div>
 
-        {/* Wallet Connection */}
-        <div className="space-y-4">
-          <div className="text-center mb-2">
-            <p className="text-white/70 text-sm font-medium">Connect Wallet</p>
-          </div>
-          <ConnectWalletCard />
-        </div>
+        {/* Social Authentication */}
+        <SocialAuth
+          onSuccess={() => router.push("/profile")}
+          onError={(error) => console.error("Social auth error:", error)}
+        />
 
         {/* Divider */}
         <div className="relative">
@@ -66,15 +64,17 @@ function LoginPageClient() {
             <div className="w-full border-t border-white/10"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-4 bg-black text-white/50">OR</span>
+            <span className="px-4 bg-black text-white/50">OR USE A WALLET</span>
           </div>
         </div>
 
-        {/* Social Authentication */}
-        <SocialAuth 
-          onSuccess={() => router.push("/profile")}
-          onError={(error) => console.error("Social auth error:", error)}
-        />
+        {/* Wallet Connection */}
+        <div className="space-y-4">
+          <div className="text-center mb-2">
+            <p className="text-white/70 text-sm font-medium">Connect Wallet</p>
+          </div>
+          <ConnectWalletCard />
+        </div>
 
         <div className="space-y-3 text-sm text-white/60">
           <div className="flex items-start gap-3">

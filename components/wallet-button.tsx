@@ -247,10 +247,17 @@ function WalletButtonClient() {
             
             {availableConnectors.length === 0 ? (
               <div className="px-3 py-4 text-center">
-                <div className="text-white/70 text-sm mb-2">No wallets detected</div>
-                <p className="text-white/50 text-xs">
-                  Install MetaMask, Coinbase Wallet, or another Web3 wallet to continue.
+                <div className="text-white/70 text-sm mb-2">No browser wallet detected</div>
+                <p className="text-white/50 text-xs mb-3">
+                  Sign in with Google, open this page in your wallet browser, or install a supported wallet extension.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => router.push('/auth/login')}
+                  className="w-full py-2 px-3 rounded-lg bg-white text-black text-sm font-medium hover:bg-white/90 transition"
+                >
+                  Continue with Google
+                </button>
               </div>
             ) : (
               <div className="space-y-1">
@@ -345,9 +352,9 @@ function ConnectWalletCardClient() {
 
       {availableConnectors.length === 0 ? (
         <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
-          <p className="text-white/70 text-sm mb-2">No wallets detected</p>
+          <p className="text-white/70 text-sm mb-2">No browser wallet detected</p>
           <p className="text-white/50 text-xs">
-            Install MetaMask, Coinbase Wallet, or another Web3 wallet to continue.
+            Continue with Google above, open this page in your wallet browser, or install a supported wallet extension.
           </p>
         </div>
       ) : (
