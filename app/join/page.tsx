@@ -131,21 +131,6 @@ export default function JoinPage() {
             </div>
           </div>
 
-          {/* Batch generation — feature (live: n up to 4) */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">Batch Image Generation</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  Generate multiple variations at once to explore different creative directions
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
-                  Available Now
-                </span>
-              </div>
-            </div>
-          </div>
-
           {/* More models + LoRAs — forward looking */}
           <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
             <div className="flex items-start gap-4">

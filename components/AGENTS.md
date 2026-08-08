@@ -33,8 +33,8 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   `img2img`/`img2video` (or requires an image). Do not infer support from modality.
 - Model controls surface Core-derived offline state, and generation controls
   must not submit a model that is explicitly offline.
-- Batch controls stay disabled for source-image and video workflows until the
-  selected recipe declares and Core enforces an explicit batch strategy.
+- Batch controls render only for a production-certified text-to-image workflow.
+  Hide the control when the worker cannot prove requested output cardinality.
 - Keep components presentational; push nontrivial logic into `lib/hooks` or `lib/stores`.
 
 ## Work Guidance

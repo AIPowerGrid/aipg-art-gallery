@@ -99,7 +99,9 @@ function CreatePageContent() {
   const selectedDimension = getDimension(styles, dimensionId);
   const settingsModelId = selectedModel?.id ?? "default";
   const advancedSettings = settingsByModel[settingsModelId] ?? {};
-  const batchAvailable = selectedModel?.type === "image" && !sourceImage;
+  // Core verifies native batch cardinality, but the current production image
+  // worker is not yet certified to return every requested output.
+  const batchAvailable = false;
 
   const setAdvancedSettings = (settings: AdvancedSettings) => {
     setSettingsByModel((current) => ({

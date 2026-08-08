@@ -208,9 +208,9 @@ describe("StudioRail", () => {
     expect(within(panel).getByText(/Reset advanced/i)).toBeInTheDocument();
   });
 
-  it("disables batch for workflows without a verified batch strategy", () => {
+  it("hides batch for workflows without a verified batch strategy", () => {
     render(<Harness batchAvailable={false} />);
-    expect(screen.getByText("Unavailable for this workflow")).toBeInTheDocument();
-    expect(screen.getByRole("checkbox")).toBeDisabled();
+    expect(screen.queryByText("Generate 4 images")).not.toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });

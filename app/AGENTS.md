@@ -42,7 +42,9 @@ route handlers for things that must not run in the browser — including wallet 
   identify the model as offline and disable both button and Enter-key submission.
 - `/create` keeps Advanced settings scoped to the selected model, offers native
   batch only for certified text-to-image flows, and gives the newest active or
-  completed generation the primary canvas. Older work links to `/profile`.
+  completed generation the primary canvas. Hide batch entirely when no current
+  production worker is certified; do not advertise it as available. Older work
+  links to `/profile`.
 - `/profile` is the account-owned creation library for Google and wallet
   sessions. Load creations through `/gallery/me`; never gate the page itself on
   a connected browser wallet.

@@ -190,14 +190,15 @@ export function StudioRail({
             </ControlGroup>
           )}
           {hasStyles && <ControlGroup title="Style">{styleChips}</ControlGroup>}
-          <ControlGroup title="Batch">
-            <BatchToggle
-              batchMode={batchMode}
-              onBatchModeChange={onBatchModeChange}
-              authenticated={authenticated}
-              available={batchAvailable}
-            />
-          </ControlGroup>
+          {batchAvailable && (
+            <ControlGroup title="Batch">
+              <BatchToggle
+                batchMode={batchMode}
+                onBatchModeChange={onBatchModeChange}
+                authenticated={authenticated}
+              />
+            </ControlGroup>
+          )}
         </Tabs.Content>
 
         {/* ---- Advanced: superset, grouped into collapsible sections ---- */}
@@ -253,16 +254,17 @@ export function StudioRail({
             )}
           </Accordion.Root>
 
-          <div className="mt-4 pt-4 border-t border-zinc-700/40">
-            <ControlGroup title="Batch">
-              <BatchToggle
-                batchMode={batchMode}
-                onBatchModeChange={onBatchModeChange}
-                authenticated={authenticated}
-                available={batchAvailable}
-              />
-            </ControlGroup>
-          </div>
+          {batchAvailable && (
+            <div className="mt-4 pt-4 border-t border-zinc-700/40">
+              <ControlGroup title="Batch">
+                <BatchToggle
+                  batchMode={batchMode}
+                  onBatchModeChange={onBatchModeChange}
+                  authenticated={authenticated}
+                />
+              </ControlGroup>
+            </div>
+          )}
 
           {hasCustom && (
             <button
