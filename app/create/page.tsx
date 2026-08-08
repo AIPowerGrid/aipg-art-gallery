@@ -5,6 +5,7 @@ import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
 import { PromptForm, StudioRail, CreationsGrid } from "@/components/create";
+import { CreationCard } from "@/components/creation-card";
 import type { LoraSpec, StudioTab } from "@/components/create";
 import { useStylesConfig, getDefaultModel, getDimension } from "@/lib/hooks/use-styles-config";
 import { useGridStyles } from "@/lib/hooks/use-grid-styles";
@@ -79,7 +80,7 @@ function CreatePageContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [credits, setCredits] = useState<GridCredits | null>(null);
   const [creditQuote, setCreditQuote] = useState<GridCreditQuote | null>(null);
-  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>({});
+  const [settingsByModel, setSettingsByModel] = useState<Record<string, AdvancedSettings>>({});
   const [railTab, setRailTab] = useState<StudioTab>("basic");
   const [prompt, setPrompt] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
@@ -96,6 +97,16 @@ function CreatePageContent() {
     ? styles?.models.find((m) => m.id === selectedModelId) || defaultModel
     : defaultModel;
   const selectedDimension = getDimension(styles, dimensionId);
+  const settingsModelId = selectedModel?.id ?? "default";
+  const advancedSettings = settingsByModel[settingsModelId] ?? {};
+  const batchAvailable = selectedModel?.type === "image" && !sourceImage;
+
+  const setAdvancedSettings = (settings: AdvancedSettings) => {
+    setSettingsByModel((current) => ({
+      ...current,
+      [settingsModelId]: settings,
+    }));
+  };
 
   // Set default dimension when styles load
   useEffect(() => {
@@ -103,6 +114,10 @@ function CreatePageContent() {
       setDimensionId(styles.defaultDimensionId);
     }
   }, [styles?.defaultDimensionId]);
+
+  useEffect(() => {
+    if (!batchAvailable) setBatchMode(false);
+  }, [batchAvailable]);
 
   useEffect(() => {
     if (!authenticated) {
@@ -126,7 +141,7 @@ function CreatePageContent() {
       void fetchCreditQuote(
         {
           modelId: selectedModel.id,
-          n: batchMode ? (isVideo ? 2 : 4) : 1,
+          n: batchMode && batchAvailable ? 4 : 1,
           ...(isVideo
             ? {
                 length:
@@ -157,6 +172,7 @@ function CreatePageContent() {
     authenticated,
     selectedModel,
     batchMode,
+    batchAvailable,
     advancedSettings.length,
   ]);
 
@@ -188,7 +204,7 @@ function CreatePageContent() {
     styles,
     selectedModel,
     selectedDimension,
-    batchMode,
+    batchMode: batchMode && batchAvailable,
     ownerIdentifier,
     authenticated,
     advancedSettings,
@@ -241,11 +257,17 @@ function CreatePageContent() {
   // Handle "Edit in Studio" - prefill prompt and settings from existing creation
   const handleEditInStudio = (creation: DisplayCreation) => {
     setPrompt(creation.prompt);
-    setAdvancedSettings({
-      seed: creation.params?.seed,
-      steps: creation.params?.steps,
-      cfgScale: creation.params?.cfgScale,
-    });
+    const modelExists = styles?.models.some((model) => model.id === creation.modelId);
+    const targetModelId = modelExists ? creation.modelId : settingsModelId;
+    if (modelExists) setSelectedModelId(creation.modelId);
+    setSettingsByModel((current) => ({
+      ...current,
+      [targetModelId]: {
+        seed: creation.params?.seed,
+        steps: creation.params?.steps,
+        cfgScale: creation.params?.cfgScale,
+      },
+    }));
     setRailTab("advanced");
     // Scroll to top to see the prompt form
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -271,14 +293,15 @@ function CreatePageContent() {
             {creditQuote?.estimate.priced &&
               creditQuote.estimate.cost_usd !== null && (
                 <span>
-                  Estimated {formatUSD(creditQuote.estimate.cost_usd)}
+                  {credits.charging_enabled ? "Estimated charge" : "Preview price"}{" "}
+                  {formatUSD(creditQuote.estimate.cost_usd)}
                 </span>
               )}
             {creditQuote && !creditQuote.estimate.priced && (
               <span className="text-amber-400">Price unavailable</span>
             )}
             {!credits.charging_enabled && (
-              <span className="text-zinc-500">Metering preview</span>
+              <span className="font-medium text-emerald-400">Free during preview</span>
             )}
             <a
               href={fundingURL}
@@ -311,12 +334,35 @@ function CreatePageContent() {
               fundingUrl={fundingURL}
             />
 
+            {creations[0] && (
+              <section aria-label="Current generation">
+                <div className="mb-3 flex items-center justify-between gap-4">
+                  <h2 className="text-sm font-semibold text-white">
+                    {creations[0].isGenerating ? "Generating" : "Latest creation"}
+                  </h2>
+                  <a href="/profile" className="text-sm text-indigo-300 hover:text-indigo-200">
+                    My creations
+                  </a>
+                </div>
+                <CreationCard
+                  creation={creations[0]}
+                  onDelete={removeCreation}
+                  onRegenerate={() => handleEditInStudio(creations[0])}
+                  onExtractComplete={refresh}
+                  displayMode="focus"
+                />
+              </section>
+            )}
+
             <CreationsGrid
-              creations={creations}
+              creations={creations.slice(1, 9)}
               onDelete={removeCreation}
               onEditInStudio={handleEditInStudio}
               onRefresh={refresh}
-              isGenerating={isGenerating || hasActiveJobs}
+              isGenerating={false}
+              heading="Recent creations"
+              viewAllHref="/profile"
+              hideEmptyState
             />
           </div>
 
@@ -329,6 +375,7 @@ function CreatePageContent() {
             onDimensionChange={setDimensionId}
             batchMode={batchMode}
             onBatchModeChange={setBatchMode}
+            batchAvailable={batchAvailable}
             authenticated={authenticated}
             selectedStyleId={selectedStyleId}
             onStyleSelect={handleStyleSelect}

@@ -25,6 +25,7 @@ interface StudioRailProps {
   onDimensionChange: (id: number) => void;
   batchMode: boolean;
   onBatchModeChange: (enabled: boolean) => void;
+  batchAvailable: boolean;
   authenticated: boolean;
   selectedStyleId: string | null;
   onStyleSelect: (style: GridStyle | null) => void;
@@ -92,6 +93,7 @@ export function StudioRail({
   onDimensionChange,
   batchMode,
   onBatchModeChange,
+  batchAvailable,
   authenticated,
   selectedStyleId,
   onStyleSelect,
@@ -189,7 +191,12 @@ export function StudioRail({
           )}
           {hasStyles && <ControlGroup title="Style">{styleChips}</ControlGroup>}
           <ControlGroup title="Batch">
-            <BatchToggle batchMode={batchMode} onBatchModeChange={onBatchModeChange} authenticated={authenticated} />
+            <BatchToggle
+              batchMode={batchMode}
+              onBatchModeChange={onBatchModeChange}
+              authenticated={authenticated}
+              available={batchAvailable}
+            />
           </ControlGroup>
         </Tabs.Content>
 
@@ -248,7 +255,12 @@ export function StudioRail({
 
           <div className="mt-4 pt-4 border-t border-zinc-700/40">
             <ControlGroup title="Batch">
-              <BatchToggle batchMode={batchMode} onBatchModeChange={onBatchModeChange} authenticated={authenticated} />
+              <BatchToggle
+                batchMode={batchMode}
+                onBatchModeChange={onBatchModeChange}
+                authenticated={authenticated}
+                available={batchAvailable}
+              />
             </ControlGroup>
           </div>
 

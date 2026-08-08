@@ -30,6 +30,9 @@ export function Header() {
     { href: "/", label: "Gallery", active: isActive("/") },
     { href: "/create", label: "Studio", active: pathname === "/create" },
     { href: "/create/director", label: "Director", active: isActive("/create/director") },
+    ...(authenticated ? [
+      { href: "/profile", label: "My Creations", active: isActive("/profile") },
+    ] : []),
     ...(authMethod === 'google' ? [] : [
       { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
     ]),

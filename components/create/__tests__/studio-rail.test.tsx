@@ -74,7 +74,13 @@ const GRID_STYLES: GridStyle[] = [
   { id: "anime", name: "Anime", description: "", model: "z-image-turbo", job_type: "image", aspect: "1:1", locked: [] },
 ];
 
-function Harness({ initialModelId = "z-image-turbo" }: { initialModelId?: string }) {
+function Harness({
+  initialModelId = "z-image-turbo",
+  batchAvailable = true,
+}: {
+  initialModelId?: string;
+  batchAvailable?: boolean;
+}) {
   const [modelId, setModelId] = useState(initialModelId);
   const [tab, setTab] = useState<StudioTab>("basic");
   const [dim, setDim] = useState(4);
@@ -93,6 +99,7 @@ function Harness({ initialModelId = "z-image-turbo" }: { initialModelId?: string
       onDimensionChange={setDim}
       batchMode={batch}
       onBatchModeChange={setBatch}
+      batchAvailable={batchAvailable}
       authenticated={true}
       selectedStyleId={styleId}
       onStyleSelect={(s) => setStyleId(s?.id ?? null)}
@@ -199,5 +206,11 @@ describe("StudioRail", () => {
     expect(within(panel).queryByText(/Reset advanced/i)).not.toBeInTheDocument();
     fireEvent.change(within(panel).getByPlaceholderText("Random"), { target: { value: "999" } });
     expect(within(panel).getByText(/Reset advanced/i)).toBeInTheDocument();
+  });
+
+  it("disables batch for workflows without a verified batch strategy", () => {
+    render(<Harness batchAvailable={false} />);
+    expect(screen.getByText("Unavailable for this workflow")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox")).toBeDisabled();
   });
 });

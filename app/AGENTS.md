@@ -40,6 +40,12 @@ route handlers for things that must not run in the browser — including wallet 
   `img2img`/`img2video`; incompatible source state must never ride a later job.
 - `/create` treats an explicit live-model `offline` status as unavailable:
   identify the model as offline and disable both button and Enter-key submission.
+- `/create` keeps Advanced settings scoped to the selected model, offers native
+  batch only for certified text-to-image flows, and gives the newest active or
+  completed generation the primary canvas. Older work links to `/profile`.
+- `/profile` is the account-owned creation library for Google and wallet
+  sessions. Load creations through `/gallery/me`; never gate the page itself on
+  a connected browser wallet.
 - Standalone music is intentionally absent from `aipg.art`; it belongs to
   `aipg.music`. Do not restore an `/audio` page here.
 - `/create/director` is the authenticated timeline editor for chained image-conditioned

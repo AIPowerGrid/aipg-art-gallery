@@ -148,7 +148,10 @@ export function useGeneration({
         if (isVideo) {
           ({ width, height } = fitVideoDimensions(width, height));
         }
-        const batchN = authenticated && batchMode ? (isVideo ? 2 : 4) : 1;
+        // Native batching is currently certified only for text-to-image.
+        // Source-image and video recipes fan through one output until recipe
+        // metadata can declare an explicit batch strategy.
+        const batchN = authenticated && batchMode && !sourceImage && !isVideo ? 4 : 1;
 
         const resp = await createJob({
           modelId: selectedModel.id,

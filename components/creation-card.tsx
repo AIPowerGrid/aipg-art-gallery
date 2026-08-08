@@ -20,10 +20,11 @@ interface CreationCardProps {
   onRegenerate?: (creation: DisplayCreation) => void;
   onExtractComplete?: () => void; // Called after Save as Single succeeds
   isRegenerating?: boolean;
+  displayMode?: 'grid' | 'focus';
 }
 
 // Unified Creation Card - handles both generating and completed states
-export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate, onExtractComplete, isRegenerating }: CreationCardProps) {
+export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate, onExtractComplete, isRegenerating, displayMode = 'grid' }: CreationCardProps) {
   const [showModal, setShowModal] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -183,7 +184,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   return (
     <>
       <div 
-        className="mb-0.5 group cursor-pointer break-inside-avoid"
+        className={`mb-0.5 group cursor-pointer break-inside-avoid ${displayMode === 'focus' ? 'mx-auto w-full max-w-5xl' : ''}`}
         onClick={() => canOpenModal && setShowModal(true)}
       >
         <div className={`relative rounded-xl overflow-hidden bg-zinc-800 border transition-colors ${
@@ -257,7 +258,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
           {!isBatchMode && (
             <div 
               className="relative bg-zinc-900 overflow-hidden" 
-              style={showSpinner ? { aspectRatio } : undefined}
+              style={showSpinner || displayMode === 'focus' ? { aspectRatio } : undefined}
             >
               {/* ALWAYS render image to preload it - hidden until ready */}
               {thumbnailUrl && !mediaError && (
@@ -265,7 +266,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                   {isVideo ? (
                     <video 
                       src={thumbnailUrl} 
-                      className={`w-full h-auto block ${showImage ? '' : 'sr-only'}`}
+                      className={`${displayMode === 'focus' ? 'h-full w-full object-contain' : 'w-full h-auto block'} ${showImage ? '' : 'sr-only'}`}
                       autoPlay loop muted playsInline 
                       onLoadedData={() => setImageLoaded(true)}
                       onError={() => setMediaError(true)} 
@@ -274,7 +275,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                     <img 
                       src={thumbnailUrl} 
                       alt={creation.prompt.slice(0, 50)} 
-                      className={`w-full h-auto block ${showImage ? '' : 'sr-only'}`}
+                      className={`${displayMode === 'focus' ? 'h-full w-full object-contain' : 'w-full h-auto block'} ${showImage ? '' : 'sr-only'}`}
                       loading="eager"
                       onLoad={() => setImageLoaded(true)}
                       onError={() => setMediaError(true)} 

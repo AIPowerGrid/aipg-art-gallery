@@ -3,15 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAccount } from "wagmi";
 import { toast } from "sonner";
-import { fetchGalleryByWallet, fetchGalleryMedia, GalleryItem, getFavorites, publishGalleryItem, removeFavorite } from "@/lib/api";
+import { fetchMyGallery, fetchGalleryMedia, GalleryItem, getFavorites, publishGalleryItem, removeFavorite } from "@/lib/api";
 import { JobStatus } from "@/types/models";
 import { ImageModal } from "@/components/image-modal";
 import { Header } from "@/components/header";
 import { MediaCard } from "@/components/media-card";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
-import { isAuthenticated } from "@/lib/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 interface ItemWithStatus extends GalleryItem {
   status?: JobStatus;
@@ -36,11 +35,12 @@ export default function ProfilePage() {
   const [showUnfavoriteConfirm, setShowUnfavoriteConfirm] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [mounted, setMounted] = useState(false);
-  const { address, isConnected } = useAccount();
+  const { isAuthenticated, address, syncFromStorage } = useAuthStore();
   
   useEffect(() => {
+    syncFromStorage();
     setMounted(true);
-  }, []);
+  }, [syncFromStorage]);
 
   // Filter items based on search query
   const filteredItems = items.filter(item => 
@@ -51,9 +51,14 @@ export default function ProfilePage() {
   );
 
   useEffect(() => {
-    if (isConnected && address && isAuthenticated()) {
-      loadCreations(address);
-      loadFavorites(address);
+    if (isAuthenticated) {
+      loadCreations();
+      if (address) {
+        loadFavorites(address);
+      } else {
+        setFavorites([]);
+        setLoadingFavorites(false);
+      }
     } else {
       // Clear items when not authenticated
       setItems([]);
@@ -61,7 +66,7 @@ export default function ProfilePage() {
       setLoading(false);
       setLoadingFavorites(false);
     }
-  }, [address, isConnected]);
+  }, [address, isAuthenticated]);
 
   async function loadFavorites(walletAddress: string) {
     setLoadingFavorites(true);
@@ -76,8 +81,8 @@ export default function ProfilePage() {
   }
 
   async function handlePublish(jobId: string) {
-    if (!address || !isAuthenticated()) {
-      toast.warning("Please sign in with your wallet first");
+    if (!isAuthenticated) {
+      toast.warning("Please sign in first");
       return;
     }
     setPublishingId(jobId);
@@ -102,7 +107,7 @@ export default function ProfilePage() {
   }
 
   async function handleRemoveFavorite(jobId: string) {
-    if (!address || !isAuthenticated()) return;
+    if (!address || !isAuthenticated) return;
     setShowUnfavoriteConfirm(null);
     
     try {
@@ -115,12 +120,12 @@ export default function ProfilePage() {
     }
   }
 
-  async function loadCreations(walletAddress: string) {
+  async function loadCreations() {
     setLoading(true);
     setError(null);
     
     try {
-      const response = await fetchGalleryByWallet(walletAddress, 100);
+      const response = await fetchMyGallery(100);
       
       // Initialize with loading state
       const itemsWithLoading: ItemWithStatus[] = response.items.map(item => ({
@@ -195,10 +200,10 @@ export default function ProfilePage() {
 
   // Redirect unauthenticated users to join page
   useEffect(() => {
-    if (mounted && (!isConnected || !isAuthenticated())) {
+    if (mounted && !isAuthenticated) {
       router.push('/join');
     }
-  }, [mounted, isConnected, router]);
+  }, [mounted, isAuthenticated, router]);
 
   if (!mounted) {
     return (
@@ -211,7 +216,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (!isConnected || !isAuthenticated()) {
+  if (!isAuthenticated) {
     return (
       <main className="flex-1 w-full min-h-screen bg-black">
         <Header />
@@ -269,7 +274,7 @@ export default function ProfilePage() {
               <h2 className="text-xl font-semibold text-white">Could not load creations</h2>
               <p className="text-white/70">{error}</p>
               <button
-                onClick={() => address && loadCreations(address)}
+                onClick={() => loadCreations()}
                 className="inline-block px-6 py-2 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
               >
                 Try Again
@@ -282,7 +287,7 @@ export default function ProfilePage() {
               <div className="text-4xl">🎨</div>
               <h2 className="text-xl font-semibold text-white">No creations yet</h2>
               <p className="text-white/70">
-                When you generate images or videos with your wallet connected, they'll appear here.
+                When you generate images or videos while signed in, they&apos;ll appear here.
               </p>
               <Link
                 href="/create"
@@ -411,4 +416,3 @@ export default function ProfilePage() {
     </main>
   );
 }
-

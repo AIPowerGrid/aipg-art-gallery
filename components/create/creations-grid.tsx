@@ -1,6 +1,7 @@
 "use client";
 
 import Masonry from 'react-masonry-css';
+import Link from 'next/link';
 import { CreationCard } from '@/components/creation-card';
 import { DisplayCreation } from '@/lib/storage';
 
@@ -17,6 +18,9 @@ interface CreationsGridProps {
   onEditInStudio: (creation: DisplayCreation) => void;
   onRefresh?: () => void;
   isGenerating: boolean;
+  heading?: string;
+  viewAllHref?: string;
+  hideEmptyState?: boolean;
 }
 
 export function CreationsGrid({
@@ -25,7 +29,11 @@ export function CreationsGrid({
   onEditInStudio,
   onRefresh,
   isGenerating,
+  heading = "Your Creations",
+  viewAllHref,
+  hideEmptyState = false,
 }: CreationsGridProps) {
+  if (creations.length === 0 && hideEmptyState) return null;
   if (creations.length === 0 && !isGenerating) {
     return (
       <div className="text-center py-20 text-zinc-500">
@@ -41,7 +49,14 @@ export function CreationsGrid({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-white mb-4">Your Creations</h2>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-lg font-semibold text-white">{heading}</h2>
+        {viewAllHref && (
+          <Link href={viewAllHref} className="text-sm text-indigo-300 hover:text-indigo-200">
+            View all
+          </Link>
+        )}
+      </div>
       <Masonry
         breakpointCols={MASONRY_BREAKPOINTS}
         className="masonry-grid flex w-auto -ml-0.5"

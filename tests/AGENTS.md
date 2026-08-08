@@ -12,6 +12,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
   overflow coverage.
 - `e2e/navigation.spec.ts` - top-level Director discovery and the retired
   `aipg.art/audio` route contract.
+- `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
+  account creation-library navigation, and mobile overflow coverage.
 
 ## Local Contracts
 

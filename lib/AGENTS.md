@@ -37,6 +37,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `useStylesConfig` overlays Core-backed `/models` generation modes onto the
   presentation catalog. Capability fetch failure falls back to catalog metadata,
   while Core still rejects unsupported source images server-side.
+- Studio sampling settings are model-scoped. Native batch requests are limited
+  to text-to-image until recipe metadata can advertise a verified batch strategy;
+  source-image and video submissions must remain single-output meanwhile.
 - Wallet sign-in (`auth.ts`) must sign Core's returned SIWE message unchanged.
   The Go broker derives the app subject and Core rejects reused,
   stale, cross-service, cross-subject, or foreign-origin challenges.

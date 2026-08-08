@@ -80,6 +80,54 @@ async function installDirectorMocks(page: Page) {
       });
       return;
     }
+    if (path === "/credits") {
+      await route.fulfill({
+        json: {
+          account_id: "director-preview",
+          promotional: { remaining_usd: 0, active: false },
+          free: { remaining_usd: 1, daily_cap_usd: 1, active: true },
+          paid: { balance_usd: 0 },
+          total_spendable_micro: 1_000_000,
+          total_spendable_usd: 1,
+          total_preview_usd: 1,
+          charging_enabled: false,
+          charging_mode: "off",
+        },
+      });
+      return;
+    }
+    if (path === "/credits/quote") {
+      const body = request.postDataJSON();
+      await route.fulfill({
+        json: {
+          account_id: "director-preview",
+          promotional: { remaining_usd: 0, active: false },
+          free: { remaining_usd: 1, daily_cap_usd: 1, active: true },
+          paid: { balance_usd: 0 },
+          total_spendable_micro: 1_000_000,
+          total_spendable_usd: 1,
+          total_preview_usd: 1,
+          charging_enabled: false,
+          charging_mode: "off",
+          estimate: {
+            model: body.modelId,
+            modality: body.modelId === "Krea 2 Turbo" ? "image" : "video",
+            priced: true,
+            reason: null,
+            cost_micro: 1_000,
+            cost_usd: 0.001,
+            balance_sufficient: true,
+            from_promotional_micro: 0,
+            from_daily_micro: 1_000,
+            from_paid_micro: 0,
+            shortfall_micro: 0,
+            n: body.n ?? 1,
+            seconds: body.length ? body.length / 24 : null,
+          },
+        },
+      });
+      return;
+    }
     if (path === "/jobs" && request.method() === "POST") {
       const body = request.postDataJSON();
       expect(body.modelId).toBe("LTX Director 2.0");
@@ -159,14 +207,18 @@ test("guides a first-time Director through each required setup step", async ({ p
   await page.goto("/create/director", { waitUntil: "networkidle" });
   await expect(page.getByText("Start here: add your first segment")).toBeVisible();
   await page.getByRole("button", { name: "Start here: add your first segment" }).click();
-  await expect(page.getByText("Upload the first frame for this segment.")).toBeVisible();
+  await expect(page.getByText("Describe what should happen during this segment.")).toBeVisible();
 
   // The project persists, but the selected segment intentionally does not.
   // This was the confusing production path that prompted the coach marks.
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.getByText("Click segment 1 in the timeline to open its required fields.")).toBeVisible();
   await page.locator('[aria-label="Select segment 1"]').click();
-  await expect(page.getByText("Upload the first frame for this segment.")).toBeVisible();
+  await expect(page.getByText("Describe what should happen during this segment.")).toBeVisible();
+  await page.getByLabel("Segment prompt").fill("camera glides forward");
+  await expect(
+    page.getByText("Generate the first frame with Krea 2 Turbo, or upload your own image."),
+  ).toBeVisible();
   await page.screenshot({
     path: "test-results/director-onboarding.png",
     fullPage: true,
@@ -178,8 +230,6 @@ test("guides a first-time Director through each required setup step", async ({ p
     mimeType: "image/png",
     buffer: onePixelPng,
   });
-  await expect(page.getByText("Describe what should happen during this segment.")).toBeVisible();
-  await page.getByLabel("Segment prompt").fill("camera glides forward");
   await expect(page.getByText("Render this segment. Sign-in will open here if needed.")).toBeVisible();
 });
 
