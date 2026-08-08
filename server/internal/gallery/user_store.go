@@ -8,14 +8,36 @@ import (
 
 // User represents a user profile with support for wallet and/or Google auth
 type User struct {
-	ID            int64      `json:"id"`
-	WalletAddress *string    `json:"walletAddress,omitempty"`
-	GoogleID      *string    `json:"googleId,omitempty"`
-	Email         *string    `json:"email,omitempty"`
-	Name          *string    `json:"name,omitempty"`
-	PictureURL    *string    `json:"pictureUrl,omitempty"`
-	CreatedAt     time.Time  `json:"createdAt"`
-	LastSeenAt    time.Time  `json:"lastSeenAt"`
+	ID            string    `json:"id"`
+	WalletAddress *string   `json:"walletAddress,omitempty"`
+	GoogleID      *string   `json:"googleId,omitempty"`
+	Email         *string   `json:"email,omitempty"`
+	Name          *string   `json:"name,omitempty"`
+	PictureURL    *string   `json:"pictureUrl,omitempty"`
+	CreatedAt     time.Time `json:"createdAt"`
+	LastSeenAt    time.Time `json:"lastSeenAt"`
+}
+
+type userScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanUser(row userScanner) (*User, error) {
+	var user User
+	if err := row.Scan(
+		&user.ID,
+		&user.WalletAddress,
+		&user.GoogleID,
+		&user.Email,
+		&user.Name,
+		&user.PictureURL,
+		&user.CreatedAt,
+		&user.LastSeenAt,
+	); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 // UserStore handles user-related database operations
@@ -63,23 +85,7 @@ func (s *UserStore) ConnectWallet(walletAddress string) (*User, error) {
 		RETURNING id, wallet_address, google_id, email, name, picture_url, created_at, last_seen_at
 	`
 
-	var user User
-	err := s.db.QueryRow(query, wallet, now).Scan(
-		&user.ID,
-		&user.WalletAddress,
-		&user.GoogleID,
-		&user.Email,
-		&user.Name,
-		&user.PictureURL,
-		&user.CreatedAt,
-		&user.LastSeenAt,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
+	return scanUser(s.db.QueryRow(query, wallet, now))
 }
 
 // ConnectGoogle creates or updates a user when they sign in with Google
@@ -97,23 +103,7 @@ func (s *UserStore) ConnectGoogle(googleID, email, name, pictureURL string) (*Us
 		RETURNING id, wallet_address, google_id, email, name, picture_url, created_at, last_seen_at
 	`
 
-	var user User
-	err := s.db.QueryRow(query, googleID, email, name, pictureURL, now).Scan(
-		&user.ID,
-		&user.WalletAddress,
-		&user.GoogleID,
-		&user.Email,
-		&user.Name,
-		&user.PictureURL,
-		&user.CreatedAt,
-		&user.LastSeenAt,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &user, nil
+	return scanUser(s.db.QueryRow(query, googleID, email, name, pictureURL, now))
 }
 
 // GetUserByWallet retrieves a user by their wallet address
@@ -126,17 +116,7 @@ func (s *UserStore) GetUserByWallet(walletAddress string) (*User, error) {
 		WHERE wallet_address = $1
 	`
 
-	var user User
-	err := s.db.QueryRow(query, wallet).Scan(
-		&user.ID,
-		&user.WalletAddress,
-		&user.GoogleID,
-		&user.Email,
-		&user.Name,
-		&user.PictureURL,
-		&user.CreatedAt,
-		&user.LastSeenAt,
-	)
+	user, err := scanUser(s.db.QueryRow(query, wallet))
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -145,7 +125,7 @@ func (s *UserStore) GetUserByWallet(walletAddress string) (*User, error) {
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // GetUserByGoogleID retrieves a user by their Google ID
@@ -156,17 +136,7 @@ func (s *UserStore) GetUserByGoogleID(googleID string) (*User, error) {
 		WHERE google_id = $1
 	`
 
-	var user User
-	err := s.db.QueryRow(query, googleID).Scan(
-		&user.ID,
-		&user.WalletAddress,
-		&user.GoogleID,
-		&user.Email,
-		&user.Name,
-		&user.PictureURL,
-		&user.CreatedAt,
-		&user.LastSeenAt,
-	)
+	user, err := scanUser(s.db.QueryRow(query, googleID))
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -175,28 +145,18 @@ func (s *UserStore) GetUserByGoogleID(googleID string) (*User, error) {
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // GetUserByID retrieves a user by their internal ID
-func (s *UserStore) GetUserByID(id int64) (*User, error) {
+func (s *UserStore) GetUserByID(id string) (*User, error) {
 	query := `
 		SELECT id, wallet_address, google_id, email, name, picture_url, created_at, last_seen_at
 		FROM users
 		WHERE id = $1
 	`
 
-	var user User
-	err := s.db.QueryRow(query, id).Scan(
-		&user.ID,
-		&user.WalletAddress,
-		&user.GoogleID,
-		&user.Email,
-		&user.Name,
-		&user.PictureURL,
-		&user.CreatedAt,
-		&user.LastSeenAt,
-	)
+	user, err := scanUser(s.db.QueryRow(query, id))
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -205,7 +165,7 @@ func (s *UserStore) GetUserByID(id int64) (*User, error) {
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 // Deprecated: Use ConnectWallet instead
