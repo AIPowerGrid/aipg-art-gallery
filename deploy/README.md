@@ -61,6 +61,7 @@ ln -sfn /etc/nginx/sites-available/aipg-gallery /etc/nginx/sites-enabled/aipg-ga
 systemctl daemon-reload
 nginx -t
 systemctl restart aipg-gallery aipg-gallery-web
+systemctl enable --now aipg-gallery-release-prune.timer
 systemctl reload nginx
 ```
 
@@ -75,6 +76,8 @@ curl -fsS https://aipg.art/create/director >/dev/null
 test "$(curl -sS -o /dev/null -w '%{http_code}' https://aipg.art/audio)" = 404
 test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
   https://aipg.art/api/audio/jobs)" = 404
+systemctl is-enabled aipg-gallery-release-prune.timer
+systemctl is-active aipg-gallery-release-prune.timer
 ```
 
 Then run one authenticated Director canary. Confirm the result URL is readable,
@@ -82,6 +85,10 @@ the completed job survives a fresh status request, and Core records exactly one
 completion ledger row for the Grid job ID. When charging is enabled, also
 confirm one settled reservation and the expected credit delta. A canary without
 uploaded audio may still contain model-generated audio.
+
+After the new release and rollback are proven, run
+`systemctl start aipg-gallery-release-prune.service`. The daily timer repeats
+the same active-aware retention policy and keeps exactly one inactive rollback.
 
 ## Roll back
 

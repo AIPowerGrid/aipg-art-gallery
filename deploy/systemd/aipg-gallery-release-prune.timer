@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily AIPG Art Gallery release retention
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=15m
+Unit=aipg-gallery-release-prune.service
+
+[Install]
+WantedBy=timers.target
