@@ -18,6 +18,9 @@ Next.js web process and Go API process from one commit-pinned release.
 - Releases are detached checkouts under
   `/opt/aipg-gallery-releases/gallery-<commit>` and are activated only through
   `/opt/aipg-gallery-current`.
+- Build in `/opt/aipg-gallery-releases/.building-<commit>` and atomically rename
+  only a verified artifact into `gallery-<commit>`; incomplete releases must
+  never enter the retention namespace.
 - Secrets stay in `/opt/aipg-gallery/gallery.env`, outside every release.
 - Never place a Grid key or other secret in these tracked files.
 - Build the frontend with production `NEXT_PUBLIC_*` values loaded.

@@ -86,7 +86,8 @@ export function Header() {
                 Sign in
               </Link>
             )}
-            {authMethod === 'google' ? <GoogleAccountButton /> : <CustomConnectButton />}
+            {authMethod === 'google' && <GoogleAccountButton />}
+            <CustomConnectButton />
           </div>
 
           {/* Mobile: Hamburger Button */}
@@ -132,7 +133,10 @@ export function Header() {
                   Sign in with Google or wallet
                 </Link>
               )}
-              {authMethod === 'google' ? <GoogleAccountButton /> : <CustomConnectButton />}
+              <div className="flex flex-wrap items-center gap-2 px-2">
+                {authMethod === 'google' && <GoogleAccountButton />}
+                <CustomConnectButton />
+              </div>
             </div>
         </nav>
         </div>

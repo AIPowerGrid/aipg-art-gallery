@@ -29,6 +29,9 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   markers (address, Google profile) for display and `credentials: 'include'` on any auth fetch.
 - A connected wallet under a Google session uses the exact-purpose Core link
   challenge; connecting a wallet alone never silently merges accounts.
+- Keep the wallet control available beside a Google session. It is the user's
+  proof-of-both path for linking an existing funded wallet account; hiding it
+  creates split balances that the user cannot reconcile from the product.
 - Source-image controls render only when the selected model declares
   `img2img`/`img2video` (or requires an image). Do not infer support from modality.
 - Model controls surface Core-derived offline state, and generation controls
