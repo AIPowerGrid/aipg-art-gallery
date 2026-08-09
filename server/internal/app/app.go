@@ -456,6 +456,12 @@ func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, errors.New("not signed in"))
 		return
 	}
+	// Slide the session forward on each check so an active user isn't logged out
+	// exactly at the 24h mark. Best-effort: a renewal failure leaves the existing
+	// cookie untouched.
+	if token, err := auth.RenewJWT(*claims); err == nil {
+		a.setAuthCookie(w, r, token)
+	}
 	writeJSON(w, http.StatusOK, map[string]string{
 		"address":    claims.WalletAddress,
 		"googleId":   claims.GoogleID,
