@@ -342,23 +342,15 @@ export function removeFavorite(jobId: string): Promise<{ success: boolean }> {
   });
 }
 
+// Lists the logged-in user's favorites. No address argument: the server scopes
+// results to the authenticated session, so it works for wallet and Google logins.
 export function getFavorites(
-  walletAddress: string,
   limit?: number,
 ): Promise<{ items: GalleryItem[]; count: number }> {
   const params = new URLSearchParams();
   if (limit) params.append("limit", String(limit));
   const query = params.toString();
-  return jsonFetch(
-    `/favorites/wallet/${walletAddress}${query ? `?${query}` : ""}`,
-  );
-}
-
-export function checkFavorite(
-  walletAddress: string,
-  jobId: string,
-): Promise<{ favorited: boolean }> {
-  return jsonFetch(`/favorites/check/${walletAddress}/${jobId}`);
+  return jsonFetch(`/favorites${query ? `?${query}` : ""}`);
 }
 
 // AI Enhancement API

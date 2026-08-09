@@ -35,7 +35,7 @@ export default function ProfilePage() {
   const [showUnfavoriteConfirm, setShowUnfavoriteConfirm] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [mounted, setMounted] = useState(false);
-  const { isAuthenticated, address, syncFromStorage } = useAuthStore();
+  const { isAuthenticated, syncFromStorage } = useAuthStore();
   
   useEffect(() => {
     syncFromStorage();
@@ -53,12 +53,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (isAuthenticated) {
       loadCreations();
-      if (address) {
-        loadFavorites(address);
-      } else {
-        setFavorites([]);
-        setLoadingFavorites(false);
-      }
+      loadFavorites();
     } else {
       // Clear items when not authenticated
       setItems([]);
@@ -66,12 +61,12 @@ export default function ProfilePage() {
       setLoading(false);
       setLoadingFavorites(false);
     }
-  }, [address, isAuthenticated]);
+  }, [isAuthenticated]);
 
-  async function loadFavorites(walletAddress: string) {
+  async function loadFavorites() {
     setLoadingFavorites(true);
     try {
-      const response = await getFavorites(walletAddress, 50);
+      const response = await getFavorites(50);
       setFavorites(response.items.map(item => ({ ...item, loading: false })));
     } catch (err) {
       console.error("Failed to load favorites:", err);
@@ -107,7 +102,7 @@ export default function ProfilePage() {
   }
 
   async function handleRemoveFavorite(jobId: string) {
-    if (!address || !isAuthenticated) return;
+    if (!isAuthenticated) return;
     setShowUnfavoriteConfirm(null);
     
     try {

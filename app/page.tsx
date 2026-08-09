@@ -5,13 +5,14 @@ import Link from "next/link";
 import Masonry from "react-masonry-css";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/confirm-dialog";
-import { fetchGallery, deleteGalleryItem, GalleryItem, addFavorite, removeFavorite, GalleryFilters } from "@/lib/api";
+import { fetchGallery, deleteGalleryItem, GalleryItem, addFavorite, removeFavorite, getFavorites, GalleryFilters } from "@/lib/api";
 import { GalleryFilter } from "@/components/gallery-filter";
 import { ImageModal } from "@/components/image-modal";
 import { Header } from "@/components/header";
 import { useWalletAddress } from "@/lib/hooks/use-wallet-address";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { isAuthenticated } from "@/lib/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 const INITIAL_PAGE_SIZE = 50; // Load many initially like Lexica
 const PAGE_SIZE = 50; // Then load more on scroll
@@ -43,6 +44,9 @@ export const dynamic = 'force-dynamic';
 
 export default function GalleryPage() {
   const { address, isConnected, mounted } = useWalletAddress();
+  // Unified session state — true for any login type (wallet or Google).
+  const loggedIn = useAuthStore((s) => s.isAuthenticated);
+  const sessionChecked = useAuthStore((s) => s.sessionChecked);
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -179,9 +183,28 @@ export default function GalleryPage() {
     downloadMedia(mediaSrc, getMediaFilename(item.jobId, undefined, item.type === "video"));
   }
 
+  // Seed favorite stars from the server so they reflect reality on load (works
+  // for any login type). Clear them when signed out.
+  useEffect(() => {
+    if (!sessionChecked) return;
+    if (!loggedIn) {
+      setFavorites(new Set());
+      return;
+    }
+    let cancelled = false;
+    getFavorites(200)
+      .then((res) => {
+        if (!cancelled) setFavorites(new Set(res.items.map((i) => i.jobId)));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [loggedIn, sessionChecked]);
+
   async function handleToggleFavorite(jobId: string) {
-    if (!isConnected || !address || !isAuthenticated()) return;
-    
+    if (!loggedIn) return;
+
     const wasFavorited = favorites.has(jobId);
     
     // Optimistic update
@@ -302,7 +325,7 @@ export default function GalleryPage() {
                     canDelete={!!canDelete(item)}
                   isDeleting={deleting === item.jobId}
                     isFavorited={favorites.has(item.jobId)}
-                    isLoggedIn={isConnected}
+                    isLoggedIn={loggedIn}
                 />
                 );
               })}
