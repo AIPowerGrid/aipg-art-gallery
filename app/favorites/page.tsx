@@ -6,13 +6,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/confirm-dialog";
 import Masonry from "react-masonry-css";
-import { useAccount } from "wagmi";
 import { getFavorites, removeFavorite, GalleryItem } from "@/lib/api";
 import { ImageModal } from "@/components/image-modal";
 import { Header } from "@/components/header";
 import { MediaCard } from "@/components/media-card";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
-import { isAuthenticated } from "@/lib/auth";
+import { useAuthStore } from "@/lib/stores/auth-store";
 
 // Masonry breakpoints - matches main gallery
 const MASONRY_BREAKPOINTS = {
@@ -35,29 +34,31 @@ export default function FavoritesPage() {
   const [selectedItem, setSelectedItem] = useState<FavoriteItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [mounted, setMounted] = useState(false);
-  const { address, isConnected } = useAccount();
-  
+  // Session is the source of truth for any login type (wallet or Google).
+  const { isAuthenticated, sessionChecked } = useAuthStore();
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const filteredFavorites = favorites.filter(item => 
+  const filteredFavorites = favorites.filter(item =>
     !searchQuery || item.prompt?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   useEffect(() => {
-    if (isConnected && address && isAuthenticated()) {
-      loadFavorites(address);
+    if (!sessionChecked) return;
+    if (isAuthenticated) {
+      loadFavorites();
     } else {
       setFavorites([]);
       setLoading(false);
     }
-  }, [address, isConnected]);
+  }, [sessionChecked, isAuthenticated]);
 
-  async function loadFavorites(walletAddress: string) {
+  async function loadFavorites() {
     setLoading(true);
     try {
-      const response = await getFavorites(walletAddress, 100);
+      const response = await getFavorites(100);
       setFavorites(response.items.map(item => ({ ...item, loading: false })));
     } catch (err) {
       console.error("Failed to load favorites:", err);
@@ -67,7 +68,7 @@ export default function FavoritesPage() {
   }
 
   async function handleRemoveFavorite(jobId: string) {
-    if (!address || !isAuthenticated()) return;
+    if (!isAuthenticated) return;
     const ok = await confirmDialog({
       title: 'Remove from favorites?',
       confirmLabel: 'Remove',
@@ -91,14 +92,14 @@ export default function FavoritesPage() {
     downloadMedia(mediaSrc, filename);
   }
 
-  // Redirect unauthenticated users to join page
+  // Redirect unauthenticated users to join page (only after the session check).
   useEffect(() => {
-    if (mounted && (!isConnected || !isAuthenticated())) {
+    if (mounted && sessionChecked && !isAuthenticated) {
       router.push('/join');
     }
-  }, [mounted, isConnected, router]);
+  }, [mounted, sessionChecked, isAuthenticated, router]);
 
-  if (!mounted || !isConnected || !isAuthenticated()) {
+  if (!mounted || !sessionChecked || !isAuthenticated) {
     return (
       <main className="flex-1 w-full min-h-screen bg-black">
         <Header />
