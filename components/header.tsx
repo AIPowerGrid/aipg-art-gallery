@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useAccount } from "wagmi";
 import { CustomConnectButton } from "./custom-connect-button";
 import { ActiveJobsIndicator } from "./active-jobs-indicator";
 import { GoogleAccountButton } from "./google-account-button";
@@ -12,12 +11,13 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function Header() {
   const pathname = usePathname();
-  const { isConnected } = useAccount();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  // Use reactive auth state from store
+  // Use reactive auth state from store. The session cookie is the source of truth,
+  // so we do NOT gate on the live wallet connection (isConnected) — otherwise a
+  // reload flashes "Sign in" until wagmi finishes reconnecting.
   const { isAuthenticated, authMethod } = useAuthStore();
-  const authenticated = isAuthenticated && (authMethod === 'google' || isConnected);
+  const authenticated = isAuthenticated;
   const favoritesLink = authenticated ? "/favorites" : "/join";
   const favoritesLabel = authenticated ? "Favorites" : "Join";
   
@@ -33,9 +33,9 @@ export function Header() {
     ...(authenticated ? [
       { href: "/profile", label: "My Creations", active: isActive("/profile") },
     ] : []),
-    ...(authMethod === 'google' ? [] : [
-      { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
-    ]),
+    // Favorites now work for every login type (wallet and Google), so the link is
+    // shown for all authenticated users instead of being hidden from Google users.
+    { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
   ];
   
   return (

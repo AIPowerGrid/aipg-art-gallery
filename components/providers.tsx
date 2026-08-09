@@ -70,12 +70,10 @@ function WalletManager({ children }: { children: ReactNode }) {
     }
   }, [isConnected, chainId, switchChain]);
 
-  // Clear wallet auth when wallet disconnects (but preserve Google auth)
-  useEffect(() => {
-    if (!isConnected && authMethod === "wallet") {
-      clearAuth();
-    }
-  }, [isConnected, authMethod, clearAuth]);
+  // NOTE: wallet disconnect must NOT end the session. The httpOnly session cookie
+  // is the source of truth; a wallet lock, extension hiccup, or the brief
+  // disconnect during a page reload used to call clearAuth() here and log the user
+  // out on every reload. Sign-out is now explicit only (the account menu).
 
   // Handle auth when wallet connects
   useEffect(() => {
