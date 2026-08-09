@@ -196,8 +196,6 @@ func (a *App) Router() http.Handler {
 		api.Get("/gallery/models", a.handleListGalleryModels)
 		api.Get("/gallery/{id}", a.handleGetGalleryItem)
 		api.Get("/gallery/{id}/media", a.handleGetGalleryMedia)
-		api.Get("/favorites/wallet/{wallet}", a.handleGetFavorites)
-		api.Get("/favorites/check/{wallet}/{jobId}", a.handleCheckFavorite)
 
 		// Protected routes (JWT authentication required)
 		api.Group(func(protected chi.Router) {
@@ -219,6 +217,7 @@ func (a *App) Router() http.Handler {
 			protected.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
 			protected.Post("/gallery/{id}/unpublish", a.handleUnpublishGalleryItem)
 			protected.Post("/gallery/{id}/extract", a.handleExtractSingleImage)
+			protected.Get("/favorites", a.handleListMyFavorites)
 			protected.Post("/favorites/{jobId}", a.handleAddFavorite)
 			protected.Delete("/favorites/{jobId}", a.handleRemoveFavorite)
 		})
@@ -2499,10 +2498,14 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 // Favorites handlers
 func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	wallet := getWalletFromContext(r) // From JWT
+	owner := getGalleryOwnerIdentifier(r) // Same durable owner key gallery items use
 
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
+		return
+	}
+	if owner == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
 
@@ -2511,7 +2514,7 @@ func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := a.favoritesStore.Add(wallet, jobID)
+	err := a.favoritesStore.Add(owner, jobID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -2525,10 +2528,14 @@ func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	wallet := getWalletFromContext(r) // From JWT
+	owner := getGalleryOwnerIdentifier(r) // Same durable owner key gallery items use
 
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
+		return
+	}
+	if owner == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
 
@@ -2537,7 +2544,7 @@ func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := a.favoritesStore.Remove(wallet, jobID)
+	err := a.favoritesStore.Remove(owner, jobID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -2549,10 +2556,13 @@ func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
-	wallet := chi.URLParam(r, "wallet")
-	if wallet == "" {
-		writeError(w, http.StatusBadRequest, errors.New("wallet address required"))
+// handleListMyFavorites returns the current user's favorited items. It is tied to
+// the authenticated user's durable owner key (not a caller-supplied address), so it
+// works identically for wallet and Google logins and cannot enumerate other users.
+func (a *App) handleListMyFavorites(w http.ResponseWriter, r *http.Request) {
+	owner := getGalleryOwnerIdentifier(r)
+	if owner == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
 
@@ -2569,34 +2579,11 @@ func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items := a.favoritesStore.GetFavoritedItems(wallet, limit)
+	items := a.favoritesStore.GetFavoritedItems(owner, limit)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items":  items,
-		"count":  len(items),
-		"wallet": wallet,
-	})
-}
-
-func (a *App) handleCheckFavorite(w http.ResponseWriter, r *http.Request) {
-	wallet := chi.URLParam(r, "wallet")
-	jobID := chi.URLParam(r, "jobId")
-
-	if wallet == "" || jobID == "" {
-		writeError(w, http.StatusBadRequest, errors.New("wallet and jobId required"))
-		return
-	}
-
-	if a.favoritesStore == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"favorited": false})
-		return
-	}
-
-	favorited := a.favoritesStore.IsFavorited(wallet, jobID)
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"favorited": favorited,
-		"jobId":     jobID,
+		"items": items,
+		"count": len(items),
 	})
 }
 
