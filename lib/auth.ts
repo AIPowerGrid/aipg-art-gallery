@@ -176,13 +176,12 @@ async function _signIn({
 }
 
 export async function signOut() {
-  try {
-    await fetch(`${getApiBase()}/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
-  } catch {
-    // best-effort; clear local state regardless
+  const response = await fetch(`${getApiBase()}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to sign out");
   }
   clearAuthToken();
 }

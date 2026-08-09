@@ -1,10 +1,13 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { Loader2, LogOut } from "lucide-react";
+import { toast } from "sonner";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function GoogleAccountButton() {
   const { authMethod, name, email, clearAuth } = useAuthStore();
+  const [signingOut, setSigningOut] = useState(false);
   if (authMethod !== "google") return null;
 
   const label = name || email || "Google account";
@@ -20,12 +23,26 @@ export function GoogleAccountButton() {
       </span>
       <button
         type="button"
-        onClick={clearAuth}
+        onClick={async () => {
+          setSigningOut(true);
+          try {
+            await clearAuth();
+          } catch {
+            toast.error("Could not sign out. Please try again.");
+          } finally {
+            setSigningOut(false);
+          }
+        }}
+        disabled={signingOut}
         className="flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 hover:bg-zinc-700 hover:text-white"
         title="Sign out"
         aria-label="Sign out"
       >
-        <LogOut className="h-4 w-4" />
+        {signingOut ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <LogOut className="h-4 w-4" />
+        )}
       </button>
     </div>
   );

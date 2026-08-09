@@ -11,7 +11,7 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   submission and the canonical Core-backed credit quote. Sends the session cookie via
   `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
 - `auth.ts` — wallet sign-in (calls the Go `/api/auth/wallet/*` Core broker), session helpers, and the
-  non-sensitive session marker (address + expiry). Exposes `signIn`, `signOut` (→ Go
+  non-sensitive session marker (address + expiry). Exposes `signIn`, awaited `signOut` (→ Go
   `/auth/logout`), `fetchSession` (→ Go `/auth/me`), `isAuthenticated`, `getApiBase`.
 - `nonce-store.ts` — in-memory one-time nonce store used by the `/auth-api` routes
   (`storeNonce` / `consumeNonce` / `cleanupNonces`). Replace with Redis if multi-instance.
@@ -45,6 +45,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   stale, cross-service, cross-subject, or foreign-origin challenges.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
   is optimistic UI only.
+- Logout is server-authoritative: await `/auth/logout` before clearing local
+  profile markers, and retain the signed-in UI if cookie invalidation fails.
 - Keep request/response types aligned with `types/models.ts` and the Go structs.
 - Preserve Core's `grid.job_id` as `gridJobId` through job polling, Gallery
   persistence, local creation state, and generation details.
