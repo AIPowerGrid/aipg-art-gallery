@@ -88,6 +88,15 @@ func GenerateLinkedJWT(
 	return generateJWTFromClaims(claims)
 }
 
+// RenewJWT re-issues a token for an already-verified session with a fresh 24h
+// lifetime, preserving the identity claims. Called on session checks so active
+// users aren't forced to re-authenticate exactly every 24h.
+func RenewJWT(claims Claims) (string, error) {
+	claims.IssuedAt = time.Now().Unix()
+	claims.ExpiresAt = time.Now().Add(24 * time.Hour).Unix()
+	return generateJWTFromClaims(claims)
+}
+
 func generateJWTFromClaims(claims Claims) (string, error) {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
