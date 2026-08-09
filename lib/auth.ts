@@ -1,6 +1,15 @@
 // Session checks (/auth/me, /auth/logout) live on the Go API.
 export const getApiBase = () =>
-  process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
+  typeof window !== "undefined"
+    ? // Browser: never call the backend cross-origin (that hardcodes a host/port
+      // the user's browser may not reach — the "keeps loading" bug). Honor an
+      // explicitly relative override (e2e mocks use /api-preview); otherwise use
+      // the same-origin /api proxy (nginx in prod, a Next rewrite in dev).
+      (process.env.NEXT_PUBLIC_GALLERY_API?.startsWith("/")
+        ? process.env.NEXT_PUBLIC_GALLERY_API
+        : "/api")
+    : // Server-side (SSR / route handlers): reach the Go backend directly.
+      `${process.env.GALLERY_API_ORIGIN ?? "http://localhost:4000"}/api`;
 
 // ============================================================================
 // Session state
