@@ -18,6 +18,10 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface AuthState {
   isAuthenticated: boolean;
+  // False until the authoritative server check (/auth/me) has completed once.
+  // Pages should wait for this before redirecting or showing One Tap, so a
+  // logged-in user isn't briefly treated as signed-out during startup.
+  sessionChecked: boolean;
   authMethod: "wallet" | "google" | null;
   address: string | null;
   googleId: string | null;
@@ -50,6 +54,7 @@ function clearGoogleProfile() {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
+  sessionChecked: false,
   authMethod: null,
   address: null,
   googleId: null,
@@ -183,6 +188,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch {
       // network hiccup: keep optimistic state
+    } finally {
+      // The authoritative check has run at least once, regardless of outcome.
+      set({ sessionChecked: true });
     }
   },
 

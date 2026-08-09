@@ -81,13 +81,15 @@ async function authenticateGoogleCredential(credential: string, setGoogleAuth: S
 
 export function GoogleOneTap() {
   const { isConnected } = useAccount();
-  const { isAuthenticated, setGoogleAuth } = useAuthStore();
+  const { isAuthenticated, sessionChecked, setGoogleAuth } = useAuthStore();
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [shouldShow, setShouldShow] = useState(false);
 
   // Check if we should show the prompt
   useEffect(() => {
     // Don't show if:
+    // - The session check hasn't completed yet (avoid flashing One Tap at an
+    //   already-logged-in user during startup)
     // - User has wallet connected
     // - User is already authenticated
     // - User chose "never show again"
@@ -95,9 +97,14 @@ export function GoogleOneTap() {
     const hideForever = localStorage.getItem(HIDE_ONETAP_KEY) === "true";
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-    const show = !isConnected && !isAuthenticated && !hideForever && !!clientId;
+    const show =
+      sessionChecked &&
+      !isConnected &&
+      !isAuthenticated &&
+      !hideForever &&
+      !!clientId;
     setShouldShow(show);
-  }, [isConnected, isAuthenticated]);
+  }, [isConnected, isAuthenticated, sessionChecked]);
 
   const handleCredentialResponse = useCallback(async (response: CredentialResponse) => {
     try {
