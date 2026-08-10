@@ -243,71 +243,69 @@ export default function GalleryPage() {
     (!item.walletAddress || item.walletAddress.toLowerCase() === address.toLowerCase());
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a]">
+    <main className="min-h-screen">
       <Header />
 
-      {/* Search header */}
-      <div className="w-full px-4 md:px-7 pt-2 sm:pt-4 pb-3 sm:pb-4">
-        <div className="relative flex items-center justify-center">
-          {/* Centered search box */}
-          <div className="w-full max-w-sm flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
-            <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Search + filter — one connected control, centered */}
+      <div className="w-full px-4 md:px-7 pt-3 sm:pt-5 pb-4">
+        <div className="mx-auto flex max-w-xl items-center gap-2">
+          <div className="group flex flex-1 items-center gap-2 rounded-xl border border-border bg-card/70 px-3.5 transition-colors focus-within:border-primary/60 focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.15)]">
+            <svg className="h-[18px] w-[18px] shrink-0 text-tertiary transition-colors group-focus-within:text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
               type="text"
-              placeholder="Search images"
+              placeholder="Search the gallery"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-3 bg-transparent text-white placeholder-[#666] focus:outline-none"
+              className="w-full border-0 bg-transparent py-2.5 text-sm text-foreground placeholder:text-tertiary focus:outline-none focus:ring-0"
+              style={{ borderRadius: 0 }}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="mr-3 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
+                className="rounded-md p-1 text-tertiary transition-colors hover:bg-white/5 hover:text-foreground"
+                aria-label="Clear search"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             )}
           </div>
-          {/* Filter button - positioned to the right */}
-          <div className="absolute right-0">
-            <GalleryFilter filters={filters} onFiltersChange={setFilters} />
-          </div>
+          <GalleryFilter filters={filters} onFiltersChange={setFilters} />
         </div>
       </div>
 
       {/* Gallery content */}
       {loading ? (
         <div className="flex items-center justify-center py-32">
-          <div className="w-6 h-6 border-2 border-[#333] border-t-white rounded-full animate-spin" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
         </div>
       ) : error ? (
-        <div className="text-center py-32">
-          <p className="text-[#666] mb-4">{error}</p>
-          <button onClick={loadGallery} className="px-4 py-2 rounded-xl bg-[#1a1a1a] border border-[#333] text-white hover:bg-[#222]">
-              Try Again
-            </button>
+        <div className="py-32 text-center">
+          <p className="mb-4 text-muted-foreground">{error}</p>
+          <button onClick={loadGallery} className="btn btn-secondary">
+            Try again
+          </button>
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-32">
-          <p className="text-[#666] mb-4">
+        <div className="py-32 text-center">
+          <p className="mb-4 text-muted-foreground">
             {filters.type === "video" ? "No videos found" : filters.type === "image" ? "No images found" : "No results found"}
-            </p>
-          <Link href="/create" className="px-4 py-2 rounded-xl bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-medium">
-            Create Something New
-            </Link>
+          </p>
+          <Link href="/create" className="btn btn-primary">
+            Create something new
+          </Link>
         </div>
       ) : (
         <>
-          {/* Masonry grid - Lexica style */}
+          {/* Masonry grid with real gutters */}
           <div className="px-4 md:px-7 pb-8">
             <Masonry
               breakpointCols={MASONRY_BREAKPOINTS}
-              className="masonry-grid flex w-auto -ml-0.5"
-              columnClassName="pl-0.5 bg-clip-padding"
+              className="masonry-grid flex w-auto -ml-3"
+              columnClassName="pl-3 bg-clip-padding"
             >
               {items.map((item, index) => {
                 const fullUrl = item.mediaUrls?.[0] || '';
@@ -392,14 +390,15 @@ function GalleryCard({
   if (!mediaSrc || error) return null;
 
   return (
-    <div 
-      className="group relative mb-0.5 cursor-pointer overflow-hidden bg-[#0a0a0a]"
+    <div
+      className="group relative mb-3 cursor-pointer overflow-hidden rounded-xl border border-border/60 bg-card transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-edge hover:shadow-[0_16px_40px_-16px_rgba(0,0,0,0.7)]"
+      style={{ transitionTimingFunction: "var(--ease)" }}
       onClick={onSelect}
     >
       {/* Loading placeholder */}
       {!loaded && !isVideo && (
-        <div 
-          className="w-full bg-neutral-900 animate-pulse" 
+        <div
+          className="w-full bg-secondary animate-pulse"
           style={{ aspectRatio: `${width} / ${height}` }}
         />
       )}
@@ -429,18 +428,18 @@ function GalleryCard({
         />
       )}
       
-      {/* Hover overlay - Lexica style */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+      {/* Hover overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ transitionTimingFunction: "var(--ease)" }}>
         {/* Top actions */}
-        <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-2 flex gap-1.5 translate-y-1 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
           {/* Favorite star - only for logged in users */}
           {isLoggedIn && (
             <button
               onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-              className={`p-1.5 rounded-full transition-colors ${
-                isFavorited 
-                  ? 'bg-yellow-500/80 text-white hover:bg-yellow-500' 
-                  : 'bg-black/60 hover:bg-black/80 text-white/80 hover:text-white'
+              className={`rounded-full p-1.5 backdrop-blur-sm transition-colors ${
+                isFavorited
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-black/60 text-white/80 hover:bg-black/80 hover:text-white'
               }`}
             >
               <svg className="w-4 h-4" fill={isFavorited ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
@@ -458,16 +457,22 @@ function GalleryCard({
           </button>
         </div>
         
-        {/* Bottom prompt */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          <p className="text-white text-sm leading-snug line-clamp-2">{item.prompt}</p>
+        {/* Bottom metadata */}
+        <div className="absolute bottom-0 left-0 right-0 translate-y-1 p-3 opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100">
+          <p className="mb-1.5 line-clamp-2 text-sm leading-snug text-white">{item.prompt}</p>
+          {item.modelName && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-white/70">
+              <span className="h-1 w-1 rounded-full bg-primary" />
+              {item.modelName}
+            </span>
+          )}
         </div>
       </div>
-      
+
       {/* NSFW badge */}
       {item.isNsfw && (
-        <div className="absolute top-2 left-2 px-1.5 py-0.5 bg-red-600 text-white text-xs font-medium rounded">
-          NSFW
+        <div className="badge badge-mature absolute left-2 top-2">
+          Mature
         </div>
       )}
     </div>

@@ -79,10 +79,10 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
       {/* Filter Button - Inline with search */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`group flex items-center gap-2 px-3 py-2.5 rounded-full border transition-all ${
+        className={`group flex items-center gap-2 rounded-xl border px-3.5 py-2.5 transition-all ${
           activeFilterCount > 0
-            ? "bg-white text-black border-white"
-            : "bg-transparent text-[#888] border-[#333] hover:border-[#555] hover:text-white"
+            ? "border-primary/55 bg-primary/12 text-foreground"
+            : "border-border bg-card/70 text-muted-foreground hover:border-edge hover:text-foreground"
         }`}
         title="Filters"
       >
@@ -106,7 +106,7 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
 
       {/* Side Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-full max-w-lg bg-[#0d0d0d] z-50 transform transition-transform duration-300 ease-out flex flex-col ${
+        className={`fixed top-0 right-0 h-full w-full max-w-lg bg-popover border-l border-border z-50 transform transition-transform duration-300 ease-out flex flex-col ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -121,13 +121,13 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
             <div>
               <h2 className="text-2xl font-semibold text-white">Filters</h2>
               {activeFilterCount > 0 && (
-                <p className="text-white/40 text-sm mt-0.5">{activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied</p>
+                <p className="text-muted-foreground text-sm mt-0.5">{activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} applied</p>
               )}
             </div>
           </div>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-2 -mr-2 rounded-full hover:bg-white/5 text-white/40 hover:text-white transition-colors"
+            className="p-2 -mr-2 rounded-full hover:bg-white/5 text-muted-foreground hover:text-white transition-colors"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
@@ -144,7 +144,7 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
             
             {/* Media Type */}
             <section>
-              <h3 className="text-xs font-medium text-white/40 uppercase tracking-widest mb-4">Media Type</h3>
+              <h3 className="eyebrow mb-4">Media Type</h3>
               <div className="flex gap-3">
                 {[
                   { value: "all", label: "All", icon: (
@@ -168,8 +168,8 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
                     onClick={() => handleTypeChange(option.value)}
                     className={`flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl border transition-all ${
                       (filters.type || "all") === option.value
-                        ? "bg-white text-black border-white"
-                        : "bg-white/[0.02] text-white/60 border-white/10 hover:border-white/20 hover:text-white"
+                        ? "border-primary bg-primary/15 text-foreground"
+                        : "bg-card/40 text-muted-foreground border-border hover:border-edge hover:text-foreground"
                     }`}
                   >
                     {option.icon}
@@ -181,7 +181,7 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
 
             {/* Content Rating */}
             <section>
-              <h3 className="text-xs font-medium text-white/40 uppercase tracking-widest mb-4">Content Rating</h3>
+              <h3 className="eyebrow mb-4">Content Rating</h3>
               <div className="flex gap-3">
                 {[
                   { value: "all", label: "All" },
@@ -193,8 +193,8 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
                     onClick={() => handleNsfwChange(option.value)}
                     className={`flex-1 py-3 rounded-xl border transition-all text-sm font-medium ${
                       (filters.nsfw || "all") === option.value
-                        ? "bg-white text-black border-white"
-                        : "bg-white/[0.02] text-white/60 border-white/10 hover:border-white/20 hover:text-white"
+                        ? "border-primary bg-primary/15 text-foreground"
+                        : "bg-card/40 text-muted-foreground border-border hover:border-edge hover:text-foreground"
                     }`}
                   >
                     {option.label}
@@ -205,7 +205,7 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
 
             {/* Aspect Ratio */}
             <section>
-              <h3 className="text-xs font-medium text-white/40 uppercase tracking-widest mb-4">Aspect Ratio</h3>
+              <h3 className="eyebrow mb-4">Aspect Ratio</h3>
               <div className="flex gap-3">
                 {[
                   { value: "landscape", label: "Wide", ratio: "16:9" },
@@ -217,19 +217,19 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
                     onClick={() => handleAspectChange(option.value)}
                     className={`flex-1 flex flex-col items-center gap-3 py-4 rounded-2xl border transition-all ${
                       filters.aspect === option.value
-                        ? "bg-white text-black border-white"
-                        : "bg-white/[0.02] text-white/60 border-white/10 hover:border-white/20 hover:text-white"
+                        ? "border-primary bg-primary/15 text-foreground"
+                        : "bg-card/40 text-muted-foreground border-border hover:border-edge hover:text-foreground"
                     }`}
                   >
                     {/* Visual aspect ratio indicator */}
-                    <div className={`rounded-sm ${filters.aspect === option.value ? 'bg-black/20' : 'bg-white/20'} ${
+                    <div className={`rounded-sm ${filters.aspect === option.value ? 'bg-primary' : 'bg-white/25'} ${
                       option.value === 'landscape' ? 'w-10 h-6' :
                       option.value === 'square' ? 'w-7 h-7' :
                       'w-5 h-8'
                     }`} />
                     <div className="text-center">
                       <div className="text-sm font-medium">{option.label}</div>
-                      <div className={`text-xs mt-0.5 ${filters.aspect === option.value ? 'text-black/50' : 'text-white/30'}`}>{option.ratio}</div>
+                      <div className={`text-xs mt-0.5 numeric ${filters.aspect === option.value ? 'text-primary' : 'text-tertiary'}`}>{option.ratio}</div>
                     </div>
                   </button>
                 ))}
@@ -239,9 +239,9 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
             {/* Models */}
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xs font-medium text-white/40 uppercase tracking-widest">Models</h3>
+                <h3 className="eyebrow">Models</h3>
                 {filters.models && filters.models.length > 0 && (
-                  <span className="text-xs text-white/40">{filters.models.length} selected</span>
+                  <span className="text-xs text-muted-foreground">{filters.models.length} selected</span>
                 )}
               </div>
               {loadingModels ? (
@@ -249,7 +249,7 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
                   <div className="w-6 h-6 border-2 border-white/10 border-t-white/60 rounded-full animate-spin" />
                 </div>
               ) : availableModels.length === 0 ? (
-                <p className="text-white/30 text-sm py-8 text-center">No models available</p>
+                <p className="text-tertiary text-sm py-8 text-center">No models available</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {availableModels.map((model) => {
@@ -260,15 +260,15 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
                         onClick={() => handleModelToggle(model)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
                           isSelected
-                            ? "bg-white text-black border-white"
-                            : "bg-white/[0.02] text-white/60 border-white/10 hover:border-white/20 hover:text-white"
+                            ? "border-primary bg-primary/15 text-foreground"
+                            : "bg-card/40 text-muted-foreground border-border hover:border-edge hover:text-foreground"
                         }`}
                       >
                         <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                          isSelected ? "bg-black border-black" : "border-white/30"
+                          isSelected ? "bg-primary border-primary" : "border-white/30"
                         }`}>
                           {isSelected && (
-                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-2.5 h-2.5 text-primary-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                             </svg>
                           )}
@@ -285,23 +285,18 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 border-t border-white/5">
+        <div className="px-8 py-6 border-t border-border">
           <div className="flex gap-3">
             {activeFilterCount > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="flex-1 py-3.5 rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 text-sm font-medium transition-all"
-              >
-                Clear All
+              <button onClick={clearAllFilters} className="btn btn-outline flex-1">
+                Clear all
               </button>
             )}
             <button
               onClick={() => setIsOpen(false)}
-              className={`py-3.5 rounded-xl bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 ${
-                activeFilterCount > 0 ? "flex-1" : "w-full"
-              }`}
+              className={`btn btn-primary ${activeFilterCount > 0 ? "flex-1" : "w-full"}`}
             >
-              Show Results
+              Show results
             </button>
           </div>
         </div>
