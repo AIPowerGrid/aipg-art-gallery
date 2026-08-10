@@ -1,3 +1,7 @@
+-- LEGACY ONLY: this schema belongs to the retired direct-Supabase prototype.
+-- The Go API's production PostgreSQL schema is versioned under
+-- server/internal/gallery/migrations/. Do not apply this file to production.
+
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 

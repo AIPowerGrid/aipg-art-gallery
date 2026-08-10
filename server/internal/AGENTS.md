@@ -21,8 +21,8 @@ package owns one concern; `app/app.go` wires them together.
 - `ai/` — client for grid text generation (prompt enhancement) via `/v1/chat/completions`.
 - `prompts/` — model-aware prompt enhancement / category detection. Has tests.
 - `gallery/` — storage layer. `GalleryStore` interface with two backends: `postgres_store.go`
-  (primary) and the file-store via `FileStoreAdapter`. Plus `user_store.go` (incl. Google
-  account columns), `job_store.go`, `favorites_store.go`.
+  (primary) and the file-store via `FileStoreAdapter`. Plus `user_store.go`,
+  `favorites_store.go`, and the versioned PostgreSQL migrations.
 - `auth/` — `siwe.go` (EIP-191 verify, legacy), `jwt.go` (HS256 sign/verify with constant-time
   compare + `alg` check; dual wallet/Google claims, `JWT_SECRET`). Wallet SIWE verification for
   the live path is in the Next `/auth-api` routes, not here.
@@ -52,4 +52,4 @@ package owns one concern; `app/app.go` wires them together.
 
 ## Child DOX Index
 
-- None — leaf.
+- [gallery/AGENTS.md](gallery/AGENTS.md) — gallery persistence and PostgreSQL migration contract.

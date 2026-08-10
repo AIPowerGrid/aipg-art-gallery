@@ -24,8 +24,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 - **One handler file:** routes and handlers stay in `internal/app/app.go`; provider logic stays
   in its `internal/*` package. Env reads only in `internal/config`.
-- **Graceful degradation:** if ModelVault / RecipeVault / Postgres / R2 init fails, the app logs
-  and continues with a fallback. Preserve this — a missing optional dependency must not crash.
+- **Graceful degradation:** ModelVault, RecipeVault, and R2 are optional and fail soft. PostgreSQL
+  is different: when `POSTGRES_ENABLED=true`, it owns user and gallery persistence and must start
+  successfully. Connection or migration failures stop startup rather than silently switching stores.
 - Core `/v1/status/models` determines live capacity. Local presets provide UX
   shape and ModelVault enriches metadata. RecipeVault filtering is disabled by
   default until its raw checkpoint names are migrated to canonical public model
@@ -43,7 +44,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   Cookie attributes come from `AUTH_COOKIE_DOMAIN` / `AUTH_COOKIE_SECURE` (Secure auto-set for
   HTTPS). There is intentionally no Go wallet `/auth/verify` (removed dead, replay-prone path).
 - The Gallery `users.wallet_address` column is nullable because Google and
-  wallet are independent login methods. `UserStore.EnsureSchema()` repairs
+  wallet are independent login methods. Versioned SQL in
+  `internal/gallery/migrations/` is the database source of truth and repairs
   legacy `NOT NULL` schemas before Google-only profiles are written. `users.id`
   is a Postgres UUID and must remain a string in Go storage types and queries.
 - Private gallery reads use protected `/gallery/me`; the legacy wallet path is owner-checked.
@@ -94,6 +96,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - New endpoint → register in `app.Router()`, add the handler, wire auth + a rate limit if it
   mutates or hits the grid. Validate request structs.
 - New config → add a field to `Config`, read it in `Load()`, document it in `.env.example`.
+- New PostgreSQL shape → append an immutable numbered migration under
+  `internal/gallery/migrations/`; never edit a migration after it has shipped.
 - Anything that mints a JWT must set it via `setAuthCookie` (httpOnly), not return it in the body.
 
 ## Verification
