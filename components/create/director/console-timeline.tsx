@@ -42,11 +42,11 @@ const LANE_H = 34;
 const createSliceId = () => `s${crypto.randomUUID()}`;
 
 const STATUS_DOT: Record<DirectorSegment["status"], string> = {
-  idle: "bg-[#5a5a64]",
-  queued: "bg-[#e2892a]",
-  rendering: "bg-[#e2892a] animate-pulse",
-  done: "bg-[#34d399]",
-  error: "bg-[#f87171]",
+  idle: "bg-tertiary",
+  queued: "bg-primary",
+  rendering: "bg-primary animate-pulse",
+  done: "bg-success",
+  error: "bg-destructive",
 };
 
 interface ConsoleTimelineProps {
@@ -286,18 +286,18 @@ export function ConsoleTimeline({
   }, [contentSec, labelEvery]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[#121215] px-5 pb-4 pt-3">
+    <div className="flex h-full min-h-0 flex-col bg-background px-5 pb-4 pt-3">
       {/* toolbar */}
       <div className="mb-2.5 flex flex-shrink-0 items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onAddSegment}
-            className="rounded-lg border border-[#313138] bg-[#17171b] px-2.5 py-1 text-[11.5px] text-[#e9e9ec] hover:border-[#4a4a53]"
+            className="rounded-lg border border-border bg-card px-2.5 py-1 text-[11.5px] text-foreground hover:border-edge"
           >
             + Segment
           </button>
-          <span className="flex items-center gap-1.5 text-[11px] text-[#5a5a64]">
+          <span className="flex items-center gap-1.5 text-[11px] text-tertiary">
             Zoom
             <input
               type="range"
@@ -305,12 +305,12 @@ export function ConsoleTimeline({
               max={200}
               value={pxPerSec}
               onChange={(e) => onZoom(Number(e.target.value))}
-              className="w-[90px] accent-[#e2892a]"
+              className="w-[90px] accent-primary"
             />
           </span>
-          <span className="text-[11px] tabular-nums text-[#5a5a64]">{totalSec.toFixed(1)}s total</span>
+          <span className="text-[11px] tabular-nums text-tertiary">{totalSec.toFixed(1)}s total</span>
         </div>
-        <span className="hidden items-center gap-3 text-[11px] text-[#5a5a64] md:flex">
+        <span className="hidden items-center gap-3 text-[11px] text-tertiary md:flex">
           <span className="flex items-center gap-1.5">
             <ChainIcon className="h-[10px] w-[10px]" /> chained join
           </span>
@@ -322,11 +322,11 @@ export function ConsoleTimeline({
       <div className="flex min-h-0 flex-1">
         {/* ===== fixed left gutter (per-row controls) ===== */}
         <div
-          className="flex flex-shrink-0 flex-col border-r border-[#242429] pr-2"
+          className="flex flex-shrink-0 flex-col border-r border-border pr-2"
           style={{ width: GUTTER_W, gap: ROW_GAP }}
         >
           <div className="h-[21px] flex-shrink-0" />
-          <div className="flex min-h-[56px] flex-1 items-center text-[10px] font-semibold uppercase tracking-wider text-[#5a5a64]">
+          <div className="flex min-h-[56px] flex-1 items-center text-[10px] font-semibold uppercase tracking-wider text-tertiary">
             Video
           </div>
           {audios.map((track) => (
@@ -339,11 +339,11 @@ export function ConsoleTimeline({
                 type="button"
                 title="Remove this audio track"
                 onClick={() => track.id && onRemoveAudio(track.id)}
-                className="flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded text-[#8f8f99] hover:bg-[#f87171]/15 hover:text-[#f87171]"
+                className="flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-destructive/15 hover:text-destructive"
               >
                 <IconX className="h-[11px] w-[11px]" />
               </button>
-              <span className="min-w-0 truncate text-[10px] text-[#8f8f99]" title={track.fileName}>
+              <span className="min-w-0 truncate text-[10px] text-muted-foreground" title={track.fileName}>
                 {track.fileName}
               </span>
             </div>
@@ -353,7 +353,7 @@ export function ConsoleTimeline({
               type="button"
               title="Add audio track"
               onClick={onAddAudio}
-              className="flex h-[20px] w-[20px] items-center justify-center rounded-md border border-dashed border-[#313138] text-[#8f8f99] hover:border-[#e2892a] hover:text-[#e2892a]"
+              className="flex h-[20px] w-[20px] items-center justify-center rounded-md border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary"
             >
               <IconPlus className="h-[11px] w-[11px]" />
             </button>
@@ -365,18 +365,18 @@ export function ConsoleTimeline({
           <div className="relative flex h-full flex-col" style={{ width: contentWidth, gap: ROW_GAP }}>
             {/* ruler */}
             <div
-              className="relative h-[21px] flex-shrink-0 cursor-pointer border-b border-[#242429]"
+              className="relative h-[21px] flex-shrink-0 cursor-pointer border-b border-border"
               onClick={seekFromEvent}
             >
               {ticks.map((t) => (
                 <span key={t.sec}>
                   <i
-                    className="absolute bottom-0 w-px bg-[#313138]"
+                    className="absolute bottom-0 w-px bg-border"
                     style={{ left: t.sec * pxPerSec, height: t.labeled ? 6 : 4 }}
                   />
                   {t.labeled && (
                     <span
-                      className={`absolute bottom-[6px] text-[9.5px] leading-none tabular-nums text-[#5a5a64] ${t.sec === 0 ? "" : "-translate-x-1/2"}`}
+                      className={`absolute bottom-[6px] text-[9.5px] leading-none tabular-nums text-tertiary ${t.sec === 0 ? "" : "-translate-x-1/2"}`}
                       style={{ left: t.sec === 0 ? 1 : t.sec * pxPerSec }}
                     >
                       {t.sec}s
@@ -389,24 +389,24 @@ export function ConsoleTimeline({
             {/* playhead */}
             {playheadSec > 0 && playheadSec <= contentSec && (
               <div
-                className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-[#e2892a]"
+                className="pointer-events-none absolute bottom-0 top-0 z-20 w-px bg-primary"
                 style={{ left: playheadSec * pxPerSec }}
               >
-                <span className="absolute -left-[5px] top-0 border-[5px] border-transparent border-t-[#e2892a]" />
+                <span className="absolute -left-[5px] top-0 border-[5px] border-transparent border-t-primary" />
               </div>
             )}
 
             {/* ===== video segment track ===== */}
-            <div ref={trackRef} className="relative min-h-[56px] flex-1 rounded-lg border border-[#242429] bg-[#17171b]">
+            <div ref={trackRef} className="relative min-h-[56px] flex-1 rounded-lg border border-border bg-card">
               {segments.length === 0 && (
                 <button
                   type="button"
                   onClick={onAddSegment}
                   aria-describedby={coachStep === "add-segment" ? "director-coach-add-segment" : undefined}
-                  className={`absolute inset-0 flex items-center justify-center text-[12px] hover:text-[#e9e9ec] ${
+                  className={`absolute inset-0 flex items-center justify-center text-[12px] hover:text-foreground ${
                     coachStep === "add-segment"
-                      ? "border border-[#e2892a]/65 bg-[#e2892a]/5 text-[#e2892a] motion-safe:animate-pulse"
-                      : "text-[#5a5a64]"
+                      ? "border border-primary/65 bg-primary/5 text-primary motion-safe:animate-pulse"
+                      : "text-tertiary"
                   }`}
                 >
                   <span id="director-coach-add-segment">
@@ -442,10 +442,10 @@ export function ConsoleTimeline({
                       }}
                       className={`group/seg absolute bottom-[5px] top-[5px] flex cursor-grab select-none items-end rounded-lg border bg-cover bg-center active:cursor-grabbing ${
                         selected
-                          ? "z-[15] border-[#e2892a] shadow-[0_0_0_1px_#e2892a]"
+                          ? "z-[15] border-primary shadow-[0_0_0_1px_#e2892a]"
                           : coachSelect
-                            ? "z-[15] border-[#e2892a] shadow-[0_0_0_2px_rgba(226,137,42,0.7)] motion-safe:animate-pulse"
-                            : "overflow-hidden border-[#313138] hover:border-[#4a4a53]"
+                            ? "z-[15] border-primary shadow-[0_0_0_2px_rgba(226,137,42,0.7)] motion-safe:animate-pulse"
+                            : "overflow-hidden border-border hover:border-edge"
                       } ${dragging ? "opacity-60" : ""}`}
                       style={{
                         left,
@@ -453,15 +453,15 @@ export function ConsoleTimeline({
                         backgroundImage: thumb ? `url(${thumb})` : "linear-gradient(135deg,#1c1c22,#111114)",
                       }}
                     >
-                      <span className="absolute left-[5px] top-[4px] flex items-center gap-1 rounded bg-black/65 px-[5px] py-[1px] text-[9.5px] text-[#cfcfd7]">
+                      <span className="absolute left-[5px] top-[4px] flex items-center gap-1 rounded bg-black/65 px-[5px] py-[1px] text-[9.5px] text-foreground">
                         {i + 1}
                         <i className={`h-[6px] w-[6px] rounded-full ${STATUS_DOT[seg.status]}`} />
-                        {seg.chained && <ChainIcon className="h-[9px] w-[9px] text-[#e2892a]" />}
+                        {seg.chained && <ChainIcon className="h-[9px] w-[9px] text-primary" />}
                       </span>
                       {coachSelect && (
                         <span
                           id="director-coach-select-segment"
-                          className="pointer-events-none absolute inset-x-1 bottom-1 z-20 rounded bg-[#1b160c]/95 px-1.5 py-1 text-center text-[9.5px] font-semibold leading-3 text-[#e2892a]"
+                          className="pointer-events-none absolute inset-x-1 bottom-1 z-20 rounded bg-primary/10/95 px-1.5 py-1 text-center text-[9.5px] font-semibold leading-3 text-primary"
                         >
                           Click segment 1
                         </span>
@@ -477,7 +477,7 @@ export function ConsoleTimeline({
                             e.stopPropagation();
                             onDuplicateSegment(seg.id);
                           }}
-                          className="flex h-[15px] w-[15px] items-center justify-center rounded bg-black/70 text-[#cfcfd7] hover:text-white"
+                          className="flex h-[15px] w-[15px] items-center justify-center rounded bg-black/70 text-foreground hover:text-white"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" className="h-[9px] w-[9px]">
                             <rect x="9" y="9" width="11" height="11" rx="2" />
@@ -492,17 +492,17 @@ export function ConsoleTimeline({
                             e.stopPropagation();
                             onRemoveSegment(seg.id);
                           }}
-                          className="flex h-[15px] w-[15px] items-center justify-center rounded bg-black/70 text-[#cfcfd7] hover:text-[#f87171]"
+                          className="flex h-[15px] w-[15px] items-center justify-center rounded bg-black/70 text-foreground hover:text-destructive"
                         >
                           <IconX className="h-[9px] w-[9px]" />
                         </button>
                       </span>
 
-                      <span className="pointer-events-none absolute bottom-[22px] right-[5px] rounded bg-black/65 px-[5px] text-[9.5px] tabular-nums text-[#cfcfd7]">
+                      <span className="pointer-events-none absolute bottom-[22px] right-[5px] rounded bg-black/65 px-[5px] text-[9.5px] tabular-nums text-foreground">
                         {framesToSeconds(seg.lengthFrames).toFixed(1)}s
                       </span>
-                      <div className="pointer-events-none w-full truncate bg-gradient-to-t from-black/80 to-transparent px-[7px] py-[3px] text-[10.5px] text-[#d6d6dd]">
-                        {seg.prompt || <span className="text-[#5a5a64]">no segment prompt</span>}
+                      <div className="pointer-events-none w-full truncate bg-gradient-to-t from-black/80 to-transparent px-[7px] py-[3px] text-[10.5px] text-foreground">
+                        {seg.prompt || <span className="text-tertiary">no segment prompt</span>}
                       </div>
 
                       {selected && (
@@ -511,13 +511,13 @@ export function ConsoleTimeline({
                             onPointerDown={(e) => startResize(e, seg, "l")}
                             className="absolute -left-[5px] top-0 z-30 h-full w-[12px] cursor-ew-resize"
                           >
-                            <span className="absolute bottom-[3px] left-[6px] top-[3px] w-[3px] rounded-sm bg-[#e2892a]" />
+                            <span className="absolute bottom-[3px] left-[6px] top-[3px] w-[3px] rounded-sm bg-primary" />
                           </span>
                           <span
                             onPointerDown={(e) => startResize(e, seg, "r")}
                             className="absolute -right-[5px] top-0 z-30 h-full w-[12px] cursor-ew-resize"
                           >
-                            <span className="absolute bottom-[3px] right-[6px] top-[3px] w-[3px] rounded-sm bg-[#e2892a]" />
+                            <span className="absolute bottom-[3px] right-[6px] top-[3px] w-[3px] rounded-sm bg-primary" />
                           </span>
                         </>
                       )}
@@ -533,7 +533,7 @@ export function ConsoleTimeline({
                           onToggleChain(segments[i + 1].id);
                         }}
                         className={`absolute top-1/2 z-40 flex h-[20px] w-[22px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-md border ${
-                          segments[i + 1].chained ? "border-[#e2892a] bg-[#171204] text-[#e2892a]" : "border-[#313138] bg-[#101014] text-[#4a4a53]"
+                          segments[i + 1].chained ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-edge"
                         }`}
                         style={{ left: framesToSeconds(offsets[i + 1]) * pxPerSec }}
                       >
@@ -547,7 +547,7 @@ export function ConsoleTimeline({
               {/* drop indicator while reordering */}
               {segDrag && (
                 <div
-                  className="pointer-events-none absolute bottom-[2px] top-[2px] z-50 w-[2px] rounded bg-[#e2892a]"
+                  className="pointer-events-none absolute bottom-[2px] top-[2px] z-50 w-[2px] rounded bg-primary"
                   style={{ left: framesToSeconds(offsets[Math.min(segDrag.targetIndex, offsets.length - 1)] ?? 0) * pxPerSec }}
                 />
               )}
@@ -558,7 +558,7 @@ export function ConsoleTimeline({
                   type="button"
                   onClick={onAddSegment}
                   title="Add a segment at the end"
-                  className="absolute top-1/2 flex h-[26px] w-[26px] -translate-y-1/2 items-center justify-center rounded-lg border border-dashed border-[#313138] text-[14px] text-[#5a5a64] hover:border-[#4a4a53] hover:text-[#8f8f99]"
+                  className="absolute top-1/2 flex h-[26px] w-[26px] -translate-y-1/2 items-center justify-center rounded-lg border border-dashed border-border text-[14px] text-tertiary hover:border-edge hover:text-muted-foreground"
                   style={{ left: totalSec * pxPerSec + 12 }}
                 >
                   +
@@ -572,9 +572,9 @@ export function ConsoleTimeline({
               const clips = clipsOf(track);
               const legacy = clips.length === 0; // duration unknown → no positioning
               return (
-                <div key={track.id ?? track.fileName} className="relative flex-shrink-0 rounded-md bg-[#0d0d10]/40" style={{ height: LANE_H }}>
+                <div key={track.id ?? track.fileName} className="relative flex-shrink-0 rounded-md bg-background/40" style={{ height: LANE_H }}>
                   {legacy ? (
-                    <div className="absolute inset-0 overflow-hidden rounded-lg border border-[#242429] bg-[#101014]">
+                    <div className="absolute inset-0 overflow-hidden rounded-lg border border-border bg-background">
                       <Waveform audio={track} width={Math.max(totalSec * pxPerSec, 60)} height={32} />
                     </div>
                   ) : (
@@ -590,7 +590,7 @@ export function ConsoleTimeline({
                             splitClip(track, i, (e.clientX - rect.left) / rect.width);
                           }}
                           title="Drag to move · edges to crop · double-click to split"
-                          className="group/clip absolute top-0 flex h-full cursor-grab items-center overflow-hidden rounded-lg border border-[#3a2f12] bg-[#141006] active:cursor-grabbing"
+                          className="group/clip absolute top-0 flex h-full cursor-grab items-center overflow-hidden rounded-lg border border-primary/20 bg-primary/10 active:cursor-grabbing"
                           style={{ left: clipLeft, width: clipW }}
                         >
                           <Waveform
@@ -600,7 +600,7 @@ export function ConsoleTimeline({
                             startFrac={dur ? s.trimStartSec / dur : 0}
                             endFrac={dur ? s.trimEndSec / dur : 1}
                           />
-                          <span className="pointer-events-none absolute bottom-[2px] left-[6px] rounded bg-black/65 px-[4px] text-[9px] tabular-nums text-[#8f8f99] opacity-0 transition-opacity group-hover/clip:opacity-100">
+                          <span className="pointer-events-none absolute bottom-[2px] left-[6px] rounded bg-black/65 px-[4px] text-[9px] tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover/clip:opacity-100">
                             {(s.trimEndSec - s.trimStartSec).toFixed(1)}s
                           </span>
                           {/* remove in the top-right corner so the body stays draggable */}
@@ -612,7 +612,7 @@ export function ConsoleTimeline({
                               e.stopPropagation();
                               removeClip(track, i);
                             }}
-                            className="absolute right-[3px] top-[3px] z-20 flex h-[15px] w-[15px] items-center justify-center rounded bg-black/70 text-[#cfcfd7] opacity-0 transition-opacity hover:text-[#f87171] group-hover/clip:opacity-100"
+                            className="absolute right-[3px] top-[3px] z-20 flex h-[15px] w-[15px] items-center justify-center rounded bg-black/70 text-foreground opacity-0 transition-opacity hover:text-destructive group-hover/clip:opacity-100"
                           >
                             <IconX className="h-[9px] w-[9px]" />
                           </button>
@@ -621,14 +621,14 @@ export function ConsoleTimeline({
                             onPointerDown={(e) => startAudioDrag(e, track, i, "l")}
                             className="absolute -left-[3px] top-0 z-10 h-full w-[10px] cursor-ew-resize"
                           >
-                            <span className="absolute bottom-[2px] left-[4px] top-[2px] w-[3px] rounded-sm bg-[#e2892a]" />
+                            <span className="absolute bottom-[2px] left-[4px] top-[2px] w-[3px] rounded-sm bg-primary" />
                           </span>
                           <span
                             title="Crop out"
                             onPointerDown={(e) => startAudioDrag(e, track, i, "r")}
                             className="absolute -right-[3px] top-0 z-10 h-full w-[10px] cursor-ew-resize"
                           >
-                            <span className="absolute bottom-[2px] right-[4px] top-[2px] w-[3px] rounded-sm bg-[#e2892a]" />
+                            <span className="absolute bottom-[2px] right-[4px] top-[2px] w-[3px] rounded-sm bg-primary" />
                           </span>
                         </div>
                       );

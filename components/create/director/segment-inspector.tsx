@@ -16,7 +16,6 @@ import {
   secondsToFrames,
 } from "@/lib/types/director";
 import { ChainIcon } from "./chain-icon";
-import { CoachTip } from "./coach-tip";
 import { IconChevronLeft, IconChevronRight, IconDownload } from "./icons";
 
 export type SegmentCoachStep = "source-image" | "prompt" | "render" | null;
@@ -41,11 +40,11 @@ interface SegmentInspectorProps {
 }
 
 const STATUS_LABEL: Record<DirectorSegment["status"], { text: string; cls: string }> = {
-  idle: { text: "not rendered", cls: "text-[#5a5a64]" },
-  queued: { text: "queued…", cls: "text-[#e2892a]" },
-  rendering: { text: "rendering", cls: "text-[#e2892a]" },
-  done: { text: "rendered ●", cls: "text-[#34d399]" },
-  error: { text: "failed", cls: "text-[#f87171]" },
+  idle: { text: "not rendered", cls: "text-tertiary" },
+  queued: { text: "queued…", cls: "text-primary" },
+  rendering: { text: "rendering", cls: "text-primary" },
+  done: { text: "rendered ●", cls: "text-success" },
+  error: { text: "failed", cls: "text-destructive" },
 };
 
 export function SegmentInspector({
@@ -100,13 +99,13 @@ export function SegmentInspector({
   const renderBusy = segment.status === "queued" || segment.status === "rendering";
 
   return (
-    <div className="rounded-[10px] border border-[#242429] bg-[#121215] p-4">
+    <div className="rounded-[10px] border border-border bg-background p-4">
       <h3 className="mb-3 flex items-center justify-between">
         <span className="flex items-center gap-2">
-          <span className="rounded border border-[#e2892a]/40 bg-[#e2892a]/10 px-1.5 py-[1px] text-[9.5px] uppercase tracking-[0.08em] text-[#e2892a]">
+          <span className="rounded border border-primary/40 bg-primary/10 px-1.5 py-[1px] text-[9.5px] uppercase tracking-[0.08em] text-primary">
             Segment {index + 1}
           </span>
-          {chained && <ChainIcon className="h-[10px] w-[10px] text-[#e2892a]/70" />}
+          {chained && <ChainIcon className="h-[10px] w-[10px] text-primary/70" />}
         </span>
         <span className={`text-[10.5px] ${status.cls}`}>
           {status.text}
@@ -115,42 +114,37 @@ export function SegmentInspector({
       </h3>
 
       {/* thumbnail + meta */}
-      {coachStep === "source-image" && (
-        <CoachTip id="director-coach-source" label="Required">
-          Generate the first frame with Krea 2 Turbo, or upload your own image.
-        </CoachTip>
-      )}
       <div className="mb-3 flex gap-3">
         <div
-          className="relative aspect-[3/2] w-[104px] flex-shrink-0 rounded-lg border border-[#313138] bg-cover bg-center"
+          className="relative aspect-[3/2] w-[104px] flex-shrink-0 rounded-lg border border-border bg-cover bg-center"
           style={{
             backgroundImage: segment.startImage
               ? `url(${segment.startImage})`
-              : "linear-gradient(135deg,#1c1c22,#111114)",
+              : "linear-gradient(135deg,hsl(var(--card)),hsl(var(--background)))",
           }}
         >
           {chained && (
-            <span className="absolute left-1 top-1 flex items-center gap-1 rounded border border-[#e2892a]/45 bg-[#e2892a]/15 px-[5px] text-[9.5px] text-[#e2892a]">
+            <span className="absolute left-1 top-1 flex items-center gap-1 rounded border border-primary/45 bg-primary/15 px-[5px] text-[9.5px] text-primary">
               <ChainIcon className="h-[9px] w-[9px]" /> #{index}
             </span>
           )}
         </div>
-        <div className="flex flex-col items-start gap-1.5 text-[11.5px] leading-[1.5] text-[#8f8f99]">
+        <div className="flex flex-col items-start gap-1.5 text-[11.5px] leading-[1.5] text-muted-foreground">
           {chained ? (
             <>
-              <b className="text-[#e9e9ec]">Last frame of #{index}</b>
-              {!segment.startImage && <span className="text-[#5a5a64]">waiting for #{index}</span>}
+              <b className="text-foreground">Last frame of #{index}</b>
+              {!segment.startImage && <span className="text-tertiary">waiting for #{index}</span>}
               <button
                 type="button"
                 onClick={onToggleChain}
-                className="rounded-md border border-[#313138] bg-[#17171b] px-2 py-[3px] text-[11px] text-[#e9e9ec] hover:border-[#4a4a53]"
+                className="rounded-md border border-border bg-card px-2 py-[3px] text-[11px] text-foreground hover:border-edge"
               >
                 Use own image
               </button>
             </>
           ) : (
             <>
-              <b className="max-w-full truncate text-[#e9e9ec]">
+              <b className="max-w-full truncate text-foreground">
                 {sourceBusy
                   ? "Krea 2 Turbo is generating…"
                   : segment.startImageName ?? (segment.startImage ? "start image" : "no image yet")}
@@ -168,9 +162,9 @@ export function SegmentInspector({
                         : "Generate a private first frame with Krea 2 Turbo"
                   }
                   aria-describedby={coachStep === "source-image" ? "director-coach-source" : undefined}
-                  className={`rounded-md border border-[#e2892a]/50 bg-[#e2892a]/10 px-2 py-[3px] text-[11px] text-[#e2892a] hover:bg-[#e2892a]/20 disabled:cursor-not-allowed disabled:opacity-40 ${
+                  className={`rounded-md border border-primary/50 bg-primary/10 px-2 py-[3px] text-[11px] text-primary hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-40 ${
                     coachStep === "source-image"
-                      ? "ring-2 ring-[#e2892a]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
+                      ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-background motion-safe:animate-pulse"
                       : ""
                   }`}
                 >
@@ -181,7 +175,7 @@ export function SegmentInspector({
                   onClick={() => fileRef.current?.click()}
                   disabled={sourceBusy || renderBusy}
                   aria-describedby={coachStep === "source-image" ? "director-coach-source" : undefined}
-                  className="rounded-md border border-[#313138] bg-[#17171b] px-2 py-[3px] text-[11px] text-[#e9e9ec] hover:border-[#4a4a53] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-md border border-border bg-card px-2 py-[3px] text-[11px] text-foreground hover:border-edge disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {segment.startImage ? "Upload replacement" : "Upload image"}
                 </button>
@@ -189,7 +183,7 @@ export function SegmentInspector({
                   <button
                     type="button"
                     onClick={onToggleChain}
-                    className="rounded-md border border-[#313138] bg-[#17171b] px-2 py-[3px] text-[11px] text-[#e9e9ec] hover:border-[#4a4a53]"
+                    className="rounded-md border border-border bg-card px-2 py-[3px] text-[11px] text-foreground hover:border-edge"
                   >
                     Chain from #{index}
                   </button>
@@ -211,7 +205,7 @@ export function SegmentInspector({
         />
       </div>
       {segment.startImageStatus === "error" && segment.startImageError && (
-        <p className="mb-3 text-[11px] text-[#f87171]">{segment.startImageError}</p>
+        <p className="mb-3 text-[11px] text-destructive">{segment.startImageError}</p>
       )}
       {(segment.startImageGridJobId || segment.gridJobId) && (
         <div className="mb-3 flex flex-wrap gap-1.5">
@@ -220,10 +214,10 @@ export function SegmentInspector({
               type="button"
               onClick={() => copyReceipt("frame", segment.startImageGridJobId!)}
               title={`Copy first-frame Core receipt ${segment.startImageGridJobId}`}
-              className="flex min-w-0 items-center gap-1 rounded-md border border-[#313138] bg-[#17171b] px-2 py-1 text-[10.5px] text-[#8f8f99] hover:text-[#e9e9ec]"
+              className="flex min-w-0 items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground hover:text-foreground"
             >
               {copiedReceipt === "frame" ? (
-                <Check className="h-3 w-3 text-[#34d399]" />
+                <Check className="h-3 w-3 text-success" />
               ) : (
                 <Copy className="h-3 w-3" />
               )}
@@ -235,10 +229,10 @@ export function SegmentInspector({
               type="button"
               onClick={() => copyReceipt("segment", segment.gridJobId!)}
               title={`Copy segment Core receipt ${segment.gridJobId}`}
-              className="flex min-w-0 items-center gap-1 rounded-md border border-[#313138] bg-[#17171b] px-2 py-1 text-[10.5px] text-[#8f8f99] hover:text-[#e9e9ec]"
+              className="flex min-w-0 items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground hover:text-foreground"
             >
               {copiedReceipt === "segment" ? (
-                <Check className="h-3 w-3 text-[#34d399]" />
+                <Check className="h-3 w-3 text-success" />
               ) : (
                 <Copy className="h-3 w-3" />
               )}
@@ -248,52 +242,38 @@ export function SegmentInspector({
         </div>
       )}
 
-      <div className="mb-3">
-        {coachStep === "prompt" && (
-          <CoachTip id="director-coach-prompt" label="Required">
-            Describe what should happen during this segment.
-          </CoachTip>
-        )}
-        <label
-          htmlFor={`segment-prompt-${segment.id}`}
-          className="mb-1 block text-[11px] text-[#8f8f99]"
-        >
-          Segment prompt
-        </label>
+      <div className="mb-3 space-y-2">
         <textarea
           id={`segment-prompt-${segment.id}`}
           rows={3}
           value={segment.prompt}
           onChange={(e) => onUpdate({ prompt: e.target.value })}
-          aria-describedby={coachStep === "prompt" ? "director-coach-prompt" : undefined}
-          className={`w-full resize-y rounded-md border bg-[#17171b] px-2.5 py-2 text-[12.5px] text-[#e9e9ec] outline-none focus:border-[#4a4a53] ${
+          placeholder="Describe this segment…"
+          aria-label="Segment prompt"
+          className={`w-full resize-y rounded-md border bg-card px-2.5 py-2 text-[12.5px] text-foreground placeholder:text-tertiary outline-none focus:border-edge ${
             coachStep === "prompt"
-              ? "border-[#e2892a]/70 ring-2 ring-[#e2892a]/45 ring-offset-2 ring-offset-[#121215]"
-              : "border-[#242429]"
+              ? "border-primary/70 ring-2 ring-primary/45 ring-offset-2 ring-offset-background"
+              : "border-border"
           }`}
         />
-        <label
-          htmlFor={`segment-negative-${segment.id}`}
-          className="mb-1 mt-2 block text-[11px] text-[#8f8f99]"
-        >
-          Negative — this segment
-        </label>
         <textarea
           id={`segment-negative-${segment.id}`}
           rows={2}
           value={segment.negativePrompt ?? ""}
           onChange={(e) => onUpdate({ negativePrompt: e.target.value || undefined })}
-          className="w-full resize-y rounded-md border border-[#242429] bg-[#17171b] px-2.5 py-1.5 text-[11.5px] text-[#e9e9ec] outline-none focus:border-[#4a4a53]"
+          placeholder="Negative prompt (optional)"
+          aria-label="Negative prompt for this segment"
+          className="w-full resize-y rounded-md border border-border bg-card px-2.5 py-1.5 text-[11.5px] text-foreground placeholder:text-tertiary outline-none focus:border-edge"
         />
       </div>
 
       <div className="mb-3 grid grid-cols-[112px,1fr] gap-3">
         <div>
-          <label className="mb-1 block text-[11px] text-[#8f8f99]">
-            Length (s) <span className="text-[#5a5a64]">1–{MAX_SEGMENT_SECONDS}</span>
+          <label className="mb-1 block text-[11px] text-muted-foreground">
+            Length <span className="text-tertiary numeric">s</span>
           </label>
-          <div className="flex items-center overflow-hidden rounded-md border border-[#242429] bg-[#17171b]">
-            <button type="button" onClick={() => nudgeLength(-0.5)} className="h-[29px] w-6 text-[#8f8f99]">
+          <div className="flex items-center overflow-hidden rounded-md border border-border bg-card">
+            <button type="button" onClick={() => nudgeLength(-0.5)} className="h-[29px] w-6 text-muted-foreground">
               −
             </button>
             <input
@@ -301,16 +281,16 @@ export function SegmentInspector({
               onChange={(e) => setLenText(e.target.value)}
               onBlur={(e) => commitLength(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && commitLength((e.target as HTMLInputElement).value)}
-              className="w-full min-w-0 flex-1 bg-transparent text-center text-[12.5px] tabular-nums text-[#e9e9ec] outline-none"
+              className="w-full min-w-0 flex-1 bg-transparent text-center text-[12.5px] tabular-nums text-foreground outline-none"
             />
-            <button type="button" onClick={() => nudgeLength(0.5)} className="h-[29px] w-6 text-[#8f8f99]">
+            <button type="button" onClick={() => nudgeLength(0.5)} className="h-[29px] w-6 text-muted-foreground">
               +
             </button>
           </div>
         </div>
         <div>
-          <label className="mb-1 flex justify-between text-[11px] text-[#8f8f99]">
-            Image strength <b className="tabular-nums text-[#e9e9ec]">{segment.strength.toFixed(2)}</b>
+          <label className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+            Image strength <b className="tabular-nums text-foreground">{segment.strength.toFixed(2)}</b>
           </label>
           <input
             type="range"
@@ -318,26 +298,26 @@ export function SegmentInspector({
             max={100}
             value={Math.round(segment.strength * 100)}
             onChange={(e) => onUpdate({ strength: Number(e.target.value) / 100 })}
-            className="mt-[9px] w-full accent-[#e2892a]"
+            className="mt-[9px] w-full accent-primary"
           />
         </div>
       </div>
 
       {index > 0 && (
-        <label className="mb-3 flex cursor-pointer items-center justify-between rounded-md border border-[#242429] bg-[#17171b] px-2.5 py-2">
-          <span className="flex items-center gap-1.5 text-[12px] text-[#e9e9ec]">
-            <ChainIcon className="h-[11px] w-[11px] text-[#8f8f99]" /> Chain from previous
+        <label className="mb-3 flex cursor-pointer items-center justify-between rounded-md border border-border bg-card px-2.5 py-2">
+          <span className="flex items-center gap-1.5 text-[12px] text-foreground">
+            <ChainIcon className="h-[11px] w-[11px] text-muted-foreground" /> Chain from previous
           </span>
           <button
             type="button"
             onClick={onToggleChain}
             className={`relative h-[18px] w-[32px] flex-shrink-0 rounded-full transition-colors ${
-              segment.chained ? "bg-[#e2892a]" : "bg-[#313138]"
+              segment.chained ? "bg-primary" : "bg-border"
             }`}
           >
             <span
-              className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-[#141414] transition-all ${
-                segment.chained ? "right-[2px]" : "left-[2px] bg-[#8f8f99]"
+              className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-background transition-all ${
+                segment.chained ? "right-[2px]" : "left-[2px] bg-muted-foreground"
               }`}
             />
           </button>
@@ -345,31 +325,26 @@ export function SegmentInspector({
       )}
 
       {segment.anchorStale && (
-        <p className="mb-2 rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1.5 text-[11px] text-[#e2892a]">
+        <p className="mb-2 rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1.5 text-[11px] text-primary">
           Segment {index} was re-rendered — re-render this one for a clean join.
         </p>
       )}
       {segment.status === "error" && segment.error && (
-        <p className="mb-2 text-[11px] text-[#f87171]">{segment.error}</p>
+        <p className="mb-2 text-[11px] text-destructive">{segment.error}</p>
       )}
       {blockers.length > 0 && segment.status === "idle" && (
-        <p className="mb-2 text-[11px] text-[#5a5a64]">This segment {blockers.join("; ")}.</p>
+        <p className="mb-2 text-[11px] text-tertiary">This segment {blockers.join("; ")}.</p>
       )}
 
-      {coachStep === "render" && (
-        <CoachTip id="director-coach-render" label="Ready">
-          Render this segment. Sign-in will open here if needed.
-        </CoachTip>
-      )}
       <div className="flex flex-wrap items-center gap-[7px]">
         <button
           type="button"
           onClick={onRender}
           disabled={blockers.length > 0 || segment.status === "queued" || segment.status === "rendering"}
           aria-describedby={coachStep === "render" ? "director-coach-render" : undefined}
-          className={`rounded-lg bg-[#e2892a] px-3 py-[5px] text-[11.5px] font-semibold text-[#141414] disabled:opacity-40 ${
+          className={`rounded-lg bg-primary px-3 py-[5px] text-[11.5px] font-semibold text-background disabled:opacity-40 ${
             coachStep === "render"
-              ? "ring-2 ring-[#e2892a]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
+              ? "ring-2 ring-primary/70 ring-offset-2 ring-offset-background motion-safe:animate-pulse"
               : ""
           }`}
         >
@@ -378,7 +353,7 @@ export function SegmentInspector({
         <button
           type="button"
           onClick={onDuplicate}
-          className="rounded-lg border border-[#313138] bg-[#17171b] px-2.5 py-[5px] text-[11.5px] text-[#e9e9ec]"
+          className="rounded-lg border border-border bg-card px-2.5 py-[5px] text-[11.5px] text-foreground"
         >
           Duplicate
         </button>
@@ -386,7 +361,7 @@ export function SegmentInspector({
           <button
             type="button"
             onClick={onDownload}
-            className="flex items-center gap-1 rounded-lg border border-[#313138] bg-[#17171b] px-2.5 py-[5px] text-[11.5px] text-[#e9e9ec]"
+            className="flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-[5px] text-[11.5px] text-foreground"
           >
             <IconDownload className="h-[11px] w-[11px]" /> Clip
           </button>
@@ -397,7 +372,7 @@ export function SegmentInspector({
             onClick={() => onMove(-1)}
             disabled={index === 0}
             title="Move left"
-            className="flex h-[24px] w-[24px] items-center justify-center rounded-md border border-[#313138] text-[#8f8f99] disabled:opacity-30"
+            className="flex h-[24px] w-[24px] items-center justify-center rounded-md border border-border text-muted-foreground disabled:opacity-30"
           >
             <IconChevronLeft className="h-[12px] w-[12px]" />
           </button>
@@ -406,14 +381,14 @@ export function SegmentInspector({
             onClick={() => onMove(1)}
             disabled={index === count - 1}
             title="Move right"
-            className="flex h-[24px] w-[24px] items-center justify-center rounded-md border border-[#313138] text-[#8f8f99] disabled:opacity-30"
+            className="flex h-[24px] w-[24px] items-center justify-center rounded-md border border-border text-muted-foreground disabled:opacity-30"
           >
             <IconChevronRight className="h-[12px] w-[12px]" />
           </button>
           <button
             type="button"
             onClick={onRemove}
-            className="rounded-md border border-[#3d2626] px-2 py-[4px] text-[11px] text-[#f87171]"
+            className="rounded-md border border-destructive/40 px-2 py-[4px] text-[11px] text-destructive"
           >
             Delete
           </button>

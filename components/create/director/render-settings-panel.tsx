@@ -40,9 +40,9 @@ function Stepper({
   const snap = (v: number) => clamp(Math.round(v / step) * step);
   return (
     <div>
-      <label className="mb-1 block text-[11px] text-[#8f8f99]">{label}</label>
-      <div className="flex items-center overflow-hidden rounded-md border border-[#242429] bg-[#17171b]">
-        <button type="button" onClick={() => onChange(snap(value - step))} className="h-[29px] w-7 text-[#8f8f99]">
+      <label className="mb-1 block text-[11px] text-muted-foreground">{label}</label>
+      <div className="flex items-center overflow-hidden rounded-md border border-border bg-card">
+        <button type="button" onClick={() => onChange(snap(value - step))} className="h-[29px] w-7 text-muted-foreground">
           −
         </button>
         <input
@@ -53,9 +53,9 @@ function Stepper({
           }}
           onBlur={() => onChange(snap(value))}
           inputMode="numeric"
-          className="w-full min-w-0 flex-1 bg-transparent text-center text-[12.5px] tabular-nums text-[#e9e9ec] outline-none"
+          className="w-full min-w-0 flex-1 bg-transparent text-center text-[12.5px] tabular-nums text-foreground outline-none"
         />
-        <button type="button" onClick={() => onChange(snap(value + step))} className="h-[29px] w-7 text-[#8f8f99]">
+        <button type="button" onClick={() => onChange(snap(value + step))} className="h-[29px] w-7 text-muted-foreground">
           +
         </button>
       </div>
@@ -76,31 +76,27 @@ export function RenderSettingsPanel({
   const cfg = model?.limits?.cfgScale ?? { min: 1, max: 5 };
 
   return (
-    <div className="rounded-[10px] border border-[#242429] bg-[#121215] p-4">
-      <h3 className="mb-3 flex items-center gap-2">
-        <span className="rounded border border-[#313138] bg-[#17171b] px-1.5 py-[1px] text-[9.5px] uppercase tracking-[0.08em] text-[#8f8f99]">
-          All segments
-        </span>
-        <span className="text-[10px] text-[#5a5a64]">shared prompt &amp; settings</span>
+    <div className="rounded-[10px] border border-border bg-background p-4">
+      <h3 className="mb-3">
+        <span className="eyebrow">All segments</span>
       </h3>
 
-      <div className="mb-3">
-        <label className="mb-1 block text-[11px] text-[#8f8f99]">Global prompt</label>
+      <div className="mb-3 space-y-2">
         <textarea
           rows={3}
           value={globalPrompt}
           onChange={(e) => onGlobalPrompt(e.target.value)}
-          className="w-full resize-y rounded-md border border-[#242429] bg-[#17171b] px-2.5 py-2 text-[12.5px] text-[#e9e9ec] outline-none focus:border-[#4a4a53]"
+          placeholder="Prompt for the whole video…"
+          aria-label="Global prompt for all segments"
+          className="w-full resize-y rounded-md border border-border bg-card px-2.5 py-2 text-[12.5px] text-foreground placeholder:text-tertiary outline-none focus:border-edge"
         />
-      </div>
-
-      <div className="mb-3">
-        <label className="mb-1 block text-[11px] text-[#8f8f99]">Negative prompt</label>
         <textarea
           rows={2}
           value={settings.negativePrompt}
           onChange={(e) => onChange({ negativePrompt: e.target.value })}
-          className="w-full resize-y rounded-md border border-[#242429] bg-[#17171b] px-2.5 py-1.5 text-[12px] text-[#e9e9ec] outline-none focus:border-[#4a4a53]"
+          placeholder="Negative prompt (optional)"
+          aria-label="Negative prompt for all segments"
+          className="w-full resize-y rounded-md border border-border bg-card px-2.5 py-1.5 text-[12px] text-foreground placeholder:text-tertiary outline-none focus:border-edge"
         />
       </div>
 
@@ -125,8 +121,8 @@ export function RenderSettingsPanel({
 
       <div className="mb-3 grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-1 flex justify-between text-[11px] text-[#8f8f99]">
-            Steps <b className="tabular-nums text-[#e9e9ec]">{settings.steps}</b>
+          <label className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+            Steps <b className="tabular-nums text-foreground">{settings.steps}</b>
           </label>
           <input
             type="range"
@@ -134,12 +130,12 @@ export function RenderSettingsPanel({
             max={st.max}
             value={settings.steps}
             onChange={(e) => onChange({ steps: Number(e.target.value) })}
-            className="w-full accent-[#e2892a]"
+            className="w-full accent-primary"
           />
         </div>
         <div>
-          <label className="mb-1 flex justify-between text-[11px] text-[#8f8f99]">
-            CFG <b className="tabular-nums text-[#e9e9ec]">{settings.cfgScale.toFixed(1)}</b>
+          <label className="mb-1 flex justify-between text-[11px] text-muted-foreground">
+            CFG <b className="tabular-nums text-foreground">{settings.cfgScale.toFixed(1)}</b>
           </label>
           <input
             type="range"
@@ -148,47 +144,47 @@ export function RenderSettingsPanel({
             step={0.5}
             value={settings.cfgScale}
             onChange={(e) => onChange({ cfgScale: Number(e.target.value) })}
-            className="w-full accent-[#e2892a]"
+            className="w-full accent-primary"
           />
           {settings.cfgScale > 1 && (
-            <p className="mt-0.5 text-[10px] text-[#e2892a]">distilled model — keep at 1</p>
+            <p className="mt-0.5 text-[10px] text-primary">distilled model — keep at 1</p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-md border border-[#242429] bg-[#17171b] px-2.5 py-2">
-        <span className="text-[12px] text-[#e9e9ec]">
+      <div className="flex items-center justify-between rounded-md border border-border bg-card px-2.5 py-2">
+        <span className="text-[12px] text-foreground" title="Use one seed for every segment">
           Lock seed
-          <small className="block text-[10.5px] text-[#5a5a64]">one seed for every segment</small>
         </span>
         <button
           type="button"
           onClick={() => onChange({ lockSeed: !settings.lockSeed })}
           className={`relative h-[18px] w-[32px] flex-shrink-0 rounded-full transition-colors ${
-            settings.lockSeed ? "bg-[#e2892a]" : "bg-[#313138]"
+            settings.lockSeed ? "bg-primary" : "bg-border"
           }`}
         >
           <span
-            className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-[#141414] transition-all ${
-              settings.lockSeed ? "right-[2px]" : "left-[2px] bg-[#8f8f99]"
+            className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-background transition-all ${
+              settings.lockSeed ? "right-[2px]" : "left-[2px] bg-muted-foreground"
             }`}
           />
         </button>
       </div>
 
       {settings.lockSeed && (
-        <div className="mt-2 flex items-center gap-2 text-[11px] text-[#8f8f99]">
+        <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>Seed</span>
           <input
             value={settings.seed ?? ""}
             onChange={(e) => onChange({ seed: e.target.value || undefined })}
             inputMode="numeric"
-            className="h-[26px] min-w-0 flex-1 rounded-md border border-[#242429] bg-[#17171b] px-2 text-[11.5px] tabular-nums text-[#e9e9ec] outline-none placeholder:text-[#5a5a64]"
+            placeholder="Random"
+            className="h-[26px] min-w-0 flex-1 rounded-md border border-border bg-card px-2 text-[11.5px] tabular-nums text-foreground outline-none placeholder:text-tertiary"
           />
           <button
             type="button"
             onClick={() => onChange({ seed: randomSeed() })}
-            className="text-[#e2892a] hover:underline"
+            className="text-primary hover:underline"
           >
             reroll
           </button>

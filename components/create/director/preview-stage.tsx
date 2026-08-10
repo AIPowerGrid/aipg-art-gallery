@@ -232,9 +232,9 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col px-5 py-4">
       {/* player */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[10px] border border-[#242429] bg-black">
-        <span className="absolute left-3 top-3 z-10 rounded-[5px] border border-[#313138] bg-black/60 px-2 py-[3px] text-[11px] text-[#8f8f99]">
-          Segment <b className="text-[#e2892a]">{curSegLabel}</b> of {segments.length}
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[10px] border border-border bg-black">
+        <span className="absolute left-3 top-3 z-10 rounded-[5px] border border-border bg-black/60 px-2 py-[3px] text-[11px] text-muted-foreground">
+          Segment <b className="text-primary">{curSegLabel}</b> of {segments.length}
         </span>
 
         <video ref={videoARef} playsInline className={videoCls(0)} onClick={handlePlayPause} />
@@ -244,31 +244,28 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
           <div className="text-center">
             {/* mini chained timeline — mirrors the Director entry card */}
             <div className="mx-auto mb-4 flex w-fit items-center">
-              <span className="h-[30px] w-[52px] rounded-md border border-[#2a2a31] bg-gradient-to-br from-[#1e1e24] to-[#131317]" />
-              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#e2892a]/50 bg-[#171204] text-[#e2892a]">
+              <span className="h-[30px] w-[52px] rounded-md border border-secondary bg-gradient-to-br from-card to-background" />
+              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
                 <ChainIcon className="h-[8px] w-[8px]" />
               </span>
-              <span className="h-[30px] w-[52px] rounded-md border border-[#e2892a]/35 bg-gradient-to-br from-[#241d10] to-[#151208]" />
-              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#e2892a]/50 bg-[#171204] text-[#e2892a]">
+              <span className="h-[30px] w-[52px] rounded-md border border-primary/35 bg-gradient-to-br from-primary/15 to-primary/10" />
+              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
                 <ChainIcon className="h-[8px] w-[8px]" />
               </span>
-              <span className="h-[30px] w-[52px] rounded-md border border-[#2a2a31] bg-gradient-to-br from-[#1e1e24] to-[#131317]" />
+              <span className="h-[30px] w-[52px] rounded-md border border-secondary bg-gradient-to-br from-card to-background" />
             </div>
-            <p className="text-[13px] text-[#5a5a64]">Rendered segments play here as one cut</p>
-            <p className="mt-1 text-[11.5px] text-[#3d3d44]">
-              Render a segment from the timeline below to start
-            </p>
+            <p className="text-[13px] text-tertiary">Render a segment to preview the cut.</p>
           </div>
         )}
       </div>
 
       {/* transport */}
-      <div className="mt-3 flex flex-shrink-0 items-center gap-3 text-[12px] text-[#8f8f99]">
+      <div className="mt-3 flex flex-shrink-0 items-center gap-3 text-[12px] text-muted-foreground">
         <button
           type="button"
           onClick={handlePlayPause}
           disabled={renderedCount === 0}
-          className="flex h-7 w-7 items-center justify-center rounded-md border border-[#313138] bg-[#17171b] text-[#e9e9ec] disabled:text-[#3d3d44]"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-border bg-card text-foreground disabled:text-edge"
         >
           {playing ? <IconPause className="h-3 w-3" /> : <IconPlay className="ml-[2px] h-3 w-3" />}
         </button>
@@ -281,12 +278,12 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
           onPointerCancel={onScrubUp}
           className="relative h-[14px] flex-1 cursor-pointer touch-none"
         >
-          <div className="absolute inset-x-0 top-1/2 h-[4px] -translate-y-1/2 rounded-[2px] bg-[#242429]">
+          <div className="absolute inset-x-0 top-1/2 h-[4px] -translate-y-1/2 rounded-[2px] bg-border">
             {segments.map((s, i) =>
               s.status === "done" && s.outputUrl && totalSec > 0 ? (
                 <span
                   key={s.id}
-                  className="absolute bottom-0 top-0 rounded-[2px] bg-[#3d3324]"
+                  className="absolute bottom-0 top-0 rounded-[2px] bg-edge"
                   style={{
                     left: `${(framesToSeconds(offsets[i]) / totalSec) * 100}%`,
                     width: `${(framesToSeconds(s.lengthFrames) / totalSec) * 100}%`,
@@ -296,7 +293,7 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
             )}
             {totalSec > 0 && (
               <span
-                className="absolute bottom-0 top-0 rounded-[2px] bg-[#e2892a]"
+                className="absolute bottom-0 top-0 rounded-[2px] bg-primary"
                 style={{ width: `${Math.min(100, (globalSec / totalSec) * 100)}%` }}
               />
             )}
@@ -304,7 +301,7 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
           {/* drag knob */}
           {totalSec > 0 && (
             <span
-              className="absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#e2892a]"
+              className="absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary"
               style={{ left: `${Math.min(100, (globalSec / totalSec) * 100)}%` }}
             />
           )}

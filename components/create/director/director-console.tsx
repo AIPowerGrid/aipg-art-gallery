@@ -21,7 +21,6 @@ import { cropImageToRenderSize } from "@/lib/utils/crop-image";
 import { exportStitched } from "@/lib/utils/export-stitched";
 import { StylesConfig } from "@/lib/types/create";
 import { ConsoleTimeline } from "./console-timeline";
-import { CoachTip } from "./coach-tip";
 import { PreviewStage } from "./preview-stage";
 import { SegmentInspector, type SegmentCoachStep } from "./segment-inspector";
 import { RenderSettingsPanel } from "./render-settings-panel";
@@ -358,16 +357,16 @@ export function DirectorConsole({
   return (
     <div
       data-testid="director-console"
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#0a0a0c] font-sans text-[14px] text-[#e9e9ec]"
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background font-sans text-[14px] text-foreground"
     >
       {/* ===== top bar ===== */}
-      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-[#242429] px-3 py-2 sm:gap-4 sm:px-5 sm:py-3 max-sm:flex-wrap">
+      <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2 sm:gap-4 sm:px-5 sm:py-3 max-sm:flex-wrap">
         <div className="flex min-w-0 flex-shrink-0 items-center gap-2 sm:gap-3 max-sm:w-full">
           <button
             type="button"
             onClick={() => router.push("/create")}
             title="Back to Studio"
-            className="flex items-center gap-1 rounded-lg border border-[#313138] bg-[#17171b] py-[6px] pl-1.5 pr-2.5 text-[12px] text-[#8f8f99] hover:text-[#e9e9ec]"
+            className="flex items-center gap-1 rounded-lg border border-border bg-card py-[6px] pl-1.5 pr-2.5 text-[12px] text-muted-foreground hover:text-foreground"
           >
             <IconChevronLeft className="h-[13px] w-[13px]" />
             <span className="max-sm:hidden">Studio</span>
@@ -382,20 +381,20 @@ export function DirectorConsole({
                 saveActiveProject();
                 setProjectMenuOpen((v) => !v);
               }}
-              className="flex max-w-[150px] items-center gap-1.5 rounded-lg border border-[#242429] bg-[#121215] px-2.5 py-[6px] text-[12px] text-[#8f8f99] hover:text-[#e9e9ec] sm:max-w-none"
+              className="flex max-w-[150px] items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 py-[6px] text-[12px] text-muted-foreground hover:text-foreground sm:max-w-none"
             >
-              <span className="max-w-[160px] truncate text-[#e9e9ec]">{activeProjectName}</span>
+              <span className="max-w-[160px] truncate text-foreground">{activeProjectName}</span>
               <IconChevronDown className="h-[12px] w-[12px]" />
             </button>
 
             {projectMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setProjectMenuOpen(false)} />
-                <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-[280px] max-w-[calc(100vw-24px)] rounded-lg border border-[#313138] bg-[#17171b] p-1.5 shadow-xl">
+                <div className="absolute left-0 top-[calc(100%+6px)] z-50 w-[280px] max-w-[calc(100vw-24px)] rounded-lg border border-border bg-card p-1.5 shadow-xl">
                   <input
                     value={activeProjectName}
                     onChange={(e) => renameActiveProject(e.target.value)}
-                    className="mb-1.5 w-full rounded-md border border-[#242429] bg-[#121215] px-2 py-1.5 text-[12px] text-[#e9e9ec] outline-none focus:border-[#4a4a53]"
+                    className="mb-1.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-[12px] text-foreground outline-none focus:border-edge"
                   />
                   <div className="max-h-[260px] overflow-y-auto">
                     {projects.map((p) => (
@@ -403,8 +402,8 @@ export function DirectorConsole({
                         key={p.id}
                         className={`group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[12px] ${
                           p.id === activeProjectId
-                            ? "bg-[#e2892a]/10 text-[#e2892a]"
-                            : "text-[#e9e9ec] hover:bg-[#1f1f25]"
+                            ? "bg-primary/10 text-primary"
+                            : "text-foreground hover:bg-card"
                         }`}
                         onClick={() => {
                           openProject(p.id);
@@ -412,7 +411,7 @@ export function DirectorConsole({
                         }}
                       >
                         <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                        <span className="flex-shrink-0 text-[10px] text-[#5a5a64]">
+                        <span className="flex-shrink-0 text-[10px] text-tertiary">
                           {p.segments.length} seg
                         </span>
                         <button
@@ -428,14 +427,14 @@ export function DirectorConsole({
                             });
                             if (ok) deleteProject(p.id);
                           }}
-                          className="invisible flex-shrink-0 text-[#5a5a64] hover:text-[#f87171] group-hover:visible"
+                          className="invisible flex-shrink-0 text-tertiary hover:text-destructive group-hover:visible"
                         >
                           <IconX className="h-[11px] w-[11px]" />
                         </button>
                       </div>
                     ))}
                     {projects.length === 0 && (
-                      <p className="px-2 py-1.5 text-[11px] text-[#5a5a64]">No saved projects yet</p>
+                      <p className="px-2 py-1.5 text-[11px] text-tertiary">No saved projects yet</p>
                     )}
                   </div>
                   <button
@@ -444,7 +443,7 @@ export function DirectorConsole({
                       newProject();
                       setProjectMenuOpen(false);
                     }}
-                    className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[#313138] px-2 py-1.5 text-[12px] text-[#8f8f99] hover:border-[#4a4a53] hover:text-[#e9e9ec]"
+                    className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-border px-2 py-1.5 text-[12px] text-muted-foreground hover:border-edge hover:text-foreground"
                   >
                     <IconPlus className="h-[11px] w-[11px]" /> New project
                   </button>
@@ -467,7 +466,7 @@ export function DirectorConsole({
                 ? "Try the rows layout: controls on top, preview middle, timeline bottom"
                 : "Back to the console layout: big stage with a right rail"
             }
-            className="flex h-[27px] w-[30px] items-center justify-center rounded-md border border-[#242429] text-[#8f8f99] hover:border-[#4a4a53] hover:text-[#e9e9ec] max-sm:hidden"
+            className="flex h-[27px] w-[30px] items-center justify-center rounded-md border border-border text-muted-foreground hover:border-edge hover:text-foreground max-sm:hidden"
           >
             {(panels.layout ?? "console") === "console" ? (
               <IconLayoutRows className="h-[14px] w-[14px]" />
@@ -475,28 +474,28 @@ export function DirectorConsole({
               <IconLayoutConsole className="h-[14px] w-[14px]" />
             )}
           </button>
-          <span className="rounded-md border border-[#242429] px-2.5 py-1 text-[11.5px] text-[#8f8f99] max-sm:hidden">
-            Total <b className="tabular-nums text-[#e9e9ec]">{totalSec.toFixed(1)}s</b>
+          <span className="rounded-md border border-border px-2.5 py-1 text-[11.5px] text-muted-foreground max-sm:hidden">
+            Total <b className="tabular-nums text-foreground">{totalSec.toFixed(1)}s</b>
           </span>
-          <span className="rounded-md border border-[#242429] px-2.5 py-1 text-[11.5px] text-[#8f8f99]">
-            <b className="text-[#34d399]">{doneCount}</b> / {segments.length} rendered
+          <span className="rounded-md border border-border px-2.5 py-1 text-[11.5px] text-muted-foreground">
+            <b className="text-success">{doneCount}</b> / {segments.length} rendered
           </span>
           {!authenticated && (
             <button
               type="button"
               onClick={() => setShowAuthModal(true)}
-              className="rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1 text-[11.5px] text-[#e2892a] hover:bg-[#e2892a]/20"
+              className="rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11.5px] text-primary hover:bg-primary/20"
             >
               Sign in
             </button>
           )}
           {modelAvailability.checked && degradedMode && (
-            <span className="rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1 text-[11.5px] text-[#e2892a]">
+            <span className="rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11.5px] text-primary">
               fallback video
             </span>
           )}
           {modelAvailability.checked && !modelReady && (
-            <span className="rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1 text-[11.5px] text-[#e2892a]">
+            <span className="rounded-md border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11.5px] text-primary">
               model offline
             </span>
           )}
@@ -506,8 +505,8 @@ export function DirectorConsole({
             disabled={!queueActive && (pendingCount === 0 || !modelReady)}
             className={`flex items-center gap-1.5 rounded-lg px-3.5 py-[7px] text-[12.5px] font-semibold disabled:opacity-40 ${
               queueActive
-                ? "border border-[#e2892a] bg-transparent text-[#e2892a]"
-                : "bg-[#e2892a] text-[#141414]"
+                ? "border border-primary bg-transparent text-primary"
+                : "bg-primary text-background"
             }`}
           >
             {queueActive ? (
@@ -526,7 +525,7 @@ export function DirectorConsole({
             onClick={handleExport}
             disabled={doneCount === 0}
             title={doneCount === 0 ? "Render segments first" : "Export the assembled cut"}
-            className="flex items-center gap-1.5 rounded-lg border border-[#e2892a]/45 bg-[#e2892a]/10 px-3 py-[7px] text-[12.5px] font-medium text-[#e2892a] transition-colors hover:bg-[#e2892a]/20 disabled:border-[#313138] disabled:bg-[#17171b] disabled:text-[#5a5a64] disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-lg border border-primary/45 bg-primary/10 px-3 py-[7px] text-[12.5px] font-medium text-primary transition-colors hover:bg-primary/20 disabled:border-border disabled:bg-card disabled:text-tertiary disabled:opacity-60"
           >
             {exporting !== null ? (
               <>
@@ -542,8 +541,8 @@ export function DirectorConsole({
       </div>
 
       {authenticated && credits && (
-        <div className="flex flex-shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-b border-[#242429] bg-[#0f0f12] px-5 py-2 text-[11.5px] text-[#8f8f99]">
-          <span className="font-medium text-[#e9e9ec]">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-b border-border bg-background px-5 py-2 text-[11.5px] text-muted-foreground">
+          <span className="font-medium text-foreground">
             Spendable {formatUSD(credits.total_spendable_usd)}
           </span>
           {credits.promotional.active && (
@@ -552,24 +551,24 @@ export function DirectorConsole({
           {credits.free.active && <span>Daily {formatUSD(credits.free.remaining_usd)}</span>}
           <span>Purchased {formatUSD(credits.paid.balance_usd)}</span>
           {segmentQuote?.estimate.priced && segmentQuote.estimate.cost_usd !== null && (
-            <span className={segmentQuote.estimate.balance_sufficient ? "" : "text-[#e2892a]"}>
+            <span className={segmentQuote.estimate.balance_sufficient ? "" : "text-primary"}>
               Segment estimate {formatUSD(segmentQuote.estimate.cost_usd)}
               {!segmentQuote.estimate.balance_sufficient && " · add credits"}
             </span>
           )}
           {segmentQuote && !segmentQuote.estimate.priced && (
-            <span className="text-[#e2892a]">Segment price unavailable</span>
+            <span className="text-primary">Segment price unavailable</span>
           )}
           {firstFrameQuote?.estimate.priced && firstFrameQuote.estimate.cost_usd !== null && (
             <span>First frame {formatUSD(firstFrameQuote.estimate.cost_usd)}</span>
           )}
           {firstFrameQuote && !firstFrameQuote.estimate.priced && (
-            <span className="text-[#e2892a]">First-frame price unavailable</span>
+            <span className="text-primary">First-frame price unavailable</span>
           )}
-          {!credits.charging_enabled && <span className="text-[#5a5a64]">Metering preview</span>}
+          {!credits.charging_enabled && <span className="text-tertiary">Metering preview</span>}
           <a
             href={FUNDING_URL}
-            className="ml-auto font-medium text-[#e2892a] hover:text-[#f0a24a]"
+            className="ml-auto font-medium text-primary hover:text-primary"
           >
             Add credits
           </a>
@@ -577,10 +576,10 @@ export function DirectorConsole({
       )}
 
       {error && (
-        <div className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-[#3d2626] bg-[#1a0f0f] px-5 py-1.5 text-[12px] text-[#f87171]">
+        <div className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-destructive/40 bg-destructive/10 px-5 py-1.5 text-[12px] text-destructive">
           <span>{error.replace(/^402:\s*/, "")}</span>
           {error.startsWith("402:") && (
-            <a href={FUNDING_URL} className="font-medium text-[#e2892a] hover:text-[#f0a24a]">
+            <a href={FUNDING_URL} className="font-medium text-primary hover:text-primary">
               Add credits
             </a>
           )}
@@ -616,13 +615,9 @@ export function DirectorConsole({
         ) : (
           <>
             {coachStep === "select-segment" ? (
-              <CoachTip id="director-coach-select" label="Start here" className="mb-0">
-                Click segment 1 in the timeline to open its required fields.
-              </CoachTip>
+              <p className="px-1 text-[12px] text-primary">Select segment 1 in the timeline to edit it.</p>
             ) : (
-              <div className="rounded-[10px] border border-dashed border-[#242429] p-4 text-[12px] text-[#5a5a64]">
-                Select a segment to edit it.
-              </div>
+              <p className="px-1 text-[12px] text-tertiary">Select a segment to edit.</p>
             )}
           </>
         );
@@ -670,7 +665,7 @@ export function DirectorConsole({
             onPointerDown={(e) => dragDivider(e, "timeline")}
             className="group flex h-[7px] flex-shrink-0 cursor-row-resize items-center justify-center"
           >
-            <div className="h-px w-full bg-[#242429] transition-colors group-hover:h-[3px] group-hover:bg-[#e2892a]/50" />
+            <div className="h-px w-full bg-border transition-colors group-hover:h-[3px] group-hover:bg-primary/50" />
           </div>
         );
 
@@ -693,7 +688,7 @@ export function DirectorConsole({
                 onPointerDown={(e) => dragDivider(e, "controls")}
                 className="group flex h-[7px] flex-shrink-0 cursor-row-resize items-center justify-center"
               >
-                <div className="h-px w-full bg-[#242429] transition-colors group-hover:h-[3px] group-hover:bg-[#e2892a]/50" />
+                <div className="h-px w-full bg-border transition-colors group-hover:h-[3px] group-hover:bg-primary/50" />
               </div>
 
               {/* middle preview */}
@@ -732,7 +727,7 @@ export function DirectorConsole({
               onPointerDown={(e) => dragDivider(e, "rail")}
               className="group flex w-[7px] flex-shrink-0 cursor-col-resize items-center justify-center max-sm:hidden"
             >
-              <div className="h-full w-px bg-[#242429] transition-colors group-hover:w-[3px] group-hover:bg-[#e2892a]/50" />
+              <div className="h-full w-px bg-border transition-colors group-hover:w-[3px] group-hover:bg-primary/50" />
             </div>
 
             {/* right rail — spans down beside the timeline too */}
