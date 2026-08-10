@@ -16,26 +16,11 @@ import (
 type PostgresStore struct {
 	db        *sql.DB
 	UserStore *UserStore
-	JobStore  *JobStore
 }
 
 // DB returns the underlying database connection
 func (s *PostgresStore) DB() *sql.DB {
 	return s.db
-}
-
-// EnsureSchema applies additive, backwards-compatible gallery metadata changes.
-func (s *PostgresStore) EnsureSchema() error {
-	migrations := []string{
-		`ALTER TABLE gallery_items ADD COLUMN IF NOT EXISTS grid_job_id TEXT`,
-		`CREATE INDEX IF NOT EXISTS idx_gallery_items_grid_job_id ON gallery_items(grid_job_id) WHERE grid_job_id IS NOT NULL`,
-	}
-	for _, migration := range migrations {
-		if _, err := s.db.Exec(migration); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // NewPostgresStore creates a new PostgreSQL-backed gallery store
@@ -47,6 +32,7 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 
 	// Test connection
 	if err := db.Ping(); err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to ping postgres: %w", err)
 	}
 
@@ -59,9 +45,8 @@ func NewPostgresStore(connStr string) (*PostgresStore, error) {
 	store := &PostgresStore{
 		db:        db,
 		UserStore: &UserStore{db: db},
-		JobStore:  &JobStore{db: db},
 	}
-	if err := store.EnsureSchema(); err != nil {
+	if err := runMigrations(db); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to migrate gallery schema: %w", err)
 	}

@@ -36,7 +36,7 @@ interface AuthState {
     name: string,
     picture: string,
   ) => void;
-  clearAuth: () => void;
+  clearAuth: () => Promise<void>;
   syncFromStorage: () => void;
   syncFromServer: () => Promise<void>;
   getUserIdentifier: () => string | null;
@@ -100,10 +100,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
-  clearAuth: () => {
+  clearAuth: async () => {
+    // Keep the signed-in UI until the server invalidates the httpOnly cookie.
+    await signOut();
     clearGoogleProfile();
-    // Clears the wallet marker AND clears the httpOnly cookie server-side.
-    void signOut();
     set({
       isAuthenticated: false,
       authMethod: null,

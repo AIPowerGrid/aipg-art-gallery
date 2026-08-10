@@ -49,7 +49,6 @@ type App struct {
 	recipeVaultClient *recipevault.Client
 	galleryStore      gallery.GalleryStore
 	userStore         *gallery.UserStore
-	jobStore          *gallery.JobStore
 	favoritesStore    *gallery.FavoritesStore
 	r2Client          *r2.Client
 	cache             *cache.Cache
@@ -90,28 +89,18 @@ func New(cfg config.Config) (*App, error) {
 	// Initialize gallery store
 	var galleryStore gallery.GalleryStore
 	var userStore *gallery.UserStore
-	var jobStore *gallery.JobStore
 	var favoritesStore *gallery.FavoritesStore
 
 	if cfg.PostgresEnabled {
 		// Use PostgreSQL
 		pgStore, err := gallery.NewPostgresStore(cfg.PostgresConnStr)
 		if err != nil {
-			log.Printf("Warning: PostgreSQL initialization failed, falling back to file store: %v", err)
-			fileStore := gallery.NewStore(cfg.GalleryStorePath, 5000)
-			galleryStore = &gallery.FileStoreAdapter{Store: fileStore}
-		} else {
-			galleryStore = pgStore
-			userStore = pgStore.UserStore
-			jobStore = pgStore.JobStore
-			favoritesStore = gallery.NewFavoritesStore(pgStore.DB())
-			log.Printf("PostgreSQL gallery store connected, %d items", pgStore.Count())
-
-			// Ensure Google auth columns exist in users table
-			if err := userStore.EnsureSchema(); err != nil {
-				log.Printf("Warning: Failed to ensure user schema: %v", err)
-			}
+			return nil, fmt.Errorf("initialize required PostgreSQL gallery store: %w", err)
 		}
+		galleryStore = pgStore
+		userStore = pgStore.UserStore
+		favoritesStore = gallery.NewFavoritesStore(pgStore.DB())
+		log.Printf("PostgreSQL gallery store connected, %d items", pgStore.Count())
 	} else {
 		// Use file-based store
 		fileStore := gallery.NewStore(cfg.GalleryStorePath, 5000)
@@ -161,7 +150,6 @@ func New(cfg config.Config) (*App, error) {
 		r2Client:          r2Client,
 		galleryStore:      galleryStore,
 		userStore:         userStore,
-		jobStore:          jobStore,
 		favoritesStore:    favoritesStore,
 		cache:             queryCache,
 		aiClient:          aiClient,

@@ -34,20 +34,25 @@ production `NEXT_PUBLIC_*` variables while building because Next.js embeds them.
 ```bash
 commit="$(git rev-parse origin/main)"
 release="/opt/aipg-gallery-releases/gallery-${commit:0:8}"
+staging="/opt/aipg-gallery-releases/.building-${commit:0:8}"
 test ! -e "$release"
-mkdir -p "$release"
-git -C "$release" init
-git -C "$release" remote add origin https://github.com/AIPowerGrid/aipg-art-gallery.git
-git -C "$release" fetch --depth=1 origin "$commit"
-git -C "$release" checkout --detach FETCH_HEAD
+test ! -e "$staging"
+trap 'rm -rf -- "$staging"' EXIT
+mkdir -p "$staging"
+git -C "$staging" init
+git -C "$staging" remote add origin https://github.com/AIPowerGrid/aipg-art-gallery.git
+git -C "$staging" fetch --depth=1 origin "$commit"
+git -C "$staging" checkout --detach FETCH_HEAD
 set -a
 . /opt/aipg-gallery/gallery.env
 set +a
-cd "$release"
+cd "$staging"
 npm ci
 npm run build
 (cd server && GOTOOLCHAIN=auto go test ./... && go vet ./...)
 (cd server && GOTOOLCHAIN=auto go build -o ../gallery-server ./cmd/api)
+mv "$staging" "$release"
+trap - EXIT
 ```
 
 ## Activate
@@ -61,6 +66,7 @@ ln -sfn /etc/nginx/sites-available/aipg-gallery /etc/nginx/sites-enabled/aipg-ga
 systemctl daemon-reload
 nginx -t
 systemctl restart aipg-gallery aipg-gallery-web
+systemctl enable --now aipg-gallery-release-prune.timer
 systemctl reload nginx
 ```
 
@@ -75,6 +81,8 @@ curl -fsS https://aipg.art/create/director >/dev/null
 test "$(curl -sS -o /dev/null -w '%{http_code}' https://aipg.art/audio)" = 404
 test "$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
   https://aipg.art/api/audio/jobs)" = 404
+systemctl is-enabled aipg-gallery-release-prune.timer
+systemctl is-active aipg-gallery-release-prune.timer
 ```
 
 Then run one authenticated Director canary. Confirm the result URL is readable,
@@ -82,6 +90,13 @@ the completed job survives a fresh status request, and Core records exactly one
 completion ledger row for the Grid job ID. When charging is enabled, also
 confirm one settled reservation and the expected credit delta. A canary without
 uploaded audio may still contain model-generated audio.
+
+After the new release and rollback are proven, run
+`systemctl start aipg-gallery-release-prune.service`. The daily timer repeats
+the same active-aware retention policy and keeps exactly one inactive rollback.
+The dot-prefixed staging path is intentionally outside the pruner's
+`gallery-*` namespace, so an interrupted clone or build can never displace a
+runnable rollback.
 
 ## Roll back
 

@@ -50,29 +50,6 @@ func NewUserStore(db *sql.DB) *UserStore {
 	return &UserStore{db: db}
 }
 
-// EnsureSchema creates the users table with Google auth columns if they don't exist
-func (s *UserStore) EnsureSchema() error {
-	// Wallet and Google are independent login methods. Legacy schemas required
-	// wallet_address, which prevents a Google-only user from being persisted.
-	migrations := []string{
-		`ALTER TABLE users ALTER COLUMN wallet_address DROP NOT NULL`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT`,
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_url TEXT`,
-		`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL`,
-	}
-
-	for _, migration := range migrations {
-		if _, err := s.db.Exec(migration); err != nil {
-			// Ignore errors for columns that may already exist in different DB versions
-			continue
-		}
-	}
-
-	return nil
-}
-
 // ConnectWallet creates or updates a user when they connect their wallet
 func (s *UserStore) ConnectWallet(walletAddress string) (*User, error) {
 	wallet := strings.ToLower(walletAddress)

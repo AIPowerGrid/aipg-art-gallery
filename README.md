@@ -40,6 +40,11 @@ cd server && go run ./cmd/api
 
 Copy `.env.example` to `.env` and fill in your credentials.
 
+When `POSTGRES_ENABLED=true`, the Go service applies the embedded, checksummed
+migrations in `server/internal/gallery/migrations/` before serving traffic.
+Those migrations are the database source of truth; `supabase/schema.sql` is
+retained only for the retired direct-Supabase prototype.
+
 **Do not** run `go mod init` at the repo root — the Go module is `server/go.mod`.
 Running `go run ./server/cmd/api` from the repo root will fail; always `cd server` first.
 The API discovers the canonical repo-root `config/styles.json` whether it is

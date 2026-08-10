@@ -1,0 +1,13 @@
+[Unit]
+Description=Prune inactive AIPG Art Gallery releases
+After=aipg-gallery.service aipg-gallery-web.service
+
+[Service]
+Type=oneshot
+Environment=KEEP_INACTIVE_RELEASES=1
+ExecStart=/opt/aipg-gallery-current/deploy/prune-releases.sh
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/aipg-gallery-releases
