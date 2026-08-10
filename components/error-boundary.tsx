@@ -88,7 +88,7 @@ export function SectionErrorBoundary({
             Failed to load {sectionName}. 
             <button 
               onClick={() => window.location.reload()}
-              className="ml-2 text-indigo-400 hover:underline"
+              className="ml-2 text-primary hover:underline"
             >
               Refresh
             </button>

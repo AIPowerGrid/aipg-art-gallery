@@ -99,7 +99,7 @@ export function ActiveJobsIndicator() {
         className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-white/80 hover:bg-zinc-700 hover:text-white transition-colors"
       >
         {activeJobs.length > 0 ? (
-          <div className="w-4 h-4 border-2 border-white/30 border-t-indigo-400 rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-white/30 border-t-primary rounded-full animate-spin" />
         ) : (
           <svg
             className="w-4 h-4 text-zinc-400"
@@ -117,7 +117,7 @@ export function ActiveJobsIndicator() {
         )}
         <span className="text-sm font-medium">Jobs</span>
         {activeJobs.length > 0 && (
-          <span className="px-1.5 py-0.5 text-xs bg-indigo-600 rounded-full">
+          <span className="px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
             {activeJobs.length}
           </span>
         )}
@@ -148,7 +148,7 @@ export function ActiveJobsIndicator() {
               {!isOnStudio && (
                 <Link
                   href="/create"
-                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  className="text-xs text-primary hover:text-primary transition-colors"
                   onClick={() => setShowDropdown(false)}
                 >
                   View all in Studio →
@@ -163,7 +163,7 @@ export function ActiveJobsIndicator() {
             {activeJobs.length > 0 && (
               <div className="p-2">
                 <div className="px-2 py-1.5 text-xs text-zinc-500 font-medium flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   In Progress ({activeJobs.length})
                 </div>
                 {activeJobs.map((job) => (
@@ -306,7 +306,7 @@ function JobItem({ job, onSelect }: { job: TrackedJob; onSelect: () => void }) {
                     : progress >= 80
                       ? "text-green-400"
                       : job.status === "processing"
-                        ? "text-indigo-400"
+                        ? "text-primary"
                         : "text-yellow-400"
                 }
               />
@@ -328,7 +328,7 @@ function JobItem({ job, onSelect }: { job: TrackedJob; onSelect: () => void }) {
         <div className="flex items-center gap-2 mt-0.5 text-xs text-zinc-500">
           {isActive && (
             <>
-              <span className="text-indigo-400">
+              <span className="text-primary">
                 {job.status === "queued" ? "Queued" : "Processing"}
               </span>
               {job.waitTime && job.waitTime > 0 && (

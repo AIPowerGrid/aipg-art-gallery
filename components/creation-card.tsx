@@ -188,7 +188,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
         onClick={() => canOpenModal && setShowModal(true)}
       >
         <div className={`relative rounded-xl overflow-hidden bg-zinc-800 border transition-colors ${
-          isStillGenerating ? 'border-indigo-500/50' : 'border-zinc-700/50 hover:border-zinc-600'
+          isStillGenerating ? 'border-primary/50' : 'border-zinc-700/50 hover:border-zinc-600'
         }`}>
           {/* Publish/Unpublish feedback overlay */}
           {showFeedback && (
@@ -196,7 +196,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
               <div className="flex flex-col items-center gap-2 animate-bounce-in">
                 <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg ${
                   showFeedback === 'published' 
-                    ? 'bg-purple-600 shadow-purple-500/50 animate-pulse-glow' 
+                    ? 'bg-primary shadow-primary/50 animate-pulse-glow' 
                     : 'bg-zinc-700 shadow-zinc-600/50'
                 }`}>
                   P
@@ -244,7 +244,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                     ) : (
                       /* Spinner for this slot */
                       <div className="flex flex-col items-center justify-center">
-                        <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-indigo-500 animate-spin" />
+                        <div className="w-8 h-8 rounded-full border-2 border-zinc-700 border-t-primary animate-spin" />
                         <span className="text-zinc-500 text-[10px] mt-2">{idx + 1}/{expectedBatchSize}</span>
                       </div>
                     )}
@@ -299,7 +299,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                     <div className="relative w-12 h-12 mb-3">
                       <div className="w-12 h-12 rounded-full border-2 border-zinc-700" />
                       <div 
-                        className="absolute inset-0 w-12 h-12 rounded-full border-2 border-transparent border-t-indigo-500"
+                        className="absolute inset-0 w-12 h-12 rounded-full border-2 border-transparent border-t-primary"
                         style={{ animation: 'spin 1s linear infinite' }}
                       />
                     </div>
@@ -446,8 +446,8 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                 disabled={isPublishing}
                 className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold transition-all ${
                   localIsPublic 
-                    ? 'bg-purple-600 text-white hover:bg-purple-700' 
-                    : 'bg-black/50 hover:bg-purple-600 text-white opacity-0 group-hover:opacity-100'
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                    : 'bg-black/50 hover:bg-primary text-white opacity-0 group-hover:opacity-100'
                 }`}
                 title={localIsPublic ? "Click to unpublish" : "Publish to Gallery"}
               >

@@ -48,7 +48,7 @@ export function DimensionSlider({ dimensions, selectedId, onChange }: DimensionS
           onMouseLeave={() => setIsDragging(false)}
           onTouchStart={() => setIsDragging(true)}
           onTouchEnd={() => setIsDragging(false)}
-          className="w-full h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-indigo-500"
+          className="w-full h-1 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-primary"
         />
         
         {/* Popup tooltip with aspect ratio box - below slider */}
@@ -62,7 +62,7 @@ export function DimensionSlider({ dimensions, selectedId, onChange }: DimensionS
             <div className="flex flex-col items-center gap-2">
               {/* Aspect ratio box */}
               <div 
-                className="border-2 border-indigo-500 rounded bg-indigo-500/20 transition-all duration-150"
+                className="border-2 border-primary rounded bg-primary/20 transition-all duration-150"
                 style={{ width: aspectW, height: aspectH }}
               />
               {/* Dimensions text */}

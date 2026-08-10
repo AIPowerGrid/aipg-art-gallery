@@ -289,7 +289,7 @@ export function GoogleOneTapSettings() {
         type="checkbox"
         checked={hidden}
         onChange={toggleHide}
-        className="rounded border-zinc-600 bg-zinc-800 text-indigo-500 focus:ring-indigo-500"
+        className="rounded border-zinc-600 bg-zinc-800 text-primary focus:ring-primary"
       />
       <span>Don&apos;t show Google sign-in prompt</span>
     </label>

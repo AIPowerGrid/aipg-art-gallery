@@ -370,7 +370,7 @@ export function ImageModal({
                   onClose();
                 }}
                 disabled={isRegenerating}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-400/40 bg-indigo-500/10 px-4 py-2.5 text-[13px] font-semibold text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-[13px] font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
               >
                 {isRegenerating ? spinner : (
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,7 +389,7 @@ export function ImageModal({
                   onExtract(selectedIndex);
                 }}
                 disabled={isExtracting}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-purple-400/40 bg-purple-500/10 px-4 py-2.5 text-[13px] font-semibold text-purple-300 transition hover:bg-purple-500/20 disabled:opacity-50"
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2.5 text-[13px] font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
               >
                 {isExtracting ? spinner : (
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

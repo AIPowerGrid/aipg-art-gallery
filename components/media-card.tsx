@@ -167,7 +167,7 @@ export function MediaCard({
                     setShowPublishConfirm(true);
                   }}
                   disabled={isPublishing}
-                  className="w-7 h-7 flex items-center justify-center bg-black/50 hover:bg-purple-600 backdrop-blur-sm text-white rounded-full transition-all text-xs font-bold"
+                  className="w-7 h-7 flex items-center justify-center bg-black/50 hover:bg-primary backdrop-blur-sm text-white rounded-full transition-all text-xs font-bold"
                   title="Publish to gallery"
                 >
                   {isPublishing ? (
@@ -180,7 +180,7 @@ export function MediaCard({
               {/* Published indicator - purple P (only show if showPublishButton context, not on favorites) */}
               {showPublishButton && item.isPublic && (
                 <div 
-                  className="w-7 h-7 flex items-center justify-center bg-purple-600 backdrop-blur-sm text-white rounded-full text-xs font-bold"
+                  className="w-7 h-7 flex items-center justify-center bg-primary backdrop-blur-sm text-primary-foreground rounded-full text-xs font-bold"
                   title="Published to gallery"
                 >
                   P
@@ -269,7 +269,7 @@ export function MediaCard({
                         setShowPublishConfirm(false);
                         onPublish?.();
                       }}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg transition-colors"
+                      className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground text-sm rounded-lg transition-colors"
                     >
                       Publish
                     </button>
