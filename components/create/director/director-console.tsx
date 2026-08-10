@@ -403,7 +403,7 @@ export function DirectorConsole({
                         key={p.id}
                         className={`group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[12px] ${
                           p.id === activeProjectId
-                            ? "bg-[#f5b544]/10 text-[#f5b544]"
+                            ? "bg-[#e2892a]/10 text-[#e2892a]"
                             : "text-[#e9e9ec] hover:bg-[#1f1f25]"
                         }`}
                         onClick={() => {
@@ -485,18 +485,18 @@ export function DirectorConsole({
             <button
               type="button"
               onClick={() => setShowAuthModal(true)}
-              className="rounded-md border border-[#f5b544]/40 bg-[#f5b544]/10 px-2.5 py-1 text-[11.5px] text-[#f5b544] hover:bg-[#f5b544]/20"
+              className="rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1 text-[11.5px] text-[#e2892a] hover:bg-[#e2892a]/20"
             >
               Sign in
             </button>
           )}
           {modelAvailability.checked && degradedMode && (
-            <span className="rounded-md border border-[#f5b544]/40 bg-[#f5b544]/10 px-2.5 py-1 text-[11.5px] text-[#f5b544]">
+            <span className="rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1 text-[11.5px] text-[#e2892a]">
               fallback video
             </span>
           )}
           {modelAvailability.checked && !modelReady && (
-            <span className="rounded-md border border-[#f5b544]/40 bg-[#f5b544]/10 px-2.5 py-1 text-[11.5px] text-[#f5b544]">
+            <span className="rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1 text-[11.5px] text-[#e2892a]">
               model offline
             </span>
           )}
@@ -506,8 +506,8 @@ export function DirectorConsole({
             disabled={!queueActive && (pendingCount === 0 || !modelReady)}
             className={`flex items-center gap-1.5 rounded-lg px-3.5 py-[7px] text-[12.5px] font-semibold disabled:opacity-40 ${
               queueActive
-                ? "border border-[#f5b544] bg-transparent text-[#f5b544]"
-                : "bg-[#f5b544] text-[#141414]"
+                ? "border border-[#e2892a] bg-transparent text-[#e2892a]"
+                : "bg-[#e2892a] text-[#141414]"
             }`}
           >
             {queueActive ? (
@@ -526,7 +526,7 @@ export function DirectorConsole({
             onClick={handleExport}
             disabled={doneCount === 0}
             title={doneCount === 0 ? "Render segments first" : "Export the assembled cut"}
-            className="flex items-center gap-1.5 rounded-lg border border-[#f5b544]/45 bg-[#f5b544]/10 px-3 py-[7px] text-[12.5px] font-medium text-[#f5b544] transition-colors hover:bg-[#f5b544]/20 disabled:border-[#313138] disabled:bg-[#17171b] disabled:text-[#5a5a64] disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-lg border border-[#e2892a]/45 bg-[#e2892a]/10 px-3 py-[7px] text-[12.5px] font-medium text-[#e2892a] transition-colors hover:bg-[#e2892a]/20 disabled:border-[#313138] disabled:bg-[#17171b] disabled:text-[#5a5a64] disabled:opacity-60"
           >
             {exporting !== null ? (
               <>
@@ -552,24 +552,24 @@ export function DirectorConsole({
           {credits.free.active && <span>Daily {formatUSD(credits.free.remaining_usd)}</span>}
           <span>Purchased {formatUSD(credits.paid.balance_usd)}</span>
           {segmentQuote?.estimate.priced && segmentQuote.estimate.cost_usd !== null && (
-            <span className={segmentQuote.estimate.balance_sufficient ? "" : "text-[#f5b544]"}>
+            <span className={segmentQuote.estimate.balance_sufficient ? "" : "text-[#e2892a]"}>
               Segment estimate {formatUSD(segmentQuote.estimate.cost_usd)}
               {!segmentQuote.estimate.balance_sufficient && " · add credits"}
             </span>
           )}
           {segmentQuote && !segmentQuote.estimate.priced && (
-            <span className="text-[#f5b544]">Segment price unavailable</span>
+            <span className="text-[#e2892a]">Segment price unavailable</span>
           )}
           {firstFrameQuote?.estimate.priced && firstFrameQuote.estimate.cost_usd !== null && (
             <span>First frame {formatUSD(firstFrameQuote.estimate.cost_usd)}</span>
           )}
           {firstFrameQuote && !firstFrameQuote.estimate.priced && (
-            <span className="text-[#f5b544]">First-frame price unavailable</span>
+            <span className="text-[#e2892a]">First-frame price unavailable</span>
           )}
           {!credits.charging_enabled && <span className="text-[#5a5a64]">Metering preview</span>}
           <a
             href={FUNDING_URL}
-            className="ml-auto font-medium text-[#f5b544] hover:text-[#ffd27a]"
+            className="ml-auto font-medium text-[#e2892a] hover:text-[#f0a24a]"
           >
             Add credits
           </a>
@@ -580,7 +580,7 @@ export function DirectorConsole({
         <div className="flex flex-shrink-0 flex-wrap items-center gap-3 border-b border-[#3d2626] bg-[#1a0f0f] px-5 py-1.5 text-[12px] text-[#f87171]">
           <span>{error.replace(/^402:\s*/, "")}</span>
           {error.startsWith("402:") && (
-            <a href={FUNDING_URL} className="font-medium text-[#f5b544] hover:text-[#ffd27a]">
+            <a href={FUNDING_URL} className="font-medium text-[#e2892a] hover:text-[#f0a24a]">
               Add credits
             </a>
           )}
@@ -670,7 +670,7 @@ export function DirectorConsole({
             onPointerDown={(e) => dragDivider(e, "timeline")}
             className="group flex h-[7px] flex-shrink-0 cursor-row-resize items-center justify-center"
           >
-            <div className="h-px w-full bg-[#242429] transition-colors group-hover:h-[3px] group-hover:bg-[#f5b544]/50" />
+            <div className="h-px w-full bg-[#242429] transition-colors group-hover:h-[3px] group-hover:bg-[#e2892a]/50" />
           </div>
         );
 
@@ -693,7 +693,7 @@ export function DirectorConsole({
                 onPointerDown={(e) => dragDivider(e, "controls")}
                 className="group flex h-[7px] flex-shrink-0 cursor-row-resize items-center justify-center"
               >
-                <div className="h-px w-full bg-[#242429] transition-colors group-hover:h-[3px] group-hover:bg-[#f5b544]/50" />
+                <div className="h-px w-full bg-[#242429] transition-colors group-hover:h-[3px] group-hover:bg-[#e2892a]/50" />
               </div>
 
               {/* middle preview */}
@@ -732,7 +732,7 @@ export function DirectorConsole({
               onPointerDown={(e) => dragDivider(e, "rail")}
               className="group flex w-[7px] flex-shrink-0 cursor-col-resize items-center justify-center max-sm:hidden"
             >
-              <div className="h-full w-px bg-[#242429] transition-colors group-hover:w-[3px] group-hover:bg-[#f5b544]/50" />
+              <div className="h-full w-px bg-[#242429] transition-colors group-hover:w-[3px] group-hover:bg-[#e2892a]/50" />
             </div>
 
             {/* right rail — spans down beside the timeline too */}

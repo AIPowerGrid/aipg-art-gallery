@@ -234,7 +234,7 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
       {/* player */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-[10px] border border-[#242429] bg-black">
         <span className="absolute left-3 top-3 z-10 rounded-[5px] border border-[#313138] bg-black/60 px-2 py-[3px] text-[11px] text-[#8f8f99]">
-          Segment <b className="text-[#f5b544]">{curSegLabel}</b> of {segments.length}
+          Segment <b className="text-[#e2892a]">{curSegLabel}</b> of {segments.length}
         </span>
 
         <video ref={videoARef} playsInline className={videoCls(0)} onClick={handlePlayPause} />
@@ -245,11 +245,11 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
             {/* mini chained timeline — mirrors the Director entry card */}
             <div className="mx-auto mb-4 flex w-fit items-center">
               <span className="h-[30px] w-[52px] rounded-md border border-[#2a2a31] bg-gradient-to-br from-[#1e1e24] to-[#131317]" />
-              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#f5b544]/50 bg-[#171204] text-[#f5b544]">
+              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#e2892a]/50 bg-[#171204] text-[#e2892a]">
                 <ChainIcon className="h-[8px] w-[8px]" />
               </span>
-              <span className="h-[30px] w-[52px] rounded-md border border-[#f5b544]/35 bg-gradient-to-br from-[#241d10] to-[#151208]" />
-              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#f5b544]/50 bg-[#171204] text-[#f5b544]">
+              <span className="h-[30px] w-[52px] rounded-md border border-[#e2892a]/35 bg-gradient-to-br from-[#241d10] to-[#151208]" />
+              <span className="z-10 -mx-[7px] flex h-[16px] w-[16px] items-center justify-center rounded-full border border-[#e2892a]/50 bg-[#171204] text-[#e2892a]">
                 <ChainIcon className="h-[8px] w-[8px]" />
               </span>
               <span className="h-[30px] w-[52px] rounded-md border border-[#2a2a31] bg-gradient-to-br from-[#1e1e24] to-[#131317]" />
@@ -296,7 +296,7 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
             )}
             {totalSec > 0 && (
               <span
-                className="absolute bottom-0 top-0 rounded-[2px] bg-[#f5b544]"
+                className="absolute bottom-0 top-0 rounded-[2px] bg-[#e2892a]"
                 style={{ width: `${Math.min(100, (globalSec / totalSec) * 100)}%` }}
               />
             )}
@@ -304,7 +304,7 @@ export function PreviewStage({ segments, onPlayhead, seekRequest }: PreviewStage
           {/* drag knob */}
           {totalSec > 0 && (
             <span
-              className="absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#f5b544]"
+              className="absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#e2892a]"
               style={{ left: `${Math.min(100, (globalSec / totalSec) * 100)}%` }}
             />
           )}

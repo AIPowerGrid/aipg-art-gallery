@@ -134,7 +134,7 @@ export function RenderSettingsPanel({
             max={st.max}
             value={settings.steps}
             onChange={(e) => onChange({ steps: Number(e.target.value) })}
-            className="w-full accent-[#f5b544]"
+            className="w-full accent-[#e2892a]"
           />
         </div>
         <div>
@@ -148,10 +148,10 @@ export function RenderSettingsPanel({
             step={0.5}
             value={settings.cfgScale}
             onChange={(e) => onChange({ cfgScale: Number(e.target.value) })}
-            className="w-full accent-[#f5b544]"
+            className="w-full accent-[#e2892a]"
           />
           {settings.cfgScale > 1 && (
-            <p className="mt-0.5 text-[10px] text-[#f5b544]">distilled model — keep at 1</p>
+            <p className="mt-0.5 text-[10px] text-[#e2892a]">distilled model — keep at 1</p>
           )}
         </div>
       </div>
@@ -165,7 +165,7 @@ export function RenderSettingsPanel({
           type="button"
           onClick={() => onChange({ lockSeed: !settings.lockSeed })}
           className={`relative h-[18px] w-[32px] flex-shrink-0 rounded-full transition-colors ${
-            settings.lockSeed ? "bg-[#f5b544]" : "bg-[#313138]"
+            settings.lockSeed ? "bg-[#e2892a]" : "bg-[#313138]"
           }`}
         >
           <span
@@ -188,7 +188,7 @@ export function RenderSettingsPanel({
           <button
             type="button"
             onClick={() => onChange({ seed: randomSeed() })}
-            className="text-[#f5b544] hover:underline"
+            className="text-[#e2892a] hover:underline"
           >
             reroll
           </button>

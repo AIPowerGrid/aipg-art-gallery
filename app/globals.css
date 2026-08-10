@@ -10,29 +10,31 @@
  * (not #000). Values are HSL triplets so Tailwind's hsl(var(--x)) tokens work.
  */
 :root {
-  /* Surfaces — base canvas -> raised panel -> floating overlay */
-  --background: 30 8% 6%;
-  --foreground: 40 12% 92%;
-  --card: 30 7% 9%;
-  --card-foreground: 40 12% 92%;
-  --popover: 30 8% 11%;
-  --popover-foreground: 40 12% 92%;
+  /* Surfaces — base canvas -> raised panel -> floating overlay.
+     Cool near-neutral (not #000, not warm), the way Linear/Vercel and the
+     Director timeline read; the warm accent below supplies all the warmth. */
+  --background: 240 6% 7%;
+  --foreground: 240 9% 92%;
+  --card: 240 7% 10%;
+  --card-foreground: 240 9% 92%;
+  --popover: 240 8% 12%;
+  --popover-foreground: 240 9% 92%;
 
   /* Text layers */
-  --muted-foreground: 36 8% 64%;
-  --text-tertiary: 36 6% 46%;
+  --muted-foreground: 240 5% 62%;
+  --text-tertiary: 240 5% 45%;
 
   /* Borders — subtle hairline + a stronger edge for controls */
-  --border: 34 8% 17%;
-  --border-strong: 34 8% 27%;
-  --input: 34 8% 22%;
+  --border: 240 6% 19%;
+  --border-strong: 240 6% 28%;
+  --input: 240 6% 22%;
 
   /* Neutral fills */
-  --secondary: 32 6% 15%;
-  --secondary-foreground: 40 10% 88%;
-  --muted: 32 6% 15%;
-  --accent: 32 7% 18%;
-  --accent-foreground: 40 12% 92%;
+  --secondary: 240 6% 15%;
+  --secondary-foreground: 240 9% 88%;
+  --muted: 240 6% 15%;
+  --accent: 240 6% 18%;
+  --accent-foreground: 240 9% 92%;
 
   /* Accent/primary — copper-amber (brand + primary actions) */
   --primary: 32 82% 52%;

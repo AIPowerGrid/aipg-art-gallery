@@ -43,7 +43,7 @@ export function Waveform({
       canvas.height = Math.round(height * dpr);
       ctx.scale(pxW / width, canvas.height / height);
       ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = "rgba(245,181,68,0.55)";
+      ctx.fillStyle = "rgba(226,137,42,0.55)";
       const mid = height / 2;
       const step = width / peaks.length;
       peaks.forEach((p, i) => {

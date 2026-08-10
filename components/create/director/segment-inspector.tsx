@@ -42,8 +42,8 @@ interface SegmentInspectorProps {
 
 const STATUS_LABEL: Record<DirectorSegment["status"], { text: string; cls: string }> = {
   idle: { text: "not rendered", cls: "text-[#5a5a64]" },
-  queued: { text: "queued…", cls: "text-[#f5b544]" },
-  rendering: { text: "rendering", cls: "text-[#f5b544]" },
+  queued: { text: "queued…", cls: "text-[#e2892a]" },
+  rendering: { text: "rendering", cls: "text-[#e2892a]" },
   done: { text: "rendered ●", cls: "text-[#34d399]" },
   error: { text: "failed", cls: "text-[#f87171]" },
 };
@@ -103,10 +103,10 @@ export function SegmentInspector({
     <div className="rounded-[10px] border border-[#242429] bg-[#121215] p-4">
       <h3 className="mb-3 flex items-center justify-between">
         <span className="flex items-center gap-2">
-          <span className="rounded border border-[#f5b544]/40 bg-[#f5b544]/10 px-1.5 py-[1px] text-[9.5px] uppercase tracking-[0.08em] text-[#f5b544]">
+          <span className="rounded border border-[#e2892a]/40 bg-[#e2892a]/10 px-1.5 py-[1px] text-[9.5px] uppercase tracking-[0.08em] text-[#e2892a]">
             Segment {index + 1}
           </span>
-          {chained && <ChainIcon className="h-[10px] w-[10px] text-[#f5b544]/70" />}
+          {chained && <ChainIcon className="h-[10px] w-[10px] text-[#e2892a]/70" />}
         </span>
         <span className={`text-[10.5px] ${status.cls}`}>
           {status.text}
@@ -130,7 +130,7 @@ export function SegmentInspector({
           }}
         >
           {chained && (
-            <span className="absolute left-1 top-1 flex items-center gap-1 rounded border border-[#f5b544]/45 bg-[#f5b544]/15 px-[5px] text-[9.5px] text-[#f5b544]">
+            <span className="absolute left-1 top-1 flex items-center gap-1 rounded border border-[#e2892a]/45 bg-[#e2892a]/15 px-[5px] text-[9.5px] text-[#e2892a]">
               <ChainIcon className="h-[9px] w-[9px]" /> #{index}
             </span>
           )}
@@ -168,9 +168,9 @@ export function SegmentInspector({
                         : "Generate a private first frame with Krea 2 Turbo"
                   }
                   aria-describedby={coachStep === "source-image" ? "director-coach-source" : undefined}
-                  className={`rounded-md border border-[#f5b544]/50 bg-[#f5b544]/10 px-2 py-[3px] text-[11px] text-[#f5b544] hover:bg-[#f5b544]/20 disabled:cursor-not-allowed disabled:opacity-40 ${
+                  className={`rounded-md border border-[#e2892a]/50 bg-[#e2892a]/10 px-2 py-[3px] text-[11px] text-[#e2892a] hover:bg-[#e2892a]/20 disabled:cursor-not-allowed disabled:opacity-40 ${
                     coachStep === "source-image"
-                      ? "ring-2 ring-[#f5b544]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
+                      ? "ring-2 ring-[#e2892a]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
                       : ""
                   }`}
                 >
@@ -268,7 +268,7 @@ export function SegmentInspector({
           aria-describedby={coachStep === "prompt" ? "director-coach-prompt" : undefined}
           className={`w-full resize-y rounded-md border bg-[#17171b] px-2.5 py-2 text-[12.5px] text-[#e9e9ec] outline-none focus:border-[#4a4a53] ${
             coachStep === "prompt"
-              ? "border-[#f5b544]/70 ring-2 ring-[#f5b544]/45 ring-offset-2 ring-offset-[#121215]"
+              ? "border-[#e2892a]/70 ring-2 ring-[#e2892a]/45 ring-offset-2 ring-offset-[#121215]"
               : "border-[#242429]"
           }`}
         />
@@ -318,7 +318,7 @@ export function SegmentInspector({
             max={100}
             value={Math.round(segment.strength * 100)}
             onChange={(e) => onUpdate({ strength: Number(e.target.value) / 100 })}
-            className="mt-[9px] w-full accent-[#f5b544]"
+            className="mt-[9px] w-full accent-[#e2892a]"
           />
         </div>
       </div>
@@ -332,7 +332,7 @@ export function SegmentInspector({
             type="button"
             onClick={onToggleChain}
             className={`relative h-[18px] w-[32px] flex-shrink-0 rounded-full transition-colors ${
-              segment.chained ? "bg-[#f5b544]" : "bg-[#313138]"
+              segment.chained ? "bg-[#e2892a]" : "bg-[#313138]"
             }`}
           >
             <span
@@ -345,7 +345,7 @@ export function SegmentInspector({
       )}
 
       {segment.anchorStale && (
-        <p className="mb-2 rounded-md border border-[#f5b544]/40 bg-[#f5b544]/10 px-2.5 py-1.5 text-[11px] text-[#f5b544]">
+        <p className="mb-2 rounded-md border border-[#e2892a]/40 bg-[#e2892a]/10 px-2.5 py-1.5 text-[11px] text-[#e2892a]">
           Segment {index} was re-rendered — re-render this one for a clean join.
         </p>
       )}
@@ -367,9 +367,9 @@ export function SegmentInspector({
           onClick={onRender}
           disabled={blockers.length > 0 || segment.status === "queued" || segment.status === "rendering"}
           aria-describedby={coachStep === "render" ? "director-coach-render" : undefined}
-          className={`rounded-lg bg-[#f5b544] px-3 py-[5px] text-[11.5px] font-semibold text-[#141414] disabled:opacity-40 ${
+          className={`rounded-lg bg-[#e2892a] px-3 py-[5px] text-[11.5px] font-semibold text-[#141414] disabled:opacity-40 ${
             coachStep === "render"
-              ? "ring-2 ring-[#f5b544]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
+              ? "ring-2 ring-[#e2892a]/70 ring-offset-2 ring-offset-[#121215] motion-safe:animate-pulse"
               : ""
           }`}
         >
