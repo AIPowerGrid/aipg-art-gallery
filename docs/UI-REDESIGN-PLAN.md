@@ -39,26 +39,26 @@ tab switches, hovers, selected-states, generation progress. Respect
 
 ## Phases (each ends with a screenshot self-review)
 
-- [ ] **P1 — Foundation.** Fonts (next/font in layout), globals.css token system
+- [x] **P1 — Foundation.** Fonts (next/font in layout), globals.css token system
       + utilities (surfaces, eyebrow label, custom range slider, atmosphere,
       grain, motion), tailwind.config fontFamily + processing/status colors,
       remove the pill !important rule. Verify: build compiles, tokens resolve.
-- [ ] **P2 — Primitives + global nav + background.** Shared Button/Chip/Badge/
+- [x] **P2 — Primitives + global nav + background.** Shared Button/Chip/Badge/
       Card/Slider/SearchInput primitives; restyle Header (editorial nav, clear
       CTA hierarchy); restrained page atmosphere in layout.
-- [ ] **P3 — Marketing surfaces.** Join (asymmetric hero + live gallery preview,
+- [x] **P3 — Marketing surfaces.** Join (asymmetric hero + live gallery preview,
       weighted sign-in options, real status badges) and Login (fix duplicate
       WalletConnect, real wallet option list with icons, atmosphere). One shared
       auth surface look.
-- [ ] **P4 — Gallery.** Grid gutters + aspect-respecting masonry; connected
+- [x] **P4 — Gallery.** Grid gutters + aspect-respecting masonry; connected
       search+filter control; chip filters with real selected-state; tile hover
       metadata overlay.
-- [ ] **P5 — Studio.** Prompt hero; primary/secondary action split; sidebar as
+- [x] **P5 — Studio.** Prompt hero; primary/secondary action split; sidebar as
       real settings panel with model cards + radio/check; custom sliders;
       creations grids match gallery tiles.
-- [ ] **P6 — Director.** NLE/timeline aesthetic; grouped top-bar controls;
+- [x] **P6 — Director.** NLE/timeline aesthetic; grouped top-bar controls;
       accent reconciled (Render = primary amber, progress = processing blue).
-- [ ] **P7 — Consistency sweep.** Walk the Section 5 checklist page by page;
+- [x] **P7 — Consistency sweep.** Walk the Section 5 checklist page by page;
       final screenshots; tests (go + jest + tsc) green.
 
 ## Verification loop (every phase)
