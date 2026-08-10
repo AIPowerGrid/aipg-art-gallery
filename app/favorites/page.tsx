@@ -101,25 +101,25 @@ export default function FavoritesPage() {
 
   if (!mounted || !sessionChecked || !isAuthenticated) {
     return (
-      <main className="flex-1 w-full min-h-screen bg-black">
+      <main className="flex-1 w-full min-h-screen bg-background">
         <Header />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-zinc-400 rounded-full" />
+          <div className="animate-spin w-8 h-8 border-2 border-border border-t-primary rounded-full" />
         </div>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 w-full min-h-screen bg-black">
+    <main className="flex-1 w-full min-h-screen bg-background">
       <Header />
 
       {/* Search bar */}
       <div className="w-full px-4 md:px-7 pt-2 sm:pt-4 pb-2">
         <div className="max-w-xl mx-auto">
           <div className="relative">
-            <div className="flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
-              <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center bg-card border border-border rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
+              <svg className="w-5 h-5 ml-4 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -132,7 +132,7 @@ export default function FavoritesPage() {
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery("")}
-                  className="mr-1 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
+                  className="mr-1 p-1.5 rounded-full hover:bg-[#333] text-tertiary hover:text-white transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -146,7 +146,7 @@ export default function FavoritesPage() {
 
       <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4">
         {loading ? (
-          <div className="text-center text-white/50 py-20">
+          <div className="text-center text-tertiary py-20">
             <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" />
             Loading your favorites...
           </div>
@@ -157,12 +157,12 @@ export default function FavoritesPage() {
                 <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
               </svg>
               <h2 className="text-xl font-semibold text-white">No favorites yet</h2>
-              <p className="text-white/70">
+              <p className="text-muted-foreground">
                 Browse the gallery and click the star icon to save images you love.
               </p>
               <Link
                 href="/"
-                className="inline-block px-6 py-2 rounded-xl bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-semibold hover:opacity-90 transition"
+                className="btn btn-primary"
               >
                 Explore Gallery
               </Link>
@@ -198,7 +198,7 @@ export default function FavoritesPage() {
             {/* No search results */}
             {searchQuery && filteredFavorites.length === 0 && (
               <div className="text-center py-20">
-                <p className="text-white/50">No favorites found matching "{searchQuery}"</p>
+                <p className="text-tertiary">No favorites found matching "{searchQuery}"</p>
               </div>
             )}
 

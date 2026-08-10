@@ -202,10 +202,10 @@ export default function ProfilePage() {
 
   if (!mounted) {
     return (
-      <main className="flex-1 w-full min-h-screen bg-black">
+      <main className="flex-1 w-full min-h-screen bg-background">
         <Header />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-zinc-400 rounded-full" />
+          <div className="animate-spin w-8 h-8 border-2 border-border border-t-primary rounded-full" />
         </div>
       </main>
     );
@@ -213,25 +213,25 @@ export default function ProfilePage() {
 
   if (!isAuthenticated) {
     return (
-      <main className="flex-1 w-full min-h-screen bg-black">
+      <main className="flex-1 w-full min-h-screen bg-background">
         <Header />
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-zinc-400 rounded-full" />
+          <div className="animate-spin w-8 h-8 border-2 border-border border-t-primary rounded-full" />
         </div>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 w-full min-h-screen bg-black">
+    <main className="flex-1 w-full min-h-screen bg-background">
       <Header />
 
       {/* Search bar - matches main gallery */}
       <div className="w-full px-4 md:px-7 pt-2 sm:pt-4 pb-2">
         <div className="max-w-xl mx-auto">
           <div className="relative">
-            <div className="flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
-              <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-center bg-card border border-border rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
+              <svg className="w-5 h-5 ml-4 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -244,7 +244,7 @@ export default function ProfilePage() {
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery("")}
-                  className="mr-1 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
+                  className="mr-1 p-1.5 rounded-full hover:bg-[#333] text-tertiary hover:text-white transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -258,7 +258,7 @@ export default function ProfilePage() {
 
       <div className="max-w-[1920px] mx-auto px-6 md:px-12 py-4">
         {loading ? (
-          <div className="text-center text-white/50 py-20">
+          <div className="text-center text-tertiary py-20">
             <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" />
             Loading your creations...
           </div>
@@ -267,7 +267,7 @@ export default function ProfilePage() {
             <div className="max-w-md mx-auto space-y-4">
               <div className="text-4xl">⚠️</div>
               <h2 className="text-xl font-semibold text-white">Could not load creations</h2>
-              <p className="text-white/70">{error}</p>
+              <p className="text-muted-foreground">{error}</p>
               <button
                 onClick={() => loadCreations()}
                 className="inline-block px-6 py-2 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition"
@@ -281,12 +281,12 @@ export default function ProfilePage() {
             <div className="max-w-md mx-auto space-y-4">
               <div className="text-4xl">🎨</div>
               <h2 className="text-xl font-semibold text-white">No creations yet</h2>
-              <p className="text-white/70">
+              <p className="text-muted-foreground">
                 When you generate images or videos while signed in, they&apos;ll appear here.
               </p>
               <Link
                 href="/create"
-                className="inline-block px-6 py-2 rounded-xl bg-gradient-to-r from-zinc-600 to-zinc-500 text-white font-semibold hover:opacity-90 transition"
+                className="btn btn-primary"
               >
                 Start Creating
               </Link>
@@ -342,7 +342,7 @@ export default function ProfilePage() {
             {/* No results message */}
             {searchQuery && filteredItems.length === 0 && filteredFavorites.length === 0 && (
               <div className="text-center py-20">
-                <p className="text-white/50">No images found matching "{searchQuery}"</p>
+                <p className="text-tertiary">No images found matching "{searchQuery}"</p>
               </div>
             )}
 
@@ -385,16 +385,16 @@ export default function ProfilePage() {
 
       {/* Unfavorite confirmation modal */}
       {showUnfavoriteConfirm && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-zinc-900 rounded-xl p-6 max-w-sm w-full border border-zinc-700">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-secondary rounded-xl p-6 max-w-sm w-full border border-border">
             <h3 className="text-white text-lg font-semibold mb-3">Remove from Favorites?</h3>
-            <p className="text-white/70 text-sm mb-6">
+            <p className="text-muted-foreground text-sm mb-6">
               This image will be removed from your favorites.
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowUnfavoriteConfirm(null)}
-                className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white text-sm rounded-lg transition-colors"
+                className="btn btn-secondary btn-sm"
               >
                 Cancel
               </button>
