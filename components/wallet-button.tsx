@@ -324,55 +324,67 @@ export function ConnectWalletCard() {
 function ConnectWalletCardClient() {
   const { connectors, connect, isPending, error } = useConnect();
 
-  // Filter out problematic connectors
-  const availableConnectors = connectors.filter(
-    (c) => c.name !== 'Porto' && c.type !== 'porto'
-  );
+  // Drop Porto, then de-duplicate by name — wagmi often surfaces several
+  // connectors that all present as "WalletConnect", which read as a wall of
+  // identical buttons. Keep the first of each name only.
+  const seen = new Set<string>();
+  const availableConnectors = connectors.filter((c) => {
+    if (c.name === "Porto" || c.type === "porto") return false;
+    const key = c.name.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   return (
-    <div className="space-y-4">
-      <div className="text-center mb-4">
-        <p className="text-white/70 text-sm">Connect your Web3 wallet to sign in</p>
-        <p className="text-white/50 text-xs mt-1">Base Network</p>
-      </div>
-
-      {/* Network Info */}
-      <div className="p-3 rounded-xl bg-gradient-to-r from-zinc-500/10 to-zinc-400/10 border border-zinc-500/20 text-center">
-        <div className="flex items-center justify-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-400" />
-          <span className="text-white font-medium">Base</span>
-        </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="eyebrow">Connect a wallet</span>
+        <span className="badge badge-neutral gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+          Base
+        </span>
       </div>
 
       {error && (
-        <div className="p-3 rounded-xl bg-red-500/20 border border-red-500/40 text-red-200 text-sm">
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive-foreground">
           {error.message}
         </div>
       )}
 
       {availableConnectors.length === 0 ? (
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
-          <p className="text-white/70 text-sm mb-2">No browser wallet detected</p>
-          <p className="text-white/50 text-xs">
+        <div className="rounded-lg border border-border bg-card/50 p-4 text-center">
+          <p className="mb-1 text-sm text-foreground/80">No browser wallet detected</p>
+          <p className="text-xs text-muted-foreground">
             Continue with Google above, open this page in your wallet browser, or install a supported wallet extension.
           </p>
         </div>
       ) : (
-        availableConnectors.map((connector) => (
-          <button
-            key={connector.uid}
-            onClick={() => connect({ connector })}
-            disabled={isPending}
-            className="w-full py-3 px-4 rounded-xl bg-white/10 border border-white/20 text-white hover:bg-white/20 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-          >
-            {connector.icon && (
-              <img src={connector.icon} alt="" className="w-5 h-5 rounded" />
-            )}
-            <span>
-              {isPending ? "Connecting..." : `Connect with ${connector.name}`}
-            </span>
-          </button>
-        ))
+        <div className="space-y-2">
+          {availableConnectors.map((connector) => (
+            <button
+              key={connector.uid}
+              onClick={() => connect({ connector })}
+              disabled={isPending}
+              className="group flex w-full items-center gap-3 rounded-lg border border-border bg-card/50 px-3.5 py-3 text-left transition-all duration-150 hover:border-edge hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ transitionTimingFunction: "var(--ease)" }}
+            >
+              {connector.icon ? (
+                <img src={connector.icon} alt="" className="h-6 w-6 shrink-0 rounded-md" />
+              ) : (
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-semibold text-muted-foreground">
+                  {connector.name.charAt(0)}
+                </span>
+              )}
+              <span className="flex-1 text-sm font-medium text-foreground">
+                {connector.name}
+              </span>
+              <span className="text-tertiary transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground">
+                {isPending ? "…" : "→"}
+              </span>
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );

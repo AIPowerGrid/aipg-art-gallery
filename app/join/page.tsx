@@ -6,9 +6,30 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { GoogleSignInButton } from "@/components/google-one-tap";
+import { GalleryPreview } from "@/components/gallery-preview";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
+
+const MODELS = [
+  { name: "Krea 2 Turbo", blurb: "Fast, high-quality image generation — a great all-round default for realistic and artistic prompts.", live: true },
+  { name: "z-image-turbo", blurb: "Ultra-fast image generation tuned for speed and clean, coherent results.", live: true },
+  { name: "FLUX.2 Klein 4B FP8", blurb: "The open FLUX.2 Klein model — strong on fine detail and prompt accuracy.", live: true },
+  { name: "LTX-2.3 Video", blurb: "Text-to-video generation — turn a prompt into a short AI-generated clip.", live: true },
+  { name: "More models & LoRAs", blurb: "New image and video models plus custom LoRAs are being added to the grid.", live: false },
+];
+
+const BENEFITS = [
+  { title: "Unlimited generations", body: "Create as much as you want while AIPG is in preview." },
+  { title: "Save your work", body: "Every creation is stored in your profile." },
+  { title: "Video generation", body: "Turn prompts into short clips with LTX-2.3 video." },
+];
+
+function triggerWallet() {
+  document
+    .querySelector<HTMLButtonElement>("button[data-wallet-button]")
+    ?.click();
+}
 
 export default function JoinPage() {
   const router = useRouter();
@@ -17,170 +38,97 @@ export default function JoinPage() {
   const hasSession = isAuthenticated && (authMethod === "google" || isConnected);
 
   useEffect(() => {
-    if (hasSession) {
-      router.replace("/create");
-    }
+    if (hasSession) router.replace("/create");
   }, [hasSession, router]);
 
   if (hasSession) {
     return (
-      <main className="flex-1 w-full min-h-screen bg-black">
+      <main className="flex-1 w-full min-h-screen">
         <Header />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-zinc-400 rounded-full" />
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
         </div>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 w-full min-h-screen bg-black">
+    <main className="flex-1 w-full min-h-screen">
       <Header />
 
-      <div className="max-w-[1200px] mx-auto px-6 md:px-12 py-12">
-        {/* Hero Section */}
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Unlock Unlimited Access
-          </h1>
-          <p className="text-white/60 text-lg max-w-2xl mx-auto mb-8">
-            Continue with Google or verify a Base wallet to save creations and unlock member features.
-          </p>
-          <div className="flex items-center justify-center gap-4 flex-wrap">
-            <GoogleSignInButton />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
-                if (walletBtn) {
-                  walletBtn.click();
-                }
-              }}
-              className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
-            >
-              Connect Wallet Now
-            </button>
-            <Link
-              href="/create"
-              className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white font-medium rounded-xl transition-all border border-white/10"
-            >
-              Try as Guest (5 Free)
-            </Link>
-          </div>
-        </div>
+      <div className="mx-auto max-w-6xl px-6 py-14 md:px-10">
+        {/* Hero: copy + weighted sign-in on the left, living gallery on the right */}
+        <section className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="animate-rise-in">
+            <span className="eyebrow">AI Power Grid</span>
+            <h1 className="mt-3 font-display text-4xl font-bold leading-[1.05] tracking-tight text-foreground md:text-[3.25rem]">
+              Create on the{" "}
+              <span className="text-gradient">open AI grid</span>
+            </h1>
+            <p className="mt-4 max-w-lg text-lg text-muted-foreground">
+              Generate images and video on community hardware. Sign in to save
+              your creations, track credits and unlock every model.
+            </p>
 
-        {/* Features Grid */}
-        <div className="grid md:grid-cols-2 gap-4 mb-12">
-          {/* Krea 2 Turbo — image (live) */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">Krea 2 Turbo</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  Fast, high-quality image generation — a great all-round default for realistic and artistic prompts
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
-                  Available Now
-                </span>
+            {/* Weighted sign-in: Google primary, wallet secondary, guest tertiary */}
+            <div className="mt-8 max-w-sm space-y-3">
+              <GoogleSignInButton />
+              <button onClick={triggerWallet} className="btn btn-outline w-full">
+                Connect a wallet
+              </button>
+              <div className="pt-1 text-center">
+                <Link
+                  href="/create"
+                  className="text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+                >
+                  or try the studio as a guest →
+                </Link>
               </div>
             </div>
           </div>
 
-          {/* z-image-turbo — image (live) */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">z-image-turbo</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  Ultra-fast image generation tuned for speed and clean, coherent results
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
-                  Available Now
-                </span>
+          <div className="hidden lg:block">
+            <GalleryPreview />
+          </div>
+        </section>
+
+        {/* Models */}
+        <section className="mt-20">
+          <div className="mb-5 flex items-end justify-between">
+            <h2 className="font-display text-xl font-semibold text-foreground">
+              Models on the grid
+            </h2>
+            <span className="text-sm text-muted-foreground">Free during preview</span>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {MODELS.map((m) => (
+              <div
+                key={m.name}
+                className="surface-raised p-5 transition-colors hover:border-edge"
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h3 className="font-medium text-foreground">{m.name}</h3>
+                  <span className={`badge ${m.live ? "badge-success" : "badge-muted"}`}>
+                    {m.live ? "Available now" : "Coming soon"}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{m.blurb}</p>
               </div>
-            </div>
+            ))}
           </div>
+        </section>
 
-          {/* FLUX.2 Klein 4B FP8 — image (live) */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">FLUX.2 Klein 4B FP8</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  The open FLUX.2 Klein model — strong on fine detail and prompt accuracy
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
-                  Available Now
-                </span>
+        {/* Benefits */}
+        <section className="mt-14 rounded-2xl border border-border bg-card/60 p-8">
+          <div className="grid gap-8 md:grid-cols-3">
+            {BENEFITS.map((b) => (
+              <div key={b.title}>
+                <h3 className="mb-1.5 font-medium text-foreground">{b.title}</h3>
+                <p className="text-sm text-muted-foreground">{b.body}</p>
               </div>
-            </div>
+            ))}
           </div>
-
-          {/* LTX-2.3 — video (live) */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">LTX-2.3 Video</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  Text-to-video generation — turn a prompt into a short AI-generated clip
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
-                  Available Now
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* More models + LoRAs — forward looking */}
-          <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
-            <div className="flex items-start gap-4">
-              <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">More Models &amp; LoRAs</h3>
-                <p className="text-white/60 text-sm mb-3">
-                  New image and video models plus custom LoRAs are being added to the grid
-                </p>
-                <span className="inline-block px-2 py-1 bg-white/5 text-white/50 text-xs rounded">
-                  Coming Soon
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Benefits Section */}
-        <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-8 mb-12">
-          <h2 className="text-xl font-semibold text-white mb-6 text-center">Why Sign In?</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <h3 className="text-white font-medium mb-2">Unlimited Generations</h3>
-              <p className="text-white/50 text-sm">Create as much as you want without limits</p>
-            </div>
-            <div className="text-center">
-              <h3 className="text-white font-medium mb-2">Save Your Work</h3>
-              <p className="text-white/50 text-sm">All creations stored in your profile</p>
-            </div>
-            <div className="text-center">
-              <h3 className="text-white font-medium mb-2">Video Generation</h3>
-              <p className="text-white/50 text-sm">Turn prompts into short clips with LTX-2.3 video</p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="text-center">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
-              if (walletBtn) {
-                walletBtn.click();
-              }
-            }}
-            className="px-10 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
-          >
-            Connect Wallet Now
-          </button>
-        </div>
+        </section>
       </div>
     </main>
   );
