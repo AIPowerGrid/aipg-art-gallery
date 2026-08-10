@@ -46,6 +46,43 @@ func TestLinkedSessionKeepsGoogleGalleryOwner(t *testing.T) {
 	}
 }
 
+func TestOwnerKeysUnifyLinkedIdentities(t *testing.T) {
+	linked := requestWithClaims(&auth.Claims{
+		GoogleID: "g-123", WalletAddress: "0xAbC", GridAccountID: "acct-1",
+	})
+
+	// The canonical account id is the write key.
+	if got := accountKey(linked); got != "acct-1" {
+		t.Fatalf("accountKey = %q, want acct-1", got)
+	}
+
+	// A linked user's key set contains all three identities.
+	if keys := ownerKeys(linked); len(keys) != 3 {
+		t.Fatalf("ownerKeys = %v, want 3 keys", keys)
+	}
+	googleKey := getGalleryOwnerIdentifier(requestWithClaims(&auth.Claims{GoogleID: "g-123"}))
+
+	// Items stored under ANY of the user's identities are recognized as theirs.
+	if !ownsOwnerKey(linked, "0xABC") {
+		t.Fatal("linked user should own their wallet items")
+	}
+	if !ownsOwnerKey(linked, googleKey) {
+		t.Fatal("linked user should own their google-hashed items")
+	}
+	if !ownsOwnerKey(linked, "acct-1") {
+		t.Fatal("linked user should own account-id items")
+	}
+	if ownsOwnerKey(linked, "0xstranger") {
+		t.Fatal("must not own a stranger's items")
+	}
+
+	// A google-only session (wallet not yet linked) does NOT own the wallet items.
+	gOnly := requestWithClaims(&auth.Claims{GoogleID: "g-123", GridAccountID: "acct-1"})
+	if ownsOwnerKey(gOnly, "0xabc") {
+		t.Fatal("unlinked google session must not own wallet items until linked")
+	}
+}
+
 func TestPendingJobsCarryOwner(t *testing.T) {
 	store := newPendingStore(time.Minute)
 	id := store.create("image", "prompt", "owner-1")

@@ -413,6 +413,78 @@ func getAuthMethod(r *http.Request) string {
 	return "wallet"
 }
 
+// accountKey returns the caller's canonical Grid account id — the single, stable
+// identity used for NEW writes and shared across all of a user's linked logins.
+// Falls back to the legacy per-login owner key if a session predates account ids.
+func accountKey(r *http.Request) string {
+	if claims := getClaimsFromContext(r); claims != nil {
+		if id := strings.TrimSpace(claims.GridAccountID); id != "" {
+			return id
+		}
+	}
+	return getGalleryOwnerIdentifier(r)
+}
+
+// ownerKeys returns every owner key that identifies the caller: the canonical
+// account id plus legacy per-login keys (wallet address, hashed Google id). Reads
+// and ownership checks match against this set, so a user sees content stored under
+// any of their linked logins without rewriting existing rows.
+func ownerKeys(r *http.Request) []string {
+	claims := getClaimsFromContext(r)
+	if claims == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var keys []string
+	add := func(k string) {
+		k = strings.TrimSpace(k)
+		if k != "" && !seen[k] {
+			seen[k] = true
+			keys = append(keys, k)
+		}
+	}
+	add(claims.GridAccountID)
+	if claims.WalletAddress != "" {
+		add(strings.ToLower(strings.TrimSpace(claims.WalletAddress)))
+	}
+	if claims.GoogleID != "" {
+		digest := sha256.Sum256([]byte("google:" + claims.GoogleID))
+		add(fmt.Sprintf("google:%x", digest[:]))
+	}
+	return keys
+}
+
+// ownsOwnerKey reports whether a stored owner key belongs to the caller.
+func ownsOwnerKey(r *http.Request, storedOwner string) bool {
+	storedOwner = strings.ToLower(strings.TrimSpace(storedOwner))
+	if storedOwner == "" {
+		return false
+	}
+	for _, k := range ownerKeys(r) {
+		if strings.ToLower(k) == storedOwner {
+			return true
+		}
+	}
+	return false
+}
+
+// dedupeGalleryItems merges items from multiple owner-key queries, keeping first
+// occurrence per job id (stable order).
+func dedupeGalleryItems(lists ...[]gallery.GalleryItem) []gallery.GalleryItem {
+	seen := map[string]bool{}
+	merged := make([]gallery.GalleryItem, 0)
+	for _, list := range lists {
+		for _, it := range list {
+			if it.JobID == "" || seen[it.JobID] {
+				continue
+			}
+			seen[it.JobID] = true
+			merged = append(merged, it)
+		}
+	}
+	return merged
+}
+
 // ----------------------------------------------------------------------------
 // Session cookie helpers. The JWT is delivered ONLY as an httpOnly cookie so it
 // is never readable by browser JS (XSS protection). The wallet JWT is minted by
@@ -1341,7 +1413,7 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusUnauthorized, err)
 		return
 	}
-	owner := getGalleryOwnerIdentifier(r)
+	owner := accountKey(r)
 
 	gen := buildGenerateRequest(req, preset)
 	kind := "image"
@@ -1423,7 +1495,7 @@ func (a *App) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, fmt.Errorf("unknown or expired job: %s", jobID))
 		return
 	}
-	if job.Owner == "" || job.Owner != getGalleryOwnerIdentifier(r) {
+	if job.Owner == "" || !ownsOwnerKey(r, job.Owner) {
 		writeError(w, http.StatusNotFound, errors.New("job not found"))
 		return
 	}
@@ -2041,7 +2113,7 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ownerID := getGalleryOwnerIdentifier(r)
+	ownerID := accountKey(r)
 	if ownerID == "" {
 		writeError(w, http.StatusUnauthorized, errors.New("authenticated owner is required"))
 		return
@@ -2093,8 +2165,8 @@ func (a *App) handleAddToGallery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleListMyGallery(w http.ResponseWriter, r *http.Request) {
-	ownerID := getGalleryOwnerIdentifier(r)
-	if ownerID == "" {
+	keys := ownerKeys(r)
+	if len(keys) == 0 {
 		writeError(w, http.StatusUnauthorized, errors.New("authenticated owner is required"))
 		return
 	}
@@ -2105,7 +2177,17 @@ func (a *App) handleListMyGallery(w http.ResponseWriter, r *http.Request) {
 			limit = parsed
 		}
 	}
-	items := a.galleryStore.ListByWallet(ownerID, limit)
+	// Gather items stored under any of the caller's linked owner keys (account id,
+	// wallet, hashed Google id) so content is visible regardless of which login
+	// created it.
+	lists := make([][]gallery.GalleryItem, 0, len(keys))
+	for _, k := range keys {
+		lists = append(lists, a.galleryStore.ListByWallet(k, limit))
+	}
+	items := dedupeGalleryItems(lists...)
+	if len(items) > limit {
+		items = items[:limit]
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":  items,
 		"count":  len(items),
@@ -2119,7 +2201,9 @@ func (a *App) handleListByWallet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("wallet address is required"))
 		return
 	}
-	if strings.ToLower(strings.TrimSpace(wallet)) != getGalleryOwnerIdentifier(r) {
+	// Only the owner may view their private gallery; the requested key must be one
+	// of the caller's linked identities.
+	if !ownsOwnerKey(r, wallet) {
 		writeError(w, http.StatusForbidden, errors.New("you can only view your own private gallery"))
 		return
 	}
@@ -2132,7 +2216,14 @@ func (a *App) handleListByWallet(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items := a.galleryStore.ListByWallet(wallet, limit)
+	lists := make([][]gallery.GalleryItem, 0)
+	for _, k := range ownerKeys(r) {
+		lists = append(lists, a.galleryStore.ListByWallet(k, limit))
+	}
+	items := dedupeGalleryItems(lists...)
+	if len(items) > limit {
+		items = items[:limit]
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items":  items,
@@ -2256,8 +2347,8 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get wallet address from JWT (set by authMiddleware)
-	requestWallet := getGalleryOwnerIdentifier(r)
+	// Canonical account id — used for pending-job matching and logging.
+	requestWallet := accountKey(r)
 
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -2266,9 +2357,8 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check ownership - wallet addresses must match
-	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
-	if itemWallet == "" || itemWallet != requestWallet {
+	// Ownership: the item's stored owner must be one of the caller's linked keys.
+	if !ownsOwnerKey(r, item.WalletAddress) {
 		writeError(w, http.StatusForbidden, errors.New("you can only update your own gallery items"))
 		return
 	}
@@ -2309,8 +2399,7 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get wallet address from JWT (set by authMiddleware)
-	requestWallet := getGalleryOwnerIdentifier(r)
+	requestWallet := accountKey(r)
 
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -2319,9 +2408,7 @@ func (a *App) handleDeleteGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check ownership - wallet addresses must match
-	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
-	if itemWallet == "" || itemWallet != requestWallet {
+	if !ownsOwnerKey(r, item.WalletAddress) {
 		writeError(w, http.StatusForbidden, errors.New("you can only delete your own gallery items"))
 		return
 	}
@@ -2351,8 +2438,7 @@ func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get wallet address from JWT (set by authMiddleware)
-	requestWallet := getGalleryOwnerIdentifier(r)
+	requestWallet := accountKey(r)
 
 	// Get the item first to check ownership
 	item := a.galleryStore.Get(jobID)
@@ -2361,9 +2447,7 @@ func (a *App) handlePublishGalleryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check ownership
-	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
-	if itemWallet != requestWallet {
+	if !ownsOwnerKey(r, item.WalletAddress) {
 		writeError(w, http.StatusForbidden, errors.New("you can only publish your own images"))
 		return
 	}
@@ -2393,7 +2477,7 @@ func (a *App) handleUnpublishGalleryItem(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	requestWallet := getGalleryOwnerIdentifier(r)
+	requestWallet := accountKey(r)
 
 	item := a.galleryStore.Get(jobID)
 	if item == nil {
@@ -2401,8 +2485,7 @@ func (a *App) handleUnpublishGalleryItem(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
-	if itemWallet != requestWallet {
+	if !ownsOwnerKey(r, item.WalletAddress) {
 		writeError(w, http.StatusForbidden, errors.New("you can only unpublish your own images"))
 		return
 	}
@@ -2439,7 +2522,7 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestWallet := getGalleryOwnerIdentifier(r)
+	requestWallet := accountKey(r)
 
 	// Get the original batch item
 	item := a.galleryStore.Get(jobID)
@@ -2448,9 +2531,7 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check ownership
-	itemWallet := strings.ToLower(strings.TrimSpace(item.WalletAddress))
-	if itemWallet != requestWallet {
+	if !ownsOwnerKey(r, item.WalletAddress) {
 		writeError(w, http.StatusForbidden, errors.New("you can only extract from your own images"))
 		return
 	}
@@ -2516,7 +2597,7 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 // Favorites handlers
 func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	owner := getGalleryOwnerIdentifier(r) // Same durable owner key gallery items use
+	owner := accountKey(r) // Canonical account id — shared across the user's logins
 
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
@@ -2546,13 +2627,13 @@ func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	owner := getGalleryOwnerIdentifier(r) // Same durable owner key gallery items use
+	keys := ownerKeys(r)
 
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
 		return
 	}
-	if owner == "" {
+	if len(keys) == 0 {
 		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
@@ -2562,10 +2643,12 @@ func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := a.favoritesStore.Remove(owner, jobID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
-		return
+	// The favorite may be stored under any of the caller's linked owner keys.
+	for _, k := range keys {
+		if err := a.favoritesStore.Remove(k, jobID); err != nil {
+			writeError(w, http.StatusInternalServerError, err)
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -2578,8 +2661,8 @@ func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 // the authenticated user's durable owner key (not a caller-supplied address), so it
 // works identically for wallet and Google logins and cannot enumerate other users.
 func (a *App) handleListMyFavorites(w http.ResponseWriter, r *http.Request) {
-	owner := getGalleryOwnerIdentifier(r)
-	if owner == "" {
+	keys := ownerKeys(r)
+	if len(keys) == 0 {
 		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
@@ -2597,7 +2680,15 @@ func (a *App) handleListMyFavorites(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items := a.favoritesStore.GetFavoritedItems(owner, limit)
+	// Merge favorites stored under any of the caller's linked owner keys.
+	lists := make([][]gallery.GalleryItem, 0, len(keys))
+	for _, k := range keys {
+		lists = append(lists, a.favoritesStore.GetFavoritedItems(k, limit))
+	}
+	items := dedupeGalleryItems(lists...)
+	if len(items) > limit {
+		items = items[:limit]
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"items": items,
