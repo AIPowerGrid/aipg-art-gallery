@@ -39,17 +39,17 @@ export function Header() {
   ];
   
   return (
-    <header className="sticky top-0 z-40 bg-black/90 backdrop-blur-md border-b border-white/10">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="w-full px-4 md:px-7 py-3 md:py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition shrink-0">
-            <Image 
-              src="/aipg-logo.png" 
-              alt="AIPG" 
-              width={32} 
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90 shrink-0">
+            <Image
+              src="/aipg-logo.png"
+              alt="AIPG"
+              width={32}
               height={32}
-              className="w-8 h-8 md:w-10 md:h-10"
+              className="w-8 h-8 md:w-9 md:h-9"
             />
             <Image
               src="/aipg-weblogo.png"
@@ -61,28 +61,25 @@ export function Header() {
             />
           </Link>
 
-          {/* Desktop Nav - centered */}
-          <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+          {/* Desktop Nav - centered, editorial */}
+          <nav className="hidden md:flex items-center gap-7 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item) => (
-          <Link
+              <Link
                 key={item.href}
                 href={item.href}
-                className={`px-5 py-2 rounded-full text-base font-medium transition-all ${
-                  item.active 
-                    ? "text-white bg-[#1a1a1a] border border-[#333]" 
-                    : "text-white/70 hover:text-white hover:bg-white/5"
-                }`}
+                data-active={item.active}
+                className="nav-link"
               >
                 {item.label}
               </Link>
             ))}
           </nav>
 
-          {/* Desktop: Jobs + Wallet */}
+          {/* Desktop: Jobs + auth. One clear primary CTA when signed out. */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
             <ActiveJobsIndicator />
             {!authenticated && (
-              <Link href="/auth/login" className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white">
+              <Link href="/auth/login" className="btn btn-primary btn-sm">
                 Sign in
               </Link>
             )}
@@ -109,25 +106,25 @@ export function Header() {
         >
           <nav className="flex flex-col gap-1 pb-2">
             {navItems.map((item) => (
-          <Link
+              <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`px-4 py-3 rounded-full text-base font-medium transition-all ${
-                  item.active 
-                    ? "text-white bg-[#1a1a1a] border border-[#333]" 
-                    : "text-white/70 hover:text-white hover:bg-white/5"
+                className={`rounded-lg px-4 py-3 text-base font-medium transition-colors ${
+                  item.active
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
                 }`}
               >
                 {item.label}
-          </Link>
+              </Link>
             ))}
-            <div className="pt-2 mt-2 border-t border-white/10">
+            <div className="pt-3 mt-2 border-t border-border">
               {!authenticated && (
                 <Link
                   href="/auth/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-white/80 hover:text-white"
+                  className="btn btn-primary w-full mb-3"
                 >
                   Sign in with Google or wallet
                 </Link>
