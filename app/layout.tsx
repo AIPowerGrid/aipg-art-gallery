@@ -1,10 +1,31 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { AppToaster } from "@/components/app-toaster";
 import { ConfirmDialogHost } from "@/components/confirm-dialog";
+
+// Workhorse UI face (now actually loaded, not just a CSS fallback name),
+// paired with a display face for headlines and a mono for parameter values.
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
+  display: "swap",
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 const title = "AI Power Grid - Art Gallery";
 const description =
@@ -46,17 +67,23 @@ export default async function RootLayout({
   const cookie = headersList.get("cookie") ?? undefined;
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+    >
       <head>
         <link rel="preconnect" href="https://images.aipg.art" />
         <link rel="dns-prefetch" href="https://images.aipg.art" />
       </head>
-      <body className="bg-black text-white antialiased">
+      <body className="min-h-screen bg-background font-sans text-foreground antialiased">
         <Providers cookie={cookie}>
-          <div className="fixed inset-0 -z-10 bg-aipg-grid">
-            <div className="absolute inset-0 bg-gradient-to-b from-black via-black/80 to-black" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_60%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom,_rgba(6,182,212,0.06),_transparent_60%)]" />
+          {/* Restrained, quiet atmosphere: a warm ambient light near the top over
+              the near-black canvas, plus a faint grid. Never neon, never busy. */}
+          <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+            <div className="absolute inset-0 bg-background" />
+            <div className="absolute inset-0 bg-grid-faint opacity-[0.4]" />
+            <div className="absolute inset-x-0 top-0 h-[520px] bg-[radial-gradient(60%_100%_at_50%_-10%,hsl(var(--primary)/0.10),transparent_70%)]" />
           </div>
           <div className="min-h-screen flex flex-col">
             <ErrorBoundary>

@@ -2,16 +2,63 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * AIPG design tokens — one deliberate system (see docs/UI-REDESIGN-BRIEF.md).
+ *
+ * Roles: warm copper-amber = brand + every primary action; cool electric blue
+ * = generation/render in-progress ONLY. Surfaces are a warm-tinted near-black
+ * (not #000). Values are HSL triplets so Tailwind's hsl(var(--x)) tokens work.
+ */
 :root {
-  --radius: 0.75rem;
+  /* Surfaces — base canvas -> raised panel -> floating overlay */
+  --background: 30 8% 6%;
+  --foreground: 40 12% 92%;
+  --card: 30 7% 9%;
+  --card-foreground: 40 12% 92%;
+  --popover: 30 8% 11%;
+  --popover-foreground: 40 12% 92%;
+
+  /* Text layers */
+  --muted-foreground: 36 8% 64%;
+  --text-tertiary: 36 6% 46%;
+
+  /* Borders — subtle hairline + a stronger edge for controls */
+  --border: 34 8% 17%;
+  --border-strong: 34 8% 27%;
+  --input: 34 8% 22%;
+
+  /* Neutral fills */
+  --secondary: 32 6% 15%;
+  --secondary-foreground: 40 10% 88%;
+  --muted: 32 6% 15%;
+  --accent: 32 7% 18%;
+  --accent-foreground: 40 12% 92%;
+
+  /* Accent/primary — copper-amber (brand + primary actions) */
+  --primary: 32 82% 52%;
+  --primary-hover: 34 88% 58%;
+  --primary-foreground: 30 55% 8%;
+  --ring: 32 82% 52%;
+
+  /* Accent/processing — electric blue (render/generation in progress ONLY) */
+  --processing: 212 90% 60%;
+  --processing-foreground: 0 0% 100%;
+
+  /* Status */
+  --success: 152 52% 46%;
+  --warning: 42 92% 56%;
+  --destructive: 2 74% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --radius: 0.625rem;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   color-scheme: dark;
 }
 
 body {
-  font-family: "Inter", "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", sans-serif;
   user-select: none;
   -webkit-user-select: none;
+  text-rendering: optimizeLegibility;
 }
 
 /* Allow text selection in inputs and textareas */
@@ -20,122 +67,165 @@ input, textarea, [contenteditable="true"] {
   -webkit-user-select: text;
 }
 
-.card-glass {
-  @apply bg-white/5 border border-white/10 rounded-2xl backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.35)];
+/* ---- Shape language --------------------------------------------------------
+ * The old rule forced EVERY control into a 9999px pill (the "pill-for-
+ * everything" tell). Instead give form fields one sane, overridable radius
+ * (zero specificity via :where, so components decide their own shape) and let
+ * buttons/chips/badges pick a radius that matches their function.
+ */
+:where(input:not([type="file"]), select, textarea) {
+  border-radius: var(--radius);
 }
 
-.panel {
-  @apply card-glass p-4;
+/* Form contrast */
+select, input, textarea { color: hsl(var(--foreground)); }
+select option { background-color: hsl(var(--popover)); color: hsl(var(--foreground)); }
+input::placeholder, textarea::placeholder { color: hsl(var(--text-tertiary)); }
+
+/* ---- Typography helpers ---------------------------------------------------- */
+.font-display { font-family: var(--font-display), var(--font-sans), system-ui, sans-serif; }
+
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsl(var(--text-tertiary));
 }
 
-.panel-ghost {
-  @apply border border-white/5 rounded-2xl bg-white/5 backdrop-blur;
+.numeric {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .text-gradient {
-  background: linear-gradient(120deg, #ffb347 0%, #ff6b35 40%, #ffd700 100%);
+  background: linear-gradient(118deg, #f2ab55 0%, #e2892a 52%, #f6c96f 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
+/* ---- Surfaces & elevation -------------------------------------------------- */
+.surface-raised {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 14px;
+}
+.surface-overlay {
+  background-color: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  box-shadow: 0 18px 50px -14px rgba(0, 0, 0, 0.75);
+}
+.hairline { border: 1px solid hsl(var(--border)); }
+
+/* Kept for backward-compatibility with existing panels */
+.card-glass {
+  @apply border rounded-2xl backdrop-blur-xl;
+  background-color: hsl(var(--card) / 0.7);
+  border-color: hsl(var(--border));
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.panel { @apply card-glass p-4; }
+.panel-ghost {
+  @apply rounded-2xl backdrop-blur;
+  background-color: hsl(var(--card) / 0.5);
+  border: 1px solid hsl(var(--border));
+}
+
+/* ---- Atmosphere (marketing surfaces) -------------------------------------- */
+.bg-grid-faint {
+  background-image:
+    linear-gradient(hsl(var(--foreground) / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--foreground) / 0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  -webkit-mask-image: radial-gradient(circle at 50% 0%, black, transparent 75%);
+  mask-image: radial-gradient(circle at 50% 0%, black, transparent 75%);
+}
+/* Legacy alias still referenced by a few components */
 .bg-aipg-grid {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 60px 60px;
 }
-
-
-/* Lexica-style corner rounding for top gallery images */
-.masonry-grid > div:first-child > div:first-child {
-  border-top-left-radius: 12px;
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
 }
 
-.masonry-grid > div:last-child > div:first-child {
-  border-top-right-radius: 12px;
+/* ---- Custom range slider (no default browser thumb/track) ------------------ */
+.range-brand {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: hsl(var(--border-strong));
+  outline: none;
+}
+.range-brand::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--background));
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  transition: transform 0.12s var(--ease), box-shadow 0.12s var(--ease);
+}
+.range-brand::-webkit-slider-thumb:hover { transform: scale(1.14); }
+.range-brand:active::-webkit-slider-thumb { transform: scale(1.14); box-shadow: 0 0 0 6px hsl(var(--primary) / 0.18); }
+.range-brand::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 999px;
+  background: hsl(var(--primary)); border: 2px solid hsl(var(--background));
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.55); cursor: pointer;
 }
 
-/* Rounded UI elements throughout site */
-button, 
-input:not([type="file"]), 
-select,
-[role="button"] {
-  border-radius: 9999px !important; /* rounded-full */
+/* ---- Focus ring ------------------------------------------------------------ */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.7);
 }
 
-/* Textareas stay moderately rounded */
-textarea {
-  border-radius: 16px !important; /* rounded-2xl */
-}
+/* ---- Animations ------------------------------------------------------------ */
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
+.animate-fadeIn { animation: fadeIn 0.3s var(--ease) forwards; }
 
-/* File inputs stay moderately rounded */
-input[type="file"] {
-  border-radius: 16px !important; /* rounded-2xl */
+@keyframes rise-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
+.animate-rise-in { animation: rise-in 0.45s var(--ease) forwards; }
 
-/* Improve form element contrast */
-select,
-input,
-textarea {
-  color: rgba(255, 255, 255, 0.95);
-}
-
-select option {
-  background-color: rgb(24, 24, 27);
-  color: rgba(255, 255, 255, 0.95);
-}
-
-input::placeholder,
-textarea::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-/* Shimmer animation for loading states */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-/* Fade in animation for newly loaded images */
-@keyframes fadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out forwards;
-}
-
-/* Published celebration animations */
 @keyframes bounce-in {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  70% {
-    transform: scale(0.9);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
 }
+.animate-bounce-in { animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
-.animate-bounce-in {
-  animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-}
-
+/* Generation-in-progress glow uses the PROCESSING accent, never the brand. */
 @keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(147, 51, 234, 0.6), 0 0 40px rgba(147, 51, 234, 0.3);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(147, 51, 234, 0.8), 0 0 60px rgba(147, 51, 234, 0.5);
-  }
+  0%, 100% { box-shadow: 0 0 20px hsl(var(--processing) / 0.5), 0 0 40px hsl(var(--processing) / 0.22); }
+  50% { box-shadow: 0 0 30px hsl(var(--processing) / 0.7), 0 0 60px hsl(var(--processing) / 0.4); }
 }
+.animate-pulse-glow { animation: pulse-glow 1.4s ease-in-out infinite; }
 
-.animate-pulse-glow {
-  animation: pulse-glow 1s ease-in-out infinite;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
