@@ -87,18 +87,16 @@ export function AuthPanel({
           </button>
         )}
 
-        <div className="mt-6 space-y-2 text-xs leading-relaxed text-muted-foreground">
-          <p className="flex items-start gap-2">
-            <span aria-hidden className="mt-px text-primary">◆</span>
-            Google or a Base wallet open the{" "}
-            <span className="text-foreground">same account</span> — link them anytime.
-          </p>
-          <p className="flex items-start gap-2">
-            <span aria-hidden className="mt-px text-primary">◆</span>
-            Wallet sign-in is an off-chain signature —{" "}
-            <span className="text-foreground">never a transaction</span>.
-          </p>
-        </div>
+        <ul className="mt-6 space-y-2 text-xs leading-relaxed text-muted-foreground">
+          <li className="flex gap-2">
+            <span aria-hidden className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary" />
+            <span>Google and wallet open the same account — link them anytime.</span>
+          </li>
+          <li className="flex gap-2">
+            <span aria-hidden className="mt-1 h-1 w-1 shrink-0 rounded-full bg-primary" />
+            <span>Wallet sign-in is a signature only, never a transaction.</span>
+          </li>
+        </ul>
 
         {footer && <div className="mt-5">{footer}</div>}
       </div>

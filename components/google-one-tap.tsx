@@ -208,6 +208,9 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
   const { setGoogleAuth } = useAuthStore();
   const [scriptReady, setScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Google's widget renders at a fixed pixel width; measure the container so it
+  // fills the same width as the sibling wallet button (no size mismatch).
+  const [btnWidth, setBtnWidth] = useState(0);
 
   const handleCredentialResponse = useCallback(async (response: CredentialResponse) => {
     try {
@@ -221,10 +224,22 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
     }
   }, [onError, onSuccess, setGoogleAuth]);
 
+  // Track the container width so the Google button matches its siblings.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const measure = () =>
+      setBtnWidth(Math.min(400, Math.max(240, Math.round(el.offsetWidth || 320))));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const container = containerRef.current;
-    if (!scriptReady || !clientId || !container || !window.google) return;
+    if (!scriptReady || !clientId || !container || !window.google || !btnWidth) return;
 
     container.replaceChildren();
     window.google.accounts.id.initialize({
@@ -241,24 +256,24 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
       size: "large",
       text: "continue_with",
       shape: "rectangular",
-      width: 320,
+      width: btnWidth,
     });
-  }, [handleCredentialResponse, scriptReady]);
+  }, [handleCredentialResponse, scriptReady, btnWidth]);
 
   if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
     return <p className="text-sm text-zinc-500">Google sign-in is unavailable.</p>;
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex w-full flex-col gap-2">
       <Script
         id="google-identity-services"
         src="https://accounts.google.com/gsi/client"
         strategy="afterInteractive"
         onReady={() => setScriptReady(true)}
       />
-      <div ref={containerRef} className="min-h-10" />
-      {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
+      <div ref={containerRef} className="min-h-10 w-full [&>div]:!w-full [&_iframe]:!w-full" />
+      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
     </div>
   );
 }

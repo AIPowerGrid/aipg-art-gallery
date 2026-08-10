@@ -369,13 +369,21 @@ function ConnectWalletCardClient() {
               className="group flex w-full items-center gap-3 rounded-lg border border-border bg-card/50 px-3.5 py-3 text-left transition-all duration-150 hover:border-edge hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
               style={{ transitionTimingFunction: "var(--ease)" }}
             >
-              {connector.icon ? (
-                <img src={connector.icon} alt="" className="h-6 w-6 shrink-0 rounded-md" />
-              ) : (
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-secondary text-xs font-semibold text-muted-foreground">
-                  {connector.name.charAt(0)}
-                </span>
-              )}
+              {/* Letter avatar underneath; the real logo overlays it and hides
+                  itself if it fails to load, so there's never a broken image. */}
+              <span className="relative flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-secondary text-xs font-semibold text-muted-foreground">
+                {connector.name.charAt(0)}
+                {connector.icon && (
+                  <img
+                    src={connector.icon}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                )}
+              </span>
               <span className="flex-1 text-sm font-medium text-foreground">
                 {connector.name}
               </span>
