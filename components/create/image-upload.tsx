@@ -27,19 +27,19 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
   };
 
   return (
-    <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
-      <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
+    <div className="border border-border rounded-2xl p-5 bg-secondary/30">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
         <span>Source image</span>
         <span className="text-zinc-600">— optional, turns this into image-to-image</span>
       </div>
       {value ? (
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="source" className="h-20 w-20 object-cover rounded-lg border border-zinc-700" />
+          <img src={value} alt="source" className="h-20 w-20 object-cover rounded-lg border border-border" />
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="px-3 py-1.5 rounded-lg text-sm border border-zinc-700 text-zinc-300 hover:border-zinc-500"
+            className="px-3 py-1.5 rounded-lg text-sm border border-border text-foreground hover:border-zinc-500"
           >
             Remove
           </button>
@@ -48,7 +48,7 @@ export function ImageUpload({ value, onChange }: ImageUploadProps) {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="px-4 py-2 rounded-lg text-sm border border-dashed border-zinc-600 text-zinc-300 hover:border-zinc-400"
+          className="px-4 py-2 rounded-lg text-sm border border-dashed border-edge text-foreground hover:border-zinc-400"
         >
           Upload image
         </button>

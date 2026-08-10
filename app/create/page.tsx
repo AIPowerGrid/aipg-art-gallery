@@ -47,7 +47,7 @@ export default function CreatePage() {
 
   if (!mounted) {
     return (
-      <main className="min-h-screen bg-black">
+      <main className="min-h-screen">
         <Header />
         <div className="flex items-center justify-center h-[60vh]">
           <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white rounded-full" />
@@ -276,12 +276,12 @@ function CreatePageContent() {
   };
 
   return (
-    <main className="min-h-screen bg-black">
+    <main className="min-h-screen">
       <Header />
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
         {authenticated && credits && (
-          <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-zinc-800 pb-4 text-sm text-zinc-300">
+          <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border pb-4 text-sm text-muted-foreground">
             <span className="font-medium text-white">
               Spendable {formatUSD(credits.total_spendable_usd)}
             </span>
@@ -303,11 +303,11 @@ function CreatePageContent() {
               <span className="text-amber-400">Price unavailable</span>
             )}
             {!credits.charging_enabled && (
-              <span className="font-medium text-emerald-400">Free during preview</span>
+              <span className="font-medium text-success">Free during preview</span>
             )}
             <a
               href={fundingURL}
-              className="ml-auto text-indigo-300 hover:text-indigo-200"
+              className="ml-auto text-primary hover:text-primary/80"
             >
               Add credits
             </a>
@@ -342,7 +342,7 @@ function CreatePageContent() {
                   <h2 className="text-sm font-semibold text-white">
                     {creations[0].isGenerating ? "Generating" : "Latest creation"}
                   </h2>
-                  <a href="/profile" className="text-sm text-indigo-300 hover:text-indigo-200">
+                  <a href="/profile" className="text-sm text-primary hover:text-primary/80">
                     My creations
                   </a>
                 </div>

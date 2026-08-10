@@ -53,17 +53,17 @@ function AccItem({
   children: ReactNode;
 }) {
   return (
-    <Accordion.Item value={value} className="border-b border-zinc-700/40 last:border-b-0">
+    <Accordion.Item value={value} className="border-b border-border last:border-b-0">
       <Accordion.Header className="m-0">
-        <Accordion.Trigger className="group w-full flex items-center justify-between py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 rounded">
+        <Accordion.Trigger className="group w-full flex items-center justify-between py-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded">
           <span className="flex items-center gap-2">
-            <span className={`w-1.5 h-1.5 rounded-full ${badgeTone === "warn" ? "bg-amber-400" : "bg-indigo-500"}`} />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 group-hover:text-zinc-300">{title}</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${badgeTone === "warn" ? "bg-amber-400" : "bg-primary"}`} />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground group-hover:text-foreground">{title}</span>
             {badge && (
               <span className="text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">{badge}</span>
             )}
           </span>
-          <svg className="w-4 h-4 text-zinc-500 transition-transform group-data-[state=open]:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-tertiary transition-transform group-data-[state=open]:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </Accordion.Trigger>
@@ -137,10 +137,10 @@ export function StudioRail({
   );
 
   return (
-    <aside className="w-full md:w-[360px] shrink-0 border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30 self-start md:sticky md:top-4">
+    <aside className="w-full md:w-[360px] shrink-0 border border-border rounded-2xl p-5 bg-card/40 self-start md:sticky md:top-4">
       {/* First layer: what do you want to make? */}
       {modalities.length > 1 && (
-        <div role="tablist" aria-label="Media type" className="flex p-0.5 mb-4 bg-zinc-800/60 border border-zinc-700 rounded-full">
+        <div role="tablist" aria-label="Media type" className="flex gap-1 p-1 mb-4 bg-secondary border border-border rounded-lg">
           {modalities.map((m) => {
             const active = m === activeModality;
             return (
@@ -150,8 +150,8 @@ export function StudioRail({
                 role="tab"
                 aria-selected={active}
                 onClick={() => switchModality(m)}
-                className={`flex-1 py-1.5 rounded-full text-[12.5px] font-semibold capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 ${
-                  active ? "bg-indigo-600 text-white" : "text-zinc-400 hover:text-zinc-200"
+                className={`flex-1 py-1.5 rounded-md text-[12.5px] font-semibold capitalize transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 ${
+                  active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {m}
@@ -165,17 +165,17 @@ export function StudioRail({
       <ControlGroup title="Model">
         <ModelPicker models={modelsForModality} selectedModel={selectedModel} onModelChange={onModelChange} />
         {selectedModel?.description && (
-          <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">{selectedModel.description}</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-tertiary">{selectedModel.description}</p>
         )}
       </ControlGroup>
 
       <Tabs.Root value={activeTab} onValueChange={(v) => onActiveTabChange(v as StudioTab)}>
-        <Tabs.List className="flex p-0.5 mb-4 bg-zinc-800/60 border border-zinc-700 rounded-full">
+        <Tabs.List className="flex gap-1 p-1 mb-4 bg-secondary border border-border rounded-lg">
           {(["basic", "advanced"] as const).map((tab) => (
             <Tabs.Trigger
               key={tab}
               value={tab}
-              className="flex-1 py-1.5 rounded-full text-[12.5px] font-semibold capitalize text-zinc-400 transition-colors data-[state=active]:bg-white data-[state=active]:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+              className="flex-1 py-1.5 rounded-md text-[12.5px] font-semibold capitalize text-muted-foreground transition-colors data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
             >
               {tab}
             </Tabs.Trigger>
@@ -210,15 +210,15 @@ export function StudioRail({
                   <SizePicker dimensions={dimensions} selectedId={dimensionId} onChange={onDimensionChange} />
                 </div>
               )}
-              <label className="block text-xs text-zinc-400 mb-1.5">
-                Negative prompt <span className="text-zinc-500">(optional)</span>
+              <label className="block text-xs text-muted-foreground mb-1.5">
+                Negative prompt <span className="text-tertiary">(optional)</span>
               </label>
               <textarea
                 value={advancedSettings.negativePrompt || ""}
                 onChange={(e) => onAdvancedSettingsChange({ ...advancedSettings, negativePrompt: e.target.value || undefined })}
                 placeholder="Things to avoid in the result…"
                 rows={2}
-                className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50 resize-none"
+                className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-tertiary focus:outline-none focus:border-primary/50 resize-none"
               />
             </AccItem>
 
@@ -255,7 +255,7 @@ export function StudioRail({
           </Accordion.Root>
 
           {batchAvailable && (
-            <div className="mt-4 pt-4 border-t border-zinc-700/40">
+            <div className="mt-4 pt-4 border-t border-border">
               <ControlGroup title="Batch">
                 <BatchToggle
                   batchMode={batchMode}
@@ -270,7 +270,7 @@ export function StudioRail({
             <button
               type="button"
               onClick={() => onAdvancedSettingsChange({})}
-              className="mt-4 w-full py-2 text-xs text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-600 rounded-lg transition-colors"
+              className="btn btn-outline btn-sm mt-4 w-full"
             >
               Reset advanced to defaults
             </button>

@@ -29,11 +29,12 @@ function Slider({
   step: number;
   onChange: (v: number) => void;
 }) {
+  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
   return (
     <div className="mb-4 last:mb-0">
-      <div className="flex items-center justify-between mb-1.5">
-        <label className="text-xs text-zinc-400">{label}</label>
-        <span className="text-xs text-zinc-300 font-mono tabular-nums">{display}</span>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-xs text-muted-foreground">{label}</label>
+        <span className="numeric rounded-md bg-secondary px-1.5 py-0.5 text-xs text-foreground">{display}</span>
       </div>
       <input
         type="range"
@@ -42,9 +43,12 @@ function Slider({
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+        className="range-brand cursor-pointer"
+        style={{
+          background: `linear-gradient(to right, hsl(var(--primary)) ${pct}%, hsl(var(--border-strong)) ${pct}%)`,
+        }}
       />
-      <div className="flex justify-between text-[10px] text-zinc-500 mt-1 tabular-nums">
+      <div className="mt-1.5 flex justify-between text-[10px] text-tertiary numeric">
         <span>{min}</span>
         <span>{max}</span>
       </div>
@@ -88,15 +92,15 @@ export function SamplingControls({ selectedModel, settings, onChange, defaults, 
       />
 
       <div>
-        <label className="block text-xs text-zinc-400 mb-1.5">
-          Seed <span className="text-zinc-500">(optional)</span>
+        <label className="block text-xs text-muted-foreground mb-1.5">
+          Seed <span className="text-tertiary">(optional)</span>
         </label>
         <input
           type="text"
           value={settings.seed || ""}
           onChange={(e) => onChange({ ...settings, seed: e.target.value || undefined })}
           placeholder="Random"
-          className="w-full bg-zinc-800/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500/50"
+          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-tertiary focus:outline-none focus:border-primary/50"
         />
       </div>
     </>

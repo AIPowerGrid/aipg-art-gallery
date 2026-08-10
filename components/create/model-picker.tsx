@@ -26,27 +26,32 @@ export function ModelPicker({ models, selectedModel, onModelChange }: ModelPicke
             onClick={() => onModelChange(model.id)}
             title={model.description}
             aria-pressed={active}
-            className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
+            className={`group flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-all duration-150 ${
               active
-                ? "border-indigo-500/60 bg-indigo-600/15"
-                : "border-zinc-700 bg-zinc-800/40 hover:border-zinc-600"
+                ? "border-primary/55 bg-primary/12 shadow-[inset_0_0_0_1px_hsl(var(--primary)/0.15)]"
+                : "border-border bg-card/50 hover:border-edge hover:bg-accent"
             }`}
+            style={{ transitionTimingFunction: "var(--ease)" }}
           >
-            <span className="text-[13px] font-medium text-white truncate">{model.name}</span>
+            {/* Radio indicator */}
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                active ? "border-primary" : "border-edge"
+              }`}
+            >
+              {active && <span className="h-2 w-2 rounded-full bg-primary" />}
+            </span>
+            <span className={`flex-1 truncate text-[13px] font-medium ${active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>
+              {model.name}
+            </span>
             <span className="flex shrink-0 items-center gap-1">
               {model.status === "offline" && (
-                <span
-                  className="text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-red-500/15 text-red-400"
-                  title="No workers are online for this model"
-                >
+                <span className="badge badge-neutral text-[9.5px]" title="No workers are online for this model">
                   offline
                 </span>
               )}
               {model.requiresImage && (
-                <span
-                  className="text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400"
-                  title="This model needs a source image"
-                >
+                <span className="badge text-[9.5px]" style={{ backgroundColor: "hsl(var(--warning) / 0.15)", color: "hsl(var(--warning))" }} title="This model needs a source image">
                   needs image
                 </span>
               )}

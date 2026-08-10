@@ -36,7 +36,7 @@ export function CreationsGrid({
   if (creations.length === 0 && hideEmptyState) return null;
   if (creations.length === 0 && !isGenerating) {
     return (
-      <div className="text-center py-20 text-zinc-500">
+      <div className="text-center py-20 text-tertiary">
         <p className="text-lg mb-2">No creations yet</p>
         <p className="text-sm">Describe something and click Generate to start creating</p>
       </div>
@@ -52,7 +52,7 @@ export function CreationsGrid({
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="text-lg font-semibold text-white">{heading}</h2>
         {viewAllHref && (
-          <Link href={viewAllHref} className="text-sm text-indigo-300 hover:text-indigo-200">
+          <Link href={viewAllHref} className="text-sm text-primary hover:text-primary/80">
             View all
           </Link>
         )}

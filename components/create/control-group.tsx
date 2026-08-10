@@ -21,12 +21,12 @@ export function ControlGroup({ title, badge, badgeTone = "default", children }: 
   return (
     <section className="mb-6 last:mb-0">
       <div className="flex items-center gap-2 mb-3">
-        <span className={`w-1.5 h-1.5 rounded-full ${badgeTone === "warn" ? "bg-amber-400" : "bg-indigo-500"}`} />
-        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">{title}</span>
+        <span className={`w-1.5 h-1.5 rounded-full ${badgeTone === "warn" ? "bg-warning" : "bg-primary"}`} />
+        <span className="eyebrow">{title}</span>
         {badge && (
           <span
             className={`text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${
-              badgeTone === "warn" ? "bg-amber-500/15 text-amber-400" : "bg-indigo-600/20 text-indigo-300"
+              badgeTone === "warn" ? "bg-amber-500/15 text-amber-400" : "bg-primary/20 text-primary"
             }`}
           >
             {badge}

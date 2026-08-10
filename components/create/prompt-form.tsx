@@ -91,9 +91,9 @@ export function PromptForm({
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Describe your image..."
+          placeholder="Describe what you want to create…"
           disabled={isGenerating}
-          className={`w-full h-full min-h-[160px] bg-zinc-800/60 border rounded-2xl px-5 py-4 ${sourceEnabled ? 'pr-24' : ''} text-white text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 resize-none disabled:opacity-50 ${dragOver ? 'border-indigo-500 ring-2 ring-indigo-500/50' : 'border-zinc-700'}`}
+          className={`w-full h-full min-h-[200px] rounded-2xl border bg-card px-5 py-4 ${sourceEnabled ? 'pr-24' : ''} text-base leading-relaxed text-foreground placeholder:text-tertiary resize-none transition-all focus:outline-none disabled:opacity-50 ${dragOver ? 'border-primary ring-2 ring-primary/40' : 'border-border focus:border-primary/60 focus:ring-2 focus:ring-primary/25'}`}
           onKeyDown={handleKeyDown}
         />
 
@@ -108,7 +108,7 @@ export function PromptForm({
               onChange={(e) => readImageFile(e.target.files?.[0])}
             />
             {sourceImage ? (
-              <div className="relative w-[60px] h-[60px] rounded-lg overflow-hidden border border-zinc-600 group">
+              <div className="relative w-[60px] h-[60px] rounded-lg overflow-hidden border border-edge group">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={sourceImage} alt="source" className="w-full h-full object-cover" />
                 <button
@@ -128,7 +128,7 @@ export function PromptForm({
                 className={`w-[60px] h-[60px] rounded-lg border border-dashed flex flex-col items-center justify-center gap-0.5 transition-colors ${
                   needsSourceImage
                     ? 'border-amber-500/70 hover:border-amber-400 bg-amber-500/10 text-amber-400 hover:text-amber-300'
-                    : 'border-zinc-600 hover:border-indigo-500 hover:bg-zinc-700/40 text-zinc-400 hover:text-zinc-200'
+                    : 'border-edge hover:border-primary hover:bg-accent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,19 +141,18 @@ export function PromptForm({
         )}
       </div>
 
-      {/* AI Enhance and Generate buttons */}
-      <div className="mt-4 flex justify-end gap-3">
+      {/* Enhance (utility) + Generate (primary) */}
+      <div className="mt-4 flex items-center justify-end gap-2">
         <button
           onClick={handleEnhance}
           disabled={isGenerating || isEnhancing || !prompt.trim()}
-          className="px-5 py-3 bg-zinc-700 hover:bg-zinc-600 text-white font-medium rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-default transition-all flex items-center gap-2"
-          title="AI Enhance Prompt"
+          className="btn btn-ghost"
+          title="Rewrite your prompt with AI"
         >
           {isEnhancing ? (
             <>
-              <span className="animate-spin w-4 h-4 border-2 border-zinc-400 border-t-white rounded-full" />
-              <span className="md:hidden">...</span>
-              <span className="hidden md:inline">Enhancing...</span>
+              <span className="animate-spin w-4 h-4 border-2 border-border border-t-foreground rounded-full" />
+              <span className="hidden md:inline">Enhancing…</span>
             </>
           ) : (
             <>
@@ -161,7 +160,7 @@ export function PromptForm({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               <span className="md:hidden">Enhance</span>
-              <span className="hidden md:inline">Enhance my Prompt with AI</span>
+              <span className="hidden md:inline">Enhance with AI</span>
             </>
           )}
         </button>
@@ -176,14 +175,13 @@ export function PromptForm({
                 ? `${selectedModel?.name} needs a source image — add one above`
                 : undefined
           }
-          className="px-6 md:px-10 py-3 bg-gradient-to-t from-slate-50 via-slate-50 to-slate-100 text-zinc-900 font-semibold rounded-xl shadow-lg disabled:opacity-40 disabled:cursor-default hover:brightness-110 transition-all"
+          className="btn btn-primary btn-lg"
         >
           {isGenerating ? (
             <span className="flex items-center gap-2">
-              <span className="animate-spin w-4 h-4 border-2 border-zinc-400 border-t-zinc-700 rounded-full" />
-              <span className="md:hidden">{trackedJobStatus === "processing" ? "..." : "..."}</span>
+              <span className="animate-spin w-4 h-4 border-2 border-primary-foreground/40 border-t-primary-foreground rounded-full" />
               <span className="hidden md:inline">
-                {trackedJobStatus === "processing" ? "Creating..." : "Finding worker..."}
+                {trackedJobStatus === "processing" ? "Creating…" : "Finding worker…"}
               </span>
             </span>
           ) : (
@@ -215,7 +213,7 @@ export function PromptForm({
           {error.startsWith("402:") && fundingUrl && (
             <a
               href={fundingUrl}
-              className="font-medium text-indigo-300 hover:text-indigo-200"
+              className="font-medium text-primary hover:text-primary/80"
             >
               Add credits
             </a>

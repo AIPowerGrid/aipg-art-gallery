@@ -34,13 +34,13 @@ export function SizePicker({ dimensions, selectedId, onChange }: SizePickerProps
             title={`${d.label} — ${d.width} × ${d.height}`}
             className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
               active
-                ? "border-indigo-500/60 bg-indigo-600/15 text-white"
-                : "border-zinc-700 bg-zinc-800/40 text-zinc-300 hover:border-zinc-600"
+                ? "border-primary/60 bg-primary/15 text-white"
+                : "border-border bg-card/60 text-foreground hover:border-edge"
             }`}
           >
             <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">
               <span
-                className={`rounded-[2px] border ${active ? "border-indigo-400 bg-indigo-500/25" : "border-zinc-500"}`}
+                className={`rounded-[2px] border ${active ? "border-primary bg-primary/25" : "border-edge"}`}
                 style={{ width: `${w}px`, height: `${h}px` }}
               />
             </span>

@@ -42,13 +42,13 @@ export function LoraInput({ value, onChange, hint, bare = false }: LoraInputProp
     <>
       {value ? (
         <div className="flex items-center gap-3">
-          <div className="flex-1 font-mono text-sm text-zinc-200 truncate">
+          <div className="flex-1 font-mono text-sm text-foreground truncate">
             #{value.name}{value.is_version ? " (version)" : " (model)"} · strength {value.model}
           </div>
           <button
             type="button"
             onClick={() => { onChange(null); setText(""); }}
-            className="px-3 py-1.5 rounded-lg text-sm border border-zinc-700 text-zinc-300 hover:border-zinc-500"
+            className="px-3 py-1.5 rounded-lg text-sm border border-border text-foreground hover:border-edge"
           >
             Remove
           </button>
@@ -60,23 +60,23 @@ export function LoraInput({ value, onChange, hint, bare = false }: LoraInputProp
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="civitai.com/models/… or a version id"
-            className="w-full bg-zinc-900/60 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:border-zinc-500"
+            className="w-full bg-popover/60 border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-edge"
           />
           <div className="flex items-center gap-3">
-            <span className="text-xs text-zinc-400 w-16">Strength</span>
+            <span className="text-xs text-muted-foreground w-16">Strength</span>
             <input
               type="range" min={0} max={1.5} step={0.05}
               value={strength}
               onChange={(e) => setStrength(parseFloat(e.target.value))}
               className="flex-1"
             />
-            <span className="text-xs text-zinc-300 w-8 text-right">{strength.toFixed(2)}</span>
+            <span className="text-xs text-foreground w-8 text-right">{strength.toFixed(2)}</span>
           </div>
           <button
             type="button"
             onClick={apply}
             disabled={!parseCivitai(text)}
-            className="px-4 py-2 rounded-lg text-sm border border-indigo-500 bg-indigo-600/80 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+            className="px-4 py-2 rounded-lg text-sm border border-primary bg-primary/80 text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Add LoRA
           </button>
@@ -88,10 +88,10 @@ export function LoraInput({ value, onChange, hint, bare = false }: LoraInputProp
   if (bare) return body;
 
   return (
-    <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
-      <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
+    <div className="border border-border rounded-2xl p-5 bg-secondary/30">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
         <span>LoRA</span>
-        <span className="text-zinc-600">— {hint || "CivitAI link or version id (optional)"}</span>
+        <span className="text-tertiary">— {hint || "CivitAI link or version id (optional)"}</span>
       </div>
       {body}
     </div>

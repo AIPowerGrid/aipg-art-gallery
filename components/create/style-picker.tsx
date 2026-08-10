@@ -13,12 +13,8 @@ interface StylePickerProps {
 }
 
 function chip(active: boolean) {
-  return [
-    "px-3 py-1.5 rounded-full text-sm border transition-colors",
-    active
-      ? "bg-indigo-600 border-indigo-500 text-white"
-      : "bg-zinc-800/50 border-zinc-700 text-zinc-300 hover:border-zinc-500",
-  ].join(" ");
+  // Match the shared chip vocabulary (small radius, accent-tint selected state).
+  return `chip${active ? " chip-active" : ""}`;
 }
 
 export function StylePicker({ styles, selectedStyleId, onSelect, modelType = "image", bare = false }: StylePickerProps) {
@@ -47,10 +43,10 @@ export function StylePicker({ styles, selectedStyleId, onSelect, modelType = "im
   if (bare) return chips;
 
   return (
-    <div className="border border-zinc-700 rounded-2xl p-5 bg-zinc-800/30">
-      <div className="flex items-center gap-2 text-xs text-zinc-400 mb-3">
+    <div className="border border-border rounded-2xl p-5 bg-secondary/30">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
         <span>Style</span>
-        <span className="text-zinc-600">— curated prompt + settings (locks the right knobs)</span>
+        <span className="text-tertiary">— curated prompt + settings (locks the right knobs)</span>
       </div>
       {chips}
     </div>
