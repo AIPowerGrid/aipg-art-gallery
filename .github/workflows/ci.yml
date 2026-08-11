@@ -28,7 +28,7 @@ jobs:
       - run: npm test -- --runInBand
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
-      - run: npm prune --omit=dev
+      - run: npm ci --omit=dev
       - run: npm ls --omit=dev
 
   backend:

@@ -56,7 +56,7 @@ cd "$staging"
 test "$(node -p 'process.versions.node.split(".")[0]')" = 22
 npm ci
 npm run build
-npm prune --omit=dev
+npm ci --omit=dev
 (cd server && GOTOOLCHAIN=auto go test ./... && GOTOOLCHAIN=auto go vet ./...)
 (cd server && GOTOOLCHAIN=auto go build -o ../gallery-server ./cmd/api)
 mv "$staging" "$release"
@@ -81,6 +81,10 @@ systemctl reload nginx
 ## Verify
 
 ```bash
+for attempt in $(seq 1 30); do
+  curl -fsS http://127.0.0.1:3000/create/director >/dev/null && break
+  sleep 1
+done
 systemctl is-active aipg-gallery aipg-gallery-web nginx
 curl -fsS http://127.0.0.1:4000/health
 curl -fsS http://127.0.0.1:3000/create/director >/dev/null
