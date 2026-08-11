@@ -5,6 +5,12 @@ Production runs two services behind Nginx from one commit-pinned checkout:
 - `aipg-gallery-web.service` - Next.js on `127.0.0.1:3000`
 - `aipg-gallery.service` - Go API on `127.0.0.1:4000`
 
+The release host must run the Node 22 LTS line used by `.nvmrc`, Docker, and
+CI. Do not build production with a different Node major; wallet packages may
+raise their minimum runtime without failing an older npm install.
+Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
+`GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
+
 ## Release layout
 
 ```text
@@ -47,9 +53,10 @@ set -a
 . /opt/aipg-gallery/gallery.env
 set +a
 cd "$staging"
+test "$(node -p 'process.versions.node.split(".")[0]')" = 22
 npm ci
 npm run build
-(cd server && GOTOOLCHAIN=auto go test ./... && go vet ./...)
+(cd server && GOTOOLCHAIN=auto go test ./... && GOTOOLCHAIN=auto go vet ./...)
 (cd server && GOTOOLCHAIN=auto go build -o ../gallery-server ./cmd/api)
 mv "$staging" "$release"
 trap - EXIT

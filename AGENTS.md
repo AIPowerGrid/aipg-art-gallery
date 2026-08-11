@@ -48,6 +48,9 @@ jobs to the grid and serves gallery/media.
   `http://localhost:4000`). Never bake an absolute internal API origin into a public bundle.
 - **Two processes:** `npm run dev` starts Next on 3000 and Go on 4000. Use `npm run dev:web`
   or `npm run dev:server` only when intentionally running one side.
+- **Runtime:** frontend builds and production use Node 22 as pinned by `.nvmrc`;
+  the backend uses the Go 1.25 toolchain pinned by `server/go.mod`. Docker,
+  CI, and the LXC release build must honor both pins.
 - **Product boundary:** `aipg.art` owns Gallery, Studio, and Director. Standalone
   music generation belongs to `aipg.music`; do not add an audio/music route or
   ACE-Step API surface back to this repo. Director may still use audio as part
@@ -110,7 +113,8 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 
 - Run the audit-relevant checks before claiming security work is done:
   `cd server && GOTOOLCHAIN=auto go test ./... && GOTOOLCHAIN=auto go vet ./...`,
-  `npm run build`, and `npm audit` for dependency drift.
+  `npm run build`, `npm audit --omit=dev --audit-level=high`, and
+  `govulncheck ./...` for dependency drift.
 - When you touch auth, gallery writes, or any new outbound fetch/exec, re-read this section and
   the nearest AGENTS.md, then update them if the contract changed.
 ## Work Guidance
