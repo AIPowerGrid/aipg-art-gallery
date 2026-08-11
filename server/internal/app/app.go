@@ -196,8 +196,6 @@ func (a *App) Router() http.Handler {
 		api.Get("/gallery/models", a.handleListGalleryModels)
 		api.Get("/gallery/{id}", a.handleGetGalleryItem)
 		api.Get("/gallery/{id}/media", a.handleGetGalleryMedia)
-		api.Get("/favorites/wallet/{wallet}", a.handleGetFavorites)
-		api.Get("/favorites/check/{wallet}/{jobId}", a.handleCheckFavorite)
 
 		// Protected routes (JWT authentication required)
 		api.Group(func(protected chi.Router) {
@@ -219,6 +217,7 @@ func (a *App) Router() http.Handler {
 			protected.Post("/gallery/{id}/publish", a.handlePublishGalleryItem)
 			protected.Post("/gallery/{id}/unpublish", a.handleUnpublishGalleryItem)
 			protected.Post("/gallery/{id}/extract", a.handleExtractSingleImage)
+			protected.Get("/favorites", a.handleListMyFavorites)
 			protected.Post("/favorites/{jobId}", a.handleAddFavorite)
 			protected.Delete("/favorites/{jobId}", a.handleRemoveFavorite)
 		})
@@ -376,22 +375,59 @@ func (a *App) gridUserToken(ctx context.Context, r *http.Request) (string, error
 	return identity.AccessToken, nil
 }
 
-// getGalleryOwnerIdentifier returns the durable owner key stored with private
-// gallery items. Existing wallet ownership remains backward compatible. Google
-// subjects are hashed before storage so provider IDs never enter gallery data.
+func googleGalleryOwnerIdentifier(googleID string) string {
+	googleID = strings.TrimSpace(googleID)
+	if googleID == "" {
+		return ""
+	}
+	digest := sha256.Sum256([]byte("google:" + googleID))
+	return fmt.Sprintf("google:%x", digest[:])
+}
+
+// getGalleryOwnerIdentifier returns the durable Core account ID for all new
+// writes. Login-method keys remain readable only long enough to migrate data
+// after Core has verified the corresponding Google or wallet proof.
 func getGalleryOwnerIdentifier(r *http.Request) string {
 	claims := getClaimsFromContext(r)
 	if claims == nil {
 		return ""
 	}
+	if claims.GridAccountID != "" {
+		return strings.ToLower(strings.TrimSpace(claims.GridAccountID))
+	}
+	// Backward compatibility for an already-issued pre-Core session. New login
+	// handlers require a Core account ID and never mint this form.
 	if claims.GoogleID != "" {
-		digest := sha256.Sum256([]byte("google:" + claims.GoogleID))
-		return fmt.Sprintf("google:%x", digest[:])
+		return googleGalleryOwnerIdentifier(claims.GoogleID)
 	}
 	if claims.WalletAddress != "" {
 		return strings.ToLower(strings.TrimSpace(claims.WalletAddress))
 	}
 	return ""
+}
+
+func legacyGalleryOwnerIdentifiers(claims *auth.Claims) []string {
+	if claims == nil {
+		return nil
+	}
+	keys := make([]string, 0, 2)
+	if key := googleGalleryOwnerIdentifier(claims.GoogleID); key != "" {
+		keys = append(keys, key)
+	}
+	if key := strings.ToLower(strings.TrimSpace(claims.WalletAddress)); key != "" {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (a *App) canonicalizeGalleryOwnership(claims *auth.Claims) error {
+	if claims == nil || strings.TrimSpace(claims.GridAccountID) == "" {
+		return errors.New("canonical Grid account is required")
+	}
+	return a.galleryStore.CanonicalizeOwner(
+		claims.GridAccountID,
+		legacyGalleryOwnerIdentifiers(claims),
+	)
 }
 
 // getAuthMethod returns "wallet" or "google" based on how the user authenticated
@@ -456,6 +492,17 @@ func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
 	if claims == nil {
 		writeError(w, http.StatusUnauthorized, errors.New("not signed in"))
 		return
+	}
+	if err := a.canonicalizeGalleryOwnership(claims); err != nil {
+		log.Printf("Auth: Failed to canonicalize session ownership: %v", err)
+		writeError(w, http.StatusServiceUnavailable, errors.New("account data is temporarily unavailable"))
+		return
+	}
+	// Slide the session forward on each check so an active user isn't logged out
+	// exactly at the 24h mark. Best-effort: a renewal failure leaves the existing
+	// cookie untouched.
+	if token, err := auth.RenewJWT(*claims); err == nil {
+		a.setAuthCookie(w, r, token)
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
 		"address":    claims.WalletAddress,
@@ -538,6 +585,15 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, errors.New("Grid sign-in is temporarily unavailable"))
 		return
 	}
+	googleClaims := &auth.Claims{
+		GoogleID:      googleID,
+		GridAccountID: gridIdentity.AccountID,
+	}
+	if err := a.canonicalizeGalleryOwnership(googleClaims); err != nil {
+		log.Printf("Auth: Failed to canonicalize Google ownership: %v", err)
+		writeError(w, http.StatusServiceUnavailable, errors.New("account data is temporarily unavailable"))
+		return
+	}
 
 	// Generate JWT for the Google user
 	token, err := auth.GenerateGoogleJWT(
@@ -556,10 +612,11 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 	a.setAuthCookie(w, r, token)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"googleId": googleID,
-		"email":    email,
-		"name":     name,
-		"picture":  picture,
+		"googleId":  googleID,
+		"email":     email,
+		"name":      name,
+		"picture":   picture,
+		"accountId": gridIdentity.AccountID,
 	})
 }
 
@@ -650,6 +707,15 @@ func (a *App) handleWalletExchange(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Auth: Grid wallet exchange failed: %v", err)
 		writeError(w, http.StatusUnauthorized, errors.New("wallet proof was rejected"))
+		return
+	}
+	walletClaims := &auth.Claims{
+		WalletAddress: gridIdentity.Wallet,
+		GridAccountID: gridIdentity.AccountID,
+	}
+	if err := a.canonicalizeGalleryOwnership(walletClaims); err != nil {
+		log.Printf("Auth: Failed to canonicalize wallet ownership: %v", err)
+		writeError(w, http.StatusServiceUnavailable, errors.New("account data is temporarily unavailable"))
 		return
 	}
 	token, err := auth.GenerateWalletJWT(
@@ -769,6 +835,16 @@ func (a *App) handleWalletLink(w http.ResponseWriter, r *http.Request) {
 	verifiedWallet, _ := result["wallet"].(string)
 	if verifiedWallet == "" {
 		writeError(w, http.StatusBadGateway, errors.New("Grid returned an invalid wallet-link result"))
+		return
+	}
+	linkedClaims := &auth.Claims{
+		GoogleID:      claims.GoogleID,
+		WalletAddress: verifiedWallet,
+		GridAccountID: claims.GridAccountID,
+	}
+	if err := a.canonicalizeGalleryOwnership(linkedClaims); err != nil {
+		log.Printf("Auth: Failed to canonicalize linked ownership: %v", err)
+		writeError(w, http.StatusServiceUnavailable, errors.New("account data is temporarily unavailable"))
 		return
 	}
 	token, err := auth.GenerateLinkedJWT(
@@ -2499,10 +2575,14 @@ func (a *App) handleExtractSingleImage(w http.ResponseWriter, r *http.Request) {
 // Favorites handlers
 func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	wallet := getWalletFromContext(r) // From JWT
+	owner := getGalleryOwnerIdentifier(r) // Same durable owner key gallery items use
 
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
+		return
+	}
+	if owner == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
 
@@ -2511,7 +2591,7 @@ func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := a.favoritesStore.Add(wallet, jobID)
+	err := a.favoritesStore.Add(owner, jobID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -2525,10 +2605,14 @@ func (a *App) handleAddFavorite(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "jobId")
-	wallet := getWalletFromContext(r) // From JWT
+	owner := getGalleryOwnerIdentifier(r) // Same durable owner key gallery items use
 
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("jobId required"))
+		return
+	}
+	if owner == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
 
@@ -2537,7 +2621,7 @@ func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := a.favoritesStore.Remove(wallet, jobID)
+	err := a.favoritesStore.Remove(owner, jobID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err)
 		return
@@ -2549,10 +2633,13 @@ func (a *App) handleRemoveFavorite(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
-	wallet := chi.URLParam(r, "wallet")
-	if wallet == "" {
-		writeError(w, http.StatusBadRequest, errors.New("wallet address required"))
+// handleListMyFavorites returns the current user's favorited items. It is tied to
+// the authenticated user's durable owner key (not a caller-supplied address), so it
+// works identically for wallet and Google logins and cannot enumerate other users.
+func (a *App) handleListMyFavorites(w http.ResponseWriter, r *http.Request) {
+	owner := getGalleryOwnerIdentifier(r)
+	if owner == "" {
+		writeError(w, http.StatusUnauthorized, errors.New("authentication required"))
 		return
 	}
 
@@ -2569,34 +2656,11 @@ func (a *App) handleGetFavorites(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	items := a.favoritesStore.GetFavoritedItems(wallet, limit)
+	items := a.favoritesStore.GetFavoritedItems(owner, limit)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"items":  items,
-		"count":  len(items),
-		"wallet": wallet,
-	})
-}
-
-func (a *App) handleCheckFavorite(w http.ResponseWriter, r *http.Request) {
-	wallet := chi.URLParam(r, "wallet")
-	jobID := chi.URLParam(r, "jobId")
-
-	if wallet == "" || jobID == "" {
-		writeError(w, http.StatusBadRequest, errors.New("wallet and jobId required"))
-		return
-	}
-
-	if a.favoritesStore == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"favorited": false})
-		return
-	}
-
-	favorited := a.favoritesStore.IsFavorited(wallet, jobID)
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"favorited": favorited,
-		"jobId":     jobID,
+		"items": items,
+		"count": len(items),
 	})
 }
 

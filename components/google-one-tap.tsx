@@ -13,8 +13,13 @@ declare global {
       accounts: {
         id: {
           initialize: (config: GoogleOneTapConfig) => void;
-          prompt: (callback?: (notification: PromptNotification) => void) => void;
-          renderButton: (parent: HTMLElement, options: GoogleButtonConfig) => void;
+          prompt: (
+            callback?: (notification: PromptNotification) => void,
+          ) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: GoogleButtonConfig,
+          ) => void;
           cancel: () => void;
           revoke: (hint: string, callback: () => void) => void;
         };
@@ -61,7 +66,10 @@ const DISMISS_COUNT_KEY = "aipg_google_onetap_dismiss_count";
 
 type SetGoogleAuth = ReturnType<typeof useAuthStore.getState>["setGoogleAuth"];
 
-async function authenticateGoogleCredential(credential: string, setGoogleAuth: SetGoogleAuth) {
+async function authenticateGoogleCredential(
+  credential: string,
+  setGoogleAuth: SetGoogleAuth,
+) {
   const res = await fetch(`${getApiBase()}/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -75,19 +83,27 @@ async function authenticateGoogleCredential(credential: string, setGoogleAuth: S
   }
 
   const data = await res.json();
-  setGoogleAuth(data.googleId, data.email, data.name, data.picture);
+  setGoogleAuth(
+    data.googleId,
+    data.email,
+    data.name,
+    data.picture,
+    data.accountId,
+  );
   return data;
 }
 
 export function GoogleOneTap() {
   const { isConnected } = useAccount();
-  const { isAuthenticated, setGoogleAuth } = useAuthStore();
+  const { isAuthenticated, sessionChecked, setGoogleAuth } = useAuthStore();
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [shouldShow, setShouldShow] = useState(false);
 
   // Check if we should show the prompt
   useEffect(() => {
     // Don't show if:
+    // - The session check hasn't completed yet (avoid flashing One Tap at an
+    //   already-logged-in user during startup)
     // - User has wallet connected
     // - User is already authenticated
     // - User chose "never show again"
@@ -95,25 +111,41 @@ export function GoogleOneTap() {
     const hideForever = localStorage.getItem(HIDE_ONETAP_KEY) === "true";
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-    const show = !isConnected && !isAuthenticated && !hideForever && !!clientId;
+    const show =
+      sessionChecked &&
+      !isConnected &&
+      !isAuthenticated &&
+      !hideForever &&
+      !!clientId;
     setShouldShow(show);
-  }, [isConnected, isAuthenticated]);
+  }, [isConnected, isAuthenticated, sessionChecked]);
 
-  const handleCredentialResponse = useCallback(async (response: CredentialResponse) => {
-    try {
-      const data = await authenticateGoogleCredential(response.credential, setGoogleAuth);
-      console.log("Google One Tap: Successfully authenticated as", data.email);
-    } catch (error) {
-      console.error("Google One Tap: Authentication failed", error);
-    }
-  }, [setGoogleAuth]);
+  const handleCredentialResponse = useCallback(
+    async (response: CredentialResponse) => {
+      try {
+        const data = await authenticateGoogleCredential(
+          response.credential,
+          setGoogleAuth,
+        );
+        console.log(
+          "Google One Tap: Successfully authenticated as",
+          data.email,
+        );
+      } catch (error) {
+        console.error("Google One Tap: Authentication failed", error);
+      }
+    },
+    [setGoogleAuth],
+  );
 
   const initializeGoogleOneTap = useCallback(() => {
     if (!window.google || !shouldShow) return;
 
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      console.warn("Google One Tap: NEXT_PUBLIC_GOOGLE_CLIENT_ID not configured");
+      console.warn(
+        "Google One Tap: NEXT_PUBLIC_GOOGLE_CLIENT_ID not configured",
+      );
       return;
     }
 
@@ -130,22 +162,29 @@ export function GoogleOneTap() {
 
       window.google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed()) {
-          console.log("Google One Tap: Not displayed -", notification.getNotDisplayedReason());
+          console.log(
+            "Google One Tap: Not displayed -",
+            notification.getNotDisplayedReason(),
+          );
         } else if (notification.isSkippedMoment()) {
-          console.log("Google One Tap: Skipped -", notification.getSkippedReason());
+          console.log(
+            "Google One Tap: Skipped -",
+            notification.getSkippedReason(),
+          );
         } else if (notification.isDismissedMoment()) {
           const reason = notification.getDismissedReason();
           console.log("Google One Tap: Dismissed -", reason);
-          
+
           // Track dismiss count - after 3 dismisses, stop showing for this session
           if (reason === "credential_returned") {
             // User signed in successfully - don't count as dismiss
             return;
           }
-          
-          const dismissCount = parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || "0", 10) + 1;
+
+          const dismissCount =
+            parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || "0", 10) + 1;
           localStorage.setItem(DISMISS_COUNT_KEY, dismissCount.toString());
-          
+
           if (dismissCount >= 3) {
             // User has dismissed 3 times, stop showing for this session
             setShouldShow(false);
@@ -196,23 +235,32 @@ interface GoogleSignInButtonProps {
   onError?: (error: Error) => void;
 }
 
-export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonProps) {
+export function GoogleSignInButton({
+  onSuccess,
+  onError,
+}: GoogleSignInButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { setGoogleAuth } = useAuthStore();
   const [scriptReady, setScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleCredentialResponse = useCallback(async (response: CredentialResponse) => {
-    try {
-      setError(null);
-      await authenticateGoogleCredential(response.credential, setGoogleAuth);
-      onSuccess?.();
-    } catch (err) {
-      const authError = err instanceof Error ? err : new Error("Google authentication failed");
-      setError(authError.message);
-      onError?.(authError);
-    }
-  }, [onError, onSuccess, setGoogleAuth]);
+  const handleCredentialResponse = useCallback(
+    async (response: CredentialResponse) => {
+      try {
+        setError(null);
+        await authenticateGoogleCredential(response.credential, setGoogleAuth);
+        onSuccess?.();
+      } catch (err) {
+        const authError =
+          err instanceof Error
+            ? err
+            : new Error("Google authentication failed");
+        setError(authError.message);
+        onError?.(authError);
+      }
+    },
+    [onError, onSuccess, setGoogleAuth],
+  );
 
   useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -239,7 +287,9 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
   }, [handleCredentialResponse, scriptReady]);
 
   if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-    return <p className="text-sm text-zinc-500">Google sign-in is unavailable.</p>;
+    return (
+      <p className="text-sm text-zinc-500">Google sign-in is unavailable.</p>
+    );
   }
 
   return (
@@ -251,7 +301,11 @@ export function GoogleSignInButton({ onSuccess, onError }: GoogleSignInButtonPro
         onReady={() => setScriptReady(true)}
       />
       <div ref={containerRef} className="min-h-10" />
-      {error && <p className="text-sm text-red-400" role="alert">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-400" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

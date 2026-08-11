@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "next dev --webpack",
     "dev:server": "cd server && go run ./cmd/api",
     "build": "next build --webpack",
     "start": "next start",

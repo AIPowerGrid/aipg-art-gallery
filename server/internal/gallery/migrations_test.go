@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 func TestLoadMigrations(t *testing.T) {
@@ -118,6 +118,89 @@ func TestMigrationsPostgres(t *testing.T) {
 		}
 		if err := runMigrations(db); err == nil || !strings.Contains(err.Error(), "checksum changed") {
 			t.Fatalf("runMigrations() error = %v, want checksum rejection", err)
+		}
+	})
+
+	t.Run("canonical owner migration is atomic and idempotent", func(t *testing.T) {
+		db := isolatedSchemaDB(t, adminDB, adminURL, "owner")
+		if err := runMigrations(db); err != nil {
+			t.Fatalf("run migrations: %v", err)
+		}
+		const (
+			canonical = "account-123"
+			googleKey = "google:legacy-hash"
+			walletKey = "0x1111111111111111111111111111111111111111"
+		)
+		for _, row := range []struct{ jobID, owner string }{
+			{"google-job", googleKey},
+			{"wallet-job", walletKey},
+			{"canonical-job", canonical},
+		} {
+			if _, err := db.Exec(`
+				INSERT INTO gallery_items (job_id, media_url, wallet_address)
+				VALUES ($1, 'https://example.test/media.webp', $2)
+			`, row.jobID, row.owner); err != nil {
+				t.Fatalf("insert gallery row %s: %v", row.jobID, err)
+			}
+		}
+		for _, row := range []struct{ jobID, owner string }{
+			{"google-job", googleKey},
+			{"wallet-job", walletKey},
+			{"google-job", canonical},
+		} {
+			if _, err := db.Exec(
+				`INSERT INTO favorites (wallet_address, job_id) VALUES ($1, $2)`,
+				row.owner, row.jobID,
+			); err != nil {
+				t.Fatalf("insert favorite %s/%s: %v", row.owner, row.jobID, err)
+			}
+		}
+
+		store := &PostgresStore{db: db}
+		const concurrentLogins = 6
+		errs := make(chan error, concurrentLogins)
+		var wg sync.WaitGroup
+		for range concurrentLogins {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				errs <- store.CanonicalizeOwner(canonical, []string{googleKey, walletKey, googleKey})
+			}()
+		}
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("concurrent CanonicalizeOwner() error = %v", err)
+			}
+		}
+		if err := store.CanonicalizeOwner(canonical, []string{googleKey, walletKey}); err != nil {
+			t.Fatalf("repeated CanonicalizeOwner() error = %v", err)
+		}
+
+		var galleryCount int
+		if err := db.QueryRow(
+			`SELECT count(*) FROM gallery_items WHERE wallet_address = $1`, canonical,
+		).Scan(&galleryCount); err != nil {
+			t.Fatalf("count canonical gallery rows: %v", err)
+		}
+		if galleryCount != 3 {
+			t.Fatalf("canonical gallery rows = %d, want 3", galleryCount)
+		}
+		var favoriteCount, legacyCount int
+		if err := db.QueryRow(
+			`SELECT count(*) FROM favorites WHERE wallet_address = $1`, canonical,
+		).Scan(&favoriteCount); err != nil {
+			t.Fatalf("count canonical favorites: %v", err)
+		}
+		if err := db.QueryRow(`
+			SELECT count(*) FROM favorites
+			WHERE LOWER(wallet_address) = ANY($1::text[])
+		`, pq.Array([]string{googleKey, walletKey})).Scan(&legacyCount); err != nil {
+			t.Fatalf("count legacy favorites: %v", err)
+		}
+		if favoriteCount != 2 || legacyCount != 0 {
+			t.Fatalf("favorites canonical=%d legacy=%d, want 2/0", favoriteCount, legacyCount)
 		}
 	})
 }

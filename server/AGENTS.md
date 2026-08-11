@@ -12,8 +12,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - `cmd/api/main.go` — process entry: loads `.env`, builds `app.App`, serves `cfg.Address`.
 - `internal/app/app.go` — the router + every HTTP handler (~2K LOC god-file). Routes under
   `/api`: auth (`/auth/google`, `/auth/logout`, protected `/auth/me` and wallet linking), `/models`, `/styles`,
-  `/ai/enhance`, `/jobs`, public `/gallery` + `/favorites` reads, and JWT-protected
-  gallery/favorites writes. Protected `/gallery/me` is the identity-neutral private gallery
+  `/ai/enhance`, `/jobs`, public `/gallery` reads, and JWT-protected
+  gallery/favorites reads and writes. Protected `/gallery/me` is the identity-neutral private gallery
   read path. CORS + IP rate limits (100/min global, 20/min on job create).
 - `internal/config` — typed `Config` + `Load()` (all env reads live here).
 - `config/model_presets.json` — local model defaults/limits merged with on-chain models.
@@ -37,6 +37,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   service key. The server derives `wallet:<address>` itself; it never accepts an
   app subject from the browser. Successful proof mints the httpOnly `aipg_auth`
   cookie with the canonical Core account id and short-lived step-up token.
+  Before issuing or renewing that session, the server atomically canonicalizes
+  gallery rows and favorites from the login aliases actually proved in that
+  request. Google-only proof must not infer a wallet; wallet-only proof must not
+  infer a Google subject; the link path may migrate both.
   Local-only login is fail-closed. The server validates cookies on protected
   routes via `authMiddleware` (Bearer fallback), serves `/auth/me` and
   `/auth/logout`, and enforces the Origin allowlist on cookie mutations.
@@ -50,6 +54,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   is a Postgres UUID and must remain a string in Go storage types and queries.
 - Private gallery reads use protected `/gallery/me`; the legacy wallet path is owner-checked.
   Never expose unpublished prompts or media through an unauthenticated wallet lookup.
+- Gallery items, favorites, and pending jobs are owned by the normalized Core
+  account ID. Login-method keys are compatibility aliases for one-time,
+  proof-backed migration only and must not be used for new writes.
 - **Trust nothing from the client:** `CreateJobRequest.Validate()` enforces hard caps (`n`,
   steps, dimensions, prompt length). `allowedOrigins()` fails closed — never returns `*`;
   production MUST set `GALLERY_ALLOWED_ORIGINS`.

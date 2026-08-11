@@ -10,6 +10,7 @@ type GalleryStore interface {
 	SetPublic(jobID string, isPublic bool) error
 	UpdateMediaURLs(jobID string, mediaURLs []string) error
 	UpdateGalleryItemMedia(jobID, gridJobID string, mediaURLs, seeds []string, sampler, scheduler, worker string, genTime *float64) error
+	CanonicalizeOwner(accountID string, legacyKeys []string) error
 	Count() int
 }
 
@@ -51,6 +52,11 @@ func (a *FileStoreAdapter) UpdateMediaURLs(jobID string, mediaURLs []string) err
 
 func (a *FileStoreAdapter) UpdateGalleryItemMedia(jobID, gridJobID string, mediaURLs, seeds []string, sampler, scheduler, worker string, genTime *float64) error {
 	// File store doesn't support this operation
+	return nil
+}
+
+func (a *FileStoreAdapter) CanonicalizeOwner(accountID string, legacyKeys []string) error {
+	a.Store.CanonicalizeOwner(accountID, legacyKeys)
 	return nil
 }
 

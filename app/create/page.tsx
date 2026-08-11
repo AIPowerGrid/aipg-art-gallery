@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
 import { PromptForm, StudioRail, CreationsGrid } from "@/components/create";
 import { CreationCard } from "@/components/creation-card";
 import type { LoraSpec, StudioTab } from "@/components/create";
-import { useStylesConfig, getDefaultModel, getDimension } from "@/lib/hooks/use-styles-config";
+import {
+  useStylesConfig,
+  getDefaultModel,
+  getDimension,
+} from "@/lib/hooks/use-styles-config";
 import { useGridStyles } from "@/lib/hooks/use-grid-styles";
 import { GridStyle } from "@/types/models";
 import { useCreations } from "@/lib/hooks/use-creations";
@@ -61,18 +64,9 @@ export default function CreatePage() {
 
 function CreatePageContent() {
   // Wallet state
-  const { address } = useAccount();
-  const {
-    isAuthenticated: hasSession,
-    address: sessionAddress,
-    googleId,
-  } = useAuthStore();
+  const { isAuthenticated: hasSession, accountId } = useAuthStore();
   const authenticated = hasSession;
-  const ownerIdentifier = authenticated
-    ? googleId
-      ? `google:${googleId}`
-      : (sessionAddress ?? address)
-    : undefined;
+  const ownerIdentifier = authenticated ? accountId || undefined : undefined;
 
   // UI state
   const [dimensionId, setDimensionId] = useState(3);
@@ -80,7 +74,9 @@ function CreatePageContent() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [credits, setCredits] = useState<GridCredits | null>(null);
   const [creditQuote, setCreditQuote] = useState<GridCreditQuote | null>(null);
-  const [settingsByModel, setSettingsByModel] = useState<Record<string, AdvancedSettings>>({});
+  const [settingsByModel, setSettingsByModel] = useState<
+    Record<string, AdvancedSettings>
+  >({});
   const [railTab, setRailTab] = useState<StudioTab>("basic");
   const [prompt, setPrompt] = useState("");
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
@@ -259,7 +255,9 @@ function CreatePageContent() {
   // Handle "Edit in Studio" - prefill prompt and settings from existing creation
   const handleEditInStudio = (creation: DisplayCreation) => {
     setPrompt(creation.prompt);
-    const modelExists = styles?.models.some((model) => model.id === creation.modelId);
+    const modelExists = styles?.models.some(
+      (model) => model.id === creation.modelId,
+    );
     const targetModelId = modelExists ? creation.modelId : settingsModelId;
     if (modelExists) setSelectedModelId(creation.modelId);
     setSettingsByModel((current) => ({
@@ -295,7 +293,9 @@ function CreatePageContent() {
             {creditQuote?.estimate.priced &&
               creditQuote.estimate.cost_usd !== null && (
                 <span>
-                  {credits.charging_enabled ? "Estimated charge" : "Preview price"}{" "}
+                  {credits.charging_enabled
+                    ? "Estimated charge"
+                    : "Preview price"}{" "}
                   {formatUSD(creditQuote.estimate.cost_usd)}
                 </span>
               )}
@@ -303,7 +303,9 @@ function CreatePageContent() {
               <span className="text-amber-400">Price unavailable</span>
             )}
             {!credits.charging_enabled && (
-              <span className="font-medium text-emerald-400">Free during preview</span>
+              <span className="font-medium text-emerald-400">
+                Free during preview
+              </span>
             )}
             <a
               href={fundingURL}
@@ -340,9 +342,14 @@ function CreatePageContent() {
               <section aria-label="Current generation">
                 <div className="mb-3 flex items-center justify-between gap-4">
                   <h2 className="text-sm font-semibold text-white">
-                    {creations[0].isGenerating ? "Generating" : "Latest creation"}
+                    {creations[0].isGenerating
+                      ? "Generating"
+                      : "Latest creation"}
                   </h2>
-                  <a href="/profile" className="text-sm text-indigo-300 hover:text-indigo-200">
+                  <a
+                    href="/profile"
+                    className="text-sm text-indigo-300 hover:text-indigo-200"
+                  >
                     My creations
                   </a>
                 </div>

@@ -202,6 +202,38 @@ func (s *Store) ListByWallet(walletAddress string, limit int) []GalleryItem {
 	return result
 }
 
+// CanonicalizeOwner moves file-backed items from verified legacy login keys to
+// the durable Grid account ID. It is idempotent and persists at most once.
+func (s *Store) CanonicalizeOwner(accountID string, legacyKeys []string) {
+	canonical := strings.ToLower(strings.TrimSpace(accountID))
+	if canonical == "" {
+		return
+	}
+	aliases := make(map[string]struct{}, len(legacyKeys))
+	for _, key := range legacyKeys {
+		normalized := strings.ToLower(strings.TrimSpace(key))
+		if normalized != "" && normalized != canonical {
+			aliases[normalized] = struct{}{}
+		}
+	}
+	if len(aliases) == 0 {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	changed := false
+	for i := range s.items {
+		if _, ok := aliases[strings.ToLower(strings.TrimSpace(s.items[i].WalletAddress))]; ok {
+			s.items[i].WalletAddress = canonical
+			changed = true
+		}
+	}
+	if changed {
+		s.save()
+	}
+}
+
 // Remove removes an item by job ID (for moderation)
 func (s *Store) Remove(jobID string) bool {
 	s.mu.Lock()

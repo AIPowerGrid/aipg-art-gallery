@@ -6,7 +6,7 @@ export const runtime = 'edge';
 export async function GET(request: NextRequest) {
   try {
     // Fetch recent gallery images
-    const galleryUrl = process.env.NEXT_PUBLIC_GALLERY_API || 'http://localhost:4000/api';
+    const galleryUrl = `${process.env.GALLERY_API_ORIGIN || 'http://localhost:4000'}/api`;
     let images: string[] = [];
     
     try {

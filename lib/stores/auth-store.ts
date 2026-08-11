@@ -1,9 +1,13 @@
 import { create } from "zustand";
 import {
   getAuthAddress,
+  getAuthAccountId,
   isAuthenticated,
   signOut,
   getApiBase,
+  clearAuthToken,
+  rememberAuthAccount,
+  rememberWalletSession,
 } from "@/lib/auth";
 
 // Non-sensitive Google profile, kept in localStorage for UI only. The Google
@@ -18,19 +22,25 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface AuthState {
   isAuthenticated: boolean;
+  // False until the authoritative server check (/auth/me) has completed once.
+  // Pages should wait for this before redirecting or showing One Tap, so a
+  // logged-in user isn't briefly treated as signed-out during startup.
+  sessionChecked: boolean;
   authMethod: "wallet" | "google" | null;
   address: string | null;
+  accountId: string | null;
   googleId: string | null;
   email: string | null;
   name: string | null;
   picture: string | null;
 
-  setAuthenticated: (address: string) => void;
+  setAuthenticated: (address: string, accountId?: string) => void;
   setGoogleAuth: (
     googleId: string,
     email: string,
     name: string,
     picture: string,
+    accountId: string,
   ) => void;
   clearAuth: () => Promise<void>;
   syncFromStorage: () => void;
@@ -50,18 +60,24 @@ function clearGoogleProfile() {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
+  sessionChecked: false,
   authMethod: null,
   address: null,
+  accountId: null,
   googleId: null,
   email: null,
   name: null,
   picture: null,
 
-  setAuthenticated: (address: string) => {
+  setAuthenticated: (address: string, accountId?: string) => {
+    const canonicalAccount = accountId?.toLowerCase() ?? getAuthAccountId();
+    rememberAuthAccount(canonicalAccount);
     set({
       isAuthenticated: true,
+      sessionChecked: true,
       authMethod: "wallet",
       address: address.toLowerCase(),
+      accountId: canonicalAccount,
       googleId: null,
       email: null,
       name: null,
@@ -74,6 +90,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     email: string,
     name: string,
     picture: string,
+    accountId: string,
   ) => {
     // Store only the non-sensitive profile for UI; the JWT is in the cookie.
     localStorage.setItem(GOOGLE_ID_KEY, googleId);
@@ -84,10 +101,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       GOOGLE_EXPIRY_KEY,
       String(Date.now() + SESSION_TTL_MS),
     );
+    rememberAuthAccount(accountId);
     set({
       isAuthenticated: true,
+      sessionChecked: true,
       authMethod: "google",
       address: null,
+      accountId: accountId.toLowerCase(),
       googleId,
       email,
       name,
@@ -103,6 +123,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       authMethod: null,
       address: null,
+      accountId: null,
       googleId: null,
       email: null,
       name: null,
@@ -117,6 +138,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         authMethod: "wallet",
         address: getAuthAddress(),
+        accountId: getAuthAccountId(),
       });
       return;
     }
@@ -126,6 +148,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         isAuthenticated: true,
         authMethod: "google",
+        accountId: getAuthAccountId(),
         googleId,
         email: localStorage.getItem(GOOGLE_EMAIL_KEY),
         name: localStorage.getItem(GOOGLE_NAME_KEY),
@@ -137,6 +160,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       authMethod: null,
       address: null,
+      accountId: null,
       googleId: null,
     });
   },
@@ -149,47 +173,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       if (!res.ok) {
         clearGoogleProfile();
+        clearAuthToken();
         set({
           isAuthenticated: false,
           authMethod: null,
           address: null,
+          accountId: null,
           googleId: null,
         });
         return;
       }
       const data = await res.json();
+      rememberAuthAccount(data.accountId);
       if (data.authMethod === "google" && data.googleId) {
         set({
           isAuthenticated: true,
           authMethod: "google",
           address: data.address?.toLowerCase() ?? null,
+          accountId: data.accountId?.toLowerCase() ?? null,
           googleId: data.googleId,
           email: data.email,
           name: data.name,
         });
       } else if (data.address) {
+        rememberWalletSession(data.address, data.accountId);
         set({
           isAuthenticated: true,
           authMethod: "wallet",
           address: data.address.toLowerCase(),
+          accountId: data.accountId?.toLowerCase() ?? null,
         });
       } else {
         set({
           isAuthenticated: false,
           authMethod: null,
           address: null,
+          accountId: null,
           googleId: null,
         });
       }
     } catch {
       // network hiccup: keep optimistic state
+    } finally {
+      // The authoritative check has run at least once, regardless of outcome.
+      set({ sessionChecked: true });
     }
   },
 
   getUserIdentifier: () => {
-    const state = get();
-    if (state.authMethod === "wallet") return state.address;
-    if (state.authMethod === "google") return state.googleId;
-    return null;
+    return get().accountId;
   },
 }));

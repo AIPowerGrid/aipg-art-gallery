@@ -16,8 +16,8 @@ The creative frontend for the AI Power Grid: distributed GPU workers generate im
 video, and 3D; the Director provides a browser-side timeline for chained
 image-conditioned video segments. Image/video results can land in the public gallery. No
 account is required to browse. Google or wallet sign-in unlocks credit-backed generation,
-personal creations, publishing, and favorites. Two
-deployables in one repo: a Next.js 16 web app and a Go API server that brokers generation
+personal creations, publishing, and favorites. Two deployables live in one repo: a Next.js
+16 web app and a Go API server that brokers generation
 jobs to the grid and serves gallery/media.
 
 ## Ownership
@@ -43,9 +43,11 @@ jobs to the grid and serves gallery/media.
   (core + git + the matching language file — `go.md` for `server/`, the TS/JS file for the
   frontend). The rules below are repo specializations.
 - **Front/back boundary:** the browser never holds grid keys, vault RPC, R2, or Postgres
-  creds. All of that lives in `server/`. The frontend talks only to the Go API
-  (`NEXT_PUBLIC_GALLERY_API`, default `http://localhost:4000/api`).
-- **Two ports:** frontend on 3000 (`npm run dev`), API on 4000 (`cd server && go run ./cmd/api`).
+  creds. All of that lives in `server/`. Browser calls use the same-origin `/api` proxy;
+  server-side Next code reaches Go through `GALLERY_API_ORIGIN` (default
+  `http://localhost:4000`). Never bake an absolute internal API origin into a public bundle.
+- **Two processes:** `npm run dev` starts Next on 3000 and Go on 4000. Use `npm run dev:web`
+  or `npm run dev:server` only when intentionally running one side.
 - **Product boundary:** `aipg.art` owns Gallery, Studio, and Director. Standalone
   music generation belongs to `aipg.music`; do not add an audio/music route or
   ACE-Step API surface back to this repo. Director may still use audio as part
@@ -53,7 +55,10 @@ jobs to the grid and serves gallery/media.
 - **Auth:** Google or Core-issued SIWE yields an HS256 JWT in an httpOnly
   cookie. Core verifies the provider/wallet proof and returns the canonical
   account; a proved wallet can be linked to Google through Core's proof-of-both
-  merge path. Local-only auth is forbidden because it creates split balances.
+  merge path. The Core account ID owns gallery rows, favorites, and browser job
+  tracking regardless of login method. A successful proof atomically migrates
+  only that proof's legacy owner key; a linked proof migrates both. Local-only
+  auth is forbidden because it creates split balances.
 - **Grid identity:** `AIPG_API_KEY` is the server-only bounded `aipg-art`
   service key. Google and wallet proof are verified by Core; subsequent app
   sessions exchange a server-derived Gallery-local subject. Authenticated generation carries the resulting
@@ -93,7 +98,8 @@ These are non-negotiable across the repo. Children may add stricter rules, never
   delivered ONLY as an `HttpOnly; Secure; SameSite=Lax` cookie — never returned to or stored by
   JS. Mutating routes verify it from the cookie (Bearer header fallback for non-browser
   clients), read the wallet from the token, and enforce an Origin allowlist (CSRF). The
-  frontend keeps only a non-sensitive address+expiry marker for UI state.
+  frontend keeps only non-sensitive address, canonical account ID, profile, and
+  expiry markers for optimistic UI state. `/auth/me` remains authoritative.
 - **No SSRF / shell injection.** Server-side fetches of user-influenced URLs use an
   exact-host allowlist and `redirect: 'manual'`. Shell-outs use argv arrays (`execFileSync`),
   never interpolated command strings.

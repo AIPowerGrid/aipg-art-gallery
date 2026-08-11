@@ -8,7 +8,16 @@ import {
 } from "@/types/models";
 
 const getApiBase = () =>
-  process.env.NEXT_PUBLIC_GALLERY_API ?? "http://localhost:4000/api";
+  typeof window !== "undefined"
+    ? // Browser: never call the backend cross-origin (that hardcodes a host/port
+      // the user's browser may not reach — the "keeps loading" bug). Honor an
+      // explicitly relative override (e2e mocks use /api-preview); otherwise use
+      // the same-origin /api proxy (nginx in prod, a Next rewrite in dev).
+      (process.env.NEXT_PUBLIC_GALLERY_API?.startsWith("/")
+        ? process.env.NEXT_PUBLIC_GALLERY_API
+        : "/api")
+    : // Server-side (SSR / route handlers): reach the Go backend directly.
+      `${process.env.GALLERY_API_ORIGIN ?? "http://localhost:4000"}/api`;
 
 async function jsonFetch<T>(
   path: string,
@@ -333,23 +342,15 @@ export function removeFavorite(jobId: string): Promise<{ success: boolean }> {
   });
 }
 
+// Lists the logged-in user's favorites. No address argument: the server scopes
+// results to the authenticated session, so it works for wallet and Google logins.
 export function getFavorites(
-  walletAddress: string,
   limit?: number,
 ): Promise<{ items: GalleryItem[]; count: number }> {
   const params = new URLSearchParams();
   if (limit) params.append("limit", String(limit));
   const query = params.toString();
-  return jsonFetch(
-    `/favorites/wallet/${walletAddress}${query ? `?${query}` : ""}`,
-  );
-}
-
-export function checkFavorite(
-  walletAddress: string,
-  jobId: string,
-): Promise<{ favorited: boolean }> {
-  return jsonFetch(`/favorites/check/${walletAddress}/${jobId}`);
+  return jsonFetch(`/favorites${query ? `?${query}` : ""}`);
 }
 
 // AI Enhancement API

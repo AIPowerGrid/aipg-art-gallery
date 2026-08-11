@@ -625,6 +625,67 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 	return items
 }
 
+// CanonicalizeOwner atomically moves gallery items and favorites from verified
+// legacy login keys to one Grid account ID. Repeating the operation is safe.
+func (s *PostgresStore) CanonicalizeOwner(accountID string, legacyKeys []string) error {
+	canonical := strings.ToLower(strings.TrimSpace(accountID))
+	if canonical == "" {
+		return fmt.Errorf("canonical account ID is required")
+	}
+
+	seen := map[string]struct{}{canonical: {}}
+	aliases := make([]string, 0, len(legacyKeys))
+	for _, key := range legacyKeys {
+		normalized := strings.ToLower(strings.TrimSpace(key))
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		aliases = append(aliases, normalized)
+	}
+	if len(aliases) == 0 {
+		return nil
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin owner canonicalization: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`
+		INSERT INTO favorites (wallet_address, job_id, created_at)
+		SELECT $1, job_id, MIN(created_at)
+		FROM favorites
+		WHERE LOWER(wallet_address) = ANY($2::text[])
+		GROUP BY job_id
+		ON CONFLICT (wallet_address, job_id) DO UPDATE
+		SET created_at = LEAST(favorites.created_at, EXCLUDED.created_at)
+	`, canonical, pq.Array(aliases)); err != nil {
+		return fmt.Errorf("copy legacy favorites: %w", err)
+	}
+	if _, err := tx.Exec(
+		`DELETE FROM favorites WHERE LOWER(wallet_address) = ANY($1::text[])`,
+		pq.Array(aliases),
+	); err != nil {
+		return fmt.Errorf("remove legacy favorites: %w", err)
+	}
+	if _, err := tx.Exec(`
+		UPDATE gallery_items
+		SET wallet_address = $1
+		WHERE LOWER(wallet_address) = ANY($2::text[])
+	`, canonical, pq.Array(aliases)); err != nil {
+		return fmt.Errorf("move legacy gallery items: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit owner canonicalization: %w", err)
+	}
+	return nil
+}
+
 // Delete removes a gallery item
 func (s *PostgresStore) Delete(jobID string) error {
 	_, err := s.db.Exec("DELETE FROM gallery_items WHERE job_id = $1", jobID)
