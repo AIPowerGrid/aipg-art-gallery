@@ -24,6 +24,10 @@ Next.js web process and Go API process from one commit-pinned release.
 - Secrets stay in `/opt/aipg-gallery/gallery.env`, outside every release.
 - Never place a Grid key or other secret in these tracked files.
 - Build the frontend with production `NEXT_PUBLIC_*` values loaded.
+- Build and run the frontend on the Node major pinned by `.nvmrc` (Node 22);
+  keep Docker, CI, and the release host aligned.
+- Build the backend with `GOTOOLCHAIN=auto` so the exact Go toolchain declared
+  by `server/go.mod` is used.
 - Preserve at least one independently runnable rollback release.
 - Release pruning must resolve and protect `/opt/aipg-gallery-current`, reject
   paths outside `/opt/aipg-gallery-releases`, and keep one inactive release.

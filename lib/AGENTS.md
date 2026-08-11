@@ -13,6 +13,10 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - `auth.ts` — wallet sign-in (calls the Go `/api/auth/wallet/*` Core broker), session helpers, and the
   non-sensitive session markers (address + canonical account ID + expiry). Exposes `signIn`, awaited `signOut` (→ Go
   `/auth/logout`), `fetchSession` (→ Go `/auth/me`), `isAuthenticated`, `getApiBase`.
+- `google-identity.ts` owns the page-wide Google Identity Services singleton,
+  posts credentials to `/auth/google`, and dispatches the result to mounted auth
+  surfaces. GSI must be initialized exactly once per page; buttons and One Tap
+  subscribe to the shared callback instead of replacing it.
 - `nonce-store.ts` — in-memory one-time nonce store used by the `/auth-api` routes
   (`storeNonce` / `consumeNonce` / `cleanupNonces`). Replace with Redis if multi-instance.
 - `wagmi.ts` — wagmi/RainbowKit config. `web3/` — wallet hooks/types. `supabase.ts` — Supabase

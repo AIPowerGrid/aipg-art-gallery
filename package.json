@@ -2,6 +2,9 @@
   "name": "aipg-gallery",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:web": "next dev --webpack",
@@ -107,12 +110,14 @@
     "@walletconnect/universal-provider": "2.23.10",
     "@walletconnect/utils": "2.23.10",
     "js-yaml": "3.15.0",
-    "hono": "4.12.31",
+    "hono": "4.12.34",
     "minimatch@3.1.5": {
       "brace-expansion": "1.1.16"
     },
+    "nanoid": "3.3.17",
     "postcss": "$postcss",
     "sharp": "0.35.3",
+    "socket.io-parser": "4.2.7",
     "uuid": "11.1.1",
     "ws": "8.21.0"
   }

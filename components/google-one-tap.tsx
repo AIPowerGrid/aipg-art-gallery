@@ -4,98 +4,17 @@ import { useEffect, useCallback, useRef, useState } from "react";
 import Script from "next/script";
 import { useAccount } from "wagmi";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { getApiBase } from "@/lib/auth";
-
-// Extend window type for Google Identity Services
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: GoogleOneTapConfig) => void;
-          prompt: (
-            callback?: (notification: PromptNotification) => void,
-          ) => void;
-          renderButton: (
-            parent: HTMLElement,
-            options: GoogleButtonConfig,
-          ) => void;
-          cancel: () => void;
-          revoke: (hint: string, callback: () => void) => void;
-        };
-      };
-    };
-  }
-}
-
-interface GoogleOneTapConfig {
-  client_id: string;
-  callback: (response: CredentialResponse) => void;
-  context?: "signin" | "signup" | "use";
-  ux_mode?: "popup" | "redirect";
-  auto_select?: boolean;
-  cancel_on_tap_outside?: boolean;
-  use_fedcm_for_prompt?: boolean;
-}
-
-interface CredentialResponse {
-  credential: string;
-  select_by: string;
-}
-
-interface GoogleButtonConfig {
-  type: "standard";
-  theme: "outline" | "filled_blue" | "filled_black";
-  size: "large";
-  text: "signin_with" | "signup_with" | "continue_with" | "signin";
-  shape: "rectangular" | "pill" | "circle" | "square";
-  width?: number;
-}
-
-interface PromptNotification {
-  isNotDisplayed: () => boolean;
-  isSkippedMoment: () => boolean;
-  isDismissedMoment: () => boolean;
-  getNotDisplayedReason: () => string;
-  getSkippedReason: () => string;
-  getDismissedReason: () => string;
-}
+import {
+  initializeGoogleIdentity,
+  subscribeToGoogleAuth,
+} from "@/lib/google-identity";
 
 const HIDE_ONETAP_KEY = "aipg_hide_google_onetap";
 const DISMISS_COUNT_KEY = "aipg_google_onetap_dismiss_count";
 
-type SetGoogleAuth = ReturnType<typeof useAuthStore.getState>["setGoogleAuth"];
-
-async function authenticateGoogleCredential(
-  credential: string,
-  setGoogleAuth: SetGoogleAuth,
-) {
-  const res = await fetch(`${getApiBase()}/auth/google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ credential }),
-  });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.error || "Google authentication failed");
-  }
-
-  const data = await res.json();
-  setGoogleAuth(
-    data.googleId,
-    data.email,
-    data.name,
-    data.picture,
-    data.accountId,
-  );
-  return data;
-}
-
 export function GoogleOneTap() {
   const { isConnected } = useAccount();
-  const { isAuthenticated, sessionChecked, setGoogleAuth } = useAuthStore();
+  const { isAuthenticated, sessionChecked } = useAuthStore();
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [shouldShow, setShouldShow] = useState(false);
 
@@ -120,22 +39,18 @@ export function GoogleOneTap() {
     setShouldShow(show);
   }, [isConnected, isAuthenticated, sessionChecked]);
 
-  const handleCredentialResponse = useCallback(
-    async (response: CredentialResponse) => {
-      try {
-        const data = await authenticateGoogleCredential(
-          response.credential,
-          setGoogleAuth,
-        );
-        console.log(
-          "Google One Tap: Successfully authenticated as",
-          data.email,
-        );
-      } catch (error) {
-        console.error("Google One Tap: Authentication failed", error);
-      }
-    },
-    [setGoogleAuth],
+  useEffect(
+    () =>
+      subscribeToGoogleAuth({
+        onSuccess: (data) =>
+          console.log(
+            "Google One Tap: Successfully authenticated as",
+            data.email,
+          ),
+        onError: (error) =>
+          console.error("Google One Tap: Authentication failed", error),
+      }),
+    [],
   );
 
   const initializeGoogleOneTap = useCallback(() => {
@@ -150,15 +65,7 @@ export function GoogleOneTap() {
     }
 
     try {
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-        context: "signin",
-        ux_mode: "popup",
-        auto_select: false,
-        cancel_on_tap_outside: true,
-        use_fedcm_for_prompt: true, // Required for Chrome's third-party cookie phase-out
-      });
+      initializeGoogleIdentity(clientId);
 
       window.google.accounts.id.prompt((notification) => {
         if (notification.isNotDisplayed()) {
@@ -194,7 +101,7 @@ export function GoogleOneTap() {
     } catch (error) {
       console.error("Google One Tap: Error initializing", error);
     }
-  }, [shouldShow, handleCredentialResponse]);
+  }, [shouldShow]);
 
   // Initialize when script loads and conditions are met
   useEffect(() => {
@@ -224,7 +131,7 @@ export function GoogleOneTap() {
       src="https://accounts.google.com/gsi/client"
       async
       defer
-      onLoad={() => setScriptLoaded(true)}
+      onReady={() => setScriptLoaded(true)}
       strategy="afterInteractive"
     />
   );
@@ -240,26 +147,22 @@ export function GoogleSignInButton({
   onError,
 }: GoogleSignInButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { setGoogleAuth } = useAuthStore();
   const [scriptReady, setScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleCredentialResponse = useCallback(
-    async (response: CredentialResponse) => {
-      try {
-        setError(null);
-        await authenticateGoogleCredential(response.credential, setGoogleAuth);
-        onSuccess?.();
-      } catch (err) {
-        const authError =
-          err instanceof Error
-            ? err
-            : new Error("Google authentication failed");
-        setError(authError.message);
-        onError?.(authError);
-      }
-    },
-    [onError, onSuccess, setGoogleAuth],
+  useEffect(
+    () =>
+      subscribeToGoogleAuth({
+        onSuccess: () => {
+          setError(null);
+          onSuccess?.();
+        },
+        onError: (authError) => {
+          setError(authError.message);
+          onError?.(authError);
+        },
+      }),
+    [onError, onSuccess],
   );
 
   useEffect(() => {
@@ -267,24 +170,24 @@ export function GoogleSignInButton({
     const container = containerRef.current;
     if (!scriptReady || !clientId || !container || !window.google) return;
 
-    container.replaceChildren();
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: handleCredentialResponse,
-      context: "signin",
-      ux_mode: "popup",
-      auto_select: false,
-      use_fedcm_for_prompt: true,
-    });
-    window.google.accounts.id.renderButton(container, {
-      type: "standard",
-      theme: "filled_black",
-      size: "large",
-      text: "continue_with",
-      shape: "rectangular",
-      width: 320,
-    });
-  }, [handleCredentialResponse, scriptReady]);
+    try {
+      initializeGoogleIdentity(clientId);
+      container.replaceChildren();
+      window.google.accounts.id.renderButton(container, {
+        type: "standard",
+        theme: "filled_black",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        width: 320,
+      });
+    } catch (err) {
+      const authError =
+        err instanceof Error ? err : new Error("Google sign-in unavailable");
+      setError(authError.message);
+      onError?.(authError);
+    }
+  }, [onError, scriptReady]);
 
   if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
     return (

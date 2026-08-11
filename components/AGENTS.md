@@ -9,7 +9,9 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
 
 - Auth UI: `custom-connect-button.tsx`, `wallet-button.tsx`, `auth-modal.tsx`, `social-auth.tsx`,
   `google-one-tap.tsx` (Google One Tap — posts the credential to the Go `/auth/google` with
-  `credentials: 'include'`; the server sets the httpOnly cookie). `providers.tsx` wires Wagmi /
+  `credentials: 'include'` through `lib/google-identity.ts`; the server sets the
+  httpOnly cookie). Google buttons and One Tap share one page-wide GSI
+  initialization. `providers.tsx` wires Wagmi /
   RainbowKit / React Query and drives wallet SIWE sign-in + session reconcile on mount.
 - Gallery/media: `creation-card.tsx`, `media-card.tsx`, `image-modal.tsx`, `gallery-filter.tsx`,
   `creations-grid.tsx`, `active-jobs-indicator.tsx`. Create flow: `create/*`. Misc: `header.tsx`,
