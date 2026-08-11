@@ -114,9 +114,12 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 - Run the audit-relevant checks before claiming security work is done:
   `cd server && GOTOOLCHAIN=auto go test ./... && GOTOOLCHAIN=auto go vet ./...`,
   `npm run build`, `npm audit --omit=dev --audit-level=high`, and
-  `govulncheck ./...` for dependency drift.
+  `govulncheck ./...` for dependency drift. CI scans the complete Git history
+  with Gitleaks and analyzes both Go and TypeScript with CodeQL; keep both checks
+  required before merging.
 - When you touch auth, gallery writes, or any new outbound fetch/exec, re-read this section and
   the nearest AGENTS.md, then update them if the contract changed.
+
 ## Work Guidance
 
 - New generation capability → backend handler in `server/` first, then `lib/api.ts` client +

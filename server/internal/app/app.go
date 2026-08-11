@@ -605,7 +605,7 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Auth: Google user %s (%s) authenticated successfully", email, googleID)
+	log.Printf("Auth: Google user authenticated successfully")
 
 	// Deliver the JWT only as an httpOnly cookie; the body returns just the
 	// (non-secret) profile fields for UI.
