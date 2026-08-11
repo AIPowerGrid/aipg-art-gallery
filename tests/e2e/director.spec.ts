@@ -54,6 +54,7 @@ async function installDirectorMocks(page: Page) {
       await route.fulfill({
         json: {
           authMethod: "google",
+          accountId: "account-director",
           googleId: "director-preview",
           email: "director@example.test",
           name: "Director Preview",

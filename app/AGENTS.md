@@ -34,8 +34,8 @@ route handlers for things that must not run in the browser — including wallet 
   while preserving the separate Gallery job ID used for local polling and
   publishing.
 - `/join` redirects an already-authenticated Google or wallet session to
-  `/create`; never leave the authenticated branch on an indefinite loading
-  state.
+  `/create`; wait for the authoritative `/auth/me` check before deciding. A
+  valid cookie is sufficient even when no browser wallet is currently connected.
 - `/create` clears an uploaded source when selection moves to a model without
   `img2img`/`img2video`; incompatible source state must never ride a later job.
 - `/create` treats an explicit live-model `offline` status as unavailable:
@@ -46,8 +46,9 @@ route handlers for things that must not run in the browser — including wallet 
   production worker is certified; do not advertise it as available. Older work
   links to `/profile`.
 - `/profile` is the account-owned creation library for Google and wallet
-  sessions. Load creations through `/gallery/me`; never gate the page itself on
-  a connected browser wallet.
+  sessions. Load creations through `/gallery/me`; wait for `sessionChecked`
+  before loading or redirecting, and never gate the page itself on a connected
+  browser wallet.
 - Standalone music is intentionally absent from `aipg.art`; it belongs to
   `aipg.music`. Do not restore an `/audio` page here.
 - `/create/director` is the authenticated timeline editor for chained image-conditioned
@@ -55,10 +56,12 @@ route handlers for things that must not run in the browser — including wallet 
   standard create page. It displays Core-owned first-frame and selected-segment quotes,
   links `402` responses to Console funding, and exposes copyable Core receipt IDs after
   completion. Browser project/audio persistence is local convenience, not authority.
-- **`proxy.ts` (repo root)** sets per-request CSP. `connect-src` must include the origin
-  derived from `NEXT_PUBLIC_GALLERY_API` so cross-port Go API calls work in dev.
+- **`proxy.ts` (repo root)** sets per-request CSP. Browser API traffic is
+  same-origin `/api`; keep any exceptional external connection origin explicit.
 - **`layout.tsx`** passes the request cookie into the SSR-enabled wagmi provider; keep
   wallet storage cookie-backed so public gallery content remains server-renderable.
+  Wallet auto-auth must wait for `/auth/me` and must never request a fresh
+  signature when the Gallery cookie already resolves to a live session.
 - **Route handlers run on the server.** The `download` proxy must keep its exact-hostname
   allowlist + `redirect: 'manual'`. Any new outbound-fetch handler needs the same discipline.
 - **Do not revive a local wallet issuer.** Core must issue and consume the

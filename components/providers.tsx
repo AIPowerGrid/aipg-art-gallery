@@ -34,8 +34,10 @@ function WalletManager({ children }: { children: ReactNode }) {
   // Auth store for reactive auth state
   const {
     isAuthenticated: hasSession,
+    sessionChecked,
     authMethod,
     address: sessionAddress,
+    accountId,
     googleId,
     setAuthenticated,
     clearAuth,
@@ -52,23 +54,24 @@ function WalletManager({ children }: { children: ReactNode }) {
   }, [syncFromStorage, syncFromServer]);
 
   useEffect(() => {
-    const owner = hasSession
-      ? googleId
-        ? `google:${googleId}`
-        : sessionAddress
-      : null;
-    setActiveOwner(owner ?? null);
-  }, [hasSession, googleId, sessionAddress, setActiveOwner]);
+    const legacyOwners = [
+      sessionAddress,
+      googleId ? `google:${googleId}` : null,
+    ].filter((owner): owner is string => Boolean(owner));
+    setActiveOwner(hasSession ? accountId : null, legacyOwners);
+  }, [hasSession, accountId, googleId, sessionAddress, setActiveOwner]);
 
   // Auto-switch to Base if on wrong network
   useEffect(() => {
-    if (isConnected && chainId) {
+    // A persisted wallet connection must not open its app during a normal
+    // cookie-backed reload. Network switching is only part of a fresh sign-in.
+    if (sessionChecked && !hasSession && isConnected && chainId) {
       const supportedIds = SUPPORTED_CHAINS.map((c) => c.id) as number[];
       if (!supportedIds.includes(chainId)) {
         switchChain?.({ chainId: base.id });
       }
     }
-  }, [isConnected, chainId, switchChain]);
+  }, [sessionChecked, hasSession, isConnected, chainId, switchChain]);
 
   // NOTE: wallet disconnect must NOT end the session. The httpOnly session cookie
   // is the source of truth; a wallet lock, extension hiccup, or the brief
@@ -77,6 +80,10 @@ function WalletManager({ children }: { children: ReactNode }) {
 
   // Handle auth when wallet connects
   useEffect(() => {
+    // The httpOnly cookie is authoritative. Wait for /auth/me before deciding
+    // this browser needs a new signature, and never re-auth a live session.
+    if (!sessionChecked || hasSession) return;
+
     if (!isConnected || !address) {
       authAttempted.current = false;
       return;
@@ -168,6 +175,8 @@ function WalletManager({ children }: { children: ReactNode }) {
     setAuthenticated,
     clearAuth,
     authMethod,
+    hasSession,
+    sessionChecked,
   ]);
 
   return (

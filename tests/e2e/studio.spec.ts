@@ -59,6 +59,7 @@ async function installStudioMocks(page: Page) {
     localStorage.setItem("aipg_google_name", "Studio Preview");
     localStorage.setItem("aipg_google_picture", "");
     localStorage.setItem("aipg_google_expiry", String(Date.now() + 3_600_000));
+    localStorage.setItem("aipg_auth_account_id", "account-1");
     localStorage.removeItem("aipg-job-store");
   });
 
@@ -69,6 +70,7 @@ async function installStudioMocks(page: Page) {
       await route.fulfill({
         json: {
           authMethod: "google",
+          accountId: "account-1",
           googleId: "studio-preview",
           email: "studio@example.test",
           name: "Studio Preview",
@@ -134,6 +136,9 @@ test("focuses the latest result and gives Google accounts a creation library", a
   await expect(page.getByRole("heading", { name: "Latest creation" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Recent creations" })).toBeVisible();
   await expect(page.getByRole("link", { name: "My Creations", exact: true }).first()).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Latest creation" })).toBeVisible();
 
   await page.getByRole("link", { name: "My Creations", exact: true }).first().click();
   await expect(page).toHaveURL(/\/profile$/);

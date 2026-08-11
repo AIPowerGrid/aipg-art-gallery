@@ -3,26 +3,23 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAccount } from "wagmi";
 import { Header } from "@/components/header";
 import { GoogleSignInButton } from "@/components/google-one-tap";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function JoinPage() {
   const router = useRouter();
-  const { isConnected } = useAccount();
-  const { isAuthenticated, authMethod } = useAuthStore();
-  const hasSession = isAuthenticated && (authMethod === "google" || isConnected);
+  const { isAuthenticated, sessionChecked } = useAuthStore();
 
   useEffect(() => {
-    if (hasSession) {
+    if (sessionChecked && isAuthenticated) {
       router.replace("/create");
     }
-  }, [hasSession, router]);
+  }, [isAuthenticated, sessionChecked, router]);
 
-  if (hasSession) {
+  if (!sessionChecked || isAuthenticated) {
     return (
       <main className="flex-1 w-full min-h-screen bg-black">
         <Header />
@@ -44,14 +41,17 @@ export default function JoinPage() {
             Unlock Unlimited Access
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto mb-8">
-            Continue with Google or verify a Base wallet to save creations and unlock member features.
+            Continue with Google or verify a Base wallet to save creations and
+            unlock member features.
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <GoogleSignInButton />
             <button
               onClick={(e) => {
                 e.preventDefault();
-                const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
+                const walletBtn = document.querySelector<HTMLButtonElement>(
+                  "button[data-wallet-button]",
+                );
                 if (walletBtn) {
                   walletBtn.click();
                 }
@@ -77,7 +77,8 @@ export default function JoinPage() {
               <div className="flex-1">
                 <h3 className="text-white font-semibold mb-2">Krea 2 Turbo</h3>
                 <p className="text-white/60 text-sm mb-3">
-                  Fast, high-quality image generation — a great all-round default for realistic and artistic prompts
+                  Fast, high-quality image generation — a great all-round
+                  default for realistic and artistic prompts
                 </p>
                 <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
                   Available Now
@@ -92,7 +93,8 @@ export default function JoinPage() {
               <div className="flex-1">
                 <h3 className="text-white font-semibold mb-2">z-image-turbo</h3>
                 <p className="text-white/60 text-sm mb-3">
-                  Ultra-fast image generation tuned for speed and clean, coherent results
+                  Ultra-fast image generation tuned for speed and clean,
+                  coherent results
                 </p>
                 <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
                   Available Now
@@ -105,9 +107,12 @@ export default function JoinPage() {
           <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
             <div className="flex items-start gap-4">
               <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">FLUX.2 Klein 4B FP8</h3>
+                <h3 className="text-white font-semibold mb-2">
+                  FLUX.2 Klein 4B FP8
+                </h3>
                 <p className="text-white/60 text-sm mb-3">
-                  The open FLUX.2 Klein model — strong on fine detail and prompt accuracy
+                  The open FLUX.2 Klein model — strong on fine detail and prompt
+                  accuracy
                 </p>
                 <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
                   Available Now
@@ -122,7 +127,8 @@ export default function JoinPage() {
               <div className="flex-1">
                 <h3 className="text-white font-semibold mb-2">LTX-2.3 Video</h3>
                 <p className="text-white/60 text-sm mb-3">
-                  Text-to-video generation — turn a prompt into a short AI-generated clip
+                  Text-to-video generation — turn a prompt into a short
+                  AI-generated clip
                 </p>
                 <span className="inline-block px-2 py-1 bg-white/10 text-white/80 text-xs rounded">
                   Available Now
@@ -135,9 +141,12 @@ export default function JoinPage() {
           <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-6 hover:border-[#444] transition-colors">
             <div className="flex items-start gap-4">
               <div className="flex-1">
-                <h3 className="text-white font-semibold mb-2">More Models &amp; LoRAs</h3>
+                <h3 className="text-white font-semibold mb-2">
+                  More Models &amp; LoRAs
+                </h3>
                 <p className="text-white/60 text-sm mb-3">
-                  New image and video models plus custom LoRAs are being added to the grid
+                  New image and video models plus custom LoRAs are being added
+                  to the grid
                 </p>
                 <span className="inline-block px-2 py-1 bg-white/5 text-white/50 text-xs rounded">
                   Coming Soon
@@ -149,19 +158,29 @@ export default function JoinPage() {
 
         {/* Benefits Section */}
         <div className="bg-[#1a1a1a] border border-[#333] rounded-xl p-8 mb-12">
-          <h2 className="text-xl font-semibold text-white mb-6 text-center">Why Sign In?</h2>
+          <h2 className="text-xl font-semibold text-white mb-6 text-center">
+            Why Sign In?
+          </h2>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <h3 className="text-white font-medium mb-2">Unlimited Generations</h3>
-              <p className="text-white/50 text-sm">Create as much as you want without limits</p>
+              <h3 className="text-white font-medium mb-2">
+                Unlimited Generations
+              </h3>
+              <p className="text-white/50 text-sm">
+                Create as much as you want without limits
+              </p>
             </div>
             <div className="text-center">
               <h3 className="text-white font-medium mb-2">Save Your Work</h3>
-              <p className="text-white/50 text-sm">All creations stored in your profile</p>
+              <p className="text-white/50 text-sm">
+                All creations stored in your profile
+              </p>
             </div>
             <div className="text-center">
               <h3 className="text-white font-medium mb-2">Video Generation</h3>
-              <p className="text-white/50 text-sm">Turn prompts into short clips with LTX-2.3 video</p>
+              <p className="text-white/50 text-sm">
+                Turn prompts into short clips with LTX-2.3 video
+              </p>
             </div>
           </div>
         </div>
@@ -171,7 +190,9 @@ export default function JoinPage() {
           <button
             onClick={(e) => {
               e.preventDefault();
-              const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
+              const walletBtn = document.querySelector<HTMLButtonElement>(
+                "button[data-wallet-button]",
+              );
               if (walletBtn) {
                 walletBtn.click();
               }

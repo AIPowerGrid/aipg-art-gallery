@@ -1,6 +1,6 @@
 # AIPG Art Gallery
 
-Free AI image generation powered by a decentralized network of community-run GPU workers.
+AI image and video generation powered by a decentralized network of community-run GPU workers.
 
 ## How It Works
 
@@ -18,7 +18,7 @@ The AI Power Grid is a decentralized compute network where anyone can contribute
 
 | Layer    | Tech                                                                |
 | -------- | ------------------------------------------------------------------- |
-| Frontend | Next.js 14, Tailwind, RainbowKit                                    |
+| Frontend | Next.js 16, Tailwind, RainbowKit                                    |
 | Backend  | Go API server                                                       |
 | Auth     | Google and SIWE (Sign-In with Ethereum) on Base                     |
 | Storage  | PostgreSQL + Cloudflare R2                                          |
@@ -30,12 +30,12 @@ The AI Power Grid is a decentralized compute network where anyone can contribute
 # Install
 npm install
 
-# Run frontend (port 3000)
+# Run frontend (port 3000) and Go API (port 4000)
 npm run dev
 
-# Run backend (port 4000) — must run from server/ (Go module lives there)
-cd server && go run ./cmd/api
-# or: npm run dev:server
+# Or run one process while debugging
+npm run dev:web
+npm run dev:server
 ```
 
 Copy `.env.example` to `.env` and fill in your credentials.

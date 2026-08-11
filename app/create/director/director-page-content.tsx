@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { useAccount } from "wagmi";
 import { DirectorConsole } from "@/components/create/director";
 import {
   FALLBACK_MODEL_ID,
@@ -13,19 +12,11 @@ import { useStylesConfig } from "@/lib/hooks/use-styles-config";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function DirectorPageContent() {
-  const { address } = useAccount();
-  const {
-    isAuthenticated: authenticated,
-    address: sessionAddress,
-    googleId,
-  } = useAuthStore();
-  const ownerIdentifier = authenticated
-    ? googleId
-      ? `google:${googleId}`
-      : (sessionAddress ?? address)
-    : undefined;
+  const { isAuthenticated: authenticated, accountId } = useAuthStore();
+  const ownerIdentifier = authenticated ? accountId || undefined : undefined;
   const { styles } = useStylesConfig();
-  const { checked: availabilityChecked, onlineModelIds } = useModelAvailability();
+  const { checked: availabilityChecked, onlineModelIds } =
+    useModelAvailability();
   const modelAvailability = useMemo(
     () => ({
       checked: availabilityChecked,

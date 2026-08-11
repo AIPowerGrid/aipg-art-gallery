@@ -11,14 +11,15 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   submission and the canonical Core-backed credit quote. Sends the session cookie via
   `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
 - `auth.ts` — wallet sign-in (calls the Go `/api/auth/wallet/*` Core broker), session helpers, and the
-  non-sensitive session marker (address + expiry). Exposes `signIn`, awaited `signOut` (→ Go
+  non-sensitive session markers (address + canonical account ID + expiry). Exposes `signIn`, awaited `signOut` (→ Go
   `/auth/logout`), `fetchSession` (→ Go `/auth/me`), `isAuthenticated`, `getApiBase`.
 - `nonce-store.ts` — in-memory one-time nonce store used by the `/auth-api` routes
   (`storeNonce` / `consumeNonce` / `cleanupNonces`). Replace with Redis if multi-instance.
 - `wagmi.ts` — wagmi/RainbowKit config. `web3/` — wallet hooks/types. `supabase.ts` — Supabase
   client. Core's `/account/credits` and `/account/credits/quote` responses are
   the only balance and price authorities.
-- `stores/` — Zustand stores (`auth-store.ts` supports wallet + Google; `job-store.ts`).
+- `stores/` — Zustand stores (`auth-store.ts` supports wallet + Google;
+  `job-store.ts` partitions and migrates persisted jobs by canonical Core account).
 - `create/` — pure Studio helpers. `capabilities.ts` (`getModelCapabilities`) maps a model's
   declared `type`/`limits`/flags to the control groups the create rail renders — the single place
   that decides which Advanced knobs a model exposes (keep new per-model UI gating here, not in JSX).
@@ -30,7 +31,7 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - **`api.ts` is the only place that calls the Go API.** Components/hooks go through it.
 - **The JWT is never in JS.** It lives only in the httpOnly cookie set by `/auth-api/verify`
   (wallet) or the Go `/auth/google` (Google). `auth.ts` / `auth-store.ts` store only
-  non-sensitive markers (wallet address, Google profile) for UI. Never store a token in
+  non-sensitive markers (wallet address, canonical account ID, Google profile) for UI. Never store a token in
   `localStorage`. `getActiveAuthToken` / token getters must not return.
 - Generation requires an authenticated Google or wallet session. The Go server independently caps batch size,
   dimensions, steps, audio duration, prompt/lyrics length, and seed. Never treat a client-side limit as a security boundary.
@@ -44,7 +45,11 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   The Go broker derives the app subject and Core rejects reused,
   stale, cross-service, cross-subject, or foreign-origin challenges.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
-  is optimistic UI only.
+  is optimistic UI only. Do not trigger wallet signing, redirect protected pages,
+  or show Google One Tap until the first server check completes.
+- New local jobs use `accountId`, never a wallet address or Google subject. When
+  an existing browser first receives an account ID, migrate only persisted jobs
+  matching the currently proved login aliases; never relabel another user's jobs.
 - Logout is server-authoritative: await `/auth/logout` before clearing local
   profile markers, and retain the signed-in UI if cookie invalidation fails.
 - Keep request/response types aligned with `types/models.ts` and the Go structs.

@@ -10,6 +10,7 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/gallery"
 )
 
 func TestWalletAuthUsesServerDerivedSubjectAndCanonicalCoreIdentity(t *testing.T) {
@@ -58,6 +59,9 @@ func TestWalletAuthUsesServerDerivedSubjectAndCanonicalCoreIdentity(t *testing.T
 			AllowedOrigins: []string{"https://aipg.art"},
 		},
 		client: aipg.NewClient(core.URL, "gallery-test"),
+		galleryStore: &gallery.FileStoreAdapter{
+			Store: gallery.NewStore("", 10),
+		},
 	}
 	router := app.Router()
 

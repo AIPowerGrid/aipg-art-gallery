@@ -23,6 +23,17 @@ func TestGalleryOwnerIdentifierWallet(t *testing.T) {
 	}
 }
 
+func TestGalleryOwnerIdentifierPrefersCanonicalAccount(t *testing.T) {
+	req := requestWithClaims(&auth.Claims{
+		GridAccountID: "  ACCOUNT-123  ",
+		GoogleID:      "google-subject-123",
+		WalletAddress: "0xAbC123",
+	})
+	if got := getGalleryOwnerIdentifier(req); got != "account-123" {
+		t.Fatalf("owner = %q, want canonical account", got)
+	}
+}
+
 func TestGalleryOwnerIdentifierGoogleIsOpaqueAndStable(t *testing.T) {
 	first := getGalleryOwnerIdentifier(requestWithClaims(&auth.Claims{GoogleID: "google-subject-123"}))
 	second := getGalleryOwnerIdentifier(requestWithClaims(&auth.Claims{GoogleID: "google-subject-123"}))
@@ -36,13 +47,31 @@ func TestGalleryOwnerIdentifierGoogleIsOpaqueAndStable(t *testing.T) {
 	}
 }
 
-func TestLinkedSessionKeepsGoogleGalleryOwner(t *testing.T) {
-	googleOnly := getGalleryOwnerIdentifier(requestWithClaims(&auth.Claims{GoogleID: "google-subject-123"}))
-	linked := getGalleryOwnerIdentifier(requestWithClaims(&auth.Claims{
-		GoogleID: "google-subject-123", WalletAddress: "0x1111111111111111111111111111111111111111",
-	}))
-	if linked != googleOnly {
-		t.Fatalf("linked owner = %q, want existing Google owner %q", linked, googleOnly)
+func TestLegacyOwnerKeysOnlyUseProvenClaims(t *testing.T) {
+	google := googleGalleryOwnerIdentifier("google-subject-123")
+	wallet := "0x1111111111111111111111111111111111111111"
+
+	tests := []struct {
+		name   string
+		claims *auth.Claims
+		want   []string
+	}{
+		{"fresh Google", &auth.Claims{GoogleID: "google-subject-123"}, []string{google}},
+		{"fresh wallet", &auth.Claims{WalletAddress: wallet}, []string{wallet}},
+		{"linked", &auth.Claims{GoogleID: "google-subject-123", WalletAddress: wallet}, []string{google, wallet}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := legacyGalleryOwnerIdentifiers(test.claims)
+			if len(got) != len(test.want) {
+				t.Fatalf("legacy keys = %q, want %q", got, test.want)
+			}
+			for i := range got {
+				if got[i] != test.want[i] {
+					t.Fatalf("legacy keys = %q, want %q", got, test.want)
+				}
+			}
+		})
 	}
 }
 

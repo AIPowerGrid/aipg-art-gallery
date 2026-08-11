@@ -11,9 +11,9 @@ the PostgreSQL schema lifecycle. `postgres_store.go` is the production backend;
 - `migrations/*.sql` - ordered, immutable PostgreSQL migrations and the canonical schema history.
 - `migrations.go` - embedded migration runner, checksum verification, transaction boundaries,
   and the process-wide PostgreSQL advisory lock.
-- `postgres_store.go` - gallery item reads and writes.
+- `postgres_store.go` - gallery item reads/writes and transactional owner canonicalization.
 - `user_store.go` - Google and wallet identity persistence.
-- `favorites_store.go` - wallet-keyed favorites.
+- `favorites_store.go` - canonical-account-keyed favorites.
 - `interface.go` - storage contract shared by PostgreSQL and the file backend.
 
 `generation_jobs` remains in the baseline for compatibility with existing
@@ -28,7 +28,10 @@ reintroduce a second job state machine here.
   concurrent process starts.
 - Migrations must upgrade the last production shape and build a blank database.
 - Do not silently ignore migration errors. `POSTGRES_ENABLED=true` makes PostgreSQL required.
-- Keep wallet writes lowercase; `users.wallet_address` remains nullable for Google-only accounts.
+- Keep owner keys lowercase; `users.wallet_address` remains nullable for Google-only accounts.
+- `CanonicalizeOwner` must move gallery rows and de-duplicate favorites in one
+  PostgreSQL transaction. It must be idempotent and safe under concurrent login;
+  update the file backend when this behavior changes.
 - `users.id` and gallery foreign keys are UUIDs represented as strings in Go.
 
 ## Work Guidance

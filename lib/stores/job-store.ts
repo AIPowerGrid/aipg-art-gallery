@@ -48,7 +48,7 @@ interface JobStore {
   updateJob: (jobId: string, updates: Partial<TrackedJob>) => void;
   removeJob: (jobId: string) => void;
   clearCompletedJobs: () => void;
-  setActiveOwner: (owner: string | null) => void;
+  setActiveOwner: (owner: string | null, legacyOwners?: string[]) => void;
 
   // Polling
   startPolling: () => void;
@@ -115,12 +115,28 @@ export const useJobStore = create<JobStore>()(
         }));
       },
 
-      setActiveOwner: (owner) => {
+      setActiveOwner: (owner, legacyOwners = []) => {
         const normalized = owner?.toLowerCase() ?? null;
+        const aliases = new Set(
+          legacyOwners
+            .map((alias) => alias.trim().toLowerCase())
+            .filter(Boolean),
+        );
         const previous = get().activeOwner;
-        if (previous === normalized) return;
+        const currentJobs = get().jobs;
+        const jobs = normalized
+          ? currentJobs.map((job) =>
+              job.walletAddress && aliases.has(job.walletAddress.toLowerCase())
+                ? { ...job, walletAddress: normalized }
+                : job,
+            )
+          : currentJobs;
+        const jobsChanged = jobs.some(
+          (job, index) => job !== currentJobs[index],
+        );
+        if (previous === normalized && !jobsChanged) return;
         get().stopPolling();
-        set({ activeOwner: normalized });
+        set({ activeOwner: normalized, jobs });
         if (normalized && get().getActiveJobs().length > 0) {
           get().startPolling();
         }

@@ -5,9 +5,9 @@ export const getApiBase = () =>
       // the user's browser may not reach — the "keeps loading" bug). Honor an
       // explicitly relative override (e2e mocks use /api-preview); otherwise use
       // the same-origin /api proxy (nginx in prod, a Next rewrite in dev).
-      (process.env.NEXT_PUBLIC_GALLERY_API?.startsWith("/")
-        ? process.env.NEXT_PUBLIC_GALLERY_API
-        : "/api")
+      process.env.NEXT_PUBLIC_GALLERY_API?.startsWith("/")
+      ? process.env.NEXT_PUBLIC_GALLERY_API
+      : "/api"
     : // Server-side (SSR / route handlers): reach the Go backend directly.
       `${process.env.GALLERY_API_ORIGIN ?? "http://localhost:4000"}/api`;
 
@@ -24,6 +24,7 @@ export const getApiBase = () =>
 
 const ADDRESS_KEY = "aipg_auth_address";
 const EXPIRY_KEY = "aipg_auth_expiry";
+const ACCOUNT_ID_KEY = "aipg_auth_account_id";
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // mirrors the server JWT lifetime
 
 export function getAuthAddress(): string | null {
@@ -31,9 +32,24 @@ export function getAuthAddress(): string | null {
   return localStorage.getItem(ADDRESS_KEY);
 }
 
-function setSession(address: string) {
+export function getAuthAccountId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ACCOUNT_ID_KEY);
+}
+
+export function rememberAuthAccount(accountId?: string | null) {
+  if (typeof window === "undefined") return;
+  const normalized = accountId?.trim().toLowerCase();
+  if (normalized) localStorage.setItem(ACCOUNT_ID_KEY, normalized);
+}
+
+export function rememberWalletSession(
+  address: string,
+  accountId?: string | null,
+) {
   localStorage.setItem(ADDRESS_KEY, address.toLowerCase());
   localStorage.setItem(EXPIRY_KEY, String(Date.now() + SESSION_TTL_MS));
+  rememberAuthAccount(accountId);
 }
 
 // Named clearAuthToken for backwards compatibility with existing callers; it now
@@ -42,6 +58,7 @@ export function clearAuthToken() {
   if (typeof window === "undefined") return;
   localStorage.removeItem(ADDRESS_KEY);
   localStorage.removeItem(EXPIRY_KEY);
+  localStorage.removeItem(ACCOUNT_ID_KEY);
 }
 
 export function isAuthenticated(): boolean {
@@ -55,7 +72,9 @@ export function isAuthenticated(): boolean {
 // API calls
 // ============================================================================
 
-async function getWalletChallenge(address: string): Promise<{ message: string }> {
+async function getWalletChallenge(
+  address: string,
+): Promise<{ message: string }> {
   const response = await fetch(`${getApiBase()}/auth/wallet/challenge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -73,7 +92,7 @@ async function verifySignature(
   message: string,
   signature: string,
   address: string,
-): Promise<{ address: string }> {
+): Promise<{ address: string; accountId: string }> {
   const response = await fetch(`${getApiBase()}/auth/wallet/exchange`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -102,8 +121,9 @@ export async function fetchSession(): Promise<string | null> {
     }
     const data = await response.json();
     const address: string | undefined = data?.address;
+    rememberAuthAccount(data?.accountId);
     if (address) {
-      setSession(address);
+      rememberWalletSession(address, data?.accountId);
       return address.toLowerCase();
     }
     return null;
@@ -178,10 +198,10 @@ async function _signIn({
   const signature = await signMessageAsync({ message });
 
   // Core verifies the proof and the Gallery server sets the httpOnly session.
-  await verifySignature(message, signature, address);
+  const session = await verifySignature(message, signature, address);
 
   // Record only the public marker for optimistic UI state.
-  setSession(address);
+  rememberWalletSession(address, session.accountId);
 }
 
 export async function signOut() {
