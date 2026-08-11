@@ -10,7 +10,6 @@ import {
 } from "@/lib/google-identity";
 
 const HIDE_ONETAP_KEY = "aipg_hide_google_onetap";
-const DISMISS_COUNT_KEY = "aipg_google_onetap_dismiss_count";
 
 export function GoogleOneTap() {
   const { isConnected } = useAccount();
@@ -42,11 +41,6 @@ export function GoogleOneTap() {
   useEffect(
     () =>
       subscribeToGoogleAuth({
-        onSuccess: (data) =>
-          console.log(
-            "Google One Tap: Successfully authenticated as",
-            data.email,
-          ),
         onError: (error) =>
           console.error("Google One Tap: Authentication failed", error),
       }),
@@ -67,37 +61,10 @@ export function GoogleOneTap() {
     try {
       initializeGoogleIdentity(clientId);
 
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          console.log(
-            "Google One Tap: Not displayed -",
-            notification.getNotDisplayedReason(),
-          );
-        } else if (notification.isSkippedMoment()) {
-          console.log(
-            "Google One Tap: Skipped -",
-            notification.getSkippedReason(),
-          );
-        } else if (notification.isDismissedMoment()) {
-          const reason = notification.getDismissedReason();
-          console.log("Google One Tap: Dismissed -", reason);
-
-          // Track dismiss count - after 3 dismisses, stop showing for this session
-          if (reason === "credential_returned") {
-            // User signed in successfully - don't count as dismiss
-            return;
-          }
-
-          const dismissCount =
-            parseInt(localStorage.getItem(DISMISS_COUNT_KEY) || "0", 10) + 1;
-          localStorage.setItem(DISMISS_COUNT_KEY, dismissCount.toString());
-
-          if (dismissCount >= 3) {
-            // User has dismissed 3 times, stop showing for this session
-            setShouldShow(false);
-          }
-        }
-      });
+      // FedCM does not expose the legacy display/skipped/dismissed moment
+      // notifications. Authentication success still arrives through the
+      // page-wide credential callback initialized in google-identity.ts.
+      window.google.accounts.id.prompt();
     } catch (error) {
       console.error("Google One Tap: Error initializing", error);
     }
@@ -228,7 +195,6 @@ export function GoogleOneTapSettings() {
       localStorage.setItem(HIDE_ONETAP_KEY, "true");
     } else {
       localStorage.removeItem(HIDE_ONETAP_KEY);
-      localStorage.removeItem(DISMISS_COUNT_KEY);
     }
     setHidden(newValue);
   };

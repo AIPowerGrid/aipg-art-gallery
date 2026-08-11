@@ -28,6 +28,8 @@ jobs:
       - run: npm test -- --runInBand
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
+      - run: npm prune --omit=dev
+      - run: npm ls --omit=dev
 
   backend:
     name: Backend
@@ -59,3 +61,20 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  security:
+    name: Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: stable
+          cache: false
+      - name: Scan the complete Git history for secrets
+        run: |
+          go install github.com/gitleaks/gitleaks/v8@v8.30.1
+          "$(go env GOPATH)/bin/gitleaks" git --redact --no-banner --log-opts="--all"

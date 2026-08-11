@@ -6,15 +6,6 @@ export interface GoogleCredentialResponse {
   select_by: string;
 }
 
-export interface GooglePromptNotification {
-  isNotDisplayed: () => boolean;
-  isSkippedMoment: () => boolean;
-  isDismissedMoment: () => boolean;
-  getNotDisplayedReason: () => string;
-  getSkippedReason: () => string;
-  getDismissedReason: () => string;
-}
-
 export interface GoogleButtonConfig {
   type: "standard";
   theme: "outline" | "filled_blue" | "filled_black";
@@ -53,9 +44,7 @@ declare global {
       accounts: {
         id: {
           initialize: (config: GoogleIdentityConfig) => void;
-          prompt: (
-            callback?: (notification: GooglePromptNotification) => void,
-          ) => void;
+          prompt: () => void;
           renderButton: (
             parent: HTMLElement,
             options: GoogleButtonConfig,
@@ -87,13 +76,15 @@ async function authenticateGoogleCredential(
   }
 
   const result = (await response.json()) as GoogleAuthResult;
-  useAuthStore.getState().setGoogleAuth(
-    result.googleId,
-    result.email,
-    result.name,
-    result.picture,
-    result.accountId,
-  );
+  useAuthStore
+    .getState()
+    .setGoogleAuth(
+      result.googleId,
+      result.email,
+      result.name,
+      result.picture,
+      result.accountId,
+    );
   return result;
 }
 
@@ -114,7 +105,9 @@ export function initializeGoogleIdentity(clientId: string): boolean {
   if (!window.google) return false;
   if (initializedClientId === clientId) return true;
   if (initializedClientId) {
-    throw new Error("Google Identity was initialized with a different client ID");
+    throw new Error(
+      "Google Identity was initialized with a different client ID",
+    );
   }
 
   window.google.accounts.id.initialize({

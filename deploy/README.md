@@ -56,6 +56,7 @@ cd "$staging"
 test "$(node -p 'process.versions.node.split(".")[0]')" = 22
 npm ci
 npm run build
+npm prune --omit=dev
 (cd server && GOTOOLCHAIN=auto go test ./... && GOTOOLCHAIN=auto go vet ./...)
 (cd server && GOTOOLCHAIN=auto go build -o ../gallery-server ./cmd/api)
 mv "$staging" "$release"

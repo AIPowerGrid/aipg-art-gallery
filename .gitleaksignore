@@ -1,0 +1,15 @@
+# Public AIPG token contract address, not a credential.
+f7993c7240345b1cc0e38a42f42b33ba34bd1b0e:components/custom-connect-button.tsx:generic-api-key:10
+36ce4c19b8710ea07bfc39de02e050067b11a2b6:components/custom-connect-button.tsx:generic-api-key:10
+
+# Historical credentials confirmed different from the current production
+# values on 2026-08-11. Keep these exact fingerprints narrow so any new secret,
+# including the same rule in another commit, still fails CI.
+9d00352d348b26e091638fd1e01189b15e5b8311:SECURITY_AUDIT_REPORT.md:generic-api-key:19
+9d00352d348b26e091638fd1e01189b15e5b8311:SECURITY_AUDIT_REPORT.md:generic-api-key:21
+9d00352d348b26e091638fd1e01189b15e5b8311:SECURITY_AUDIT_REPORT.md:generic-api-key:23
+f848ce49f2fe1b81da15a8a4a7347fc9d07e451f:.env.example:generic-api-key:18
+
+# Obsolete Supabase anonymous browser token; public by design and no longer
+# configured in production.
+3b44b1d5e143a7eced1b101aad103e03c5a9d5e7:.env.example:jwt:3
