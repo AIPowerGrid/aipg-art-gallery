@@ -16,6 +16,19 @@ const BASE_NETWORK = {
   contractAddress: MODELVAULT_CONTRACTS[base.id],
 };
 
+function uniqueWalletConnectors<T extends { name: string; type: string }>(
+  connectors: readonly T[],
+): T[] {
+  const names = new Set<string>();
+  return connectors.filter((connector) => {
+    if (connector.name === "Porto" || connector.type === "porto") return false;
+    const name = connector.name.trim().toLowerCase();
+    if (names.has(name)) return false;
+    names.add(name);
+    return true;
+  });
+}
+
 export function WalletButton() {
   const [mounted, setMounted] = useState(false);
 
@@ -201,9 +214,7 @@ function WalletButtonClient() {
   }
 
   // Filter out any connectors that might cause issues
-  const availableConnectors = connectors.filter(
-    (c) => c.name !== 'Porto' && c.type !== 'porto'
-  );
+  const availableConnectors = uniqueWalletConnectors(connectors);
 
   return (
       <div className="relative">
@@ -325,9 +336,7 @@ function ConnectWalletCardClient() {
   const { connectors, connect, isPending, error } = useConnect();
 
   // Filter out problematic connectors
-  const availableConnectors = connectors.filter(
-    (c) => c.name !== 'Porto' && c.type !== 'porto'
-  );
+  const availableConnectors = uniqueWalletConnectors(connectors);
 
   return (
     <div className="space-y-4">

@@ -18,6 +18,10 @@ test("promotes Director and keeps standalone music off aipg.art", async ({ page 
       await route.fulfill({ json: { styles: [] } });
       return;
     }
+    if (path === "/auth/me") {
+      await route.fulfill({ status: 401, json: { error: "not authenticated" } });
+      return;
+    }
     await route.fulfill({ status: 404, json: { error: "not found" } });
   });
 
@@ -27,6 +31,21 @@ test("promotes Director and keeps standalone music off aipg.art", async ({ page 
   await expect(header.getByRole("link", { name: "Studio", exact: true })).toBeVisible();
   await expect(header.getByRole("link", { name: "Director", exact: true })).toBeVisible();
   await expect(header.getByRole("link", { name: "Music", exact: true })).toHaveCount(0);
+  await expect(header.getByRole("link", { name: "Join", exact: true })).toHaveCount(0);
+  const signIn = header.getByRole("link", { name: "Sign in", exact: true });
+  await expect(signIn).toHaveAttribute("href", "/auth/login");
+  await expect(header.getByRole("button", { name: /connect wallet/i })).toHaveCount(0);
+
+  await signIn.click();
+  await expect(page).toHaveURL(/\/auth\/login$/);
+  await expect(page.getByText("Continue with Google", { exact: true })).toBeVisible();
+  await expect(page.getByText("Continue with a wallet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Connect with WalletConnect" })).toHaveCount(1);
+
+  await page.goto("/join");
+  await expect(page.getByRole("heading", { name: "Create with AI Power Grid" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue with wallet" })).toBeVisible();
+  await expect(page.getByText(/unlimited access|5 free/i)).toHaveCount(0);
 
   const response = await page.request.get("/audio");
   expect(response.status()).toBe(404);

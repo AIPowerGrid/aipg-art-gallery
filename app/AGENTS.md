@@ -30,12 +30,17 @@ route handlers for things that must not run in the browser — including wallet 
   pockets only when their Core `active` flags are true, and renders the
   Core-owned model quote before submission. No local free counter or price book.
   A `402` links to Console funding with a return target.
+- `/auth/login` is the single logged-out entry point: Google appears first and
+  wallet providers second. Wallet connection becomes an explicit `Link wallet`
+  action after Google authentication.
 - Completed creation details expose Core's copyable `gridJobId` receipt handle
   while preserving the separate Gallery job ID used for local polling and
   publishing.
 - `/join` redirects an already-authenticated Google or wallet session to
-  `/create`; wait for the authoritative `/auth/me` check before deciding. A
-  valid cookie is sufficient even when no browser wallet is currently connected.
+  `/create`; wait for the authoritative `/auth/me` check before deciding. It is
+  a legacy account-benefits page, not a second navigation entry point, and must
+  not advertise local free generations or unlimited usage. A valid cookie is
+  sufficient even when no browser wallet is currently connected.
 - `/create` clears an uploaded source when selection moves to a model without
   `img2img`/`img2video`; incompatible source state must never ride a later job.
 - `/create` treats an explicit live-model `offline` status as unavailable:
