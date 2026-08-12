@@ -54,6 +54,9 @@ route handlers for things that must not run in the browser — including wallet 
   sessions. Load creations through `/gallery/me`; wait for `sessionChecked`
   before loading or redirecting, and never gate the page itself on a connected
   browser wallet.
+- The public gallery search and filter controls form one constrained flex row.
+  Search may shrink, but controls must remain inside the viewport without
+  absolute positioning or overlap at phone and narrow-window widths.
 - Standalone music is intentionally absent from `aipg.art`; it belongs to
   `aipg.music`. Do not restore an `/audio` page here.
 - `/create/director` is the authenticated timeline editor for chained image-conditioned

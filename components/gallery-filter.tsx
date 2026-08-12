@@ -78,12 +78,14 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
     <>
       {/* Filter Button - Inline with search */}
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className={`group flex items-center gap-2 px-3 py-2.5 rounded-full border transition-all ${
+        className={`group relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all ${
           activeFilterCount > 0
             ? "bg-white text-black border-white"
             : "bg-transparent text-[#888] border-[#333] hover:border-[#555] hover:text-white"
         }`}
+        aria-label={activeFilterCount > 0 ? `Filters, ${activeFilterCount} active` : "Filters"}
         title="Filters"
       >
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
@@ -92,7 +94,9 @@ export function GalleryFilter({ filters, onFiltersChange }: GalleryFilterProps) 
           <rect x="5" y="12" width="6" height="1.5" rx="0.75" fill="currentColor" />
         </svg>
         {activeFilterCount > 0 && (
-          <span className="text-sm font-medium">{activeFilterCount}</span>
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-500 px-1 text-[11px] font-semibold text-white">
+            {activeFilterCount}
+          </span>
         )}
       </button>
 
