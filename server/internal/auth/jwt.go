@@ -77,6 +77,20 @@ func GenerateGoogleJWT(googleID, email, name, gridAccessToken, gridAccountID str
 	return generateJWTFromClaims(claims)
 }
 
+// GenerateGoogleSessionJWT restores a previously linked wallet when Core
+// returns it during Google proof exchange. Google remains the login method;
+// the wallet claim only records the already-proved account link.
+func GenerateGoogleSessionJWT(
+	googleID, email, name, walletAddress, gridAccessToken, gridAccountID string,
+) (string, error) {
+	if strings.TrimSpace(walletAddress) == "" {
+		return GenerateGoogleJWT(googleID, email, name, gridAccessToken, gridAccountID)
+	}
+	return GenerateLinkedJWT(
+		googleID, email, name, walletAddress, gridAccessToken, gridAccountID,
+	)
+}
+
 func GenerateLinkedJWT(
 	googleID, email, name, walletAddress, gridAccessToken, gridAccountID string,
 ) (string, error) {
