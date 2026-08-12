@@ -59,7 +59,7 @@ export function Header() {
           </Link>
 
           {/* Desktop Nav - centered */}
-          <nav className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
+          <nav className="hidden xl:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {navItems.map((item) => (
           <Link
                 key={item.href}
@@ -76,7 +76,7 @@ export function Header() {
           </nav>
 
           {/* Desktop: Jobs + Wallet */}
-          <div className="hidden md:flex items-center gap-3 shrink-0">
+          <div className="hidden xl:flex items-center gap-3 shrink-0">
             <ActiveJobsIndicator />
             {!authenticated ? (
               <Link href="/auth/login" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500">
@@ -94,7 +94,7 @@ export function Header() {
           {/* Mobile: Hamburger Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded-lg hover:bg-white/10 transition-colors"
+            className="xl:hidden flex flex-col justify-center items-center w-10 h-10 rounded-lg hover:bg-white/10 transition-colors"
             aria-label="Toggle menu"
           >
             <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${mobileMenuOpen ? 'rotate-45 translate-y-1' : ''}`} />
@@ -105,7 +105,7 @@ export function Header() {
 
         {/* Mobile Menu Dropdown */}
         <div
-          className={`md:hidden transition-all duration-300 ease-in-out ${
+          className={`xl:hidden transition-all duration-300 ease-in-out ${
             mobileMenuOpen ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0 overflow-hidden'
           }`}
         >

@@ -39,6 +39,11 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   as a second competing login. Under a Google session, label the wallet action
   `Link wallet` so its account-merge meaning is explicit. Deduplicate connector
   instances by provider name so WalletConnect appears once.
+- Keep the header in its compact menu below the `xl` breakpoint. Authenticated
+  account actions and the full navigation must never compete for horizontal
+  space at tablet or narrow-desktop widths.
+- Keep the gallery filter trigger fixed-size. Its active count is an overlay,
+  not content that may resize the search/filter row.
 - Source-image controls render only when the selected model declares
   `img2img`/`img2video` (or requires an image). Do not infer support from modality.
 - Model controls surface Core-derived offline state, and generation controls

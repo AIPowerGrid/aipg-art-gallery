@@ -248,10 +248,9 @@ export default function GalleryPage() {
 
       {/* Search header */}
       <div className="w-full px-4 md:px-7 pt-2 sm:pt-4 pb-3 sm:pb-4">
-        <div className="relative flex items-center justify-center">
-          {/* Centered search box */}
-          <div className="w-full max-w-sm flex items-center bg-[#1a1a1a] border border-[#333] rounded-full overflow-hidden focus-within:border-[#555] transition-colors">
-            <svg className="w-5 h-5 ml-4 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="mx-auto flex w-full max-w-lg items-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 flex-1 items-center overflow-hidden rounded-full border border-[#333] bg-[#1a1a1a] transition-colors focus-within:border-[#555]">
+            <svg className="ml-4 h-5 w-5 shrink-0 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input
@@ -259,12 +258,14 @@ export default function GalleryPage() {
               placeholder="Search images"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-3 bg-transparent text-white placeholder-[#666] focus:outline-none"
+              aria-label="Search images"
+              className="min-w-0 flex-1 bg-transparent px-3 py-3 text-white placeholder-[#666] focus:outline-none sm:px-4"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
                 className="mr-3 p-1.5 rounded-full hover:bg-[#333] text-[#666] hover:text-white transition-colors"
+                aria-label="Clear search"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -272,10 +273,7 @@ export default function GalleryPage() {
               </button>
             )}
           </div>
-          {/* Filter button - positioned to the right */}
-          <div className="absolute right-0">
-            <GalleryFilter filters={filters} onFiltersChange={setFilters} />
-          </div>
+          <GalleryFilter filters={filters} onFiltersChange={setFilters} />
         </div>
       </div>
 
