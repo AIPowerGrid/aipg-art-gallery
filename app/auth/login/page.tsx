@@ -71,7 +71,7 @@ function LoginPageClient() {
         {/* Wallet Connection */}
         <div className="space-y-4">
           <div className="text-center mb-2">
-            <p className="text-white/70 text-sm font-medium">Connect Wallet</p>
+            <p className="text-white/70 text-sm font-medium">Continue with a wallet</p>
           </div>
           <ConnectWalletCard />
         </div>

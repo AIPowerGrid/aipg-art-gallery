@@ -136,6 +136,8 @@ test("focuses the latest result and gives Google accounts a creation library", a
   await expect(page.getByRole("heading", { name: "Latest creation" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Recent creations" })).toBeVisible();
   await expect(page.getByRole("link", { name: "My Creations", exact: true }).first()).toBeVisible();
+  await expect(page.locator("header").getByRole("link", { name: "Sign in" })).toHaveCount(0);
+  await expect(page.locator("header").getByRole("button", { name: "Link wallet" })).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Latest creation" })).toBeVisible();

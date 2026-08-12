@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { GoogleSignInButton } from "@/components/google-one-tap";
 
 interface AuthModalProps {
@@ -12,6 +13,7 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, title, message }: AuthModalProps) {
   const router = useRouter();
+  const { openConnectModal } = useConnectModal();
   if (!isOpen) return null;
 
   return (
@@ -42,15 +44,13 @@ export function AuthModal({ isOpen, onClose, title, message }: AuthModalProps) {
           <button
             onClick={(e) => {
               e.preventDefault();
-              const walletBtn = document.querySelector<HTMLButtonElement>('button[data-wallet-button]');
-              if (walletBtn) {
-                walletBtn.click();
-              }
+              openConnectModal?.();
               onClose();
             }}
+            disabled={!openConnectModal}
             className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
           >
-            Connect Wallet Now
+            Continue with wallet
           </button>
           <button
             onClick={onClose}

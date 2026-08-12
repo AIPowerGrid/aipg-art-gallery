@@ -34,6 +34,11 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
 - Keep the wallet control available beside a Google session. It is the user's
   proof-of-both path for linking an existing funded wallet account; hiding it
   creates split balances that the user cannot reconcile from the product.
+- Logged-out navigation exposes one `Sign in` action. The unified chooser is
+  Google-first with wallet providers below it; do not present wallet connection
+  as a second competing login. Under a Google session, label the wallet action
+  `Link wallet` so its account-merge meaning is explicit. Deduplicate connector
+  instances by provider name so WalletConnect appears once.
 - Source-image controls render only when the selected model declares
   `img2img`/`img2video` (or requires an image). Do not infer support from modality.
 - Model controls surface Core-derived offline state, and generation controls

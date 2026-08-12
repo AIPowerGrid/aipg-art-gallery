@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Header } from "@/components/header";
 import { GoogleSignInButton } from "@/components/google-one-tap";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default function JoinPage() {
   const router = useRouter();
+  const { openConnectModal } = useConnectModal();
   const { isAuthenticated, sessionChecked } = useAuthStore();
 
   useEffect(() => {
@@ -38,33 +40,29 @@ export default function JoinPage() {
         {/* Hero Section */}
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Unlock Unlimited Access
+            Create with AI Power Grid
           </h1>
           <p className="text-white/60 text-lg max-w-2xl mx-auto mb-8">
-            Continue with Google or verify a Base wallet to save creations and
-            unlock member features.
+            Sign in with Google or verify a Base wallet to use your Grid
+            credits, save creations, and publish your work.
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <GoogleSignInButton />
             <button
               onClick={(e) => {
                 e.preventDefault();
-                const walletBtn = document.querySelector<HTMLButtonElement>(
-                  "button[data-wallet-button]",
-                );
-                if (walletBtn) {
-                  walletBtn.click();
-                }
+                openConnectModal?.();
               }}
+              disabled={!openConnectModal}
               className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
             >
-              Connect Wallet Now
+              Continue with wallet
             </button>
             <Link
-              href="/create"
+              href="/"
               className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white font-medium rounded-xl transition-all border border-white/10"
             >
-              Try as Guest (5 Free)
+              Browse Gallery
             </Link>
           </div>
         </div>
@@ -164,10 +162,10 @@ export default function JoinPage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
               <h3 className="text-white font-medium mb-2">
-                Unlimited Generations
+                One Grid Balance
               </h3>
               <p className="text-white/50 text-sm">
-                Create as much as you want without limits
+                Use the same credits across supported Grid experiences
               </p>
             </div>
             <div className="text-center">
@@ -187,20 +185,12 @@ export default function JoinPage() {
 
         {/* CTA */}
         <div className="text-center">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              const walletBtn = document.querySelector<HTMLButtonElement>(
-                "button[data-wallet-button]",
-              );
-              if (walletBtn) {
-                walletBtn.click();
-              }
-            }}
+          <Link
+            href="/auth/login"
             className="px-10 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
           >
-            Connect Wallet Now
-          </button>
+            Sign in
+          </Link>
         </div>
       </div>
     </main>

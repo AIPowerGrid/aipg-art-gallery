@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { LogIn } from "lucide-react";
 import { CustomConnectButton } from "./custom-connect-button";
 import { ActiveJobsIndicator } from "./active-jobs-indicator";
 import { GoogleAccountButton } from "./google-account-button";
@@ -18,8 +19,6 @@ export function Header() {
   // reload flashes "Sign in" until wagmi finishes reconnecting.
   const { isAuthenticated, authMethod } = useAuthStore();
   const authenticated = isAuthenticated;
-  const favoritesLink = authenticated ? "/favorites" : "/join";
-  const favoritesLabel = authenticated ? "Favorites" : "Join";
   
   const isActive = (path: string) => {
     if (path === "/") return pathname === "/";
@@ -32,10 +31,8 @@ export function Header() {
     { href: "/create/director", label: "Director", active: isActive("/create/director") },
     ...(authenticated ? [
       { href: "/profile", label: "My Creations", active: isActive("/profile") },
+      { href: "/favorites", label: "Favorites", active: isActive("/favorites") },
     ] : []),
-    // Favorites now work for every login type (wallet and Google), so the link is
-    // shown for all authenticated users instead of being hidden from Google users.
-    { href: favoritesLink, label: favoritesLabel, active: isActive("/favorites") || isActive("/join") },
   ];
   
   return (
@@ -81,13 +78,17 @@ export function Header() {
           {/* Desktop: Jobs + Wallet */}
           <div className="hidden md:flex items-center gap-3 shrink-0">
             <ActiveJobsIndicator />
-            {!authenticated && (
-              <Link href="/auth/login" className="px-3 py-2 text-sm font-medium text-white/80 hover:text-white">
+            {!authenticated ? (
+              <Link href="/auth/login" className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500">
+                <LogIn className="h-4 w-4" aria-hidden="true" />
                 Sign in
               </Link>
+            ) : (
+              <>
+                {authMethod === 'google' && <GoogleAccountButton />}
+                <CustomConnectButton />
+              </>
             )}
-            {authMethod === 'google' && <GoogleAccountButton />}
-            <CustomConnectButton />
           </div>
 
           {/* Mobile: Hamburger Button */}
@@ -128,15 +129,18 @@ export function Header() {
                 <Link
                   href="/auth/login"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-white/80 hover:text-white"
+                  className="flex items-center gap-2 px-4 py-3 text-white/80 hover:text-white"
                 >
-                  Sign in with Google or wallet
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                  Sign in
                 </Link>
               )}
-              <div className="flex flex-wrap items-center gap-2 px-2">
-                {authMethod === 'google' && <GoogleAccountButton />}
-                <CustomConnectButton />
-              </div>
+              {authenticated && (
+                <div className="flex flex-wrap items-center gap-2 px-2">
+                  {authMethod === 'google' && <GoogleAccountButton />}
+                  <CustomConnectButton />
+                </div>
+              )}
             </div>
         </nav>
         </div>
