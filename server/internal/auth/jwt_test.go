@@ -63,3 +63,29 @@ func TestWalletJWTKeepsCanonicalCoreIdentity(t *testing.T) {
 		t.Fatalf("wallet session lost Core identity: %#v", claims)
 	}
 }
+
+func TestGoogleSessionJWTRestoresCoreVerifiedWallet(t *testing.T) {
+	t.Setenv("JWT_SECRET", "gallery-jwt-test-secret-at-least-32-bytes")
+	wallet := "0x00000000000000000000000000000000000000AA"
+
+	raw, err := GenerateGoogleSessionJWT(
+		"google-1", "user@example.com", "User", wallet,
+		"gridu_step-up", "account-1",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, err := VerifyJWTClaims(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.GoogleID != "google-1" {
+		t.Fatalf("Google login method was lost: %q", claims.GoogleID)
+	}
+	if claims.WalletAddress != "0x00000000000000000000000000000000000000aa" {
+		t.Fatalf("linked wallet was not restored: %q", claims.WalletAddress)
+	}
+	if claims.GridAccessToken != "gridu_step-up" || claims.GridAccountID != "account-1" {
+		t.Fatalf("Core identity was not retained: %#v", claims)
+	}
+}

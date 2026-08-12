@@ -40,7 +40,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   Before issuing or renewing that session, the server atomically canonicalizes
   gallery rows and favorites from the login aliases actually proved in that
   request. Google-only proof must not infer a wallet; wallet-only proof must not
-  infer a Google subject; the link path may migrate both.
+  infer a Google subject; the link path may migrate both. Once linked, Core's
+  Google exchange returns the primary verified wallet so later Google sessions
+  retain the established link without another signature.
   Local-only login is fail-closed. The server validates cookies on protected
   routes via `authMiddleware` (Bearer fallback), serves `/auth/me` and
   `/auth/logout`, and enforces the Origin allowlist on cookie mutations.

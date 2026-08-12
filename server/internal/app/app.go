@@ -596,8 +596,9 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate JWT for the Google user
-	token, err := auth.GenerateGoogleJWT(
-		googleID, email, name, gridIdentity.AccessToken, gridIdentity.AccountID,
+	token, err := auth.GenerateGoogleSessionJWT(
+		googleID, email, name, gridIdentity.Wallet,
+		gridIdentity.AccessToken, gridIdentity.AccountID,
 	)
 	if err != nil {
 		log.Printf("Auth: JWT generation error for Google user: %v", err)
