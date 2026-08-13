@@ -115,6 +115,7 @@ export function GoogleSignInButton({
 }: GoogleSignInButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scriptReady, setScriptReady] = useState(false);
+  const [buttonWidth, setButtonWidth] = useState(320);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(
@@ -133,6 +134,19 @@ export function GoogleSignInButton({
   );
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const updateWidth = () => {
+      const width = Math.floor(container.getBoundingClientRect().width);
+      if (width > 0) setButtonWidth(Math.max(200, Math.min(320, width)));
+    };
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
     const container = containerRef.current;
     if (!scriptReady || !clientId || !container || !window.google) return;
@@ -146,7 +160,7 @@ export function GoogleSignInButton({
         size: "large",
         text: "continue_with",
         shape: "rectangular",
-        width: 320,
+        width: buttonWidth,
       });
     } catch (err) {
       const authError =
@@ -154,7 +168,7 @@ export function GoogleSignInButton({
       setError(authError.message);
       onError?.(authError);
     }
-  }, [onError, scriptReady]);
+  }, [buttonWidth, onError, scriptReady]);
 
   if (!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
     return (
@@ -170,7 +184,7 @@ export function GoogleSignInButton({
         strategy="afterInteractive"
         onReady={() => setScriptReady(true)}
       />
-      <div ref={containerRef} className="min-h-10" />
+      <div ref={containerRef} className="min-h-10 w-full max-w-80" />
       {error && (
         <p className="text-sm text-red-400" role="alert">
           {error}

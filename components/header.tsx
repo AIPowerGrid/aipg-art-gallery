@@ -5,9 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { LogIn } from "lucide-react";
-import { CustomConnectButton } from "./custom-connect-button";
 import { ActiveJobsIndicator } from "./active-jobs-indicator";
-import { GoogleAccountButton } from "./google-account-button";
+import { AccountControl } from "./account-control";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 export function Header() {
@@ -17,7 +16,7 @@ export function Header() {
   // Use reactive auth state from store. The session cookie is the source of truth,
   // so we do NOT gate on the live wallet connection (isConnected) — otherwise a
   // reload flashes "Sign in" until wagmi finishes reconnecting.
-  const { isAuthenticated, authMethod } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const authenticated = isAuthenticated;
   
   const isActive = (path: string) => {
@@ -84,10 +83,7 @@ export function Header() {
                 Sign in
               </Link>
             ) : (
-              <>
-                {authMethod === 'google' && <GoogleAccountButton />}
-                <CustomConnectButton />
-              </>
+              <AccountControl />
             )}
           </div>
 
@@ -136,9 +132,8 @@ export function Header() {
                 </Link>
               )}
               {authenticated && (
-                <div className="flex flex-wrap items-center gap-2 px-2">
-                  {authMethod === 'google' && <GoogleAccountButton />}
-                  <CustomConnectButton />
+                <div className="px-2">
+                  <AccountControl />
                 </div>
               )}
             </div>

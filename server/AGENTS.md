@@ -11,7 +11,7 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 - `cmd/api/main.go` — process entry: loads `.env`, builds `app.App`, serves `cfg.Address`.
 - `internal/app/app.go` — the router + every HTTP handler (~2K LOC god-file). Routes under
-  `/api`: auth (`/auth/google`, `/auth/logout`, protected `/auth/me` and wallet linking), `/models`, `/styles`,
+  `/api`: auth (`/auth/google`, `/auth/logout`, protected `/auth/me`, Google linking, and wallet linking), `/models`, `/styles`,
   `/ai/enhance`, `/jobs`, public `/gallery` reads, and JWT-protected
   gallery/favorites reads and writes. Protected `/gallery/me` is the identity-neutral private gallery
   read path. CORS + IP rate limits (100/min global, 20/min on job create).
@@ -43,6 +43,12 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   infer a Google subject; the link path may migrate both. Once linked, Core's
   Google exchange returns the primary verified wallet so later Google sessions
   retain the established link without another signature.
+  Protected `/auth/link-google` is the symmetric wallet-first path: the wallet
+  session supplies one proof, the Google ID token supplies the other, and the
+  server sends Core a server-derived `wallet:<address>` app subject. Never
+  accept that merge subject from the browser. The linked Gallery session keeps
+  that specifically proved address even if Core reports another primary wallet
+  on a canonical account with multiple wallets.
   Local-only login is fail-closed. The server validates cookies on protected
   routes via `authMiddleware` (Bearer fallback), serves `/auth/me` and
   `/auth/logout`, and enforces the Origin allowlist on cookie mutations.

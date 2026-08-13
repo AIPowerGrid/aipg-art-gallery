@@ -7,12 +7,11 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
 
 ## Ownership
 
-- Auth UI: `custom-connect-button.tsx`, `wallet-button.tsx`, `auth-modal.tsx`, `social-auth.tsx`,
-  `google-one-tap.tsx` (Google One Tap — posts the credential to the Go `/auth/google` with
-  `credentials: 'include'` through `lib/google-identity.ts`; the server sets the
-  httpOnly cookie). Google buttons and One Tap share one page-wide GSI
-  initialization. `providers.tsx` wires Wagmi /
-  RainbowKit / React Query and drives wallet SIWE sign-in + session reconcile on mount.
+- Auth UI: `account-control.tsx`, `wallet-auth-button.tsx`, `auth-modal.tsx`,
+  `social-auth.tsx`, and `google-one-tap.tsx`. Google buttons and One Tap share
+  one page-wide GSI initialization. `providers.tsx` wires Wagmi / RainbowKit /
+  React Query and reconciles the cookie session on mount; it must never initiate
+  wallet connection, network switching, or SIWE.
 - Gallery/media: `creation-card.tsx`, `media-card.tsx`, `image-modal.tsx`, `gallery-filter.tsx`,
   `creations-grid.tsx`, `active-jobs-indicator.tsx`. Create flow: `create/*`. Misc: `header.tsx`,
   `network-selector.tsx`, `dimension-slider.tsx`, `error-boundary.tsx`.
@@ -31,14 +30,18 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   markers (address, Google profile) for display and `credentials: 'include'` on any auth fetch.
 - A connected wallet under a Google session uses the exact-purpose Core link
   challenge; connecting a wallet alone never silently merges accounts.
-- Keep the wallet control available beside a Google session. It is the user's
-  proof-of-both path for linking an existing funded wallet account; hiding it
-  creates split balances that the user cannot reconcile from the product.
+- Keep both proof directions in the single account control. It is the user's
+  path for linking an existing funded account; hiding either direction creates
+  split balances that the user cannot reconcile from the product.
 - Logged-out navigation exposes one `Sign in` action. The unified chooser is
   Google-first with wallet providers below it; do not present wallet connection
   as a second competing login. Under a Google session, label the wallet action
   `Link wallet` so its account-merge meaning is explicit. Deduplicate connector
   instances by provider name so WalletConnect appears once.
+- Browser-wallet disconnect and AIPG sign-out are separate actions. Neither
+  wallet reconnect nor page reload may trigger a signature prompt.
+- Provider-rendered sign-in controls must measure their container and fit the
+  narrow account menu; do not assume a fixed desktop button width.
 - Keep the header in its compact menu below the `xl` breakpoint. Authenticated
   account actions and the full navigation must never compete for horizontal
   space at tablet or narrow-desktop widths.

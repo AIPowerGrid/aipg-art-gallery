@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { Header } from "@/components/header";
 import { GoogleSignInButton } from "@/components/google-one-tap";
 import { useAuthStore } from "@/lib/stores/auth-store";
@@ -12,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 export default function JoinPage() {
   const router = useRouter();
-  const { openConnectModal } = useConnectModal();
   const { isAuthenticated, sessionChecked } = useAuthStore();
 
   useEffect(() => {
@@ -48,16 +46,12 @@ export default function JoinPage() {
           </p>
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <GoogleSignInButton />
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                openConnectModal?.();
-              }}
-              disabled={!openConnectModal}
+            <Link
+              href="/auth/login"
               className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20"
             >
-              Continue with wallet
-            </button>
+              Sign in
+            </Link>
             <Link
               href="/"
               className="px-8 py-3 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white font-medium rounded-xl transition-all border border-white/10"

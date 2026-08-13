@@ -48,6 +48,11 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - Wallet sign-in (`auth.ts`) must sign Core's returned SIWE message unchanged.
   The Go broker derives the app subject and Core rejects reused,
   stale, cross-service, cross-subject, or foreign-origin challenges.
+- Wallet sign-in/link functions run only after an explicit user action. Wagmi
+  rehydration and wallet connection are never authentication intent.
+- Google credential dispatch uses `/auth/google` while signed out and protected
+  `/auth/link-google` for a wallet-authenticated session; the latter preserves
+  proof of both identities while Core merges their canonical accounts.
 - `auth-store.syncFromServer()` (`/auth/me`) is the authoritative auth check; `syncFromStorage()`
   is optimistic UI only. Do not trigger wallet signing, redirect protected pages,
   or show Google One Tap until the first server check completes.

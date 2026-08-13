@@ -55,10 +55,11 @@ jobs to the grid and serves gallery/media.
   music generation belongs to `aipg.music`; do not add an audio/music route or
   ACE-Step API surface back to this repo. Director may still use audio as part
   of a video timeline.
-- **Auth:** Google or Core-issued SIWE yields an HS256 JWT in an httpOnly
-  cookie. Core verifies the provider/wallet proof and returns the canonical
-  account; a proved wallet can be linked to Google through Core's proof-of-both
-  merge path. The Core account ID owns gallery rows, favorites, and browser job
+- **Auth:** Google or explicit Core-issued SIWE yields an HS256 JWT in an
+  httpOnly cookie. Either login method can add the other through Core's
+  proof-of-both merge path. Browser wallet connection is transport state and
+  never implicitly creates, replaces, or ends the Gallery session. The Core
+  account ID owns gallery rows, favorites, and browser job
   tracking regardless of login method. A successful proof atomically migrates
   only that proof's legacy owner key; a linked proof migrates both. Local-only
   auth is forbidden because it creates split balances.
@@ -119,6 +120,9 @@ These are non-negotiable across the repo. Children may add stricter rules, never
   required before merging.
 - When you touch auth, gallery writes, or any new outbound fetch/exec, re-read this section and
   the nearest AGENTS.md, then update them if the contract changed.
+- CI's full-history Gitleaks job uses a version-pinned, checksum-verified release
+  binary. Keep both the version and SHA-256 in sync when upgrading it; do not
+  replace the complete-history scan with a worktree-only scan.
 
 ## Work Guidance
 

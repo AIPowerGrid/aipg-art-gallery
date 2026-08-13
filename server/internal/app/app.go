@@ -42,18 +42,19 @@ const (
 )
 
 type App struct {
-	cfg               config.Config
-	catalog           models.Catalog
-	client            *aipg.Client
-	vaultClient       *modelvault.Client
-	recipeVaultClient *recipevault.Client
-	galleryStore      gallery.GalleryStore
-	userStore         *gallery.UserStore
-	favoritesStore    *gallery.FavoritesStore
-	r2Client          *r2.Client
-	cache             *cache.Cache
-	aiClient          *ai.Client
-	pending           *pendingStore
+	cfg                 config.Config
+	catalog             models.Catalog
+	client              *aipg.Client
+	vaultClient         *modelvault.Client
+	recipeVaultClient   *recipevault.Client
+	galleryStore        gallery.GalleryStore
+	userStore           *gallery.UserStore
+	favoritesStore      *gallery.FavoritesStore
+	r2Client            *r2.Client
+	cache               *cache.Cache
+	aiClient            *ai.Client
+	pending             *pendingStore
+	googleTokenVerifier func(context.Context, string, string) (*idtoken.Payload, error)
 }
 
 func New(cfg config.Config) (*App, error) {
@@ -202,6 +203,7 @@ func (a *App) Router() http.Handler {
 			protected.Use(a.authMiddleware)
 
 			protected.Get("/auth/me", a.handleMe)
+			protected.Post("/auth/link-google", a.handleGoogleLink)
 			protected.Post("/auth/link-wallet/nonce", a.handleWalletLinkNonce)
 			protected.Post("/auth/link-wallet", a.handleWalletLink)
 			protected.Get("/credits", a.handleCredits)
@@ -520,19 +522,57 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// handleGoogleAuth verifies Google ID token and returns JWT
-func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
+type verifiedGoogleIdentity struct {
+	ID      string
+	Email   string
+	Name    string
+	Picture string
+}
+
+func (a *App) verifyGoogleCredential(ctx context.Context, credential string) (*verifiedGoogleIdentity, error) {
+	if strings.TrimSpace(credential) == "" {
+		return nil, errors.New("credential is required")
+	}
+	if a.cfg.GoogleClientID == "" {
+		return nil, errors.New("Google authentication not configured")
+	}
+	verify := a.googleTokenVerifier
+	if verify == nil {
+		verify = idtoken.Validate
+	}
+	payload, err := verify(ctx, credential, a.cfg.GoogleClientID)
+	if err != nil {
+		return nil, errors.New("invalid Google token")
+	}
+	email, _ := payload.Claims["email"].(string)
+	name, _ := payload.Claims["name"].(string)
+	picture, _ := payload.Claims["picture"].(string)
+	return &verifiedGoogleIdentity{
+		ID: payload.Subject, Email: email, Name: name, Picture: picture,
+	}, nil
+}
+
+func decodeGoogleCredential(w http.ResponseWriter, r *http.Request) (string, bool) {
 	var req struct {
 		Credential string `json:"credential"` // Google ID token
 	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, errors.New("invalid request body"))
-		return
+		return "", false
 	}
-
 	if req.Credential == "" {
 		writeError(w, http.StatusBadRequest, errors.New("credential is required"))
+		return "", false
+	}
+	return req.Credential, true
+}
+
+// handleGoogleAuth verifies Google ID token and returns JWT.
+func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
+	credential, ok := decodeGoogleCredential(w, r)
+	if !ok {
 		return
 	}
 
@@ -546,22 +586,16 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	payload, err := idtoken.Validate(ctx, req.Credential, a.cfg.GoogleClientID)
+	google, err := a.verifyGoogleCredential(ctx, credential)
 	if err != nil {
 		log.Printf("Auth: Google token validation failed: %v", err)
 		writeError(w, http.StatusUnauthorized, errors.New("invalid Google token"))
 		return
 	}
 
-	// Extract user info from payload
-	googleID := payload.Subject
-	email, _ := payload.Claims["email"].(string)
-	name, _ := payload.Claims["name"].(string)
-	picture, _ := payload.Claims["picture"].(string)
-
 	// Create or update user in database
 	if a.userStore != nil {
-		_, err := a.userStore.ConnectGoogle(googleID, email, name, picture)
+		_, err := a.userStore.ConnectGoogle(google.ID, google.Email, google.Name, google.Picture)
 		if err != nil {
 			log.Printf("Auth: Failed to save Google user: %v", err)
 			// Continue anyway - user can still authenticate
@@ -578,7 +612,7 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 	gridCtx, gridCancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer gridCancel()
 	gridIdentity, err := a.client.ExchangeGoogle(
-		gridCtx, a.cfg.DefaultAPIKey, req.Credential, "google:"+googleID,
+		gridCtx, a.cfg.DefaultAPIKey, credential, "google:"+google.ID,
 	)
 	if err != nil {
 		log.Printf("Auth: Grid Google exchange failed: %v", err)
@@ -586,7 +620,7 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	googleClaims := &auth.Claims{
-		GoogleID:      googleID,
+		GoogleID:      google.ID,
 		GridAccountID: gridIdentity.AccountID,
 	}
 	if err := a.canonicalizeGalleryOwnership(googleClaims); err != nil {
@@ -597,7 +631,7 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 
 	// Generate JWT for the Google user
 	token, err := auth.GenerateGoogleSessionJWT(
-		googleID, email, name, gridIdentity.Wallet,
+		google.ID, google.Email, google.Name, gridIdentity.Wallet,
 		gridIdentity.AccessToken, gridIdentity.AccountID,
 	)
 	if err != nil {
@@ -613,11 +647,78 @@ func (a *App) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
 	a.setAuthCookie(w, r, token)
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"googleId":  googleID,
-		"email":     email,
-		"name":      name,
-		"picture":   picture,
+		"googleId":  google.ID,
+		"email":     google.Email,
+		"name":      google.Name,
+		"picture":   google.Picture,
 		"accountId": gridIdentity.AccountID,
+		"address":   gridIdentity.Wallet,
+	})
+}
+
+// handleGoogleLink adds Google proof to an existing wallet-authenticated
+// session. Core receives the server-derived wallet app subject, so the merge
+// has proof of both sides and cannot be steered by browser-supplied identity.
+func (a *App) handleGoogleLink(w http.ResponseWriter, r *http.Request) {
+	claims := getClaimsFromContext(r)
+	if claims == nil || claims.WalletAddress == "" || claims.GoogleID != "" {
+		writeError(w, http.StatusForbidden, errors.New("wallet session required"))
+		return
+	}
+	credential, ok := decodeGoogleCredential(w, r)
+	if !ok {
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	google, err := a.verifyGoogleCredential(ctx, credential)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, errors.New("invalid Google token"))
+		return
+	}
+	if a.cfg.DefaultAPIKey == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("Grid identity service not configured"))
+		return
+	}
+	gridIdentity, err := a.client.ExchangeGoogle(
+		ctx, a.cfg.DefaultAPIKey, credential, walletAppSubject(claims.WalletAddress),
+	)
+	if err != nil {
+		log.Printf("Auth: Grid Google link failed: %v", err)
+		writeError(w, http.StatusConflict, errors.New("Google account could not be linked"))
+		return
+	}
+	// Preserve the wallet that supplied this session's proof. Core may return a
+	// different primary address when the canonical account already has multiple
+	// wallets, but that is not the identity proved by this link operation.
+	verifiedWallet := strings.ToLower(strings.TrimSpace(claims.WalletAddress))
+	linkedClaims := &auth.Claims{
+		GoogleID: google.ID, WalletAddress: verifiedWallet,
+		GridAccountID: gridIdentity.AccountID,
+	}
+	if err := a.canonicalizeGalleryOwnership(linkedClaims); err != nil {
+		log.Printf("Auth: Failed to canonicalize Google-linked ownership: %v", err)
+		writeError(w, http.StatusServiceUnavailable, errors.New("account data is temporarily unavailable"))
+		return
+	}
+	if a.userStore != nil {
+		if _, err := a.userStore.ConnectGoogle(google.ID, google.Email, google.Name, google.Picture); err != nil {
+			log.Printf("Auth: Failed to save linked Google user: %v", err)
+		}
+	}
+	token, err := auth.GenerateLinkedJWT(
+		google.ID, google.Email, google.Name, verifiedWallet,
+		gridIdentity.AccessToken, gridIdentity.AccountID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, errors.New("failed to refresh linked session"))
+		return
+	}
+	a.setAuthCookie(w, r, token)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"googleId": google.ID, "email": google.Email, "name": google.Name,
+		"picture": google.Picture, "accountId": gridIdentity.AccountID,
+		"address": verifiedWallet,
 	})
 }
 

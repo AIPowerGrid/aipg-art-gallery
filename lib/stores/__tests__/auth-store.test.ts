@@ -70,6 +70,59 @@ describe("auth store logout", () => {
     );
   });
 
+  it("restores both linked identities from a Google-backed session", async () => {
+    useAuthStore.setState({
+      isAuthenticated: false,
+      sessionChecked: false,
+      authMethod: null,
+      address: null,
+      accountId: null,
+      googleId: null,
+    });
+    jest.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        authMethod: "google",
+        address: "0xABC",
+        accountId: "ACCOUNT-123",
+        googleId: "google-user",
+        email: "user@example.test",
+        name: "Test User",
+      }),
+    } as Response);
+
+    await useAuthStore.getState().syncFromServer();
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      sessionChecked: true,
+      authMethod: "google",
+      address: "0xabc",
+      accountId: "account-123",
+      googleId: "google-user",
+    });
+  });
+
+  it("keeps Google as the optimistic login method for a linked session", () => {
+    localStorage.setItem("aipg_google_id", "google-user");
+    localStorage.setItem("aipg_google_email", "user@example.test");
+    localStorage.setItem("aipg_google_expiry", String(Date.now() + 60_000));
+    useAuthStore.setState({
+      isAuthenticated: false,
+      authMethod: null,
+      address: null,
+      googleId: null,
+    });
+
+    useAuthStore.getState().syncFromStorage();
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      authMethod: "google",
+      googleId: "google-user",
+    });
+  });
+
   it("waits for server logout before clearing the local session", async () => {
     let finishLogout: (() => void) | undefined;
     signOutMock.mockImplementation(
