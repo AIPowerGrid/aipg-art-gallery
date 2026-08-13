@@ -120,6 +120,9 @@ These are non-negotiable across the repo. Children may add stricter rules, never
   required before merging.
 - When you touch auth, gallery writes, or any new outbound fetch/exec, re-read this section and
   the nearest AGENTS.md, then update them if the contract changed.
+- CI's full-history Gitleaks job uses a version-pinned, checksum-verified release
+  binary. Keep both the version and SHA-256 in sync when upgrading it; do not
+  replace the complete-history scan with a worktree-only scan.
 
 ## Work Guidance
 
