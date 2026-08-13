@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ConnectWalletCard } from "@/components/wallet-button";
+import { WalletAuthButton } from "@/components/wallet-auth-button";
 import { SocialAuth } from "@/components/social-auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
@@ -73,7 +73,7 @@ function LoginPageClient() {
           <div className="text-center mb-2">
             <p className="text-white/70 text-sm font-medium">Continue with a wallet</p>
           </div>
-          <ConnectWalletCard />
+          <WalletAuthButton mode="sign-in" onSuccess={() => router.push("/create")} />
         </div>
 
         <div className="space-y-3 text-sm text-white/60">

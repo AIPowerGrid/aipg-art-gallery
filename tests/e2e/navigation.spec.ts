@@ -40,15 +40,53 @@ test("promotes Director and keeps standalone music off aipg.art", async ({ page 
   await expect(page).toHaveURL(/\/auth\/login$/);
   await expect(page.getByText("Continue with Google", { exact: true })).toBeVisible();
   await expect(page.getByText("Continue with a wallet", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Connect with WalletConnect" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Continue with wallet" })).toHaveCount(1);
 
   await page.goto("/join");
   await expect(page.getByRole("heading", { name: "Create with AI Power Grid" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Continue with wallet" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in", exact: true }).first()).toBeVisible();
   await expect(page.getByText(/unlimited access|5 free/i)).toHaveCount(0);
 
   const response = await page.request.get("/audio");
   expect(response.status()).toBe(404);
+});
+
+test("renders one stable account control for a linked Google and wallet session", async ({ page }) => {
+  let walletAuthRequests = 0;
+  await page.route("**/api-preview/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, "");
+    if (path === "/auth/me") {
+      await route.fulfill({
+        json: {
+          authMethod: "google",
+          accountId: "account-123",
+          googleId: "google-user",
+          email: "user@example.test",
+          name: "Test User",
+          address: "0x0000000000000000000000000000000000000001",
+        },
+      });
+      return;
+    }
+    if (path.includes("/auth/wallet/")) walletAuthRequests += 1;
+    if (path.startsWith("/gallery")) {
+      await route.fulfill({ json: { items: [], total: 0, hasMore: false, nextOffset: 0 } });
+      return;
+    }
+    await route.fulfill({ status: 404, json: { error: "not found" } });
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const account = page.getByRole("button", { name: "Account" });
+  await expect(account).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in", exact: true })).toHaveCount(0);
+  await account.click();
+  await expect(page.getByText("user@example.test")).toBeVisible();
+  await expect(page.getByText("0x0000...0001")).toBeVisible();
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
+  expect(walletAuthRequests).toBe(0);
 });
 
 test("keeps gallery navigation and controls usable at narrow widths", async ({ page }) => {

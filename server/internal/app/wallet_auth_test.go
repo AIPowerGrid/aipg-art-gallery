@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/gallery"
+	"google.golang.org/api/idtoken"
 )
 
 func TestWalletAuthUsesServerDerivedSubjectAndCanonicalCoreIdentity(t *testing.T) {
@@ -123,5 +125,84 @@ func TestWalletChallengeRequiresAllowedBrowserOrigin(t *testing.T) {
 	app.Router().ServeHTTP(response, request)
 	if response.Code != http.StatusForbidden {
 		t.Fatalf("foreign origin was not rejected: %d", response.Code)
+	}
+}
+
+func TestWalletSessionCanLinkGoogleWithProofOfBoth(t *testing.T) {
+	t.Setenv("JWT_SECRET", "gallery-google-link-test-secret-at-least-32-bytes")
+	const (
+		wallet  = "0x0000000000000000000000000000000000000001"
+		primary = "0x0000000000000000000000000000000000000002"
+		account = "4b542669-6c7d-4eb3-8dde-a94e47795404"
+	)
+
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/auth/google/exchange" {
+			t.Fatalf("unexpected Core path: %s", r.URL.Path)
+		}
+		if r.Header.Get("apikey") != "gallery-service-key" {
+			t.Fatal("Gallery service key missing from Core request")
+		}
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["app_subject"] != "wallet:"+wallet {
+			t.Fatalf("Google link did not use the proven wallet subject: %#v", body)
+		}
+		writeJSON(w, http.StatusOK, map[string]string{
+			"access_token": "gridu_linked", "account_id": account, "wallet": primary,
+		})
+	}))
+	defer core.Close()
+
+	app := &App{
+		cfg: config.Config{
+			DefaultAPIKey: "gallery-service-key", GoogleClientID: "google-client",
+			AllowedOrigins: []string{"https://aipg.art"},
+		},
+		client:       aipg.NewClient(core.URL, "gallery-test"),
+		galleryStore: &gallery.FileStoreAdapter{Store: gallery.NewStore("", 10)},
+		googleTokenVerifier: func(context.Context, string, string) (*idtoken.Payload, error) {
+			return &idtoken.Payload{
+				Subject: "google-subject",
+				Claims: map[string]any{
+					"email": "person@example.test", "name": "Person", "picture": "https://example.test/p.png",
+				},
+			}, nil
+		},
+	}
+	walletJWT, err := auth.GenerateWalletJWT(wallet, "gridu_wallet", account)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(
+		http.MethodPost, "/api/auth/link-google", strings.NewReader(`{"credential":"google-id-token"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "https://aipg.art")
+	request.AddCookie(&http.Cookie{Name: authCookieName, Value: walletJWT})
+	response := httptest.NewRecorder()
+	app.Router().ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("Google link failed: %d %s", response.Code, response.Body.String())
+	}
+
+	var sessionCookie *http.Cookie
+	for _, cookie := range response.Result().Cookies() {
+		if cookie.Name == authCookieName {
+			sessionCookie = cookie
+			break
+		}
+	}
+	if sessionCookie == nil || !sessionCookie.HttpOnly {
+		t.Fatal("linked httpOnly session cookie missing")
+	}
+	claims, err := auth.VerifyJWTClaims(sessionCookie.Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.GoogleID != "google-subject" || claims.WalletAddress != wallet || claims.GridAccountID != account {
+		t.Fatalf("proof-of-both claims missing: %#v", claims)
 	}
 }

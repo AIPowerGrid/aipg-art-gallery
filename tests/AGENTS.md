@@ -10,10 +10,11 @@ Production-build Playwright coverage for consumer-facing generation routes.
   submission, including the no-client-wallet-identity request invariant,
   first-render onboarding progression/reload recovery, and mobile workspace
   overflow coverage.
-- `e2e/navigation.spec.ts` - top-level Director discovery and the retired
+- `e2e/navigation.spec.ts` - top-level Director discovery, stable account/auth
+  controls across reload, responsive navigation, and the retired
   `aipg.art/audio` route contract.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
-  account creation-library navigation, and mobile overflow coverage.
+  account-menu and creation-library navigation, and mobile overflow coverage.
 
 ## Local Contracts
 

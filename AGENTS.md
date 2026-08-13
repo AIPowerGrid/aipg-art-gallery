@@ -55,10 +55,11 @@ jobs to the grid and serves gallery/media.
   music generation belongs to `aipg.music`; do not add an audio/music route or
   ACE-Step API surface back to this repo. Director may still use audio as part
   of a video timeline.
-- **Auth:** Google or Core-issued SIWE yields an HS256 JWT in an httpOnly
-  cookie. Core verifies the provider/wallet proof and returns the canonical
-  account; a proved wallet can be linked to Google through Core's proof-of-both
-  merge path. The Core account ID owns gallery rows, favorites, and browser job
+- **Auth:** Google or explicit Core-issued SIWE yields an HS256 JWT in an
+  httpOnly cookie. Either login method can add the other through Core's
+  proof-of-both merge path. Browser wallet connection is transport state and
+  never implicitly creates, replaces, or ends the Gallery session. The Core
+  account ID owns gallery rows, favorites, and browser job
   tracking regardless of login method. A successful proof atomically migrates
   only that proof's legacy owner key; a linked proof migrates both. Local-only
   auth is forbidden because it creates split balances.

@@ -41,6 +41,7 @@ interface AuthState {
     name: string,
     picture: string,
     accountId: string,
+    address?: string | null,
   ) => void;
   clearAuth: () => Promise<void>;
   syncFromStorage: () => void;
@@ -91,6 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     name: string,
     picture: string,
     accountId: string,
+    address?: string | null,
   ) => {
     // Store only the non-sensitive profile for UI; the JWT is in the cookie.
     localStorage.setItem(GOOGLE_ID_KEY, googleId);
@@ -106,7 +108,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       sessionChecked: true,
       authMethod: "google",
-      address: null,
+      address: address?.toLowerCase() ?? null,
       accountId: accountId.toLowerCase(),
       googleId,
       email,
@@ -133,15 +135,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   syncFromStorage: () => {
     // Optimistic UI from local markers (no token decode). Server reconciles next.
-    if (isAuthenticated()) {
-      set({
-        isAuthenticated: true,
-        authMethod: "wallet",
-        address: getAuthAddress(),
-        accountId: getAuthAccountId(),
-      });
-      return;
-    }
     const googleId = localStorage.getItem(GOOGLE_ID_KEY);
     const googleExpiry = Number(localStorage.getItem(GOOGLE_EXPIRY_KEY) ?? 0);
     if (googleId && googleExpiry > Date.now()) {
@@ -153,6 +146,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         email: localStorage.getItem(GOOGLE_EMAIL_KEY),
         name: localStorage.getItem(GOOGLE_NAME_KEY),
         picture: localStorage.getItem(GOOGLE_PICTURE_KEY),
+      });
+      return;
+    }
+    if (isAuthenticated()) {
+      set({
+        isAuthenticated: true,
+        authMethod: "wallet",
+        address: getAuthAddress(),
+        accountId: getAuthAccountId(),
       });
       return;
     }
@@ -194,6 +196,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           googleId: data.googleId,
           email: data.email,
           name: data.name,
+          picture: get().picture,
         });
       } else if (data.address) {
         rememberWalletSession(data.address, data.accountId);

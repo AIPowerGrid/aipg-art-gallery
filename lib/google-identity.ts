@@ -31,6 +31,7 @@ interface GoogleAuthResult {
   name: string;
   picture: string;
   accountId: string;
+  address?: string;
 }
 
 interface GoogleAuthListener {
@@ -63,12 +64,18 @@ let initializedClientId: string | null = null;
 async function authenticateGoogleCredential(
   credential: string,
 ): Promise<GoogleAuthResult> {
-  const response = await fetch(`${getApiBase()}/auth/google`, {
+  const auth = useAuthStore.getState();
+  const isWalletLink =
+    auth.isAuthenticated && auth.authMethod === "wallet" && !!auth.address;
+  const response = await fetch(
+    `${getApiBase()}${isWalletLink ? "/auth/link-google" : "/auth/google"}`,
+    {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
     body: JSON.stringify({ credential }),
-  });
+    },
+  );
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -84,6 +91,7 @@ async function authenticateGoogleCredential(
       result.name,
       result.picture,
       result.accountId,
+      result.address ?? null,
     );
   return result;
 }

@@ -68,8 +68,11 @@ route handlers for things that must not run in the browser — including wallet 
   same-origin `/api`; keep any exceptional external connection origin explicit.
 - **`layout.tsx`** passes the request cookie into the SSR-enabled wagmi provider; keep
   wallet storage cookie-backed so public gallery content remains server-renderable.
-  Wallet auto-auth must wait for `/auth/me` and must never request a fresh
-  signature when the Gallery cookie already resolves to a live session.
+  Wallet auto-auth is forbidden: reload, connector hydration, network changes,
+  and wallet disconnect must never open a provider or request a signature.
+- `/auth/login` is the sole full-page sign-in entry point. Google and wallet are
+  equal explicit choices; connecting a wallet does not imply SIWE unless the
+  user chose the wallet sign-in action.
 - **Route handlers run on the server.** The `download` proxy must keep its exact-hostname
   allowlist + `redirect: 'manual'`. Any new outbound-fetch handler needs the same discipline.
 - **Do not revive a local wallet issuer.** Core must issue and consume the
