@@ -127,3 +127,40 @@ test("keeps gallery navigation and controls usable at narrow widths", async ({ p
   const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(documentWidth).toBeLessThanOrEqual(390);
 });
+
+test("keeps the mobile account details panel inside its navigation drawer", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api-preview/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, "");
+    if (path === "/auth/me") {
+      await route.fulfill({
+        json: {
+          authMethod: "google",
+          accountId: "account-123",
+          googleId: "google-user",
+          email: "user@example.test",
+          name: "Test User",
+          address: "0x0000000000000000000000000000000000000001",
+        },
+      });
+      return;
+    }
+    if (path.startsWith("/gallery")) {
+      await route.fulfill({ json: { items: [], total: 0, hasMore: false, nextOffset: 0 } });
+      return;
+    }
+    await route.fulfill({ status: 404, json: { error: "not found" } });
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Toggle menu" }).click();
+  await page.getByRole("button", { name: "Account" }).click();
+
+  const panel = page.getByText("AIPG account").locator("../..");
+  await expect(panel).toBeVisible();
+  const panelBox = await panel.boundingBox();
+  expect(panelBox).not.toBeNull();
+  expect(panelBox!.x).toBeGreaterThanOrEqual(0);
+  expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});

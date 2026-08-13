@@ -2,10 +2,7 @@
 
 import "@rainbow-me/rainbowkit/styles.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  WagmiProvider,
-  cookieToInitialState,
-} from "wagmi";
+import { WagmiProvider, cookieToInitialState } from "wagmi";
 import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
 import { config } from "@/lib/wagmi";
 import { type ReactNode, useEffect, useMemo } from "react";
@@ -79,7 +76,11 @@ export function Providers({
   }, [cookie]);
 
   return (
-    <WagmiProvider config={config} initialState={initialState}>
+    <WagmiProvider
+      config={config}
+      initialState={initialState}
+      reconnectOnMount={false}
+    >
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           theme={darkTheme({

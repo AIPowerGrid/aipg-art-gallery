@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAccount, useDisconnect } from "wagmi";
-import { ChevronDown, Link2, Loader2, LogOut, Unplug, UserRound } from "lucide-react";
+import {
+  ChevronDown,
+  Link2,
+  Loader2,
+  LogOut,
+  Unplug,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import { GoogleSignInButton } from "@/components/google-one-tap";
 import { WalletAuthButton } from "@/components/wallet-auth-button";
@@ -12,12 +19,16 @@ function shortAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export function AccountControl() {
+type AccountControlProps = {
+  mobile?: boolean;
+};
+
+export function AccountControl({ mobile = false }: AccountControlProps) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { address: connectedAddress, isConnected } = useAccount();
-  const { disconnect } = useDisconnect();
+  const { address: connectedAddress, connector, isConnected } = useAccount();
+  const { disconnectAsync, isPending: disconnecting } = useDisconnect();
   const {
     authMethod,
     address: linkedAddress,
@@ -30,7 +41,8 @@ export function AccountControl() {
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent | TouchEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setOpen(false);
+      if (menuRef.current && !menuRef.current.contains(event.target as Node))
+        setOpen(false);
     };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -45,15 +57,18 @@ export function AccountControl() {
     };
   }, [open]);
 
-  const label = name || email || (linkedAddress ? shortAddress(linkedAddress) : "Account");
+  const label =
+    name || email || (linkedAddress ? shortAddress(linkedAddress) : "Account");
   const initial = label.trim().charAt(0).toUpperCase() || "A";
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className={mobile ? "relative w-full" : "relative"} ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex h-10 max-w-64 items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 text-sm font-medium text-white transition hover:bg-zinc-700"
+        className={`flex h-10 items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-2.5 text-sm font-medium text-white transition hover:bg-zinc-700 ${
+          mobile ? "w-full justify-between" : "max-w-64"
+        }`}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Account"
@@ -62,11 +77,19 @@ export function AccountControl() {
           {initial}
         </span>
         <span className="hidden max-w-36 truncate sm:block">{label}</span>
-        <ChevronDown className={`h-4 w-4 text-zinc-400 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`h-4 w-4 text-zinc-400 transition ${open ? "rotate-180" : ""}`}
+        />
       </button>
 
       {open && (
-        <div className="absolute right-0 z-[100] mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 shadow-2xl">
+        <div
+          className={`z-[100] mt-2 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 shadow-2xl ${
+            mobile
+              ? "relative w-full"
+              : "absolute right-0 w-[min(22rem,calc(100vw-2rem))]"
+          }`}
+        >
           <div className="border-b border-zinc-800 p-4">
             <div className="flex items-center gap-2 text-sm font-medium text-white">
               <UserRound className="h-4 w-4 text-zinc-400" />
@@ -79,10 +102,12 @@ export function AccountControl() {
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-zinc-500">Google</span>
-                <span className="max-w-52 truncate text-zinc-200">{googleId ? email || "Linked" : "Not linked"}</span>
+                <span className="max-w-52 truncate text-zinc-200">
+                  {googleId ? email || "Linked" : "Not linked"}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-3">
-                <span className="text-zinc-500">Wallet</span>
+                <span className="text-zinc-500">Linked wallet</span>
                 <span className="font-mono text-xs text-zinc-200">
                   {linkedAddress ? shortAddress(linkedAddress) : "Not linked"}
                 </span>
@@ -106,7 +131,10 @@ export function AccountControl() {
                 <p className="text-xs leading-5 text-zinc-400">
                   Prove a wallet once to attach it to this same Grid account.
                 </p>
-                <WalletAuthButton mode="link" onSuccess={() => setOpen(false)} />
+                <WalletAuthButton
+                  mode="link"
+                  onSuccess={() => setOpen(false)}
+                />
               </div>
             )}
 
@@ -114,15 +142,37 @@ export function AccountControl() {
               <div className="flex items-center justify-between gap-3 border-t border-zinc-800 pt-4">
                 <div>
                   <p className="text-xs text-zinc-500">Browser wallet</p>
-                  <p className="font-mono text-xs text-zinc-300">{shortAddress(connectedAddress)}</p>
+                  <p className="font-mono text-xs text-zinc-300">
+                    {shortAddress(connectedAddress)}
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => disconnect()}
+                  onClick={async () => {
+                    try {
+                      await disconnectAsync({ connector });
+                      toast.success("Browser wallet disconnected");
+                    } catch {
+                      toast.error("Could not disconnect the browser wallet");
+                    }
+                  }}
+                  disabled={disconnecting}
                   className="flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:text-white"
                 >
-                  <Unplug className="h-3.5 w-3.5" /> Disconnect
+                  {disconnecting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Unplug className="h-3.5 w-3.5" />
+                  )}
+                  {disconnecting ? "Disconnecting..." : "Disconnect"}
                 </button>
+              </div>
+            )}
+
+            {!isConnected && linkedAddress && (
+              <div className="border-t border-zinc-800 pt-4 text-xs text-zinc-400">
+                Browser wallet disconnected. The verified wallet remains linked
+                to this AIPG account.
               </div>
             )}
           </div>
@@ -144,7 +194,11 @@ export function AccountControl() {
               disabled={signingOut}
               className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 disabled:opacity-50"
             >
-              {signingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+              {signingOut ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LogOut className="h-4 w-4" />
+              )}
               Sign out of AIPG
             </button>
           </div>
