@@ -157,7 +157,10 @@ export function GoogleSignInButton({
       window.google.accounts.id.renderButton(container, {
         type: "standard",
         theme: "filled_black",
-        size: "large",
+        // Google personalizes large buttons for returning accounts. Medium is
+        // the supported generic treatment and keeps this control visually
+        // stable across Google session states.
+        size: "medium",
         text: "continue_with",
         shape: "rectangular",
         width: buttonWidth,

@@ -40,6 +40,13 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   instances by provider name so WalletConnect appears once.
 - Browser-wallet disconnect and AIPG sign-out are separate actions. Neither
   wallet reconnect nor page reload may trigger a signature prompt.
+- Wagmi transport reconnect is disabled on mount. The cookie-backed AIPG
+  session survives reload independently; reconnect a browser wallet only from
+  an explicit sign-in, link, or transaction action.
+- An explicit wallet sign-in/link click stores a short-lived, one-use intent in
+  session storage so a Base Account login handoff or page remount can finish
+  SIWE. Clear it on success, rejection, or expiry; never infer intent from a
+  connected wallet alone.
 - Provider-rendered sign-in controls must measure their container and fit the
   narrow account menu; do not assume a fixed desktop button width.
 - Keep the header in its compact menu below the `xl` breakpoint. Authenticated

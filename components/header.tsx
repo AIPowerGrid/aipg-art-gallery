@@ -133,7 +133,7 @@ export function Header() {
               )}
               {authenticated && (
                 <div className="px-2">
-                  <AccountControl />
+                  <AccountControl mobile />
                 </div>
               )}
             </div>

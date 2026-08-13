@@ -9,7 +9,7 @@ export interface GoogleCredentialResponse {
 export interface GoogleButtonConfig {
   type: "standard";
   theme: "outline" | "filled_blue" | "filled_black";
-  size: "large";
+  size: "large" | "medium" | "small";
   text: "signin_with" | "signup_with" | "continue_with" | "signin";
   shape: "rectangular" | "pill" | "circle" | "square";
   width?: number;
@@ -70,10 +70,10 @@ async function authenticateGoogleCredential(
   const response = await fetch(
     `${getApiBase()}${isWalletLink ? "/auth/link-google" : "/auth/google"}`,
     {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ credential }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ credential }),
     },
   );
 

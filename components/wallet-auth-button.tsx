@@ -8,8 +8,43 @@ import { Loader2, Wallet } from "lucide-react";
 import { linkWalletToGoogleAccount, signIn } from "@/lib/auth";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
+const WALLET_AUTH_INTENT_KEY = "aipg_wallet_auth_intent";
+const WALLET_AUTH_INTENT_TTL_MS = 5 * 60 * 1000;
+
+type WalletAuthMode = "sign-in" | "link";
+
+type PendingWalletAuthIntent = {
+  mode: WalletAuthMode;
+  expiresAt: number;
+};
+
+function rememberWalletAuthIntent(mode: WalletAuthMode) {
+  const intent: PendingWalletAuthIntent = {
+    mode,
+    expiresAt: Date.now() + WALLET_AUTH_INTENT_TTL_MS,
+  };
+  sessionStorage.setItem(WALLET_AUTH_INTENT_KEY, JSON.stringify(intent));
+}
+
+function hasWalletAuthIntent(mode: WalletAuthMode) {
+  const stored = sessionStorage.getItem(WALLET_AUTH_INTENT_KEY);
+  if (!stored) return false;
+  try {
+    const intent = JSON.parse(stored) as PendingWalletAuthIntent;
+    if (intent.mode === mode && intent.expiresAt > Date.now()) return true;
+  } catch {
+    // Invalid or stale browser state is not authentication intent.
+  }
+  sessionStorage.removeItem(WALLET_AUTH_INTENT_KEY);
+  return false;
+}
+
+function clearWalletAuthIntent() {
+  sessionStorage.removeItem(WALLET_AUTH_INTENT_KEY);
+}
+
 type WalletAuthButtonProps = {
-  mode: "sign-in" | "link";
+  mode: WalletAuthMode;
   onSuccess?: () => void;
   className?: string;
 };
@@ -30,7 +65,7 @@ export function WalletAuthButton({
   const running = useRef(false);
 
   const authenticate = useCallback(async () => {
-    if (!intent || running.current || !isConnected || !address) return;
+    if (running.current || !isConnected || !address) return;
     running.current = true;
     setBusy(true);
     setError(null);
@@ -45,11 +80,16 @@ export function WalletAuthButton({
         setAuthenticated(address);
       }
       await syncFromServer();
+      clearWalletAuthIntent();
       setIntent(false);
       onSuccess?.();
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Wallet authentication failed";
+      const message =
+        caught instanceof Error
+          ? caught.message
+          : "Wallet authentication failed";
       setError(/rejected/i.test(message) ? "Signature cancelled" : message);
+      clearWalletAuthIntent();
       setIntent(false);
     } finally {
       running.current = false;
@@ -58,7 +98,6 @@ export function WalletAuthButton({
   }, [
     address,
     chainId,
-    intent,
     isConnected,
     mode,
     onSuccess,
@@ -69,14 +108,17 @@ export function WalletAuthButton({
   ]);
 
   useEffect(() => {
-    void authenticate();
-  }, [authenticate]);
+    if (hasWalletAuthIntent(mode)) setIntent(true);
+  }, [mode]);
 
   useEffect(() => {
     if (!intent) return;
-    const timeout = window.setTimeout(() => setIntent(false), 60_000);
-    return () => window.clearTimeout(timeout);
-  }, [intent]);
+    if (hasWalletAuthIntent(mode)) {
+      void authenticate();
+    } else {
+      setIntent(false);
+    }
+  }, [authenticate, intent, mode]);
 
   const label = mode === "link" ? "Link wallet" : "Continue with wallet";
 
@@ -86,8 +128,13 @@ export function WalletAuthButton({
         type="button"
         onClick={() => {
           setError(null);
+          rememberWalletAuthIntent(mode);
           setIntent(true);
-          if (!isConnected) openConnectModal?.();
+          if (isConnected) {
+            void authenticate();
+          } else {
+            openConnectModal?.();
+          }
         }}
         disabled={busy || (!isConnected && !openConnectModal)}
         className={
@@ -95,8 +142,16 @@ export function WalletAuthButton({
           "flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50"
         }
       >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wallet className="h-4 w-4" />}
-        {busy ? (mode === "link" ? "Linking wallet..." : "Signing in...") : label}
+        {busy ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          <Wallet className="h-4 w-4" />
+        )}
+        {busy
+          ? mode === "link"
+            ? "Linking wallet..."
+            : "Signing in..."
+          : label}
       </button>
       {error && (
         <p className="text-sm text-red-400" role="alert">
