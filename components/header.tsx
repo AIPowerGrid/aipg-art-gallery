@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -12,6 +12,9 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => setHydrated(true), []);
   
   // Use reactive auth state from store. The session cookie is the source of truth,
   // so we do NOT gate on the live wallet connection (isConnected) — otherwise a
@@ -90,8 +93,10 @@ export function Header() {
           {/* Mobile: Hamburger Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="xl:hidden flex flex-col justify-center items-center w-10 h-10 rounded-lg hover:bg-white/10 transition-colors"
+            disabled={!hydrated}
+            className="xl:hidden flex flex-col justify-center items-center w-10 h-10 rounded-lg hover:bg-white/10 transition-colors disabled:cursor-wait disabled:opacity-50"
             aria-label="Toggle menu"
+            aria-expanded={mobileMenuOpen}
           >
             <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${mobileMenuOpen ? 'rotate-45 translate-y-1' : ''}`} />
             <span className={`block w-5 h-0.5 bg-white mt-1 transition-all duration-300 ${mobileMenuOpen ? 'opacity-0' : ''}`} />
@@ -99,13 +104,10 @@ export function Header() {
           </button>
         </div>
 
-        {/* Mobile Menu Dropdown */}
-        <div
-          className={`xl:hidden transition-all duration-300 ease-in-out ${
-            mobileMenuOpen ? 'max-h-[500px] opacity-100 mt-4' : 'max-h-0 opacity-0 overflow-hidden'
-          }`}
-        >
-          <nav className="flex flex-col gap-1 pb-2">
+        {/* Mobile navigation overlays page content and scrolls independently. */}
+        {mobileMenuOpen && (
+          <div className="absolute inset-x-0 top-full z-50 max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-white/10 bg-black/95 px-4 pb-4 shadow-2xl xl:hidden">
+            <nav className="flex flex-col gap-1 pt-3">
             {navItems.map((item) => (
           <Link
                 key={item.href}
@@ -137,8 +139,9 @@ export function Header() {
                 </div>
               )}
             </div>
-        </nav>
-        </div>
+            </nav>
+          </div>
+        )}
       </div>
     </header>
   );
