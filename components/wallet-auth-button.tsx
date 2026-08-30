@@ -80,14 +80,22 @@ export function WalletAuthButton({
       return;
     }
     resumeInFlight.current = true;
+    let needsChooser = false;
     try {
-      await reconnectAsync();
+      const connections = await reconnectAsync();
+      needsChooser = connections.length === 0;
     } catch {
-      // Keep the explicit intent so the operator can retry from the same button.
+      needsChooser = true;
     } finally {
       resumeInFlight.current = false;
     }
-  }, [isConnected, mode, reconnectAsync]);
+    // Base Account may first establish its own session without authorizing the
+    // Gallery. Resume silently when possible; otherwise return the user to the
+    // chooser while the original explicit sign-in intent is still active.
+    if (needsChooser && hasWalletAuthIntent(mode)) {
+      openConnectModal?.();
+    }
+  }, [isConnected, mode, openConnectModal, reconnectAsync]);
 
   const authenticate = useCallback(async () => {
     if (running.current || !isConnected || !address) return;

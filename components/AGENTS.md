@@ -47,7 +47,10 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   session storage so a Base Account login handoff or page remount can finish
   SIWE. Clear it on success, rejection, or expiry; never infer intent from a
   connected wallet alone. A stored intent may run Wagmi's authorization-only
-  reconnect when the page mounts or regains focus after a wallet popup; without
+  reconnect when the page mounts or regains focus after a wallet popup. If the
+  provider established its own session but is not yet authorized for Gallery,
+  return the user to the chooser from that explicit intent instead of requiring
+  another top-level click. Without
   that intent, mount and focus remain passive.
 - Provider-rendered sign-in controls must measure their container and fit the
   narrow account menu; do not assume a fixed desktop button width.

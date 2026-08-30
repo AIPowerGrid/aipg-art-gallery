@@ -102,7 +102,7 @@ describe("WalletAuthButton", () => {
     expect(reconnectAsync).not.toHaveBeenCalled();
   });
 
-  it("resumes only a stored explicit wallet intent after a popup return", async () => {
+  it("reopens the chooser when a stored explicit intent cannot reconnect", async () => {
     sessionStorage.setItem(
       "aipg_wallet_auth_intent",
       JSON.stringify({ mode: "sign-in", expiresAt: Date.now() + 60_000 }),
@@ -111,7 +111,23 @@ describe("WalletAuthButton", () => {
     render(<WalletAuthButton mode="sign-in" />);
 
     await waitFor(() => expect(reconnectAsync).toHaveBeenCalledTimes(1));
+    expect(openConnectModal).toHaveBeenCalledTimes(1);
     expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it("does not reopen the chooser after an authorized reconnect", async () => {
+    reconnectAsync.mockResolvedValue([
+      { accounts: [address], chainId: 8453, connector: { id: "baseAccount" } },
+    ]);
+    sessionStorage.setItem(
+      "aipg_wallet_auth_intent",
+      JSON.stringify({ mode: "sign-in", expiresAt: Date.now() + 60_000 }),
+    );
+
+    render(<WalletAuthButton mode="sign-in" />);
+
+    await waitFor(() => expect(reconnectAsync).toHaveBeenCalledTimes(1));
+    expect(openConnectModal).not.toHaveBeenCalled();
   });
 
   it("retries the explicit connection when focus returns from the wallet", async () => {
