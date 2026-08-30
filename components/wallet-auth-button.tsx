@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
-import { useAccount, useSignMessage, useSwitchChain } from "wagmi";
+import {
+  useAccount,
+  useReconnect,
+  useSignMessage,
+  useSwitchChain,
+} from "wagmi";
 import { base } from "wagmi/chains";
 import { Loader2, Wallet } from "lucide-react";
 import { linkWalletToGoogleAccount, signIn } from "@/lib/auth";
@@ -56,6 +61,7 @@ export function WalletAuthButton({
 }: WalletAuthButtonProps) {
   const { address, isConnected, chainId } = useAccount();
   const { openConnectModal } = useConnectModal();
+  const { reconnectAsync } = useReconnect();
   const { signMessageAsync } = useSignMessage();
   const { switchChainAsync } = useSwitchChain();
   const { setAuthenticated, syncFromServer } = useAuthStore();
@@ -63,6 +69,25 @@ export function WalletAuthButton({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const running = useRef(false);
+  const resumeInFlight = useRef(false);
+
+  const resumeExplicitConnection = useCallback(async () => {
+    if (
+      resumeInFlight.current ||
+      isConnected ||
+      !hasWalletAuthIntent(mode)
+    ) {
+      return;
+    }
+    resumeInFlight.current = true;
+    try {
+      await reconnectAsync();
+    } catch {
+      // Keep the explicit intent so the operator can retry from the same button.
+    } finally {
+      resumeInFlight.current = false;
+    }
+  }, [isConnected, mode, reconnectAsync]);
 
   const authenticate = useCallback(async () => {
     if (running.current || !isConnected || !address) return;
@@ -108,8 +133,19 @@ export function WalletAuthButton({
   ]);
 
   useEffect(() => {
-    if (hasWalletAuthIntent(mode)) setIntent(true);
-  }, [mode]);
+    if (!hasWalletAuthIntent(mode)) return;
+    setIntent(true);
+    void resumeExplicitConnection();
+  }, [mode, resumeExplicitConnection]);
+
+  useEffect(() => {
+    if (!intent || isConnected) return;
+    const resumeAfterWalletPopup = () => {
+      void resumeExplicitConnection();
+    };
+    window.addEventListener("focus", resumeAfterWalletPopup);
+    return () => window.removeEventListener("focus", resumeAfterWalletPopup);
+  }, [intent, isConnected, resumeExplicitConnection]);
 
   useEffect(() => {
     if (!intent) return;
