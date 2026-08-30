@@ -46,7 +46,9 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
 - An explicit wallet sign-in/link click stores a short-lived, one-use intent in
   session storage so a Base Account login handoff or page remount can finish
   SIWE. Clear it on success, rejection, or expiry; never infer intent from a
-  connected wallet alone.
+  connected wallet alone. A stored intent may run Wagmi's authorization-only
+  reconnect when the page mounts or regains focus after a wallet popup; without
+  that intent, mount and focus remain passive.
 - Provider-rendered sign-in controls must measure their container and fit the
   narrow account menu; do not assume a fixed desktop button width.
 - Keep the header in its compact menu below the `xl` breakpoint. Authenticated
