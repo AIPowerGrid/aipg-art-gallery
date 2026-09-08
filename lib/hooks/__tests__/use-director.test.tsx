@@ -73,6 +73,92 @@ afterEach(() => {
 });
 
 describe('useDirector', () => {
+  it.each(['queued', 'rendering'] as const)(
+    'does not resubmit an untracked %s segment when the queue is resumed',
+    async (status) => {
+      const id = useDirectorStore.getState().addSegment();
+      useDirectorStore.getState().updateSegment(id, {
+        status,
+        jobId: 'original-gallery-job',
+        gridJobId: 'original-grid-receipt',
+        startImage: 'data:image/jpeg;base64,IMG',
+        prompt: 'ride',
+      });
+
+      const { result } = setup();
+      await act(async () => result.current.renderPending());
+
+      expect(createJob).not.toHaveBeenCalled();
+      expect(useDirectorStore.getState().segments[0]).toMatchObject({
+        status: 'error',
+        jobId: 'original-gallery-job',
+        gridJobId: 'original-grid-receipt',
+        error: expect.stringMatching(/may still complete and be charged/i),
+      });
+    },
+  );
+
+  it('does not automatically retry a submission whose response was lost', async () => {
+    const id = useDirectorStore.getState().addSegment();
+    useDirectorStore.getState().updateSegment(id, {
+      status: 'queued',
+      startImage: 'data:image/jpeg;base64,IMG',
+      prompt: 'ride',
+    });
+
+    const { result } = setup();
+    await act(async () => result.current.renderPending());
+
+    expect(createJob).not.toHaveBeenCalled();
+    expect(useDirectorStore.getState().segments[0].status).toBe('error');
+  });
+
+  it('does not mistake an older output for an untracked rerender completion', () => {
+    const id = useDirectorStore.getState().addSegment();
+    useDirectorStore.getState().updateSegment(id, {
+      status: 'queued',
+      jobId: 'rerender-job',
+      outputUrl: 'https://media.aipg.art/video/older.mp4',
+    });
+
+    setup();
+
+    expect(useDirectorStore.getState().segments[0]).toMatchObject({
+      status: 'error',
+      jobId: 'rerender-job',
+      outputUrl: 'https://media.aipg.art/video/older.mp4',
+    });
+  });
+
+  it('continues observing a tracked job without creating a replacement', async () => {
+    const id = useDirectorStore.getState().addSegment();
+    useDirectorStore.getState().updateSegment(id, {
+      status: 'queued',
+      jobId: 'tracked-job',
+      startImage: 'data:image/jpeg;base64,IMG',
+      prompt: 'ride',
+    });
+    useJobStore.getState().addJob({
+      jobId: 'tracked-job',
+      modelId: 'LTX Director 2.0',
+      modelName: 'LTX Director 2.0',
+      prompt: 'ride',
+      type: 'video',
+      isNsfw: false,
+      isPublic: false,
+    });
+
+    const { result } = setup();
+    await act(async () => result.current.renderPending());
+
+    expect(createJob).not.toHaveBeenCalled();
+    expect(useDirectorStore.getState().segments[0]).toMatchObject({
+      status: 'queued',
+      jobId: 'tracked-job',
+    });
+    expect(useDirectorStore.getState().segments[0].error).toBeUndefined();
+  });
+
   it('does not submit a render without an authenticated session', async () => {
     const id = useDirectorStore.getState().addSegment();
     useDirectorStore.getState().updateSegment(id, {

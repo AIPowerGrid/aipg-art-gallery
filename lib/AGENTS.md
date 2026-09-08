@@ -79,6 +79,12 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   the image job id as the segment's video `jobId`. Credit displays and estimates come only
   from Core's `/credits` and `/credits/quote`; completed first-frame and segment receipts
   come only from the server-observed polling result.
+- Director reload recovery must not turn untracked queued/rendering segments
+  into idle work or infer completion from an older output. Preserve job/receipt
+  IDs, mark the result uncertain, and keep it out of Render pending. Missing
+  browser tracking is not a Core cancellation or refund; an explicit retry is
+  a new potentially chargeable job. This client guard is not durable request
+  idempotency or server-side recovery after a Gallery restart.
 
 ## Work Guidance
 

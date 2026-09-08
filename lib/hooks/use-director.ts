@@ -375,16 +375,18 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
   const inflightStartImages = useRef<Set<string>>(new Set());
   const queueSubmitting = useRef(false);
 
-  // 0. Reload recovery: a segment stuck queued/rendering with no tracked job
-  //    (job store pruned it, or the tab died mid-submit) returns to idle so it
-  //    can render again. Completed-but-untracked keeps its outputUrl.
+  // Missing browser tracking does not prove that Core cancelled the paid job.
+  // Keep uncertain submissions out of Render pending, retaining receipt IDs.
   useEffect(() => {
     for (const seg of segments) {
-      if ((seg.status === 'queued' || seg.status === 'rendering') && seg.jobId) {
-        const job = jobs.find((j) => j.jobId === seg.jobId);
-        if (!job) updateSegment(seg.id, { status: seg.outputUrl ? 'done' : 'idle', progress: undefined });
-      } else if ((seg.status === 'queued' || seg.status === 'rendering') && !seg.jobId) {
-        updateSegment(seg.id, { status: 'idle' });
+      if (seg.status !== 'queued' && seg.status !== 'rendering') continue;
+      if (!seg.jobId || !jobs.some((job) => job.jobId === seg.jobId)) {
+        updateSegment(seg.id, {
+          status: 'error',
+          progress: undefined,
+          error: 'Tracking interrupted. The original generation may still complete and be charged. Retrying creates a new generation.',
+        });
+        useDirectorStore.getState().setQueueActive(false);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
