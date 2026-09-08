@@ -280,21 +280,50 @@ func (c *Client) GenerateMedia(ctx context.Context, kind string, request Generat
 
 	resp, err := c.mediaClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, &generationOutcomeUnknown{cause: err}
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, &generationOutcomeUnknown{cause: err}
+	}
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode < 400 || resp.StatusCode >= 500 {
+			return nil, &generationOutcomeUnknown{cause: fmt.Errorf("Grid generation HTTP %d", resp.StatusCode)}
+		}
 		return nil, fmt.Errorf("grid %s generation failed (%d): %s", kind, resp.StatusCode, body)
 	}
 
 	var parsed GenerateResponse
 	if err := json.Unmarshal(body, &parsed); err != nil {
-		return nil, err
+		return nil, &generationOutcomeUnknown{cause: err}
+	}
+	expected := request.N
+	if expected <= 0 {
+		expected = 1
+	}
+	if len(parsed.Data) != expected {
+		return nil, &generationOutcomeUnknown{cause: errors.New("generation result count mismatch")}
+	}
+	for _, item := range parsed.Data {
+		if item.URL == "" && item.B64JSON == "" {
+			return nil, &generationOutcomeUnknown{cause: errors.New("generation output missing")}
+		}
 	}
 	return &parsed, nil
 }
+
+// Losing a synchronous response does not cancel Core's durable reservation.
+// Keep upstream text out of the public error: Director's recipe fallback must
+// not mistake an incidental "404" inside a gateway error for safe rejection.
+type generationOutcomeUnknown struct{ cause error }
+
+func (*generationOutcomeUnknown) Error() string {
+	return "Generation outcome is unknown. The original job may still complete and be charged. Retrying starts a new generation; check your history before retrying."
+}
+
+func (e *generationOutcomeUnknown) Unwrap() error { return e.cause }
 
 func (c *Client) accountRequest(ctx context.Context, method, path, apiKey, userToken string, body any) ([]byte, int, error) {
 	var reader io.Reader

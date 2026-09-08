@@ -17,7 +17,8 @@ import (
 // Entries are kept in memory only — they exist just long enough for the
 // frontend to poll the result, then a TTL sweep drops them. Persisting a
 // finished generation to the gallery is a separate, frontend-driven call
-// (handleAddToGallery), so nothing important is lost when an entry expires.
+// (handleAddToGallery). Restart or expiry can lose an unpersisted paid result;
+// missing local state is not proof that Core cancelled or refunded the job.
 type pendingStore struct {
 	mu   sync.RWMutex
 	jobs map[string]*pendingJob

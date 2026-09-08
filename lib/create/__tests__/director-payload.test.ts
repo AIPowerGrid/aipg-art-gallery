@@ -275,6 +275,7 @@ describe('fallback payload (Director recipe offline)', () => {
     expect(isModelUnavailableError(new Error("Model 'LTX Director 2.0' is not available"))).toBe(true);
     expect(isModelUnavailableError(new Error('unknown model: LTX Director 2.0'))).toBe(true);
     expect(isModelUnavailableError(new Error('network timeout'))).toBe(false);
+    expect(isModelUnavailableError(new Error('Generation outcome is unknown. The original job may still complete and be charged. Retrying starts a new generation; check your history before retrying.'))).toBe(false);
   });
 });
 

@@ -15,6 +15,12 @@ package owns one concern; `app/app.go` wires them together.
   deadline and must stay beyond Core's video ceiling. `FetchModelStats` reads
   `/v1/status/models`. `types.go` holds the request/response shapes. The async POST
   /jobs + poll contract the frontend uses is bridged in `app/pendingstore.go`.
+  Transport/read failures, gateway errors, malformed success bodies and missing
+  outputs have an explicitly unknown generation outcome: Core may still finish
+  and charge the original job. Do not retry automatically or expose upstream
+  gateway text that the Director could mistake for a safe recipe fallback.
+  Definite 4xx rejections retain their existing error shape. This classification
+  is not durable recovery; pending jobs are still process-local.
   `client.go` exchanges namespaced gallery subjects and Core-verified
   Google/SIWE proofs for short-lived Core user tokens; the service key is
   server-only.
