@@ -11,6 +11,30 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
+## Verified billing release (2026-09-08)
+
+- Selected commit: `5836668b91a25cb2a1491af1fca6d8b1fa6d1cb6` (PR #20).
+  All PR backend, frontend, browser, security, and CodeQL checks passed.
+- The production candidate passed the Node 22 frozen dependency install and
+  Next production build, followed by a production-only lockfile reinstall,
+  Go race tests, vet, and binary build. No schema migration was introduced.
+- Activated `gallery-5836668b`; independently runnable rollback
+  `gallery-2bc9c7e6` remains retained. Environment hash was unchanged before
+  construction and after activation; service definitions and Nginx were not edited.
+- Both processes are active, the backend process directory matches the new
+  release, and `/proc/<pid>/exe` matches the candidate binary SHA-256
+  `04a9f9d9094de2494ee612387eb74dec4b58cd5a17af6b725b94aab0249b381d`.
+  Public `/create` returns 200; anonymous `/api/credits` returns 401.
+- A real signed-in Google session survived a fresh page load. The persisted
+  private canary image loaded and the Z-Image quote remained paid. Before this
+  release, that canary proved one 3,000-micro-USD purchased debit, one settled
+  reservation, and one image completion in Core; a second submission showed
+  insufficient credits. The backend release adds response-side account matching.
+- This is not global billing activation. Krea remains preview-only for the
+  inspected cohort, and other modalities and cross-site identity canaries are
+  still outstanding. Detailed economic evidence lives in Core's
+  `deploy/DEMAND_BILLING_LAUNCH_2026_09_08.md`.
+
 ## Release layout
 
 ```text
