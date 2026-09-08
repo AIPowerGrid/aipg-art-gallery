@@ -51,6 +51,11 @@ jobs to the grid and serves gallery/media.
 - **Runtime:** frontend builds and production use Node 22 as pinned by `.nvmrc`;
   the backend uses the Go 1.25 toolchain pinned by `server/go.mod`. Docker,
   CI, and the LXC release build must honor both pins.
+- Keep Next.js and its ESLint config pinned together at the reviewed patched
+  version, with the sharp override at least 0.35.4. The Next.js AVIF optimizer
+  advisory GHSA-2xp9-vwfh-vxw4 and sharp advisory GHSA-rgj7-g3m4-5g8c gate
+  deployment; do not bypass the production dependency audit or roll back to
+  affected image-processing packages to undo an unrelated UI change.
 - **Product boundary:** `aipg.art` owns Gallery, Studio, and Director. Standalone
   music generation belongs to `aipg.music`; do not add an audio/music route or
   ACE-Step API surface back to this repo. Director may still use audio as part
