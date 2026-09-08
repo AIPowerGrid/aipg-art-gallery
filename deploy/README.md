@@ -11,7 +11,36 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
-## Verified billing release (2026-09-08)
+## Current patched release (2026-09-08, 23:24 UTC)
+
+- Active commit: `815c11eef601486d83a9c216f63f620bb56d359e` (PR #22).
+  Director reload recovery preserves uncertain job identifiers and prevents
+  automatic replacement submissions. It does not add durable server-side
+  idempotency or prove the paid Director lifecycle.
+- Next.js/ESLint `16.3.4` and sharp `0.35.4` pass the production high/critical
+  audit gate. Two moderate and one low dependency finding remain.
+  Verify sharp with `require("sharp").versions.sharp`; its package exports do
+  not permit `require("sharp/package.json")`.
+- All PR CI/CodeQL checks passed. The host passed the Node 22 production build,
+  frozen production dependency reinstall, Go race tests, vet, and binary build.
+  A loopback-only candidate returned 200 for Studio and Director before cutover.
+- Both services now run from `gallery-815c11ee`; the Go executable checksum is
+  `672a978fbdadb4a8c1c9b3f0c63d4bfd57ea20e625c0e9e9cd747d3e2a195c1e`.
+  Shared environment and final Nginx configuration are unchanged. A temporary
+  submission gate was removed after the restart and health checks. Anonymous
+  credits/jobs return 401; public Studio/Director return 200.
+- A fresh browser load restored the signed-in session and existing creation.
+  The purchased balance remains approximately `$0.0007`; Krea remains preview
+  for this cohort. No new paid canary or global charging activation occurred.
+- Host evidence: `/var/lib/aipg-release-proof/gallery-815c11ee/`.
+  Core's `deploy/DEMAND_BILLING_LAUNCH_2026_09_08.md` records detailed evidence
+  and outstanding cross-site, batch, and Director launch gates.
+- The retained earlier releases contain affected image-processing packages.
+  Do not blindly restore those dependencies for a UI rollback: preserve these
+  patches in a rollback build, or contain the affected surface while repairing
+  the patched candidate.
+
+## Earlier billing release (2026-09-08)
 
 - Selected commit: `5836668b91a25cb2a1491af1fca6d8b1fa6d1cb6` (PR #20).
   All PR backend, frontend, browser, security, and CodeQL checks passed.
@@ -80,6 +109,7 @@ cd "$staging"
 test "$(node -p 'process.versions.node.split(".")[0]')" = 22
 npm ci
 npm run build
+npm audit --omit=dev --audit-level=high
 npm ci --omit=dev
 (cd server && GOTOOLCHAIN=auto go test ./... && GOTOOLCHAIN=auto go vet ./...)
 (cd server && GOTOOLCHAIN=auto go build -o ../gallery-server ./cmd/api)
@@ -136,6 +166,9 @@ runnable rollback.
 
 ## Roll back
 
-Point `/opt/aipg-gallery-current` to the retained prior release, restart both
-services, and repeat the smoke checks. Do not roll back by copying individual
-files into the active checkout.
+Before selecting a prior release, check its dependencies against current
+security gates. Do not restore the pre-`815c11ee` affected Next.js/sharp packages.
+Prepare a reviewed rollback candidate retaining the security patches when the
+previous release is affected. Then point `/opt/aipg-gallery-current` to that
+candidate, restart both services, and repeat the smoke checks. Do not roll back
+by copying individual files into the active checkout.
