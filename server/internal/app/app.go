@@ -837,16 +837,21 @@ func (a *App) handleWalletExchange(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCredits(w http.ResponseWriter, r *http.Request) {
-	userToken, err := a.gridUserToken(r.Context(), r)
+	identity, err := a.gridUserIdentity(r.Context(), r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err)
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	credits, err := a.client.Credits(ctx, a.cfg.DefaultAPIKey, userToken)
+	credits, err := a.client.Credits(ctx, a.cfg.DefaultAPIKey, identity.AccessToken)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, errors.New("Grid credits are unavailable"))
+		return
+	}
+	accountID, ok := credits["account_id"].(string)
+	if !ok || accountID != identity.AccountID {
+		writeError(w, http.StatusBadGateway, errors.New("Grid credits account mismatch"))
 		return
 	}
 	writeJSON(w, http.StatusOK, credits)
@@ -869,7 +874,7 @@ func (a *App) handleCreditQuote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err)
 		return
 	}
-	userToken, err := a.gridUserToken(r.Context(), r)
+	identity, err := a.gridUserIdentity(r.Context(), r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err)
 		return
@@ -879,11 +884,15 @@ func (a *App) handleCreditQuote(w http.ResponseWriter, r *http.Request) {
 	quote, err := a.client.CreditQuote(
 		ctx,
 		a.cfg.DefaultAPIKey,
-		userToken,
+		identity.AccessToken,
 		buildCreditQuoteRequest(request.GenerationRequest(), preset),
 	)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, errors.New("Grid credit quote is unavailable"))
+		return
+	}
+	if quote.AccountID != identity.AccountID {
+		writeError(w, http.StatusBadGateway, errors.New("Grid credit quote account mismatch"))
 		return
 	}
 	writeJSON(w, http.StatusOK, quote)
@@ -1497,7 +1506,7 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, errors.New("Grid bridge is not configured"))
 		return
 	}
-	userToken, err := a.gridUserToken(r.Context(), r)
+	identity, err := a.gridUserIdentity(r.Context(), r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, err)
 		return
@@ -1514,11 +1523,15 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	quote, err := a.client.CreditQuote(
 		quoteContext,
 		a.cfg.DefaultAPIKey,
-		userToken,
+		identity.AccessToken,
 		buildCreditQuoteRequest(req, preset),
 	)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, errors.New("Grid credit quote is unavailable"))
+		return
+	}
+	if quote.AccountID != identity.AccountID {
+		writeError(w, http.StatusBadGateway, errors.New("Grid credit quote account mismatch"))
 		return
 	}
 	if quote.ChargingEnabled && !quote.Estimate.Priced {
@@ -1556,7 +1569,7 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(context.Background(), aipg.MediaGenerationTimeout)
 		defer cancel()
 
-		resp, err := a.client.GenerateMedia(ctx, kind, gen, a.cfg.DefaultAPIKey, userToken, clientAgent)
+		resp, err := a.client.GenerateMedia(ctx, kind, gen, a.cfg.DefaultAPIKey, identity.AccessToken, clientAgent)
 		if err != nil {
 			log.Printf("❌ Grid %s job %s failed: %v", kind, jobID, err)
 			a.pending.fail(jobID, err.Error())

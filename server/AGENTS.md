@@ -91,6 +91,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   canonical quote endpoint. Job creation repeats that preflight for immediate
   insufficient-credit UX, but Core's atomic reservation remains authoritative
   against balance races.
+  Credit summaries and quotes must also return the exact delegated canonical
+  account ID. Missing or mismatched IDs fail closed with a bounded gateway
+  error; job creation must not enqueue background generation in that case.
+  This applies equally to Director first frames and video segments.
 - Successful Core media responses persist `grid.job_id` as nullable
   `gallery_items.grid_job_id`; this receipt identifier is distinct from the
   Gallery's polling/publishing `job_id`.
