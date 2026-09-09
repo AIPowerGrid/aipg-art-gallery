@@ -168,7 +168,7 @@ func (s *PostgresStore) Add(item GalleryItem) error {
 // Get retrieves a single gallery item by job ID
 func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	query := `
-		SELECT job_id, grid_job_id, model, prompt, negative_prompt,
+		SELECT job_id, COALESCE(NULLIF(type, ''), 'image'), grid_job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
 			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
 			   created_at, worker, gen_time
@@ -190,6 +190,7 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 
 	err := s.db.QueryRow(query, jobID).Scan(
 		&item.JobID,
+		&item.Type,
 		&gridJobID,
 		&model,
 		&prompt,
@@ -227,7 +228,6 @@ func (s *PostgresStore) Get(jobID string) *GalleryItem {
 	}
 	item.MediaURLs = parseMediaURLs(mediaURL)
 	item.CreatedAt = createdAt.UnixMilli()
-	item.Type = "image" // Default to image
 
 	if walletAddr.Valid {
 		item.WalletAddress = walletAddr.String
@@ -511,7 +511,7 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 	items := make([]GalleryItem, 0) // Initialize to empty array, not nil
 
 	query := `
-		SELECT job_id, grid_job_id, model, prompt, negative_prompt,
+		SELECT job_id, COALESCE(NULLIF(type, ''), 'image'), grid_job_id, model, prompt, negative_prompt,
 			   media_url, is_public, wallet_address,
 			   width, height, steps, cfg_scale, sampler, scheduler, seed, seeds,
 			   created_at, worker, gen_time
@@ -543,6 +543,7 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 
 		err := rows.Scan(
 			&item.JobID,
+			&item.Type,
 			&gridJobID,
 			&model,
 			&prompt,
@@ -580,7 +581,6 @@ func (s *PostgresStore) ListByWallet(wallet string, limit int) []GalleryItem {
 		}
 		item.MediaURLs = parseMediaURLs(mediaURL)
 		item.CreatedAt = createdAt.UnixMilli()
-		item.Type = "image"
 
 		if walletAddr.Valid {
 			item.WalletAddress = walletAddr.String

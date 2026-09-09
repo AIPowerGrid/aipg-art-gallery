@@ -42,6 +42,11 @@ rows during application rollback; there is no automatic pruning or resubmission.
   PostgreSQL transaction. It must be idempotent and safe under concurrent login;
   update the file backend when this behavior changes.
 - `users.id` and gallery foreign keys are UUIDs represented as strings in Go.
+- Single-item, private-history, public-gallery and favorite readers preserve the
+  stored media type. Only missing legacy types default to image; never infer
+  video/image from the current model picker or overwrite videos when reading.
+  `TestPostgresMediaTypeReaders` covers persisted video/image recovery without
+  another generation or media write.
 
 ## Work Guidance
 

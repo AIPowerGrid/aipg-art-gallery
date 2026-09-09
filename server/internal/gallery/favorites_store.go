@@ -71,7 +71,7 @@ func (s *FavoritesStore) GetFavoriteJobIDs(wallet string) []string {
 // GetFavoritedItems returns full gallery items that are favorited by a user
 func (s *FavoritesStore) GetFavoritedItems(wallet string, limit int) []GalleryItem {
 	query := `
-		SELECT g.job_id, g.model, g.prompt, g.negative_prompt,
+		SELECT g.job_id, COALESCE(NULLIF(g.type, ''), 'image'), g.model, g.prompt, g.negative_prompt,
 			   g.media_url, g.is_public, g.wallet_address,
 			   g.width, g.height, g.steps, g.cfg_scale, g.sampler, g.scheduler, g.seed,
 			   g.created_at
@@ -101,6 +101,7 @@ func (s *FavoritesStore) GetFavoritedItems(wallet string, limit int) []GalleryIt
 
 		err := rows.Scan(
 			&item.JobID,
+			&item.Type,
 			&model,
 			&prompt,
 			&negPrompt,
@@ -163,7 +164,6 @@ func (s *FavoritesStore) GetFavoritedItems(wallet string, limit int) []GalleryIt
 		}
 
 		item.CreatedAt = createdAt.UnixMilli()
-		item.Type = "image"
 
 		items = append(items, item)
 	}
