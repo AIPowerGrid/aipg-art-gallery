@@ -1,6 +1,7 @@
 package gallery
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/url"
@@ -101,6 +102,51 @@ func TestMigrationsPostgres(t *testing.T) {
 		}
 		if nullable != "YES" {
 			t.Fatalf("users.wallet_address nullable = %q, want YES", nullable)
+		}
+	})
+
+	t.Run("upgrade recorded production migrations without rewriting history", func(t *testing.T) {
+		db := isolatedSchemaDB(t, adminDB, adminURL, "recorded")
+		if _, err := db.Exec(`CREATE TABLE gallery_schema_migrations (
+			version TEXT PRIMARY KEY, checksum TEXT NOT NULL,
+			applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
+			t.Fatal(err)
+		}
+		migrations, err := loadMigrations()
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn, err := db.Conn(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Close()
+		for _, migration := range migrations[:2] {
+			if err := applyMigration(context.Background(), conn, migration); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := db.Exec(`INSERT INTO gallery_items (job_id, media_url, wallet_address, grid_job_id)
+			VALUES ('historic-job', 'https://images.example/old.webp', 'owner', 'historic-core-receipt')`); err != nil {
+			t.Fatal(err)
+		}
+		if err := runMigrations(db); err != nil {
+			t.Fatal(err)
+		}
+		assertMigrationState(t, db)
+		for _, migration := range migrations[:2] {
+			var checksum string
+			if err := db.QueryRow(`SELECT checksum FROM gallery_schema_migrations WHERE version=$1`, migration.version).Scan(&checksum); err != nil || checksum != migration.checksum {
+				t.Fatalf("previous migration changed: %v", err)
+			}
+		}
+		var receipt string
+		if err := db.QueryRow(`SELECT grid_job_id FROM gallery_items WHERE job_id='historic-job'`).Scan(&receipt); err != nil || receipt != "historic-core-receipt" {
+			t.Fatalf("historical receipt changed: %v", err)
+		}
+		var count int
+		if err := db.QueryRow(`SELECT count(*) FROM gallery_pending_jobs`).Scan(&count); err != nil || count != 0 {
+			t.Fatalf("migration invented pending work: count=%d err=%v", count, err)
 		}
 	})
 
