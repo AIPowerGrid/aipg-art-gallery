@@ -148,6 +148,12 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 ## Verification
 
+- `TestInFlightJobSurvivesProcessCrash` runs separate real-router processes
+  against disposable PostgreSQL and a local Core stand-in. It kills Gallery
+  after Core receives the job, then verifies same-ID replay remains uncertain
+  without redispatch and later persists the original recovered receipt. Both
+  Google-only and wallet-only signed-session cases run; these fixtures do not
+  prove a live OAuth/SIWE ceremony or kill any production service.
 - `GOTOOLCHAIN=auto go test ./... && go build ./... && go vet ./...` (toolchain pinned to 1.24).
 
 ## Child DOX Index

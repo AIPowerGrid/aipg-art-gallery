@@ -137,6 +137,10 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 - CI's full-history Gitleaks job uses a version-pinned, checksum-verified release
   binary. Keep both the version and SHA-256 in sync when upgrading it; do not
   replace the complete-history scan with a worktree-only scan.
+- Browser CI installs Playwright's Chromium, not system Google Chrome. Its
+  disposable runner excludes the unrelated Google Chrome apt source before
+  installing Ubuntu dependencies; package verification and browser tests remain
+  mandatory.
 
 ## Work Guidance
 
