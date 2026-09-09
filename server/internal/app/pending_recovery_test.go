@@ -69,6 +69,17 @@ func persistentPending(db *sql.DB) *pendingStore {
 	return s
 }
 
+func TestJobRecoveryRoutesRequireSession(t *testing.T) {
+	app := &App{}
+	for _, path := range []string{"/api/jobs/saved-job", "/api/jobs/requests/known-before-submission"} {
+		response := httptest.NewRecorder()
+		app.Router().ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusUnauthorized {
+			t.Fatalf("anonymous %s: %d", path, response.Code)
+		}
+	}
+}
+
 func TestPendingPostgresConcurrentRequestsAndTerminalMonotonicity(t *testing.T) {
 	db := recoveryDatabase(t)
 	ctx := context.Background()
@@ -230,6 +241,27 @@ func TestPendingPostgresRestartRecoversWithoutAnotherGeneration(t *testing.T) {
 	}
 	if got := status("stranger"); got.Code != 404 || recoveries.Load() != 0 {
 		t.Fatal("foreign owner reached Core recovery")
+	}
+	byRequest := func(owner, requestID string) *httptest.ResponseRecorder {
+		request := requestWithClaims(&auth.Claims{GoogleID: "test-google", GridAccountID: owner})
+		route := chi.NewRouteContext()
+		route.URLParams.Add("requestID", requestID)
+		request = request.WithContext(context.WithValue(request.Context(), chi.RouteCtxKey, route))
+		response := httptest.NewRecorder()
+		app.handleJobRequestStatus(response, request)
+		return response
+	}
+	if got := byRequest("stranger", "one-request-before-post"); got.Code != 404 || recoveries.Load() != 0 {
+		t.Fatal("request correlation bypassed owner isolation")
+	}
+	if got := byRequest("owner", "unknown-request-before-post"); got.Code != 404 || recoveries.Load() != 0 {
+		t.Fatal("unknown request dispatched work")
+	}
+	if got := byRequest("owner", "short"); got.Code != 400 {
+		t.Fatal("invalid request ID accepted")
+	}
+	if got := byRequest("owner", "one-request-before-post"); got.Code != 200 || !strings.Contains(got.Body.String(), "recovered.webp") || !strings.Contains(got.Body.String(), accepted.JobID) {
+		t.Fatalf("lost 202 read-only recovery failed: %d %s", got.Code, got.Body.String())
 	}
 	got := status("owner")
 	if got.Code != 200 || !strings.Contains(got.Body.String(), "recovered.webp") {

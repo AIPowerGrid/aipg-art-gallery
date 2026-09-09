@@ -213,6 +213,7 @@ func (a *App) Router() http.Handler {
 			protected.With(httprate.LimitByIP(60, time.Minute)).Post("/credits/quote", a.handleCreditQuote)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
 			protected.Get("/jobs/{id}", a.handleJobStatus)
+			protected.Get("/jobs/requests/{requestID}", a.handleJobRequestStatus)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/ai/enhance", a.handleAIEnhance)
 			protected.Get("/gallery/me", a.handleListMyGallery)
 			protected.Get("/gallery/wallet/{wallet}", a.handleListByWallet)
@@ -1653,8 +1654,32 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleJobStatus(w http.ResponseWriter, r *http.Request) {
+	a.serveJobStatus(w, r, chi.URLParam(r, "id"))
+}
+
+func (a *App) handleJobRequestStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	jobID := chi.URLParam(r, "id")
+	requestID := chi.URLParam(r, "requestID")
+	if !generationRequestID.MatchString(requestID) {
+		writeError(w, http.StatusBadRequest, errors.New("invalid request ID"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	id, found, err := a.pending.requestJobID(ctx, getGalleryOwnerIdentifier(r), requestID)
+	cancel()
+	if err != nil {
+		writeJobStoreError(w, err)
+		return
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, errors.New("request not found; generation outcome is unknown"))
+		return
+	}
+	a.serveJobStatus(w, r, id)
+}
+
+func (a *App) serveJobStatus(w http.ResponseWriter, r *http.Request, jobID string) {
+	w.Header().Set("Cache-Control", "no-store")
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("job id required"))
 		return

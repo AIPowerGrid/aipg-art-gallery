@@ -101,7 +101,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   remains in memory. Optional `POST /api/jobs` `requestId` is 16-64 URL-safe
   characters; an owner/request ID elects one dispatch, identical retries return
   the original job, and changed settings return 409. Replays precede catalog and
-  credit preflight. New clients must persist their request handle before POST;
+  credit preflight. `GET /api/jobs/requests/{requestID}` recovers the same
+  owner-bound status without reposting a prompt or uploaded timeline; 404 is
+  unknown, not proof of non-dispatch or a refund. New clients must persist their request handle before POST;
   older clients that lose the 202 response cannot recover its ID automatically.
 - After restart or an uncertain transport outcome, owner-bound status polling
   reads Core `GET /v1/media/results?client_ref=<Gallery job ID>` using fresh

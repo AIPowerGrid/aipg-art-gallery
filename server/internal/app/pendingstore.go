@@ -43,6 +43,21 @@ func newPendingStore(ttl time.Duration) *pendingStore {
 	return &pendingStore{jobs: make(map[string]*pendingJob), running: make(map[string]bool), ttl: ttl}
 }
 
+func (s *pendingStore) requestJobID(ctx context.Context, owner, requestID string) (string, bool, error) {
+	if s.journal != nil {
+		row, found, err := s.journal.FindRequest(ctx, owner, requestID)
+		return row.ID, found, err
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for id, job := range s.jobs {
+		if job.Owner == owner && job.RequestID == requestID {
+			return id, true, nil
+		}
+	}
+	return "", false, nil
+}
+
 func (s *pendingStore) findRequest(ctx context.Context, owner, requestID, digest string) (string, bool, error) {
 	if s.journal != nil {
 		row, found, err := s.journal.FindRequest(ctx, owner, requestID)
