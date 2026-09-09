@@ -11,6 +11,43 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
+## Persisted video playback repair (2026-09-09, 15:11 UTC)
+
+PR #29 merged as `02446c68095ce24cbaa75c17dff73309c312ba03`. Production
+selects its tested head `af7593fd262a9d1004a95d053e198a7dca807025` at
+`gallery-af7593fd`; the merge tree is identical. Required PR and merged-main
+CI passed, including PostgreSQL 16 race tests, frontend/browser checks,
+full-history secret scanning and Go/TypeScript CodeQL.
+
+A funded LTX canary completed and settled once, but reloading Studio lost
+playback. The database and durable receipt correctly recorded video; the
+single-item, private-history and favorite readers hardcoded image. Those
+readers now preserve the stored type. No schema, billing, auth, frontend or
+generation contract changed, and no saved media rows were rewritten.
+
+The Node 22 build, production lockfile reinstall/audit, Go race suite, vet and
+binary build passed on the host. A fresh checksum-verified backup was restored
+into disposable scratch; the full candidate Go race suite passed there with
+all existing gallery, user, favorite, generation, pending-job and migration
+rows unchanged. The scratch database was dropped. Protected proof is under
+`/var/lib/aipg-release-proof/gallery-af7593fd/`.
+
+An initial activation wrapper stopped on shell quoting before switching the
+application and restored normal ingress. After correcting that wrapper,
+submissions were briefly gated and two journal observations found no active
+or uncertain image/video jobs. Both services switched and passed health,
+binary/process-path, anonymous-401 and unchanged schema/environment checks;
+normal ingress was restored. `gallery-c2301476` remains the compatible rollback.
+
+The existing signed-in browser then reloaded the original canary, identified
+it as video and opened its player. Successive screenshots showed moving
+frames; the original receipt/media URL and balance were retained. The video
+was not regenerated. This proves completed-result playback across release and
+browser reload, not an in-flight broker crash or a multi-stage Director run.
+The modal's requested dimensions differ from the encoded clip dimensions;
+requested-versus-actual metadata and visual quality remain separate follow-ups.
+Global billing and payout activation remain gated in Core's launch report.
+
 ## Durable media recovery (deployed 2026-09-09, 01:49 UTC)
 
 Core PR #149 merged as `bf975599bdfba9fce7b9c661e98331fa3a1aafc1`.
