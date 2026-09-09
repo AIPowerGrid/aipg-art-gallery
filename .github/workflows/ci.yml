@@ -75,11 +75,13 @@ jobs:
       - run: npm ci
       - name: Isolate browser dependencies from unused Chrome repository
         run: |
-          chrome_source=/etc/apt/sources.list.d/google-chrome.list
-          if [ -f "$chrome_source" ]; then
-            grep -Fq 'dl.google.com/linux/chrome' "$chrome_source"
-            sudo mv "$chrome_source" "$RUNNER_TEMP/google-chrome.list.disabled"
-          fi
+          for source in /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -f "$source" ] || continue
+            if grep -Fq 'dl.google.com/linux/chrome' "$source"; then
+              echo "Excluding unused Chrome source: $source"
+              sudo mv "$source" "$RUNNER_TEMP/$(basename "$source").disabled"
+            fi
+          done
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
 
