@@ -15,7 +15,9 @@ Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 
 Core PR #149 merged as `bf975599bdfba9fce7b9c661e98331fa3a1aafc1`.
 This Gallery candidate depends on its migration 0040 and authenticated
-`GET /v1/media/results` endpoint. Neither a merge nor local tests establish
+`GET /v1/media/results` endpoint, plus Core PR #150's private
+`GET /v1/account/ownership` (merged as
+`4891565001ba18ca2bc4b4cfcdb818aeb7da5aeb`). Neither a merge nor local tests establish
 that production runs the new behavior. A read-only host check still resolves
 `/opt/aipg-gallery-current` to `gallery-9e7ff3dc`.
 
@@ -25,7 +27,8 @@ Before activation:
    migration `0003_pending_job_recovery` on the restored database. Migration
    startup must retain the first two recorded checksums and existing rows.
 2. Deploy migration-compatible Core result storage and verify its running
-   processes, owner-scoped endpoint, and atomic result/settlement tests.
+   processes, owner-scoped endpoint, ownership endpoint, and atomic
+   result/settlement tests. Gallery session renewal must not precede this API.
 3. Require green Gallery PostgreSQL 16 CI, race tests, dependency/security
    checks, and a reviewed immutable release. Set `POSTGRES_ENABLED=true`;
    charged submissions fail closed without the durable journal.
@@ -46,8 +49,13 @@ The client candidate adds browser-persisted pre-submission handles, owner-bound
 read-only recovery after a lost 202, and separate Director first-frame/video
 associations. A production-build browser test deliberately loses the submission
 response, reloads, and recovers the original job with one POST. This is mocked
-protocol evidence, not a funded live canary. Proven canonical account-merge
-handoff and the funded multistage canary remain required. Deploy the compatible
+protocol evidence, not a funded live canary. The account-merge candidate checks
+Core ownership before renewing an old session, migrates only proved gallery
+owners and browser recovery handles, and reads immutable journal owners through
+the same verified family. Reused request IDs across that family return 409;
+the original Gallery job ID disambiguates. Core outages preserve the browser's
+session markers but fail closed server-side. Test this handoff with live Google
+and wallet sessions, plus the funded multistage canary. Deploy the compatible
 backend before this frontend; older backend routes cannot recover these handles.
 Charging flags and worker payout policy are unchanged by this candidate.
 

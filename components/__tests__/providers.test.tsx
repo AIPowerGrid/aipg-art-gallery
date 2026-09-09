@@ -38,6 +38,7 @@ jest.mock("@/lib/stores/auth-store", () => ({
     isAuthenticated: true,
     address: "0x0000000000000000000000000000000000000001",
     accountId: "account-123",
+    accountAliases: [],
     googleId: null,
     syncFromStorage: jest.fn(),
     syncFromServer: jest.fn(),

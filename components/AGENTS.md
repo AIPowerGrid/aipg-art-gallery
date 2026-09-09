@@ -12,6 +12,8 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   one page-wide GSI initialization. `providers.tsx` wires Wagmi / RainbowKit /
   React Query and reconciles the cookie session on mount; it must never initiate
   wallet connection, network switching, or SIWE.
+  It refreshes the server session after an identity change and passes only
+  server-returned canonical aliases to persisted job recovery.
 - Gallery/media: `creation-card.tsx`, `media-card.tsx`, `image-modal.tsx`, `gallery-filter.tsx`,
   `creations-grid.tsx`, `active-jobs-indicator.tsx`. Create flow: `create/*`. Misc: `header.tsx`,
   `network-selector.tsx`, `dimension-slider.tsx`, `error-boundary.tsx`.

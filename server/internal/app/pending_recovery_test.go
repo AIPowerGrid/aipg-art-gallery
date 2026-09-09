@@ -159,6 +159,7 @@ func TestPendingPostgresConcurrentRequestsAndTerminalMonotonicity(t *testing.T) 
 }
 
 func TestPendingPostgresRestartRecoversWithoutAnotherGeneration(t *testing.T) {
+	const owner = "11111111-1111-4111-8111-111111111111"
 	db := recoveryDatabase(t)
 	var generates, quotes, recoveries atomic.Int32
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -166,16 +167,18 @@ func TestPendingPostgresRestartRecoversWithoutAnotherGeneration(t *testing.T) {
 			t.Error("service key missing")
 		}
 		if r.URL.Path == "/auth/service/exchange" {
-			writeJSON(w, 200, map[string]string{"access_token": "delegated-token", "account_id": "owner"})
+			writeJSON(w, 200, map[string]string{"access_token": "delegated-token", "account_id": owner})
 			return
 		}
 		if r.Header.Get("X-Grid-User-Token") != "delegated-token" {
 			t.Error("delegation missing")
 		}
 		switch r.URL.Path {
+		case "/account/ownership":
+			writeJSON(w, 200, map[string]any{"account_id": owner, "account_aliases": []string{}})
 		case "/account/credits/quote":
 			quotes.Add(1)
-			writeJSON(w, 200, map[string]any{"account_id": "owner", "charging_enabled": true,
+			writeJSON(w, 200, map[string]any{"account_id": owner, "charging_enabled": true,
 				"estimate": map[string]any{"priced": true, "balance_sufficient": true}})
 		case "/images/generations":
 			generates.Add(1)
@@ -201,7 +204,7 @@ func TestPendingPostgresRestartRecoversWithoutAnotherGeneration(t *testing.T) {
 	app := &App{cfg: config.Config{DefaultAPIKey: "service-key"}, client: aipg.NewClient(core.URL, "test"),
 		catalog: catalog, pending: persistentPending(db)}
 	submit := func(prompt string) *httptest.ResponseRecorder {
-		request := requestWithClaims(&auth.Claims{GoogleID: "test-google", GridAccountID: "owner"})
+		request := requestWithClaims(&auth.Claims{GoogleID: "test-google", GridAccountID: owner})
 		request.Body = io.NopCloser(strings.NewReader(fmt.Sprintf(
 			`{"requestId":"one-request-before-post","modelId":"z-image-turbo","prompt":%q,"params":{"n":1}}`, prompt)))
 		response := httptest.NewRecorder()
@@ -248,7 +251,7 @@ func TestPendingPostgresRestartRecoversWithoutAnotherGeneration(t *testing.T) {
 		app.handleJobStatus(response, request)
 		return response
 	}
-	if got := status("stranger"); got.Code != 404 || recoveries.Load() != 0 {
+	if got := status("stranger"); got.Code != 503 || recoveries.Load() != 0 {
 		t.Fatal("foreign owner reached Core recovery")
 	}
 	byRequest := func(owner, requestID string) *httptest.ResponseRecorder {
@@ -260,19 +263,19 @@ func TestPendingPostgresRestartRecoversWithoutAnotherGeneration(t *testing.T) {
 		app.handleJobRequestStatus(response, request)
 		return response
 	}
-	if got := byRequest("stranger", "one-request-before-post"); got.Code != 404 || recoveries.Load() != 0 {
+	if got := byRequest("stranger", "one-request-before-post"); got.Code != 503 || recoveries.Load() != 0 {
 		t.Fatal("request correlation bypassed owner isolation")
 	}
-	if got := byRequest("owner", "unknown-request-before-post"); got.Code != 404 || recoveries.Load() != 0 {
+	if got := byRequest(owner, "unknown-request-before-post"); got.Code != 404 || recoveries.Load() != 0 {
 		t.Fatal("unknown request dispatched work")
 	}
-	if got := byRequest("owner", "short"); got.Code != 400 {
+	if got := byRequest(owner, "short"); got.Code != 400 {
 		t.Fatal("invalid request ID accepted")
 	}
-	if got := byRequest("owner", "one-request-before-post"); got.Code != 200 || !strings.Contains(got.Body.String(), "recovered.webp") || !strings.Contains(got.Body.String(), accepted.JobID) {
+	if got := byRequest(owner, "one-request-before-post"); got.Code != 200 || !strings.Contains(got.Body.String(), "recovered.webp") || !strings.Contains(got.Body.String(), accepted.JobID) {
 		t.Fatalf("lost 202 read-only recovery failed: %d %s", got.Code, got.Body.String())
 	}
-	got := status("owner")
+	got := status(owner)
 	if got.Code != 200 || !strings.Contains(got.Body.String(), "recovered.webp") {
 		t.Fatalf("recover: %d %s", got.Code, got.Body.String())
 	}
@@ -280,7 +283,7 @@ func TestPendingPostgresRestartRecoversWithoutAnotherGeneration(t *testing.T) {
 		t.Fatal("private response may be cached")
 	}
 	app.pending = persistentPending(db)
-	if got := status("owner"); got.Code != 200 || !strings.Contains(got.Body.String(), "recovered.webp") {
+	if got := status(owner); got.Code != 200 || !strings.Contains(got.Body.String(), "recovered.webp") {
 		t.Fatal("recovered output was not durable")
 	}
 	if recoveries.Load() != 1 || generates.Load() != 1 {

@@ -86,8 +86,13 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   separate `startImageRequestId` and video `requestId`; a recovered ID can only
   attach to its corresponding stage/account. Uploading/replacing a frame or
   selecting a definite-failure fallback clears that stage's old association.
-  Proof-backed canonical account-merge handoff remains a separate launch gate;
-  never relabel unresolved requests using unverified browser identity.
+  `/auth/me` returns Core-proven account aliases. The auth store holds those in
+  memory only and clears them on identity changes/logout; they may migrate
+  local job and unresolved-request ownership without dropping either handle
+  when IDs collide. The backend remains the authority and returns 409 for
+  ambiguous requests. Live account-merge verification remains a rollout gate.
+  A 5xx session check preserves the last session instead of treating a Core
+  outage as logout; only 401/403 clears authentication markers.
 - **Director wire contract** (`create/director-payload.ts` → `hooks/use-director.ts`): each
   timeline SEGMENT renders as its own job against the `LTX Director 2.0` recipe — image keyframe
   at frame 0 + one prompt + optional audio slice, all inside one `timelineData` string (media

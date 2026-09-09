@@ -112,9 +112,16 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   monotonic: late failures cannot overwrite a stored result. Core migration 0040
   and its result endpoint must be live before relying on restart recovery.
 - The journal contains no request prompt/body, timeline upload, or credentials.
-  No journal pruning is implemented. Account merges that retire the journal's
-  canonical owner still need a proof-backed recovery handoff; do not infer new
-  ownership from a browser-supplied address or email.
+  No journal pruning is implemented. `/auth/me` refreshes the service identity
+  and verifies the session's old account against Core `/v1/account/ownership`
+  before renewing its canonical cookie and migrating gallery items/favorites.
+  Pending journal owners stay immutable. Request recovery and explicit replay
+  consult the verified family; duplicate request IDs across merged owners are
+  409 and require the original job ID. Status and receipt publishing may read
+  proved retired owners without rewriting charge history. Never infer ownership
+  from browser addresses/email. Core ownership API must deploy first; a 404 or
+  outage fails closed, not into local-only identity. Live merge canaries remain
+  a rollout requirement.
 - Successful Core media responses persist `grid.job_id` as nullable
   `gallery_items.grid_job_id`; this receipt identifier is distinct from the
   Gallery's polling/publishing `job_id`.

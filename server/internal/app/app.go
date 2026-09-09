@@ -355,6 +355,18 @@ func getUserIdentifier(r *http.Request) string {
 }
 
 func (a *App) gridUserIdentity(ctx context.Context, r *http.Request) (*aipg.IdentityExchange, error) {
+	identity, err := a.exchangeGridUserIdentity(ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	claims := getClaimsFromContext(r)
+	if claims.GridAccountID == "" || identity.AccountID != claims.GridAccountID {
+		return nil, errors.New("Grid account identity mismatch")
+	}
+	return identity, nil
+}
+
+func (a *App) exchangeGridUserIdentity(ctx context.Context, r *http.Request) (*aipg.IdentityExchange, error) {
 	claims := getClaimsFromContext(r)
 	if claims == nil {
 		return nil, errors.New("authenticated Grid identity required")
@@ -367,10 +379,35 @@ func (a *App) gridUserIdentity(ctx context.Context, r *http.Request) (*aipg.Iden
 	if err != nil {
 		return nil, err
 	}
-	if claims.GridAccountID == "" || identity.AccountID != claims.GridAccountID {
-		return nil, errors.New("Grid account identity mismatch")
-	}
 	return identity, nil
+}
+
+func (a *App) gridAccountOwnership(ctx context.Context, r *http.Request) (*aipg.AccountOwnership, *aipg.IdentityExchange, error) {
+	identity, err := a.exchangeGridUserIdentity(ctx, r)
+	if err != nil {
+		return nil, nil, err
+	}
+	ownership, err := a.client.FetchOwnership(ctx, a.cfg.DefaultAPIKey, identity.AccessToken, identity.AccountID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if !ownership.Contains(getClaimsFromContext(r).GridAccountID) {
+		return nil, nil, errors.New("Grid account identity mismatch")
+	}
+	return ownership, identity, nil
+}
+
+func (a *App) ownedPendingJob(ctx context.Context, r *http.Request, id string) (pendingJob, bool, error) {
+	owner := getGalleryOwnerIdentifier(r)
+	job, found, err := a.pending.get(ctx, id, owner)
+	if err != nil || found {
+		return job, found, err
+	}
+	ownership, _, err := a.gridAccountOwnership(ctx, r)
+	if err != nil {
+		return pendingJob{}, false, err
+	}
+	return a.pending.get(ctx, id, ownership.AccountID, ownership.Aliases...)
 }
 
 func (a *App) gridUserToken(ctx context.Context, r *http.Request) (string, error) {
@@ -494,29 +531,42 @@ func (a *App) clearAuthCookie(w http.ResponseWriter, r *http.Request) {
 // if there is none. The frontend uses it to reconcile auth state on load (it
 // can't read the httpOnly cookie itself).
 func (a *App) handleMe(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	claims := getClaimsFromContext(r)
 	if claims == nil {
 		writeError(w, http.StatusUnauthorized, errors.New("not signed in"))
 		return
 	}
-	if err := a.canonicalizeGalleryOwnership(claims); err != nil {
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	ownership, _, err := a.gridAccountOwnership(ctx, r)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("account identity is temporarily unavailable"))
+		return
+	}
+	updated := *claims
+	updated.GridAccountID = ownership.AccountID
+	aliases := append(legacyGalleryOwnerIdentifiers(claims), ownership.Aliases...)
+	if err := a.galleryStore.CanonicalizeOwner(updated.GridAccountID, aliases); err != nil {
 		log.Printf("Auth: Failed to canonicalize session ownership: %v", err)
 		writeError(w, http.StatusServiceUnavailable, errors.New("account data is temporarily unavailable"))
 		return
 	}
-	// Slide the session forward on each check so an active user isn't logged out
-	// exactly at the 24h mark. Best-effort: a renewal failure leaves the existing
-	// cookie untouched.
-	if token, err := auth.RenewJWT(*claims); err == nil {
-		a.setAuthCookie(w, r, token)
+	// Never advertise a new canonical identity without updating its cookie.
+	token, err := auth.RenewJWT(updated)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("session renewal temporarily unavailable"))
+		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{
-		"address":    claims.WalletAddress,
-		"googleId":   claims.GoogleID,
-		"email":      claims.Email,
-		"name":       claims.Name,
-		"authMethod": claims.AuthMethod(),
-		"accountId":  claims.GridAccountID,
+	a.setAuthCookie(w, r, token)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"address":        claims.WalletAddress,
+		"googleId":       claims.GoogleID,
+		"email":          claims.Email,
+		"name":           claims.Name,
+		"authMethod":     claims.AuthMethod(),
+		"accountId":      updated.GridAccountID,
+		"accountAliases": ownership.Aliases,
 	})
 }
 
@@ -1485,6 +1535,10 @@ func (a *App) handleGetModel(w http.ResponseWriter, r *http.Request) {
 var generationRequestID = regexp.MustCompile(`^[A-Za-z0-9_-]{16,64}$`)
 
 func writeJobStoreError(w http.ResponseWriter, err error) {
+	if errors.Is(err, gallery.ErrAmbiguousRequest) {
+		writeError(w, http.StatusConflict, err)
+		return
+	}
 	if errors.Is(err, errRequestConflict) {
 		writeError(w, http.StatusConflict, errRequestConflict)
 		return
@@ -1538,6 +1592,15 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	digest := fmt.Sprintf("%x", sha256.Sum256(encoded))
 	lookupCtx, lookupCancel := context.WithTimeout(r.Context(), 5*time.Second)
 	existing, found, err := a.pending.findRequest(lookupCtx, owner, requestID, digest)
+	if err == nil && a.pending.journal != nil {
+		// An explicit replay after a merge must recover the old request, not buy
+		// another generation under the new account ID.
+		var ownership *aipg.AccountOwnership
+		ownership, err = a.client.FetchOwnership(lookupCtx, a.cfg.DefaultAPIKey, identity.AccessToken, identity.AccountID)
+		if err == nil {
+			existing, found, err = a.pending.findRequest(lookupCtx, ownership.AccountID, requestID, digest, ownership.Aliases...)
+		}
+	}
 	lookupCancel()
 	if err != nil {
 		writeJobStoreError(w, err)
@@ -1665,7 +1728,13 @@ func (a *App) handleJobRequestStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	id, found, err := a.pending.requestJobID(ctx, getGalleryOwnerIdentifier(r), requestID)
+	defer cancel()
+	ownership, _, err := a.gridAccountOwnership(ctx, r)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("account identity is temporarily unavailable"))
+		return
+	}
+	id, found, err := a.pending.requestJobID(ctx, ownership.AccountID, requestID, ownership.Aliases...)
 	cancel()
 	if err != nil {
 		writeJobStoreError(w, err)
@@ -1687,8 +1756,7 @@ func (a *App) serveJobStatus(w http.ResponseWriter, r *http.Request, jobID strin
 
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
-	owner := getGalleryOwnerIdentifier(r)
-	job, ok, err := a.pending.get(ctx, jobID, owner)
+	job, ok, err := a.ownedPendingJob(ctx, r, jobID)
 	if err != nil {
 		writeJobStoreError(w, err)
 		return
@@ -1697,14 +1765,14 @@ func (a *App) serveJobStatus(w http.ResponseWriter, r *http.Request, jobID strin
 		writeError(w, http.StatusNotFound, fmt.Errorf("unknown or expired job: %s", jobID))
 		return
 	}
-	if job.Owner == "" || job.Owner != getGalleryOwnerIdentifier(r) {
+	if job.Owner == "" {
 		writeError(w, http.StatusNotFound, errors.New("job not found"))
 		return
 	}
 	if (job.Status == "processing" || job.Status == "uncertain") && !a.pending.isRunning(jobID) {
-		identity, err := a.gridUserIdentity(ctx, r)
+		_, identity, err := a.gridAccountOwnership(ctx, r)
 		if err != nil {
-			writeError(w, http.StatusUnauthorized, err)
+			writeError(w, http.StatusServiceUnavailable, errors.New("account identity is temporarily unavailable"))
 			return
 		}
 		recovered, err := a.client.RecoverMedia(ctx, jobID, a.cfg.DefaultAPIKey, identity.AccessToken)
@@ -1730,7 +1798,7 @@ func (a *App) serveJobStatus(w http.ResponseWriter, r *http.Request, jobID strin
 			return
 		}
 		// A racing synchronous response may already have committed completion.
-		job, ok, err = a.pending.get(ctx, jobID, owner)
+		job, ok, err = a.ownedPendingJob(ctx, r, jobID)
 		if err != nil || !ok {
 			writeError(w, http.StatusServiceUnavailable, errors.New("generation journal unavailable"))
 			return
@@ -2591,7 +2659,12 @@ func (a *App) handleUpdateGalleryItem(w http.ResponseWriter, r *http.Request) {
 	gridJobID := ""
 	worker := ""
 	var genTime *float64
-	if grid := verifiedGridMeta(a.pending, jobID, requestWallet); grid != nil {
+	pending, found, recoveryErr := a.ownedPendingJob(r.Context(), r, jobID)
+	if recoveryErr != nil {
+		writeJobStoreError(w, recoveryErr)
+		return
+	}
+	if grid := pending.Grid; found && pending.Status == "completed" && grid != nil {
 		gridJobID = grid.JobID
 		worker = grid.Worker
 		genTime = grid.GenTime

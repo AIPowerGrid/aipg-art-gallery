@@ -232,9 +232,16 @@ export const useJobStore = create<JobStore>()(
         const jobsChanged = jobs.some(
           (job, index) => job !== currentJobs[index],
         );
-        if (previous === normalized && !jobsChanged) return;
+        const currentRequests = get().requests;
+        const requests = normalized ? currentRequests.map((request) =>
+          aliases.has(request.owner.toLowerCase())
+            ? { ...request, owner: normalized, job: { ...request.job, walletAddress: normalized } }
+            : request,
+        ) : currentRequests;
+        const requestsChanged = requests.some((request, index) => request !== currentRequests[index]);
+        if (previous === normalized && !jobsChanged && !requestsChanged) return;
         get().stopPolling();
-        set({ activeOwner: normalized, jobs });
+        set({ activeOwner: normalized, jobs, requests });
         if (normalized && (get().getActiveJobs().length > 0 || get().requests.some((request) => request.owner === normalized))) {
           get().startPolling();
         }

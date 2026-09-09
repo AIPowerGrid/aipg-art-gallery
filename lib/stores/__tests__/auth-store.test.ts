@@ -30,6 +30,7 @@ describe("auth store logout", () => {
       authMethod: "google",
       address: null,
       accountId: "account-123",
+      accountAliases: [],
       googleId: "google-user",
       email: "user@example.test",
       name: "Test User",
@@ -145,5 +146,24 @@ describe("auth store logout", () => {
     await expect(useAuthStore.getState().clearAuth()).rejects.toThrow("offline");
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().authMethod).toBe("google");
+  });
+
+  it("keeps a known session and aliases during an ownership service outage", async () => {
+    useAuthStore.setState({ accountAliases: ["retired-account"] });
+    jest.spyOn(global, "fetch").mockResolvedValueOnce({ ok: false, status: 503 } as Response);
+    await useAuthStore.getState().syncFromServer();
+    expect(useAuthStore.getState()).toMatchObject({ isAuthenticated: true, accountId: "account-123", accountAliases: ["retired-account"] });
+    expect(clearAuthTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts retired account IDs only from the server session check", async () => {
+    jest.spyOn(global, "fetch").mockResolvedValueOnce({ ok: true, json: async () => ({
+      authMethod: "google", googleId: "google-user", accountId: "canonical-account",
+      accountAliases: ["retired-account"],
+    }) } as Response);
+    await useAuthStore.getState().syncFromServer();
+    expect(useAuthStore.getState()).toMatchObject({ accountId: "canonical-account", accountAliases: ["retired-account"] });
+    useAuthStore.getState().setAuthenticated("0xother", "other-account");
+    expect(useAuthStore.getState().accountAliases).toEqual([]);
   });
 });

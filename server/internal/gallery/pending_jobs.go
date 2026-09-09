@@ -8,6 +8,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+
+	"github.com/lib/pq"
 )
 
 // JobRecord is private broker state. It contains no request body or credential.
@@ -20,14 +22,32 @@ type PendingJobStore struct{ db *sql.DB }
 
 func NewPendingJobStore(db *sql.DB) *PendingJobStore { return &PendingJobStore{db: db} }
 
-func (s *PendingJobStore) FindRequest(ctx context.Context, owner, requestID string) (JobRecord, bool, error) {
-	return scanJob(s.db.QueryRowContext(ctx, `SELECT job_id, owner, request_id, request_hash, status, payload
-        FROM gallery_pending_jobs WHERE owner=$1 AND request_id=$2`, owner, requestID))
+var ErrAmbiguousRequest = errors.New("request ID matches multiple jobs; use the original job ID")
+
+func (s *PendingJobStore) FindRequest(ctx context.Context, owner, requestID string, aliases ...string) (JobRecord, bool, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT job_id, owner, request_id, request_hash, status, payload
+        FROM gallery_pending_jobs WHERE owner=ANY($1) AND request_id=$2 LIMIT 2`, pq.Array(append([]string{owner}, aliases...)), requestID)
+	if err != nil {
+		return JobRecord{}, false, err
+	}
+	defer rows.Close()
+	var result JobRecord
+	found := false
+	for rows.Next() {
+		if found {
+			return JobRecord{}, false, ErrAmbiguousRequest
+		}
+		if err := rows.Scan(&result.ID, &result.Owner, &result.RequestID, &result.RequestHash, &result.Status, &result.Payload); err != nil {
+			return JobRecord{}, false, err
+		}
+		found = true
+	}
+	return result, found, rows.Err()
 }
 
-func (s *PendingJobStore) Get(ctx context.Context, id, owner string) (JobRecord, bool, error) {
+func (s *PendingJobStore) Get(ctx context.Context, id, owner string, aliases ...string) (JobRecord, bool, error) {
 	return scanJob(s.db.QueryRowContext(ctx, `SELECT job_id, owner, request_id, request_hash, status, payload
-        FROM gallery_pending_jobs WHERE job_id=$1 AND owner=$2`, id, owner))
+        FROM gallery_pending_jobs WHERE job_id=$1 AND owner=ANY($2)`, id, pq.Array(append([]string{owner}, aliases...))))
 }
 
 func scanJob(row *sql.Row) (JobRecord, bool, error) {

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -43,24 +44,28 @@ func newPendingStore(ttl time.Duration) *pendingStore {
 	return &pendingStore{jobs: make(map[string]*pendingJob), running: make(map[string]bool), ttl: ttl}
 }
 
-func (s *pendingStore) requestJobID(ctx context.Context, owner, requestID string) (string, bool, error) {
+func (s *pendingStore) requestJobID(ctx context.Context, owner, requestID string, aliases ...string) (string, bool, error) {
 	if s.journal != nil {
-		row, found, err := s.journal.FindRequest(ctx, owner, requestID)
+		row, found, err := s.journal.FindRequest(ctx, owner, requestID, aliases...)
 		return row.ID, found, err
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	match := ""
 	for id, job := range s.jobs {
-		if job.Owner == owner && job.RequestID == requestID {
-			return id, true, nil
+		if (job.Owner == owner || slices.Contains(aliases, job.Owner)) && job.RequestID == requestID {
+			if match != "" {
+				return "", false, gallery.ErrAmbiguousRequest
+			}
+			match = id
 		}
 	}
-	return "", false, nil
+	return match, match != "", nil
 }
 
-func (s *pendingStore) findRequest(ctx context.Context, owner, requestID, digest string) (string, bool, error) {
+func (s *pendingStore) findRequest(ctx context.Context, owner, requestID, digest string, aliases ...string) (string, bool, error) {
 	if s.journal != nil {
-		row, found, err := s.journal.FindRequest(ctx, owner, requestID)
+		row, found, err := s.journal.FindRequest(ctx, owner, requestID, aliases...)
 		if err != nil || !found {
 			return "", false, err
 		}
@@ -68,6 +73,20 @@ func (s *pendingStore) findRequest(ctx context.Context, owner, requestID, digest
 			return "", false, errRequestConflict
 		}
 		return row.ID, true, nil
+	}
+	if len(aliases) > 0 {
+		id, found, err := s.requestJobID(ctx, owner, requestID, aliases...)
+		if err != nil || !found {
+			return "", false, err
+		}
+		job, found, err := s.get(ctx, id, owner, aliases...)
+		if err != nil || !found {
+			return "", false, err
+		}
+		if job.RequestHash != digest {
+			return "", false, errRequestConflict
+		}
+		return id, true, nil
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -156,9 +175,9 @@ func (s *pendingStore) update(ctx context.Context, id string, job pendingJob) er
 	return nil
 }
 
-func (s *pendingStore) get(ctx context.Context, id, owner string) (pendingJob, bool, error) {
+func (s *pendingStore) get(ctx context.Context, id, owner string, aliases ...string) (pendingJob, bool, error) {
 	if s.journal != nil {
-		row, found, err := s.journal.Get(ctx, id, owner)
+		row, found, err := s.journal.Get(ctx, id, owner, aliases...)
 		if err != nil || !found {
 			return pendingJob{}, false, err
 		}
@@ -174,7 +193,7 @@ func (s *pendingStore) get(ctx context.Context, id, owner string) (pendingJob, b
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	job, ok := s.jobs[id]
-	if !ok || job.Owner != owner {
+	if !ok || (job.Owner != owner && !slices.Contains(aliases, job.Owner)) {
 		return pendingJob{}, false, nil
 	}
 	return *job, true, nil

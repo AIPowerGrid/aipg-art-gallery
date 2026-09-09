@@ -18,6 +18,9 @@ the PostgreSQL schema lifecycle. `postgres_store.go` is the production backend;
   The owner/request ID unique key elects one submission; conditional terminal
   writes prevent late failures from replacing completion. No credentials,
   prompt bodies, or uploaded timelines are stored. RLS has no anonymous policy.
+- Pending journal family reads accept only aliases proved by Core at the app
+  boundary. They retain the original owner, cap request matches to two, and
+  return `ErrAmbiguousRequest` rather than choosing between merged owners.
 - `interface.go` - storage contract shared by PostgreSQL and the file backend.
 
 `generation_jobs` remains in the baseline for compatibility with existing

@@ -34,6 +34,10 @@ Next.js web process and Go API process from one commit-pinned release.
 - For durable media recovery, deploy Core's migration 0040 and result API before
   Gallery, then verify Gallery migration 0003 against a restored backup. Retain
   journal rows on rollback; never discard receipts or redispatch uncertain jobs.
+- Core's `/v1/account/ownership` must also deploy before this Gallery release:
+  session renewal and durable request recovery depend on that private API.
+  Its absence fails closed. Keep a compatible rollback and verify Google and
+  wallet session renewal against the selected Core before public cutover.
 - Release pruning must resolve and protect `/opt/aipg-gallery-current`, reject
   paths outside `/opt/aipg-gallery-releases`, and keep one inactive release.
 

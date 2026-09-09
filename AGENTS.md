@@ -76,6 +76,10 @@ jobs to the grid and serves gallery/media.
   bridge key must not have direct service-inference authority. The canonical
   account returned by each service exchange must match the account in the
   signed Gallery session before credits, quotes, or generation continue.
+- `/auth/me` may renew a retired session ID only after Core's private
+  `/v1/account/ownership` proves it belongs to the current delegated account.
+  The response supplies verified aliases for browser job recovery; these are
+  not wallet-connection hints. Deploy Core's ownership API before this client.
 - **Model authority is layered:** Core `/v1/status/models` is the operational
   source for online capacity, including recipe-backed public aliases. Local
   presets shape UX defaults and limits. ModelVault enriches governance metadata.

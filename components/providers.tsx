@@ -15,8 +15,10 @@ function WalletManager({ children }: { children: ReactNode }) {
   // Auth store for reactive auth state
   const {
     isAuthenticated: hasSession,
+    authMethod,
     address: sessionAddress,
     accountId,
+    accountAliases,
     googleId,
     syncFromStorage,
     syncFromServer,
@@ -27,16 +29,20 @@ function WalletManager({ children }: { children: ReactNode }) {
   // authoritative server session (httpOnly cookie via /auth/me).
   useEffect(() => {
     syncFromStorage();
+  }, [syncFromStorage]);
+
+  useEffect(() => {
     void syncFromServer();
-  }, [syncFromStorage, syncFromServer]);
+  }, [hasSession, accountId, authMethod, googleId, sessionAddress, syncFromServer]);
 
   useEffect(() => {
     const legacyOwners = [
+      ...accountAliases,
       sessionAddress,
       googleId ? `google:${googleId}` : null,
     ].filter((owner): owner is string => Boolean(owner));
     setActiveOwner(hasSession ? accountId : null, legacyOwners);
-  }, [hasSession, accountId, googleId, sessionAddress, setActiveOwner]);
+  }, [hasSession, accountId, accountAliases, googleId, sessionAddress, setActiveOwner]);
 
   // Wallet transport and AIPG authentication are intentionally independent.
   // Connecting, reconnecting, locking, or changing a browser wallet never

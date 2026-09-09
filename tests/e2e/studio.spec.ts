@@ -168,10 +168,12 @@ test("keeps the focused Studio inside a mobile viewport", async ({ page }) => {
   expect(bounds.documentWidth).toBeLessThanOrEqual(bounds.viewportWidth);
 });
 
-test("recovers a lost generation response after reload without another POST", async ({ page }, testInfo) => {
+for (const mergeAccount of [false, true]) {
+test(`recovers a lost generation response after ${mergeAccount ? "account merge and " : ""}reload without another POST`, async ({ page }, testInfo) => {
   await installStudioMocks(page);
   let posts = 0;
   let requestId = "";
+  let merged = false;
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   const result = {
@@ -182,6 +184,11 @@ test("recovers a lost generation response after reload without another POST", as
   };
   await page.route("**/api-preview/**", async (route) => {
     const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, "");
+    if (path === "/auth/me" && merged) {
+      await route.fulfill({ json: { authMethod: "google", googleId: "google-user", accountId: "account-merged",
+        accountAliases: ["account-1"], name: "Test User", email: "user@example.test", address: "" } });
+      return;
+    }
     if (path === "/jobs" && route.request().method() === "POST") {
       posts++;
       requestId = route.request().postDataJSON().requestId;
@@ -213,12 +220,16 @@ test("recovers a lost generation response after reload without another POST", as
   await page.getByRole("button", { name: /Jobs/ }).click();
   await expect(page.getByText("Checking original request")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("pending-request.png"), fullPage: true });
+  merged = mergeAccount;
   await page.reload();
   await expect.poll(async () => page.evaluate(() => {
     const state = JSON.parse(localStorage.getItem("aipg-job-store") || "null")?.state;
     return state?.jobs?.find((job: { jobId: string }) => job.jobId === "recovered-gallery-job")?.status;
   })).toBe("completed");
   expect(posts).toBe(1);
+  const recoveredOwner = await page.evaluate(() => JSON.parse(localStorage.getItem("aipg-job-store") || "null")?.state.jobs.find((job: { jobId: string }) => job.jobId === "recovered-gallery-job")?.walletAddress);
+  expect(recoveredOwner).toBe(mergeAccount ? "account-merged" : "account-1");
   expect(pageErrors).toEqual([]);
   await page.screenshot({ path: testInfo.outputPath("recovered-studio.png"), fullPage: true });
 });
+}

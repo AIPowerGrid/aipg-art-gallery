@@ -41,6 +41,11 @@ package owns one concern; `app/app.go` wires them together.
 
 ## Local Contracts
 
+- `aipg/ownership.go` reads Core's authenticated ownership endpoint with
+  redirects disabled and a 16 KiB response cap. Canonical ID equality, UUID
+  syntax, unique aliases and the 128-member bound are mandatory. No secrets or
+  upstream error bodies appear in public failures.
+
 - **One concern per package; `app/` orchestrates.** Cross-package calls go through interfaces.
 - **Gallery writes go through `GalleryStore`** — new persistence ops are added to the interface
   and implemented in BOTH backends so degraded mode works.

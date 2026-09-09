@@ -22,7 +22,7 @@ function job(
 describe("job-store identity partition", () => {
   beforeEach(() => {
     useJobStore.getState().stopPolling();
-    useJobStore.setState({ jobs: [], activeOwner: null });
+    useJobStore.setState({ jobs: [], requests: [], activeOwner: null });
   });
 
   it("returns jobs only for the selected local identity", () => {
@@ -78,5 +78,21 @@ describe("job-store identity partition", () => {
     expect(
       jobs.find((item) => item.jobId === "foreign-job")?.walletAddress,
     ).toBe("google:user-b");
+  });
+
+  it("moves only proven pending handles and keeps colliding IDs unresolved", () => {
+    const poll = jest.spyOn(useJobStore.getState(), "startPolling").mockImplementation(() => {});
+    const { jobId: _id, status: _status, ...metadata } = job("old", "unused", "queued");
+    useJobStore.setState({ activeOwner: "canonical", requests: [
+      { requestId: "collision", owner: "old", job: metadata },
+      { requestId: "collision", owner: "canonical", job: { ...metadata, walletAddress: "canonical" } },
+      { requestId: "other", owner: "stranger", job: { ...metadata, walletAddress: "stranger" } },
+    ] });
+    useJobStore.getState().setActiveOwner("canonical", ["old"]);
+    expect(useJobStore.getState().requests.map((r) => [r.requestId, r.owner, r.job.walletAddress])).toEqual([
+      ["collision", "canonical", "canonical"], ["collision", "canonical", "canonical"], ["other", "stranger", "stranger"],
+    ]);
+    expect(poll).toHaveBeenCalledTimes(1);
+    poll.mockRestore();
   });
 });

@@ -16,6 +16,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
   account-menu and creation-library navigation, mobile overflow, and a lost POST
   response followed by browser reload/read-only recovery with one generation POST.
+  A second case changes the canonical account at reload and recovers using
+  server-provided aliases; neither case proves a funded live generation.
 
 ## Local Contracts
 

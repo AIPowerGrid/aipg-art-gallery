@@ -29,6 +29,7 @@ interface AuthState {
   authMethod: "wallet" | "google" | null;
   address: string | null;
   accountId: string | null;
+  accountAliases: string[];
   googleId: string | null;
   email: string | null;
   name: string | null;
@@ -65,6 +66,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   authMethod: null,
   address: null,
   accountId: null,
+  accountAliases: [],
   googleId: null,
   email: null,
   name: null,
@@ -79,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       authMethod: "wallet",
       address: address.toLowerCase(),
       accountId: canonicalAccount,
+      accountAliases: [],
       googleId: null,
       email: null,
       name: null,
@@ -110,6 +113,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       authMethod: "google",
       address: address?.toLowerCase() ?? null,
       accountId: accountId.toLowerCase(),
+      accountAliases: [],
       googleId,
       email,
       name,
@@ -126,6 +130,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       authMethod: null,
       address: null,
       accountId: null,
+      accountAliases: [],
       googleId: null,
       email: null,
       name: null,
@@ -134,6 +139,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   syncFromStorage: () => {
+    set({ accountAliases: [] });
     // Optimistic UI from local markers (no token decode). Server reconciles next.
     const googleId = localStorage.getItem(GOOGLE_ID_KEY);
     const googleExpiry = Number(localStorage.getItem(GOOGLE_EXPIRY_KEY) ?? 0);
@@ -174,6 +180,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         credentials: "include",
       });
       if (!res.ok) {
+        // A Core/storage outage is not a logout. Keep the last session markers.
+        if (res.status !== 401 && res.status !== 403) return;
         clearGoogleProfile();
         clearAuthToken();
         set({
@@ -181,11 +189,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           authMethod: null,
           address: null,
           accountId: null,
+          accountAliases: [],
           googleId: null,
         });
         return;
       }
       const data = await res.json();
+      const accountAliases = Array.isArray(data.accountAliases) && data.accountAliases.length <= 127
+        ? data.accountAliases.filter((id: unknown): id is string => typeof id === "string").map((id: string) => id.toLowerCase())
+        : [];
       rememberAuthAccount(data.accountId);
       if (data.authMethod === "google" && data.googleId) {
         set({
@@ -193,6 +205,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           authMethod: "google",
           address: data.address?.toLowerCase() ?? null,
           accountId: data.accountId?.toLowerCase() ?? null,
+          accountAliases,
           googleId: data.googleId,
           email: data.email,
           name: data.name,
@@ -205,6 +218,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           authMethod: "wallet",
           address: data.address.toLowerCase(),
           accountId: data.accountId?.toLowerCase() ?? null,
+          accountAliases,
+          googleId: null,
+          email: null,
+          name: null,
         });
       } else {
         set({
@@ -212,6 +229,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           authMethod: null,
           address: null,
           accountId: null,
+          accountAliases: [],
           googleId: null,
         });
       }
