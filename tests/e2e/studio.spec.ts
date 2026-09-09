@@ -60,7 +60,10 @@ async function installStudioMocks(page: Page) {
     localStorage.setItem("aipg_google_picture", "");
     localStorage.setItem("aipg_google_expiry", String(Date.now() + 3_600_000));
     localStorage.setItem("aipg_auth_account_id", "account-1");
-    localStorage.removeItem("aipg-job-store");
+    if (!sessionStorage.getItem("studio-e2e-initialized")) {
+      localStorage.removeItem("aipg-job-store");
+      sessionStorage.setItem("studio-e2e-initialized", "1");
+    }
   });
 
   await page.route("**/api-preview/**", async (route) => {
@@ -163,4 +166,59 @@ test("keeps the focused Studio inside a mobile viewport", async ({ page }) => {
     documentWidth: document.documentElement.scrollWidth,
   }));
   expect(bounds.documentWidth).toBeLessThanOrEqual(bounds.viewportWidth);
+});
+
+test("recovers a lost generation response after reload without another POST", async ({ page }, testInfo) => {
+  await installStudioMocks(page);
+  let posts = 0;
+  let requestId = "";
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  const result = {
+    jobId: "recovered-gallery-job", gridJobId: "recovered-core-receipt",
+    status: "completed", faulted: false, processing: 0, finished: 1, waiting: 0,
+    waitTime: 0, queuePosition: 0,
+    generations: [{ id: "recovered-output", kind: "image", seed: "1", url: IMAGE }],
+  };
+  await page.route("**/api-preview/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, "");
+    if (path === "/jobs" && route.request().method() === "POST") {
+      posts++;
+      requestId = route.request().postDataJSON().requestId;
+      const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("aipg-job-store") || "null"));
+      expect(saved.state.requests[0]).toMatchObject({ requestId, owner: "account-1" });
+      await route.abort("connectionreset");
+      return;
+    }
+    if (path.startsWith("/jobs/requests/")) {
+      expect(decodeURIComponent(path.split("/").at(-1)!)).toBe(requestId);
+      expect(route.request().method()).toBe("GET");
+      await route.fulfill({ json: result });
+      return;
+    }
+    if (path === "/jobs/recovered-gallery-job") {
+      await route.fulfill({ json: result });
+      return;
+    }
+    if ((path === "/gallery" && route.request().method() === "POST") || (path === "/gallery/recovered-gallery-job" && route.request().method() === "PATCH")) {
+      await route.fulfill({ json: { success: true } });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/create");
+  await page.getByPlaceholder("Describe your image...").fill("Recovery canary scene");
+  await page.getByRole("button", { name: /Generate.*with Krea/ }).click();
+  await expect(page.getByText(/Generation outcome is unknown/).first()).toBeVisible();
+  await page.getByRole("button", { name: /Jobs/ }).click();
+  await expect(page.getByText("Checking original request")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("pending-request.png"), fullPage: true });
+  await page.reload();
+  await expect.poll(async () => page.evaluate(() => {
+    const state = JSON.parse(localStorage.getItem("aipg-job-store") || "null")?.state;
+    return state?.jobs?.find((job: { jobId: string }) => job.jobId === "recovered-gallery-job")?.status;
+  })).toBe("completed");
+  expect(posts).toBe(1);
+  expect(pageErrors).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("recovered-studio.png"), fullPage: true });
 });

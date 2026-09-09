@@ -23,7 +23,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   client. Core's `/account/credits` and `/account/credits/quote` responses are
   the only balance and price authorities.
 - `stores/` — Zustand stores (`auth-store.ts` supports wallet + Google;
-  `job-store.ts` partitions and migrates persisted jobs by canonical Core account).
+  `job-store.ts` partitions persisted jobs by canonical Core account and owns
+  pre-submission recovery handles for Studio and Director).
 - `create/` — pure Studio helpers. `capabilities.ts` (`getModelCapabilities`) maps a model's
   declared `type`/`limits`/flags to the control groups the create rail renders — the single place
   that decides which Advanced knobs a model exposes (keep new per-model UI gating here, not in JSX).
@@ -64,6 +65,29 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - Keep request/response types aligned with `types/models.ts` and the Go structs.
 - Preserve Core's `grid.job_id` as `gridJobId` through job polling, Gallery
   persistence, local creation state, and generation details.
+- Studio generation/regeneration and each Director stage call
+  `job-store.submitJob`, not `api.createJob` directly. It verifies a small
+  owner-scoped `requestId` record reached localStorage before POST, then hands
+  the accepted Gallery job ID to ordinary polling. Storage failure dispatches
+  nothing. Unresolved records contain display metadata, not request bodies,
+  uploaded source images, audio, or timeline data; at most 20 may be unresolved.
+  Another submission with the same owner/model/prompt waits while an earlier
+  request is unresolved, even if other settings changed; it is not silently
+  treated as a new paid retry.
+- After a lost response/reload, the store reads
+  `/jobs/requests/{requestID}` only under the currently authenticated owner.
+  It never repeats the generation POST. It creates a private history placeholder
+  before handing recovered work to ordinary polling. Definite synchronous
+  admission rejections discard the request handle; transport, gateway, missing,
+  ambiguous and malformed responses preserve it. Recovery errors back off for
+  30 seconds, and neither those nor repeated status failures mean a refund.
+- Pending requests and active jobs do not expire under the 24-hour completed
+  history cleanup. The Jobs menu displays unresolved requests. Director retains
+  separate `startImageRequestId` and video `requestId`; a recovered ID can only
+  attach to its corresponding stage/account. Uploading/replacing a frame or
+  selecting a definite-failure fallback clears that stage's old association.
+  Proof-backed canonical account-merge handoff remains a separate launch gate;
+  never relabel unresolved requests using unverified browser identity.
 - **Director wire contract** (`create/director-payload.ts` → `hooks/use-director.ts`): each
   timeline SEGMENT renders as its own job against the `LTX Director 2.0` recipe — image keyframe
   at frame 0 + one prompt + optional audio slice, all inside one `timelineData` string (media
@@ -83,8 +107,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   into idle work or infer completion from an older output. Preserve job/receipt
   IDs, mark the result uncertain, and keep it out of Render pending. Missing
   browser tracking is not a Core cancellation or refund; an explicit retry is
-  a new potentially chargeable job. This client guard is not durable request
-  idempotency or server-side recovery after a Gallery restart.
+  a new potentially chargeable job. New request handles support read-only
+  recovery with Gallery migration 0003 and Core migration 0040/result API;
+  older submissions without those handles cannot be reconstructed on the client.
 
 ## Work Guidance
 

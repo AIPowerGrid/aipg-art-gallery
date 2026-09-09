@@ -14,7 +14,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
   controls across reload, responsive navigation, and the retired
   `aipg.art/audio` route contract.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
-  account-menu and creation-library navigation, and mobile overflow coverage.
+  account-menu and creation-library navigation, mobile overflow, and a lost POST
+  response followed by browser reload/read-only recovery with one generation POST.
 
 ## Local Contracts
 
@@ -26,6 +27,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
 ## Verification
 
 - `npm run test:e2e`
+- `GALLERY_E2E_PORT` selects a free local port (default 3002); use `CI=1` to
+  require a fresh production-build server instead of reusing another checkout.
 
 ## Child DOX Index
 

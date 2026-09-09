@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { createJob, addToGallery, enhancePrompt } from "@/lib/api";
+import { addToGallery, enhancePrompt } from "@/lib/api";
+import { CreateJobRequest } from "@/types/models";
 import { useJobStore } from "@/lib/stores/job-store";
 import { generateTagsFromPrompt, DisplayCreation } from "@/lib/storage";
 import {
@@ -72,7 +73,8 @@ export function useGeneration({
     regeneratingJobId: null,
   });
 
-  const { addJob } = useJobStore();
+  const { addJob, submitJob } = useJobStore();
+  const createJob = useCallback((payload: CreateJobRequest) => submitJob(payload, ownerIdentifier), [submitJob, ownerIdentifier]);
 
   const setError = useCallback((error: string | null) => {
     setState((prev) => ({ ...prev, error }));
@@ -288,6 +290,7 @@ export function useGeneration({
       sourceImage,
       lora,
       addJob,
+      createJob,
       onCreationAdded,
       onShowAuthModal,
       setError,
@@ -423,6 +426,7 @@ export function useGeneration({
       authenticated,
       styles,
       addJob,
+      createJob,
       onCreationAdded,
       onShowAuthModal,
       setError,

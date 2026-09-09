@@ -1,4 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
+import { randomUUID } from 'crypto';
 import {
   useDirector,
   useDirectorSync,
@@ -9,6 +10,8 @@ import { useJobStore } from '@/lib/stores/job-store';
 import { StylesConfig } from '@/lib/types/create';
 
 jest.mock('@/lib/api', () => ({
+  ApiError: jest.requireActual('@/lib/api').ApiError,
+  fetchJobByRequest: jest.fn(),
   createJob: jest.fn(() => Promise.resolve({ jobId: 'dir-job-1', status: 'queued' })),
   addToGallery: jest.fn(() => Promise.resolve({})),
   fetchJobStatus: jest.fn(() =>
@@ -30,7 +33,7 @@ jest.mock('@/lib/utils/video-frames', () => ({
 jest.mock('@/lib/utils/crop-image', () => ({
   cropImageToRenderSize: jest.fn((uri: string) => Promise.resolve(uri)),
 }));
-import { createJob } from '@/lib/api';
+import { createJob, fetchJobByRequest, fetchJobStatus } from '@/lib/api';
 import { extractFrame } from '@/lib/utils/video-frames';
 import { cropImageToRenderSize } from '@/lib/utils/crop-image';
 
@@ -53,10 +56,12 @@ const STYLES: StylesConfig = {
 };
 
 function setup() {
+  useJobStore.setState({ activeOwner: 'account-test' });
   return renderHook(() => {
     const director = useDirector({
       styles: STYLES,
       authenticated: true,
+      ownerIdentifier: 'account-test',
       onAuthRequired: jest.fn(),
     });
     useDirectorSync(director.renderSegment);
@@ -66,13 +71,40 @@ function setup() {
 
 afterEach(() => {
   useJobStore.getState().stopPolling();
-  useJobStore.setState({ jobs: [] });
+  useJobStore.setState({ jobs: [], requests: [], activeOwner: null });
   useDirectorStore.getState().reset();
   __setDirectorOfflineForTests(false);
   jest.clearAllMocks();
 });
 
 describe('useDirector', () => {
+  beforeEach(() => {
+    Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: randomUUID });
+    useJobStore.setState({ activeOwner: 'account-test' });
+  });
+  it.each(['image', 'video'] as const)('recovers a lost %s stage without another generation', async (kind) => {
+    const id = useDirectorStore.getState().addSegment();
+    useDirectorStore.getState().updateSegment(id, { prompt: 'a scene', startImage: 'data:image/jpeg;base64,START' });
+    (createJob as jest.Mock).mockRejectedValueOnce(new TypeError('connection lost'));
+    const { result } = setup();
+    const submit = () => kind === 'image' ? result.current.generateFirstFrame(id) : result.current.renderSegment(id);
+    await act(async () => { expect(await submit()).toBe(false); });
+    const segment = useDirectorStore.getState().segments[0];
+    expect(kind === 'image' ? segment.startImageRequestId : segment.requestId).toBeTruthy();
+    await act(async () => { expect(await submit()).toBe(false); });
+    expect(createJob).toHaveBeenCalledTimes(1);
+    const recovered = { jobId: `recovered-${kind}`, gridJobId: `core-${kind}`, status: 'completed', faulted: false,
+      waitTime: 0, queuePosition: 0, processing: 0, finished: 1, waiting: 0,
+      generations: [{ id: 'output', kind, seed: '1', url: 'https://images.example/output' }] };
+    (fetchJobByRequest as jest.Mock).mockResolvedValueOnce(recovered);
+    (fetchJobStatus as jest.Mock).mockResolvedValueOnce(recovered);
+    await act(async () => { await useJobStore.getState().pollOnce(); });
+    await waitFor(() => {
+      const current = useDirectorStore.getState().segments[0];
+      expect(kind === 'image' ? current.startImageGridJobId : current.gridJobId).toBe(`core-${kind}`);
+    });
+    expect(createJob).toHaveBeenCalledTimes(1);
+  });
   it.each(['queued', 'rendering'] as const)(
     'does not resubmit an untracked %s segment when the queue is resumed',
     async (status) => {
@@ -216,6 +248,7 @@ describe('useDirector', () => {
         styles: STYLES,
         authenticated: true,
         modelAvailability: { checked: true, director: false, fallback: true, krea: true },
+        ownerIdentifier: 'account-test',
         onAuthRequired: jest.fn(),
       }),
     );

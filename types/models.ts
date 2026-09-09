@@ -76,6 +76,7 @@ export interface ModelsResponse {
 }
 
 export interface CreateJobRequest {
+  requestId?: string;
   modelId: string;
   prompt: string;
   negativePrompt?: string;

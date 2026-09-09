@@ -42,11 +42,14 @@ forward to a repaired reader rather than dropping the journal or retrying jobs.
 Recovery does not extend R2 object retention and `closed_without_result` is
 not proof of a refund. Do not prune unresolved journal rows.
 
-Still required before claiming complete Director recovery: browser-persisted
-pre-submission request handles (including a lost 202 response), proven canonical
-account-merge handoff, and the funded multistage canary. The backend's optional
-`requestId` alone does not close those client-side gaps. Charging flags and
-worker payout policy are unchanged by this candidate.
+The client candidate adds browser-persisted pre-submission handles, owner-bound
+read-only recovery after a lost 202, and separate Director first-frame/video
+associations. A production-build browser test deliberately loses the submission
+response, reloads, and recovers the original job with one POST. This is mocked
+protocol evidence, not a funded live canary. Proven canonical account-merge
+handoff and the funded multistage canary remain required. Deploy the compatible
+backend before this frontend; older backend routes cannot recover these handles.
+Charging flags and worker payout policy are unchanged by this candidate.
 
 ## Earlier patched release (2026-09-08, 23:24 UTC)
 

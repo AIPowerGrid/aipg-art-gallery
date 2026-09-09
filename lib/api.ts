@@ -19,6 +19,13 @@ const getApiBase = () =>
     : // Server-side (SSR / route handlers): reach the Go backend directly.
       `${process.env.GALLERY_API_ORIGIN ?? "http://localhost:4000"}/api`;
 
+export class ApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(`${status}: ${message}`);
+    this.name = "ApiError";
+  }
+}
+
 async function jsonFetch<T>(
   path: string,
   init?: RequestInit,
@@ -40,7 +47,7 @@ async function jsonFetch<T>(
     const body = await res.json().catch(() => ({}));
     // Include status code in error for rate limit detection
     const message = body.error || body.message || res.statusText;
-    throw new Error(`${res.status}: ${message}`);
+    throw new ApiError(res.status, message);
   }
   return res.json();
 }
@@ -63,7 +70,11 @@ export function createJob(payload: CreateJobRequest) {
 }
 
 export function fetchJobStatus(jobId: string) {
-  return jsonFetch<JobStatus>(`/jobs/${jobId}`);
+  return jsonFetch<JobStatus>(`/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" });
+}
+
+export function fetchJobByRequest(requestId: string) {
+  return jsonFetch<JobStatus>(`/jobs/requests/${encodeURIComponent(requestId)}`, { cache: "no-store" });
 }
 
 export interface GridCredits {

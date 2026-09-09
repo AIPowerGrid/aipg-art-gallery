@@ -21,6 +21,10 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   Coach marks stop after the project has a completed segment.
 - Director billing UI shows only Core-owned balances and quotes, links `402`
   recovery to Console funding, and copies only server-observed Core receipt IDs.
+- The Jobs menu includes account-scoped unresolved submissions as checking the
+  original request, not failed/refunded work. Director source-image replacement
+  clears both job and request associations so a late result cannot replace an
+  explicitly uploaded frame.
 
 ## Local Contracts
 

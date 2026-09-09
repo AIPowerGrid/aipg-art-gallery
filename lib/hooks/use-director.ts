@@ -82,6 +82,10 @@ export function useDirector({
       const state = useDirectorStore.getState();
       const segment = state.segments.find((candidate) => candidate.id === segmentId);
       if (!segment || generatingFrames.current.has(segmentId)) return false;
+      if (useJobStore.getState().requests.some((request) => request.requestId === segment.startImageRequestId && request.owner === ownerIdentifier?.toLowerCase())) {
+        setError('Checking the original first-frame request. Do not generate it again yet.');
+        return false;
+      }
       if (!state.globalPrompt.trim() && !segment.prompt.trim()) {
         setError("Add a segment or global prompt before generating the first frame.");
         return false;
@@ -111,7 +115,9 @@ export function useDirector({
         'director first frame';
       try {
         const payload = buildFirstFramePayload(segment, state.globalPrompt, state.settings);
-        const resp = await createJob(payload);
+        const resp = await useJobStore.getState().submitJob(payload, ownerIdentifier, (requestId) => {
+          useDirectorStore.getState().updateSegment(segmentId, { startImageRequestId: requestId, startImageJobId: undefined });
+        });
         useDirectorStore.getState().updateSegment(segmentId, {
           startImageJobId: resp.jobId,
           startImageStatus: 'queued',
@@ -190,6 +196,10 @@ export function useDirector({
       const idx = state.segments.findIndex((s) => s.id === segmentId);
       const segment = state.segments[idx];
       if (!segment || submitting.current.has(segmentId)) return false;
+      if (useJobStore.getState().requests.some((request) => request.requestId === segment.requestId && request.owner === ownerIdentifier?.toLowerCase())) {
+        setError('Checking the original segment request. Do not render it again yet.');
+        return false;
+      }
 
       const blockers = segmentBlockers(segment, idx, state.globalPrompt);
       if (blockers.length > 0) {
@@ -253,14 +263,17 @@ export function useDirector({
 
       try {
         let usedModelId = DIRECTOR_MODEL_ID;
+        const submit = (candidate: Parameters<typeof createJob>[0]) => useJobStore.getState().submitJob(candidate, ownerIdentifier, (requestId) => {
+          useDirectorStore.getState().updateSegment(segmentId, { requestId, jobId: undefined, modelUsed: candidate.modelId });
+        });
         let resp;
         if ((directorOffline || modelAvailability?.director === false) && !hasAudio) {
           // Known-offline this session: skip the doomed Director attempt.
           usedModelId = FALLBACK_MODEL_ID;
-          resp = await createJob(buildSegmentFallbackPayload(buildArgs));
+          resp = await submit(buildSegmentFallbackPayload(buildArgs));
         } else {
           try {
-            resp = await createJob(payload);
+            resp = await submit(payload);
           } catch (err) {
             // Synchronous 404 (e.g. unknown model at the backend catalog).
             // Audio needs the Director recipe, so don't mask that case with a
@@ -269,7 +282,7 @@ export function useDirector({
               directorOffline = true;
               console.warn('[Director] recipe unavailable — falling back to', FALLBACK_MODEL_ID);
               usedModelId = FALLBACK_MODEL_ID;
-              resp = await createJob(buildSegmentFallbackPayload(buildArgs));
+              resp = await submit(buildSegmentFallbackPayload(buildArgs));
             } else if (isModelUnavailableError(err) && hasAudio) {
               throw new Error(
                 'The Director recipe is offline and audio needs it — remove the audio track to render via the fallback, or try again later.'
@@ -367,6 +380,7 @@ function isPending(s: DirectorSegment): boolean {
 
 export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>) {
   const jobs = useJobStore((s) => s.jobs);
+  const activeOwner = useJobStore((s) => s.activeOwner);
   const segments = useDirectorStore((s) => s.segments);
   const audios = useDirectorStore((s) => s.audios);
   const queueActive = useDirectorStore((s) => s.queueActive);
@@ -380,6 +394,7 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
   useEffect(() => {
     for (const seg of segments) {
       if (seg.status !== 'queued' && seg.status !== 'rendering') continue;
+      if (seg.requestId && useJobStore.getState().requests.some((request) => request.requestId === seg.requestId && request.owner === activeOwner)) continue;
       if (!seg.jobId || !jobs.some((job) => job.jobId === seg.jobId)) {
         updateSegment(seg.id, {
           status: 'error',
@@ -391,6 +406,17 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // once, on mount
+
+  // A lost 202 can be recovered from its saved request handle after reload.
+  useEffect(() => {
+    if (!activeOwner) return;
+    for (const seg of segments) {
+      const video = seg.requestId && jobs.find((job) => job.requestId === seg.requestId && job.walletAddress === activeOwner);
+      const image = seg.startImageRequestId && jobs.find((job) => job.requestId === seg.startImageRequestId && job.walletAddress === activeOwner);
+      if (video && video.jobId !== seg.jobId) updateSegment(seg.id, { jobId: video.jobId, modelUsed: video.modelId, status: 'queued', outputUrl: undefined, lastFrame: null });
+      if (image && image.jobId !== seg.startImageJobId) updateSegment(seg.id, { startImageJobId: image.jobId, startImageStatus: 'queued', startImageUrl: undefined });
+    }
+  }, [jobs, segments, activeOwner, updateSegment]);
 
   // 1. Mirror tracked-job status + live progress into segments.
   useEffect(() => {
@@ -438,6 +464,7 @@ export function useDirectorSync(renderSegment: (id: string) => Promise<boolean>)
             status: 'idle',
             error: undefined,
             jobId: undefined,
+            requestId: undefined,
             progress: undefined,
             autoFellBack: true,
           });

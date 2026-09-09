@@ -91,7 +91,7 @@ jobs to the grid and serves gallery/media.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result
   recovery. See `server/AGENTS.md` and `deploy/README.md` for the ordered rollout
-  and remaining browser handoff/account-merge gates. This is not global billing
+  and remaining rollout/account-merge gates. This is not global billing
   activation or a proof of the paid Director lifecycle.
 - Secrets come from `.env` (copy `.env.example`). Never commit creds; `POSTGRES_CONN_STR` has
   no default by design.

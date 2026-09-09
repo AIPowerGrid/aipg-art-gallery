@@ -14,6 +14,7 @@ export function ActiveJobsIndicator() {
   const [mounted, setMounted] = useState(false);
   const {
     activeOwner,
+    requests,
     getActiveJobs,
     getCompletedJobs,
     startPolling,
@@ -37,11 +38,11 @@ export function ActiveJobsIndicator() {
   useEffect(() => {
     if (mounted && !isPolling) {
       const activeJobs = getActiveJobs();
-      if (activeJobs.length > 0) {
+      if (activeJobs.length > 0 || requests.some((request) => request.owner === activeOwner)) {
         startPolling();
       }
     }
-  }, [mounted, isPolling, getActiveJobs, startPolling]);
+  }, [mounted, isPolling, getActiveJobs, startPolling, requests, activeOwner]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -80,12 +81,14 @@ export function ActiveJobsIndicator() {
   if (!mounted) return null;
 
   const activeJobs = getActiveJobs();
+  const recoveringRequests = requests.filter((request) => request.owner === activeOwner);
+  const activeCount = activeJobs.length + recoveringRequests.length;
   const recentCompleted = getCompletedJobs()
     .filter((j) => j.status === "completed")
     .slice(0, 5);
 
   // Don't show anything if no jobs
-  if (activeJobs.length === 0 && recentCompleted.length === 0) {
+  if (activeCount === 0 && recentCompleted.length === 0) {
     return null;
   }
 
@@ -98,7 +101,7 @@ export function ActiveJobsIndicator() {
         }}
         className="relative flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-white/80 hover:bg-zinc-700 hover:text-white transition-colors"
       >
-        {activeJobs.length > 0 ? (
+        {activeCount > 0 ? (
           <div className="w-4 h-4 border-2 border-white/30 border-t-indigo-400 rounded-full animate-spin" />
         ) : (
           <svg
@@ -116,9 +119,9 @@ export function ActiveJobsIndicator() {
           </svg>
         )}
         <span className="text-sm font-medium">Jobs</span>
-        {activeJobs.length > 0 && (
+        {activeCount > 0 && (
           <span className="px-1.5 py-0.5 text-xs bg-indigo-600 rounded-full">
-            {activeJobs.length}
+            {activeCount}
           </span>
         )}
         <svg
@@ -138,7 +141,7 @@ export function ActiveJobsIndicator() {
 
       {showDropdown && (
         <div
-          className="absolute right-0 top-full mt-2 w-80 rounded-xl bg-zinc-900 border border-zinc-700 shadow-2xl z-50 overflow-hidden"
+          className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-zinc-900 border border-zinc-700 shadow-2xl z-50 overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -159,6 +162,13 @@ export function ActiveJobsIndicator() {
 
           {/* Jobs list */}
           <div className="max-h-80 overflow-y-auto">
+            {recoveringRequests.map((request) => (
+              <div key={request.requestId} className="px-4 py-3 border-b border-zinc-800" role="status">
+                <p className="text-sm text-white truncate">{request.job.prompt}</p>
+                <p className="text-xs text-amber-300 mt-1">Checking original request</p>
+                <p className="text-xs text-zinc-400 mt-1">It may still complete and be charged. Do not submit it again.</p>
+              </div>
+            ))}
             {/* Active Jobs */}
             {activeJobs.length > 0 && (
               <div className="p-2">
@@ -206,7 +216,7 @@ export function ActiveJobsIndicator() {
               </div>
             )}
 
-            {activeJobs.length === 0 && recentCompleted.length === 0 && (
+            {activeCount === 0 && recentCompleted.length === 0 && (
               <div className="p-8 text-center text-zinc-500 text-sm">
                 No jobs yet
               </div>

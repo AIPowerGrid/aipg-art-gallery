@@ -6,11 +6,16 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { fetchJobStatus, updateGalleryItem } from "@/lib/api";
-import { JobStatus } from "@/types/models";
+import {
+  ApiError, createJob, fetchJobByRequest, fetchJobStatus,
+  updateGalleryItem, addToGallery,
+} from "@/lib/api";
+import { CreateJobRequest, JobStatus } from "@/types/models";
 
 export interface TrackedJob {
   jobId: string;
+  requestId?: string;
+  retryAt?: number;
   modelId: string;
   modelName: string;
   prompt: string;
@@ -32,14 +37,32 @@ export interface TrackedJob {
   expectedGenerations?: number; // For batch mode - how many images to expect
 }
 
+export interface PendingSubmission {
+  requestId: string;
+  owner: string;
+  job: Omit<TrackedJob, "jobId" | "status">;
+  retryAt?: number;
+}
+
+const submitting = new Set<string>();
+const recovering = new Set<string>();
+const UNKNOWN_SUBMISSION = "Generation outcome is unknown. Checking the original request; do not submit it again.";
+
 interface JobStore {
   // State
   jobs: TrackedJob[];
+  requests: PendingSubmission[];
   activeOwner: string | null;
   isPolling: boolean;
   pollIntervalId: NodeJS.Timeout | null;
 
   // Actions
+  submitJob: (
+    payload: CreateJobRequest,
+    owner: string | undefined,
+    prepared?: (requestId: string) => void,
+  ) => Promise<{ jobId: string; status: string }>;
+  resolveRequest: (request: PendingSubmission, jobId: string) => void;
   addJob: (
     job: Omit<TrackedJob, "status" | "submittedAt"> & {
       status?: TrackedJob["status"];
@@ -67,12 +90,87 @@ export const useJobStore = create<JobStore>()(
   persist(
     (set, get) => ({
       jobs: [],
+      requests: [],
       activeOwner: null,
       isPolling: false,
       pollIntervalId: null,
 
+      submitJob: async (payload, owner, prepared) => {
+        const normalized = owner?.trim().toLowerCase();
+        if (!normalized || get().activeOwner !== normalized) {
+          throw new Error("Your account session changed. Sign in again before generating.");
+        }
+        if (get().requests.some((request) => request.owner === normalized && request.job.modelId === payload.modelId && request.job.prompt === payload.prompt)) {
+          throw new Error(UNKNOWN_SUBMISSION);
+        }
+        if (get().requests.length >= 20) {
+          throw new Error("Too many unresolved submissions. Wait for recovery before generating again.");
+        }
+        const requestId = crypto.randomUUID();
+        const request: PendingSubmission = {
+          requestId, owner: normalized,
+          job: {
+            requestId, modelId: payload.modelId, modelName: payload.modelId,
+            prompt: payload.prompt, negativePrompt: payload.negativePrompt,
+            type: payload.mediaType === "video" ? "video" : "image",
+            isNsfw: !!payload.nsfw, isPublic: false, walletAddress: normalized,
+            width: payload.params.width, height: payload.params.height,
+            expectedGenerations: payload.params.n || 1, submittedAt: Date.now(),
+          },
+        };
+        // Confirm the recovery handle reached durable browser storage BEFORE POST.
+        try {
+          set({ requests: [...get().requests, request] });
+          const persisted = JSON.parse(localStorage.getItem("aipg-job-store") || "null");
+          if (!persisted?.state?.requests?.some((item: PendingSubmission) => item.requestId === requestId && item.owner === normalized)) {
+            throw new Error("Recovery handle was not saved");
+          }
+          prepared?.(requestId);
+        } catch {
+          // No POST has happened, so dropping this local-only attempt is safe.
+          try {
+            set({ requests: get().requests.filter((item) => item.requestId !== requestId) });
+          } catch {
+            console.warn("[JobStore] Browser storage needs attention before submitting.");
+          }
+          throw new Error("Browser storage is unavailable. No generation was submitted.");
+        }
+        submitting.add(requestId);
+        get().startPolling();
+        try {
+          const response = await createJob({ ...payload, requestId });
+          if (!response.jobId) throw new Error("Missing generation receipt");
+          get().resolveRequest(request, response.jobId);
+          return response;
+        } catch (error) {
+          // These synchronous rejections are before broker dispatch. Conflicts,
+          // missing routes and gateway/transport failures are deliberately unknown.
+          if (error instanceof ApiError && [400, 401, 402, 403, 413, 422, 429].includes(error.status)) {
+            set({ requests: get().requests.filter((item) => item.requestId !== requestId) });
+            throw error;
+          }
+          throw new Error(UNKNOWN_SUBMISSION);
+        } finally {
+          submitting.delete(requestId);
+        }
+      },
+
+      resolveRequest: (request, jobId) => {
+        const existing = get().jobs.find((job) => job.jobId === jobId);
+        if (existing && existing.walletAddress !== request.owner) {
+          throw new Error("Recovered job belongs to a different local account");
+        }
+        const job: TrackedJob = { ...request.job, jobId, status: "queued", ...existing };
+        // One persisted write hands off the request to ordinary job polling.
+        set({
+          jobs: [job, ...get().jobs.filter((item) => item.jobId !== jobId)],
+          requests: get().requests.filter((item) => item.requestId !== request.requestId || item.owner !== request.owner),
+        });
+      },
+
       addJob: (job) => {
         const newJob: TrackedJob = {
+          ...get().jobs.find((existing) => existing.jobId === job.jobId),
           ...job,
           status: job.status || "queued",
           submittedAt: Date.now(),
@@ -137,7 +235,7 @@ export const useJobStore = create<JobStore>()(
         if (previous === normalized && !jobsChanged) return;
         get().stopPolling();
         set({ activeOwner: normalized, jobs });
-        if (normalized && get().getActiveJobs().length > 0) {
+        if (normalized && (get().getActiveJobs().length > 0 || get().requests.some((request) => request.owner === normalized))) {
           get().startPolling();
         }
       },
@@ -148,12 +246,16 @@ export const useJobStore = create<JobStore>()(
 
         console.log("[JobStore] Starting job polling");
 
-        // Poll immediately
-        store.pollOnce();
+        const poll = () => {
+          void store.pollOnce().catch(() => {
+            console.error("[JobStore] Recovery storage needs attention. Do not repeat the generation.");
+          });
+        };
+        poll();
 
         // Set up interval
         const intervalId = setInterval(() => {
-          store.pollOnce();
+          poll();
         }, POLL_INTERVAL);
 
         set({ isPolling: true, pollIntervalId: intervalId });
@@ -170,19 +272,50 @@ export const useJobStore = create<JobStore>()(
 
       pollOnce: async () => {
         const store = get();
+        const owner = store.activeOwner;
+        if (!owner) return;
+        const pending = store.requests
+          .filter((request) => request.owner === owner && (request.retryAt || 0) <= Date.now())
+          .slice(0, 2);
+        for (const request of pending) {
+          if (submitting.has(request.requestId) || recovering.has(request.requestId)) continue;
+          recovering.add(request.requestId);
+          try {
+            const status = await fetchJobByRequest(request.requestId);
+            if (get().activeOwner !== owner) continue;
+            if (!status.jobId) throw new Error("Missing recovered receipt");
+            // Ensure a private history placeholder exists before handing off.
+            await addToGallery({ ...request.job, jobId: status.jobId, mediaUrls: [] });
+            if (get().activeOwner !== owner) continue;
+            get().resolveRequest(request, status.jobId);
+          } catch {
+            // 404 is not proof of cancellation. Never replace an uncertain POST.
+            set({
+              requests: get().requests.map((item) =>
+                item.requestId === request.requestId && item.owner === owner
+                  ? { ...item, retryAt: Date.now() + 30000 }
+                  : item,
+              ),
+            });
+          } finally {
+            recovering.delete(request.requestId);
+          }
+        }
         const activeJobs = store.getActiveJobs();
 
         if (activeJobs.length === 0) {
           // No active jobs, stop polling
-          store.stopPolling();
+          if (!get().requests.some((request) => request.owner === owner)) store.stopPolling();
           return;
         }
 
         // Poll each active job
         await Promise.all(
           activeJobs.map(async (job) => {
+            if ((job.retryAt || 0) > Date.now()) return;
             try {
               const status = await fetchJobStatus(job.jobId);
+              if (get().activeOwner !== owner) return;
 
               // Determine job status from response
               let newStatus: TrackedJob["status"] = job.status;
@@ -260,9 +393,8 @@ export const useJobStore = create<JobStore>()(
                 result: status, // Always update with latest status for progressive loading
                 // Keep the grid's real failure text — consumers (e.g. the
                 // Director's recipe-offline fallback) match on it.
-                error: status.faulted
-                  ? (status.error ?? "Job failed")
-                  : undefined,
+                error: status.error ?? (status.faulted ? "Job failed" : undefined),
+                retryAt: undefined,
                 pollFailures: 0, // Reset failure count on success
               });
             } catch (error: unknown) {
@@ -272,31 +404,12 @@ export const useJobStore = create<JobStore>()(
                 error,
               );
 
-              // If we get a 404 or similar, mark as faulted immediately
-              const errorMessage = error instanceof Error ? error.message : "";
-              if (
-                errorMessage.includes("404") ||
-                errorMessage.includes("not found")
-              ) {
-                store.updateJob(job.jobId, {
-                  status: "faulted",
-                  error: "Job not found - may have expired",
-                  pollFailures: failures,
-                });
-              } else if (failures >= 10) {
-                // After 10 consecutive failures, give up
-                console.error(
-                  `[JobStore] Giving up on job ${job.jobId} after ${failures} failures`,
-                );
-                store.updateJob(job.jobId, {
-                  status: "faulted",
-                  error: "Failed to get job status - server may be unavailable",
-                  pollFailures: failures,
-                });
-              } else {
-                // Track the failure count
-                store.updateJob(job.jobId, { pollFailures: failures });
-              }
+              if (get().activeOwner !== owner) return;
+              store.updateJob(job.jobId, {
+                error: UNKNOWN_SUBMISSION,
+                pollFailures: failures,
+                retryAt: Date.now() + 30000,
+              });
             }
           }),
         );
@@ -330,8 +443,8 @@ export const useJobStore = create<JobStore>()(
     }),
     {
       name: "aipg-job-store",
-      // Only persist the jobs array, not polling state
-      partialize: (state) => ({ jobs: state.jobs }),
+      // Persist receipts and unresolved request handles, never polling state.
+      partialize: (state) => ({ jobs: state.jobs, requests: state.requests }),
       // On rehydrate, clean up old jobs and restart polling if there are active jobs
       onRehydrateStorage: () => (state) => {
         if (state) {
@@ -340,6 +453,7 @@ export const useJobStore = create<JobStore>()(
 
           // Filter out jobs older than 24 hours
           const validJobs = state.jobs.filter((job) => {
+            if (job.status === "queued" || job.status === "processing") return true;
             const age = now - job.submittedAt;
             if (age > MAX_JOB_AGE) {
               console.log(
@@ -366,10 +480,10 @@ export const useJobStore = create<JobStore>()(
 
 // Hook to initialize polling on mount (call this in a provider or layout)
 export function useJobPolling() {
-  const { jobs, isPolling, startPolling, getActiveJobs } = useJobStore();
+  const { requests, activeOwner, isPolling, startPolling, getActiveJobs } = useJobStore();
 
   // Start polling if there are active jobs and not already polling
-  if (!isPolling && getActiveJobs().length > 0) {
+  if (!isPolling && (getActiveJobs().length > 0 || requests.some((request) => request.owner === activeOwner))) {
     startPolling();
   }
 
