@@ -39,6 +39,15 @@ func recoveryDatabase(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = admin.Close() })
+	// Keep database-wide extensions out of schemas dropped by individual tests.
+	// The production migration lock also serializes the gallery package's setup.
+	bootstrap, err := gallery.NewPostgresStore(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bootstrap.DB().Close(); err != nil {
+		t.Fatal(err)
+	}
 	schema := "gallery_recovery_" + newJobID()
 	if _, err := admin.Exec("CREATE SCHEMA " + pq.QuoteIdentifier(schema)); err != nil {
 		t.Fatal(err)

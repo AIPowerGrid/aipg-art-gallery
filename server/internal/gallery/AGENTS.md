@@ -57,6 +57,10 @@ rows during application rollback; there is no automatic pruning or resubmission.
 - CI provisions PostgreSQL 16 and runs the full backend suite with `-race`,
   including concurrent request deduplication, migration startup, restart result
   recovery, canonical ownership, and monotonic completion tests.
+- PostgreSQL fixtures bootstrap the disposable database through the production
+  migration lock before creating per-test schemas. This keeps `pgcrypto`
+  outside schemas removed during cleanup and prevents cross-package extension
+  creation races. Use only a scratch database, never a production database.
 
 ## Child DOX Index
 

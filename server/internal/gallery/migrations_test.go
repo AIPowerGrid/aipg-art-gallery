@@ -46,8 +46,10 @@ func TestMigrationsPostgres(t *testing.T) {
 	if err := adminDB.Ping(); err != nil {
 		t.Fatalf("ping PostgreSQL: %v", err)
 	}
-	if _, err := adminDB.Exec(`CREATE EXTENSION IF NOT EXISTS pgcrypto`); err != nil {
-		t.Fatalf("create pgcrypto extension: %v", err)
+	// Bootstrap the shared database under the production migration lock before
+	// creating disposable schemas. Other test packages use this same lock.
+	if err := runMigrations(adminDB); err != nil {
+		t.Fatalf("bootstrap shared test database: %v", err)
 	}
 
 	t.Run("fresh database and concurrent startup", func(t *testing.T) {
