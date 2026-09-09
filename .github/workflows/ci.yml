@@ -35,6 +35,20 @@ jobs:
     name: Backend
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: gallery_test
+          POSTGRES_PASSWORD: gallery_test
+          POSTGRES_DB: gallery_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gallery_test -d gallery_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      GALLERY_TEST_POSTGRES_URL: postgres://gallery_test:gallery_test@127.0.0.1:5432/gallery_test?sslmode=disable
     defaults:
       run:
         working-directory: server
@@ -44,7 +58,7 @@ jobs:
         with:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
-      - run: go test ./...
+      - run: go test -race ./...
       - run: go vet ./...
       - run: GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 

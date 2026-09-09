@@ -1,113 +1,173 @@
 package app
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
+	"github.com/aipowergrid/aipg-art-gallery/server/internal/gallery"
 )
 
-// pendingStore bridges the gallery's async POST /jobs + poll GET /jobs/{id}
-// contract onto the new grid's *synchronous* /v1 generation endpoints.
-//
-// handleCreateJob creates an entry, returns its id immediately, and runs the
-// (blocking) grid call in a goroutine. handleJobStatus reads the entry back.
-// Entries are kept in memory only — they exist just long enough for the
-// frontend to poll the result, then a TTL sweep drops them. Persisting a
-// finished generation to the gallery is a separate, frontend-driven call
-// (handleAddToGallery). Restart or expiry can lose an unpersisted paid result;
-// missing local state is not proof that Core cancelled or refunded the job.
+// pendingStore owns the async broker lifecycle, not a scheduler. PostgreSQL
+// persists production state; the local memory fallback permits preview only.
 type pendingStore struct {
-	mu   sync.RWMutex
-	jobs map[string]*pendingJob
-	ttl  time.Duration
+	mu      sync.RWMutex
+	jobs    map[string]*pendingJob
+	running map[string]bool
+	ttl     time.Duration
+	journal *gallery.PendingJobStore
 }
 
 type pendingJob struct {
-	Status    string // "processing" | "completed" | "faulted"
-	Kind      string // "image" | "video" | "3d"
-	Prompt    string
-	Owner     string
-	Err       string
-	Items     []aipg.GeneratedItem
-	Grid      *aipg.GridMeta // per-job provenance (worker, gen time) from the grid
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Status          string
+	Kind            string
+	ExpectedOutputs int
+	Owner           string
+	RequestID       string
+	RequestHash     string
+	Err             string
+	Items           []aipg.GeneratedItem
+	Grid            *aipg.GridMeta
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
+
+var errRequestConflict = errors.New("request ID was already used with different generation settings")
 
 func newPendingStore(ttl time.Duration) *pendingStore {
-	return &pendingStore{
-		jobs: make(map[string]*pendingJob),
-		ttl:  ttl,
-	}
+	return &pendingStore{jobs: make(map[string]*pendingJob), running: make(map[string]bool), ttl: ttl}
 }
 
-// create registers a new in-flight job and returns its opaque id.
-func (s *pendingStore) create(kind, prompt, owner string) string {
-	id := newJobID()
-	now := time.Now()
-	s.mu.Lock()
-	s.gcLocked(now)
-	s.jobs[id] = &pendingJob{
-		Status:    "processing",
-		Kind:      kind,
-		Prompt:    prompt,
-		Owner:     owner,
-		CreatedAt: now,
-		UpdatedAt: now,
+func (s *pendingStore) findRequest(ctx context.Context, owner, requestID, digest string) (string, bool, error) {
+	if s.journal != nil {
+		row, found, err := s.journal.FindRequest(ctx, owner, requestID)
+		if err != nil || !found {
+			return "", false, err
+		}
+		if row.RequestHash != digest {
+			return "", false, errRequestConflict
+		}
+		return row.ID, true, nil
 	}
-	s.mu.Unlock()
-	return id
-}
-
-func (s *pendingStore) complete(id string, items []aipg.GeneratedItem, grid *aipg.GridMeta) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if j, ok := s.jobs[id]; ok {
-		j.Status = "completed"
-		j.Items = items
-		j.Grid = grid
-		j.UpdatedAt = time.Now()
-	}
-}
-
-func (s *pendingStore) fail(id, errMsg string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if j, ok := s.jobs[id]; ok {
-		j.Status = "faulted"
-		j.Err = errMsg
-		j.UpdatedAt = time.Now()
-	}
-}
-
-// get returns a copy of the job state so callers never touch the live struct.
-func (s *pendingStore) get(id string) (pendingJob, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	j, ok := s.jobs[id]
-	if !ok {
-		return pendingJob{}, false
-	}
-	return *j, true
-}
-
-// gcLocked drops entries older than the TTL. Caller must hold the write lock.
-func (s *pendingStore) gcLocked(now time.Time) {
-	for id, j := range s.jobs {
-		if now.Sub(j.UpdatedAt) > s.ttl {
-			delete(s.jobs, id)
+	for id, job := range s.jobs {
+		if job.Owner == owner && job.RequestID == requestID {
+			if job.RequestHash != digest {
+				return "", false, errRequestConflict
+			}
+			return id, true, nil
 		}
 	}
+	return "", false, nil
 }
 
-// newJobID returns a random 128-bit hex id. crypto/rand never realistically
-// fails on these platforms; if it ever did, a zeroed id is still unique enough
-// for a short-lived in-memory map and the generation result is unaffected.
+func (s *pendingStore) create(ctx context.Context, requestID, digest, kind, owner string, outputs int) (string, bool, error) {
+	id := newJobID()
+	now := time.Now()
+	job := pendingJob{Status: "processing", Kind: kind, Owner: owner,
+		ExpectedOutputs: outputs, RequestID: requestID, RequestHash: digest, CreatedAt: now, UpdatedAt: now}
+	if s.journal != nil {
+		data, err := json.Marshal(job)
+		if err != nil {
+			return "", false, err
+		}
+		row, created, err := s.journal.Create(ctx, gallery.JobRecord{
+			ID: id, Owner: owner, RequestID: requestID, RequestHash: digest, Status: job.Status, Payload: data})
+		if err != nil {
+			return "", false, err
+		}
+		if row.RequestHash != digest {
+			return "", false, errRequestConflict
+		}
+		if created {
+			s.mu.Lock()
+			s.running[row.ID] = true
+			s.mu.Unlock()
+		}
+		return row.ID, created, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for existingID, existing := range s.jobs {
+		if existing.Owner == owner && existing.RequestID == requestID {
+			if existing.RequestHash != digest {
+				return "", false, errRequestConflict
+			}
+			return existingID, false, nil
+		}
+	}
+	for oldID, old := range s.jobs {
+		if now.Sub(old.UpdatedAt) > s.ttl {
+			delete(s.jobs, oldID)
+		}
+	}
+	s.jobs[id] = &job
+	s.running[id] = true
+	return id, true, nil
+}
+
+func (s *pendingStore) finish(id string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.running, id)
+}
+
+func (s *pendingStore) isRunning(id string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.running[id]
+}
+
+func (s *pendingStore) update(ctx context.Context, id string, job pendingJob) error {
+	job.UpdatedAt = time.Now()
+	if s.journal != nil {
+		data, err := json.Marshal(job)
+		if err != nil {
+			return err
+		}
+		return s.journal.Update(ctx, id, job.Owner, job.Status, data)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if old, ok := s.jobs[id]; ok && old.Owner == job.Owner && (old.Status == "processing" || old.Status == "uncertain") {
+		s.jobs[id] = &job
+	}
+	return nil
+}
+
+func (s *pendingStore) get(ctx context.Context, id, owner string) (pendingJob, bool, error) {
+	if s.journal != nil {
+		row, found, err := s.journal.Get(ctx, id, owner)
+		if err != nil || !found {
+			return pendingJob{}, false, err
+		}
+		var job pendingJob
+		if err := json.Unmarshal(row.Payload, &job); err != nil {
+			return job, false, err
+		}
+		// Indexed authority wins over mutable JSON metadata.
+		job.Owner, job.Status = row.Owner, row.Status
+		job.RequestID, job.RequestHash = row.RequestID, row.RequestHash
+		return job, true, nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	job, ok := s.jobs[id]
+	if !ok || job.Owner != owner {
+		return pendingJob{}, false, nil
+	}
+	return *job, true, nil
+}
+
 func newJobID() string {
 	var b [16]byte
+	// Go 1.25 crypto/rand.Read fills the buffer or terminates on entropy failure.
 	_, _ = rand.Read(b[:])
 	return hex.EncodeToString(b[:])
 }

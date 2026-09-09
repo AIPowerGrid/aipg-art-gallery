@@ -95,6 +95,24 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   account ID. Missing or mismatched IDs fail closed with a bounded gateway
   error; job creation must not enqueue background generation in that case.
   This applies equally to Director first frames and video segments.
+- **Durable image/video broker:** `gallery_pending_jobs` records the canonical
+  owner, request ID/digest, Gallery job ID, expected output count and result.
+  Paid submissions require this PostgreSQL journal. Preview-only local fallback
+  remains in memory. Optional `POST /api/jobs` `requestId` is 16-64 URL-safe
+  characters; an owner/request ID elects one dispatch, identical retries return
+  the original job, and changed settings return 409. Replays precede catalog and
+  credit preflight. New clients must persist their request handle before POST;
+  older clients that lose the 202 response cannot recover its ID automatically.
+- After restart or an uncertain transport outcome, owner-bound status polling
+  reads Core `GET /v1/media/results?client_ref=<Gallery job ID>` using fresh
+  delegated identity. It never submits generation again. Missing results remain
+  uncertain; `closed_without_result` does not prove a refund. Completion is
+  monotonic: late failures cannot overwrite a stored result. Core migration 0040
+  and its result endpoint must be live before relying on restart recovery.
+- The journal contains no request prompt/body, timeline upload, or credentials.
+  No journal pruning is implemented. Account merges that retire the journal's
+  canonical owner still need a proof-backed recovery handoff; do not infer new
+  ownership from a browser-supplied address or email.
 - Successful Core media responses persist `grid.job_id` as nullable
   `gallery_items.grid_job_id`; this receipt identifier is distinct from the
   Gallery's polling/publishing `job_id`.

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -33,8 +34,16 @@ func TestBuildJobViewPreservesCoreJobID(t *testing.T) {
 
 func TestVerifiedGridJobIDRequiresCompletedOwnerMatchedJob(t *testing.T) {
 	store := newPendingStore(time.Minute)
-	jobID := store.create("image", "prompt", "google:owner")
-	store.complete(jobID, nil, &aipg.GridMeta{JobID: "core-job"})
+	ctx := context.Background()
+	jobID, _, err := store.create(ctx, "receipt-test-request", "digest", "image", "google:owner", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, _, _ := store.get(ctx, jobID, "google:owner")
+	job.Status, job.Grid = "completed", &aipg.GridMeta{JobID: "core-job"}
+	if err := store.update(ctx, jobID, job); err != nil {
+		t.Fatal(err)
+	}
 
 	if got := verifiedGridMeta(store, jobID, "google:owner"); got == nil || got.JobID != "core-job" {
 		t.Fatalf("expected server-observed provenance, got %#v", got)

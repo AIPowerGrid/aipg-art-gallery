@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -91,6 +92,7 @@ func New(cfg config.Config) (*App, error) {
 	var galleryStore gallery.GalleryStore
 	var userStore *gallery.UserStore
 	var favoritesStore *gallery.FavoritesStore
+	pending := newPendingStore(15 * time.Minute)
 
 	if cfg.PostgresEnabled {
 		// Use PostgreSQL
@@ -101,6 +103,7 @@ func New(cfg config.Config) (*App, error) {
 		galleryStore = pgStore
 		userStore = pgStore.UserStore
 		favoritesStore = gallery.NewFavoritesStore(pgStore.DB())
+		pending.journal = gallery.NewPendingJobStore(pgStore.DB())
 		log.Printf("PostgreSQL gallery store connected, %d items", pgStore.Count())
 	} else {
 		// Use file-based store
@@ -156,7 +159,7 @@ func New(cfg config.Config) (*App, error) {
 		aiClient:          aiClient,
 		// Pending state outlives the 11-minute image/video request ceiling and
 		// the browser's final status poll.
-		pending: newPendingStore(15 * time.Minute),
+		pending: pending,
 	}, nil
 }
 
@@ -1478,7 +1481,18 @@ func (a *App) handleGetModel(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, buildModelView(preset, match, chainModel))
 }
 
+var generationRequestID = regexp.MustCompile(`^[A-Za-z0-9_-]{16,64}$`)
+
+func writeJobStoreError(w http.ResponseWriter, err error) {
+	if errors.Is(err, errRequestConflict) {
+		writeError(w, http.StatusConflict, errRequestConflict)
+		return
+	}
+	writeError(w, http.StatusServiceUnavailable, errors.New("generation journal unavailable; retry the same request ID"))
+}
+
 func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	var req CreateJobRequest
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxCreateRequestBytes))
 	if err := decoder.Decode(&req); err != nil {
@@ -1496,12 +1510,6 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	preset, ok := a.catalog.Get(req.ModelID)
-	if !ok {
-		writeError(w, http.StatusBadRequest, fmt.Errorf("unknown model: %s", req.ModelID))
-		return
-	}
-
 	if a.cfg.DefaultAPIKey == "" {
 		writeError(w, http.StatusServiceUnavailable, errors.New("Grid bridge is not configured"))
 		return
@@ -1512,6 +1520,38 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	owner := getGalleryOwnerIdentifier(r)
+	requestID := req.RequestID
+	if requestID == "" {
+		requestID = newJobID()
+	}
+	if !generationRequestID.MatchString(requestID) {
+		writeError(w, http.StatusBadRequest, errors.New("requestId must contain 16-64 letters, digits, underscores or hyphens"))
+		return
+	}
+	req.RequestID = ""
+	encoded, err := json.Marshal(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("invalid generation request"))
+		return
+	}
+	digest := fmt.Sprintf("%x", sha256.Sum256(encoded))
+	lookupCtx, lookupCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	existing, found, err := a.pending.findRequest(lookupCtx, owner, requestID, digest)
+	lookupCancel()
+	if err != nil {
+		writeJobStoreError(w, err)
+		return
+	}
+	if found {
+		writeJSON(w, http.StatusAccepted, map[string]any{"jobId": existing, "status": "queued", "replayed": true})
+		return
+	}
+
+	preset, ok := a.catalog.Get(req.ModelID)
+	if !ok {
+		writeError(w, http.StatusBadRequest, fmt.Errorf("unknown model: %s", req.ModelID))
+		return
+	}
 
 	gen := buildGenerateRequest(req, preset)
 	kind := "image"
@@ -1542,6 +1582,10 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusPaymentRequired, errors.New("insufficient Grid credits - add credits to continue"))
 		return
 	}
+	if quote.ChargingEnabled && a.pending.journal == nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("paid generation requires durable job storage"))
+		return
+	}
 
 	// Prefer our own worker when configured. TARGET_WORKER_ID is the worker NAME
 	// on the new grid; the gallery's account must own it (the grid 403s otherwise).
@@ -1556,13 +1600,24 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	// The new grid /v1 endpoints are synchronous (the POST blocks until the
 	// worker finishes). The gallery's own API stays async: register a pending
 	// job, return its id now, and run the blocking grid call in the background.
-	jobID := a.pending.create(kind, req.Prompt, owner)
+	storeCtx, storeCancel := context.WithTimeout(r.Context(), 5*time.Second)
+	jobID, created, err := a.pending.create(storeCtx, requestID, digest, kind, owner, max(gen.N, 1))
+	storeCancel()
+	if err != nil {
+		writeJobStoreError(w, err)
+		return
+	}
+	if !created {
+		writeJSON(w, http.StatusAccepted, map[string]any{"jobId": jobID, "status": "queued", "replayed": true})
+		return
+	}
 	// Use the bridge job id as the progress token so the grid stashes the
 	// worker's live % under it; handleJobStatus polls it while processing.
 	gen.ProgressToken = jobID
 
 	clientAgent := a.cfg.ClientAgent
 	go func() {
+		defer a.pending.finish(jobID)
 		// Detached from the request: the HTTP handler has already returned.
 		// Use the same ceiling as the media client so the two layers cannot
 		// disagree about whether a Core job is still live.
@@ -1570,13 +1625,25 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 
 		resp, err := a.client.GenerateMedia(ctx, kind, gen, a.cfg.DefaultAPIKey, identity.AccessToken, clientAgent)
-		if err != nil {
-			log.Printf("❌ Grid %s job %s failed: %v", kind, jobID, err)
-			a.pending.fail(jobID, err.Error())
+		// Persist even when the generation context itself has expired.
+		saveCtx, saveCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer saveCancel()
+		job, found, loadErr := a.pending.get(saveCtx, jobID, owner)
+		if loadErr != nil || !found {
+			log.Print("Generation journal read failed; outcome must be recovered")
 			return
 		}
-		log.Printf("✅ Grid %s job %s done: %d result(s)", kind, jobID, len(resp.Data))
-		a.pending.complete(jobID, resp.Data, resp.Grid)
+		if err != nil {
+			job.Status, job.Err = "faulted", err.Error()
+			if aipg.IsGenerationOutcomeUnknown(err) {
+				job.Status = "uncertain"
+			}
+		} else {
+			job.Status, job.Err, job.Items, job.Grid = "completed", "", resp.Data, resp.Grid
+		}
+		if err := a.pending.update(saveCtx, jobID, job); err != nil {
+			log.Print("Generation journal write failed; outcome must be recovered")
+		}
 	}()
 
 	writeJSON(w, http.StatusAccepted, map[string]any{
@@ -1586,13 +1653,21 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleJobStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	jobID := chi.URLParam(r, "id")
 	if jobID == "" {
 		writeError(w, http.StatusBadRequest, errors.New("job id required"))
 		return
 	}
 
-	job, ok := a.pending.get(jobID)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	owner := getGalleryOwnerIdentifier(r)
+	job, ok, err := a.pending.get(ctx, jobID, owner)
+	if err != nil {
+		writeJobStoreError(w, err)
+		return
+	}
 	if !ok {
 		writeError(w, http.StatusNotFound, fmt.Errorf("unknown or expired job: %s", jobID))
 		return
@@ -1600,6 +1675,41 @@ func (a *App) handleJobStatus(w http.ResponseWriter, r *http.Request) {
 	if job.Owner == "" || job.Owner != getGalleryOwnerIdentifier(r) {
 		writeError(w, http.StatusNotFound, errors.New("job not found"))
 		return
+	}
+	if (job.Status == "processing" || job.Status == "uncertain") && !a.pending.isRunning(jobID) {
+		identity, err := a.gridUserIdentity(ctx, r)
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, err)
+			return
+		}
+		recovered, err := a.client.RecoverMedia(ctx, jobID, a.cfg.DefaultAPIKey, identity.AccessToken)
+		if err != nil {
+			writeError(w, http.StatusBadGateway, errors.New("generation recovery temporarily unavailable"))
+			return
+		}
+		if recovered == nil {
+			job.Status, job.Err = "uncertain", "Generation outcome is unknown. Do not resubmit automatically; the original may still complete and be charged."
+		} else if recovered.State == "completed" {
+			if len(recovered.Result.Media) != job.ExpectedOutputs {
+				writeError(w, http.StatusBadGateway, errors.New("recovered output count mismatch"))
+				return
+			}
+			job.Status, job.Err, job.Items = "completed", "", recovered.Result.Media
+			job.Grid = &aipg.GridMeta{JobID: recovered.JobID, Model: recovered.Result.Model,
+				Worker: recovered.Result.Worker, GenTime: recovered.Result.GenTime}
+		} else if recovered.State == "closed_without_result" {
+			job.Status, job.Err = "faulted", "The original generation is closed without a recoverable result. Check its credit record before starting a new generation."
+		}
+		if err := a.pending.update(ctx, jobID, job); err != nil {
+			writeJobStoreError(w, err)
+			return
+		}
+		// A racing synchronous response may already have committed completion.
+		job, ok, err = a.pending.get(ctx, jobID, owner)
+		if err != nil || !ok {
+			writeError(w, http.StatusServiceUnavailable, errors.New("generation journal unavailable"))
+			return
+		}
 	}
 
 	view := buildJobView(jobID, job)
@@ -1713,6 +1823,7 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel
 }
 
 type CreateJobRequest struct {
+	RequestID      string           `json:"requestId,omitempty"`
 	ModelID        string           `json:"modelId"`
 	Prompt         string           `json:"prompt"`
 	NegativePrompt string           `json:"negativePrompt"`
@@ -2026,7 +2137,8 @@ func buildJobView(jobID string, job pendingJob) JobView {
 	}
 
 	switch job.Status {
-	case "processing":
+	case "processing", "uncertain":
+		view.Status = "processing"
 		view.Processing = 1
 	case "completed":
 		view.Finished = len(job.Items)
@@ -2064,8 +2176,10 @@ func buildJobView(jobID string, job pendingJob) JobView {
 }
 
 func verifiedGridMeta(store *pendingStore, jobID, owner string) *aipg.GridMeta {
-	pending, ok := store.get(jobID)
-	if !ok ||
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	pending, ok, err := store.get(ctx, jobID, owner)
+	if err != nil || !ok ||
 		pending.Status != "completed" ||
 		pending.Owner != owner ||
 		pending.Grid == nil {

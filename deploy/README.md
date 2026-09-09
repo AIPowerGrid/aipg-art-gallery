@@ -11,7 +11,44 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
-## Current patched release (2026-09-08, 23:24 UTC)
+## Durable media recovery candidate (not deployed)
+
+Core PR #149 merged as `bf975599bdfba9fce7b9c661e98331fa3a1aafc1`.
+This Gallery candidate depends on its migration 0040 and authenticated
+`GET /v1/media/results` endpoint. Neither a merge nor local tests establish
+that production runs the new behavior. A read-only host check still resolves
+`/opt/aipg-gallery-current` to `gallery-9e7ff3dc`.
+
+Before activation:
+
+1. Take and restore-test a fresh Gallery database backup. Apply/test Gallery
+   migration `0003_pending_job_recovery` on the restored database. Migration
+   startup must retain the first two recorded checksums and existing rows.
+2. Deploy migration-compatible Core result storage and verify its running
+   processes, owner-scoped endpoint, and atomic result/settlement tests.
+3. Require green Gallery PostgreSQL 16 CI, race tests, dependency/security
+   checks, and a reviewed immutable release. Set `POSTGRES_ENABLED=true`;
+   charged submissions fail closed without the durable journal.
+4. Drain/gate submissions during cutover: prior process-local jobs cannot be
+   reconstructed by this migration. Never silently restart an in-flight paid
+   generation. Preserve uncertain old job IDs for manual reconciliation.
+5. Test funded first-frame and video-stage jobs, then recover their saved
+   handles after a broker restart. Verify one Core reservation, debit and
+   completion per stage; replaying an identical request must not generate again.
+
+Rollback keeps the new journal and Core reservation/result columns. An older
+application cannot recover those new receipts; gate submissions and roll
+forward to a repaired reader rather than dropping the journal or retrying jobs.
+Recovery does not extend R2 object retention and `closed_without_result` is
+not proof of a refund. Do not prune unresolved journal rows.
+
+Still required before claiming complete Director recovery: browser-persisted
+pre-submission request handles (including a lost 202 response), proven canonical
+account-merge handoff, and the funded multistage canary. The backend's optional
+`requestId` alone does not close those client-side gaps. Charging flags and
+worker payout policy are unchanged by this candidate.
+
+## Earlier patched release (2026-09-08, 23:24 UTC)
 
 - Active commit: `815c11eef601486d83a9c216f63f620bb56d359e` (PR #22).
   Director reload recovery preserves uncertain job identifiers and prevents

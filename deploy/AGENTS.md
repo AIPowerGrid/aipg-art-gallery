@@ -31,6 +31,9 @@ Next.js web process and Go API process from one commit-pinned release.
 - Build the backend with `GOTOOLCHAIN=auto` so the exact Go toolchain declared
   by `server/go.mod` is used.
 - Preserve at least one independently runnable rollback release.
+- For durable media recovery, deploy Core's migration 0040 and result API before
+  Gallery, then verify Gallery migration 0003 against a restored backup. Retain
+  journal rows on rollback; never discard receipts or redispatch uncertain jobs.
 - Release pruning must resolve and protect `/opt/aipg-gallery-current`, reject
   paths outside `/opt/aipg-gallery-releases`, and keep one inactive release.
 

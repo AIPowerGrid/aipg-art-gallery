@@ -77,8 +77,14 @@ func TestLegacyOwnerKeysOnlyUseProvenClaims(t *testing.T) {
 
 func TestPendingJobsCarryOwner(t *testing.T) {
 	store := newPendingStore(time.Minute)
-	id := store.create("image", "prompt", "owner-1")
-	job, ok := store.get(id)
+	id, _, err := store.create(context.Background(), "request-owner-test", "digest", "image", "owner-1", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, ok, err := store.get(context.Background(), id, "owner-1")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !ok || job.Owner != "owner-1" {
 		t.Fatalf("pending job owner was not retained: %#v", job)
 	}

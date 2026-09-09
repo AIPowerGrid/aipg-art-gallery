@@ -18,11 +18,11 @@ func TestLoadMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadMigrations() error = %v", err)
 	}
-	if len(migrations) != 2 {
-		t.Fatalf("migration count = %d, want 2", len(migrations))
+	if len(migrations) != 3 {
+		t.Fatalf("migration count = %d, want 3", len(migrations))
 	}
-	if migrations[0].version != "0001_gallery_baseline" || migrations[1].version != "0002_identity_and_grid_receipts" {
-		t.Fatalf("unexpected migration order: %q, %q", migrations[0].version, migrations[1].version)
+	if migrations[0].version != "0001_gallery_baseline" || migrations[1].version != "0002_identity_and_grid_receipts" || migrations[2].version != "0003_pending_job_recovery" {
+		t.Fatalf("unexpected migration order: %q, %q, %q", migrations[0].version, migrations[1].version, migrations[2].version)
 	}
 	for _, migration := range migrations {
 		if len(migration.checksum) != 64 || strings.TrimSpace(migration.sql) == "" {
@@ -252,11 +252,11 @@ func assertMigrationState(t *testing.T, db *sql.DB) {
 	if err := db.QueryRow(`SELECT count(*) FROM gallery_schema_migrations`).Scan(&migrationCount); err != nil {
 		t.Fatalf("count migrations: %v", err)
 	}
-	if migrationCount != 2 {
-		t.Fatalf("migration count = %d, want 2", migrationCount)
+	if migrationCount != 3 {
+		t.Fatalf("migration count = %d, want 3", migrationCount)
 	}
 
-	for _, table := range []string{"users", "gallery_items", "generation_jobs", "favorites"} {
+	for _, table := range []string{"users", "gallery_items", "generation_jobs", "favorites", "gallery_pending_jobs"} {
 		var exists bool
 		if err := db.QueryRow(`SELECT to_regclass(current_schema() || '.' || $1) IS NOT NULL`, table).Scan(&exists); err != nil {
 			t.Fatalf("look up table %s: %v", table, err)

@@ -14,11 +14,17 @@ the PostgreSQL schema lifecycle. `postgres_store.go` is the production backend;
 - `postgres_store.go` - gallery item reads/writes and transactional owner canonicalization.
 - `user_store.go` - Google and wallet identity persistence.
 - `favorites_store.go` - canonical-account-keyed favorites.
+- `pending_jobs.go` - private image/video broker journal used by `app/pendingstore.go`.
+  The owner/request ID unique key elects one submission; conditional terminal
+  writes prevent late failures from replacing completion. No credentials,
+  prompt bodies, or uploaded timelines are stored. RLS has no anonymous policy.
 - `interface.go` - storage contract shared by PostgreSQL and the file backend.
 
 `generation_jobs` remains in the baseline for compatibility with existing
 databases, but active jobs are owned by `internal/app/pendingstore.go`; do not
-reintroduce a second job state machine here.
+reintroduce a second scheduler here. `gallery_pending_jobs` persists that same
+broker state rather than reusing the legacy `generation_jobs` table. Retain its
+rows during application rollback; there is no automatic pruning or resubmission.
 
 ## Local Contracts
 
@@ -48,6 +54,9 @@ reintroduce a second job state machine here.
   `GOTOOLCHAIN=auto go test ./internal/gallery -run TestMigrationsPostgres -count=1`.
   The test creates and drops isolated schemas; never point it at a database role that cannot
   create disposable schemas.
+- CI provisions PostgreSQL 16 and runs the full backend suite with `-race`,
+  including concurrent request deduplication, migration startup, restart result
+  recovery, canonical ownership, and monotonic completion tests.
 
 ## Child DOX Index
 
