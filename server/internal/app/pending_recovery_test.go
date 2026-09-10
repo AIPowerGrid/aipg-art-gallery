@@ -334,3 +334,75 @@ func TestPaidGenerationRequiresWorkingJournal(t *testing.T) {
 		})
 	}
 }
+
+func TestAdmissionRejectionStaysTerminalAcrossJournalReload(t *testing.T) {
+	const owner = "11111111-1111-4111-8111-111111111111"
+	db := recoveryDatabase(t)
+	var generates, recoveries atomic.Int32
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth/service/exchange":
+			writeJSON(w, 200, map[string]string{"access_token": "delegated-token", "account_id": owner})
+		case "/account/ownership":
+			writeJSON(w, 200, map[string]any{"account_id": owner, "account_aliases": []string{}})
+		case "/account/credits/quote":
+			writeJSON(w, 200, map[string]any{"account_id": owner, "charging_enabled": true,
+				"estimate": map[string]any{"priced": true, "balance_sufficient": true}})
+		case "/images/generations":
+			generates.Add(1)
+			writeJSON(w, 503, map[string]string{"detail": "This generation path is temporarily unavailable."})
+		case "/media/results":
+			recoveries.Add(1)
+			http.NotFound(w, r)
+		default:
+			t.Errorf("unexpected Core route %s", r.URL.Path)
+			http.Error(w, "unexpected", 500)
+		}
+	}))
+	defer core.Close()
+	catalog, err := models.LoadCatalog("../../config/model_presets.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := &App{cfg: config.Config{DefaultAPIKey: "service-key"}, client: aipg.NewClient(core.URL, "test"),
+		catalog: catalog, pending: persistentPending(db)}
+	submit := func() *httptest.ResponseRecorder {
+		request := requestWithClaims(&auth.Claims{GoogleID: "test-google", GridAccountID: owner})
+		request.Body = io.NopCloser(strings.NewReader(`{"requestId":"admission-rejected-request","modelId":"z-image-turbo","prompt":"test","params":{"n":1}}`))
+		response := httptest.NewRecorder()
+		app.handleCreateJob(response, request)
+		return response
+	}
+	response := submit()
+	var accepted struct {
+		JobID string `json:"jobId"`
+	}
+	if response.Code != 202 || json.Unmarshal(response.Body.Bytes(), &accepted) != nil || accepted.JobID == "" {
+		t.Fatalf("create: %d %s", response.Code, response.Body.String())
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for app.pending.isRunning(accepted.JobID) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if app.pending.isRunning(accepted.JobID) {
+		t.Fatal("generation goroutine did not finish")
+	}
+	app.pending = persistentPending(db)
+	replayed := submit()
+	if replayed.Code != 202 || !strings.Contains(replayed.Body.String(), accepted.JobID) {
+		t.Fatalf("replay lost original rejection: %d %s", replayed.Code, replayed.Body.String())
+	}
+	for range 2 {
+		app.pending = persistentPending(db)
+		request := requestWithClaims(&auth.Claims{GoogleID: "test-google", GridAccountID: owner})
+		view := httptest.NewRecorder()
+		app.serveJobStatus(view, request, accepted.JobID)
+		var result JobView
+		if view.Code != 200 || json.Unmarshal(view.Body.Bytes(), &result) != nil || !result.Faulted || !strings.Contains(result.Error, "No job was started") {
+			t.Fatalf("rejected mode must not spin after restart: %d %s", view.Code, view.Body.String())
+		}
+	}
+	if generates.Load() != 1 || recoveries.Load() != 0 {
+		t.Fatalf("rejected job caused more work: generates=%d recoveries=%d", generates.Load(), recoveries.Load())
+	}
+}

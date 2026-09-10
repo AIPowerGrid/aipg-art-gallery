@@ -36,6 +36,10 @@ func TestGenerationAmbiguousOutcomeNeverLooksLikeSafeRecipeFallback(t *testing.T
 	}{
 		{"lost connection", 0, nil, context.DeadlineExceeded},
 		{"upstream gateway failure", 504, io.NopCloser(strings.NewReader("404 unknown model: private upstream detail")), nil},
+		{"generic unavailable", 503, io.NopCloser(strings.NewReader(`{"detail":"upstream unavailable"}`)), nil},
+		{"admission words inside gateway error", 503, io.NopCloser(strings.NewReader(`{"detail":"gateway: This generation path is temporarily unavailable."}`)), nil},
+		{"admission body with wrong status", 502, io.NopCloser(strings.NewReader(`{"detail":"This generation path is temporarily unavailable."}`)), nil},
+		{"truncated admission JSON", 503, io.NopCloser(strings.NewReader(`{"detail":"This generation path is temporarily unavailable."`)), nil},
 		{"truncated success body", 200, &brokenGenerationBody{}, nil},
 		{"invalid success JSON", 200, io.NopCloser(strings.NewReader("{")), nil},
 		{"empty success results", 200, io.NopCloser(strings.NewReader(`{"data":[]}`)), nil},
@@ -72,6 +76,32 @@ func TestGenerationAmbiguousOutcomeNeverLooksLikeSafeRecipeFallback(t *testing.T
 			}
 			if calls != 1 {
 				t.Fatalf("must not retry a potentially paid request: %d calls", calls)
+			}
+		})
+	}
+}
+
+func TestGenerationAdmissionRejectionIsTerminalWithoutRetry(t *testing.T) {
+	for _, kind := range []string{"image", "video", "3d"} {
+		t.Run(kind, func(t *testing.T) {
+			calls := 0
+			client := NewClient("https://grid.example/v1", "test")
+			client.mediaClient.Transport = generationTransport(func(*http.Request) (*http.Response, error) {
+				calls++
+				return &http.Response{StatusCode: 503, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(
+					`{"detail":"This generation path is temporarily unavailable."}`))}, nil
+			})
+			result, err := client.GenerateMedia(context.Background(), kind, GenerateRequest{Model: "test-model", N: 1}, "", "", "test")
+			if err == nil || result != nil || IsGenerationOutcomeUnknown(err) {
+				t.Fatalf("pre-dispatch rejection must be terminal: result=%v err=%v", result, err)
+			}
+			if !strings.Contains(err.Error(), "No job was started") || calls != 1 {
+				t.Fatalf("rejection must explain admission without retrying: calls=%d err=%v", calls, err)
+			}
+			for _, fallback := range []string{"not available", "unknown model", "404"} {
+				if strings.Contains(err.Error(), fallback) {
+					t.Fatalf("rejection must not trigger a recipe fallback: %v", err)
+				}
 			}
 		})
 	}

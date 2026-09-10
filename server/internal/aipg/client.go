@@ -289,6 +289,15 @@ func (c *Client) GenerateMedia(ctx context.Context, kind string, request Generat
 		return nil, &generationOutcomeUnknown{cause: err}
 	}
 	if resp.StatusCode != http.StatusOK {
+		// Core's admission guard emits this exact 503 before reservation/dispatch.
+		// Every other 5xx remains ambiguous; never infer rejection from a 404 poll.
+		var rejection struct {
+			Detail string `json:"detail"`
+		}
+		if resp.StatusCode == http.StatusServiceUnavailable && len(body) <= 1024 &&
+			json.Unmarshal(body, &rejection) == nil && rejection.Detail == "This generation path is temporarily unavailable." {
+			return nil, errors.New("This generation mode is temporarily disabled. No job was started and no credits were charged.")
+		}
 		if resp.StatusCode < 400 || resp.StatusCode >= 500 {
 			return nil, &generationOutcomeUnknown{cause: fmt.Errorf("Grid generation HTTP %d", resp.StatusCode)}
 		}
