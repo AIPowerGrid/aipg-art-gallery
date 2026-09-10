@@ -11,6 +11,48 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
+## Admission rejection repair (2026-09-10, 14:35 UTC)
+
+Production selects tested head `24a0fbf002d29ffab0982506ae0ef880bdfcc335`
+at `gallery-24a0fbf0`. PR #32 merged as
+`7c55a429b387e1bc3fed18582dd0b7e867ec77e3`; the two trees are identical.
+All required backend, frontend, browser, security and CodeQL checks passed.
+The new regression failed on the previous behavior and passes with the fix.
+An isolated PostgreSQL 16 run passed the full Go race suite and vet, including
+persisted rejection/replay/reload and the real-process crash recovery tests.
+
+Core already rejects disabled generation paths before reservation or dispatch.
+Gallery now recognizes that exact bounded JSON 503 admission response as a
+terminal rejection. Other 5xx responses and recovery 404s remain uncertain;
+no automatic generation retry, recipe fallback or historical journal cleanup
+is introduced. This release does not enable Director timelines or change prices.
+
+The host passed the Node 22 production build, lockfile reinstall and production
+high/critical dependency audit, plus Go race tests, vet and binary build. A
+fresh checksum-verified Gallery backup was restored into disposable scratch;
+the full candidate race suite passed there with existing row fingerprints
+unchanged, and the scratch database was dropped. No migration changed.
+
+Activation briefly gated submissions, observed no processing/uncertain journal
+rows twice, switched both services and verified health, process/binary identity,
+anonymous credit rejection and unchanged schema/environment. Original Nginx
+configuration was restored. Activation completed at `2026-09-10T14:35:02Z`;
+`gallery-af7593fd` is the compatible rollback. Private evidence is under
+`/var/lib/aipg-release-proof/gallery-24a0fbf0/`.
+
+A real signed-in Director test reused the already-paid first frame and submitted
+one disabled timeline render. Gallery job `67db859a190bb186458b4352422f26dd`
+persisted `faulted`, with a visible disabled/no-job/no-charge error instead of
+indefinite processing. Reload retained the failed segment, frame receipt and
+error without resubmission. Core has zero reservations for that client reference;
+the purchased balance stayed USD 9.611518. This proves correct rejection, not
+successful timeline rendering. Plain Gallery video and first-frame generation
+passed separately in Core's September 10 launch record.
+
+Global charging is now on in Core and prospective worker payouts have resumed;
+older dated rollout notes below describe historical states. Batch images,
+img2img, video timelines and 3D remain disabled pending separate qualification.
+
 ## Persisted video playback repair (2026-09-09, 15:11 UTC)
 
 PR #29 merged as `02446c68095ce24cbaa75c17dff73309c312ba03`. Production
