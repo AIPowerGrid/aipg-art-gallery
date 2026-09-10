@@ -19,7 +19,11 @@ package owns one concern; `app/app.go` wires them together.
   outputs have an explicitly unknown generation outcome: Core may still finish
   and charge the original job. Do not retry automatically or expose upstream
   gateway text that the Director could mistake for a safe recipe fallback.
-  Definite 4xx rejections retain their existing error shape. This classification
+  Definite 4xx rejections retain their existing error shape. Core's exact 503
+  JSON admission detail (`This generation path is temporarily unavailable.`)
+  is a pre-reservation rejection, not an uncertain job. It becomes a durable
+  terminal error with no automatic retry or Director recipe fallback. Other
+  5xx responses, malformed bodies and recovery 404s remain ambiguous. This classification
   is distinct from recovery: `recovery.go` reads Core's owner-bound durable
   media result without redirects or resubmission. The async broker journals
   production image/video jobs in PostgreSQL and keeps local-only preview state

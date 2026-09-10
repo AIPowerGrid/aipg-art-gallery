@@ -111,6 +111,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   uncertain; `closed_without_result` does not prove a refund. Completion is
   monotonic: late failures cannot overwrite a stored result. Core migration 0040
   and its result endpoint must be live before relying on restart recovery.
+- Core's exact pre-dispatch admission rejection is persisted as `faulted`, so
+  disabled Director timelines do not poll forever or trigger a recipe fallback.
+  This narrow compatibility rule does not close existing uncertain rows or
+  reinterpret generic 5xx/recovery 404 responses. Admission still belongs to Core.
 - The journal contains no request prompt/body, timeline upload, or credentials.
   No journal pruning is implemented. `/auth/me` refreshes the service identity
   and verifies the session's old account against Core `/v1/account/ownership`
