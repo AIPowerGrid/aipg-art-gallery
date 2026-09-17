@@ -15,11 +15,12 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
-- Production selects `gallery-24a0fbf0`, the tested tree of PR #32. Its narrow
-  admission-rejection repair is live: disabled timeline requests fail clearly
-  without a charge or automatic retry. Preserve Core's rollout restrictions;
-  this is not timeline qualification. `gallery-af7593fd` remains the rollback.
-  See the dated live canary and backup/restore proof in `README.md`.
+- Production selects `gallery-81f9d595` (PR #34), with Studio terminal errors
+  visible after reload and the gRPC security patch from PR #35. The compatible
+  patched rollback is `gallery-30c9181a`; older unpatched builds were retired.
+  Both releases passed restored-backup race tests. Preserve Core's rollout
+  restrictions; this does not qualify timelines or prove live failure refunds.
+  See the September 17 deployment evidence in `README.md`.
 - Releases are detached checkouts under
   `/opt/aipg-gallery-releases/gallery-<commit>` and are activated only through
   `/opt/aipg-gallery-current`.

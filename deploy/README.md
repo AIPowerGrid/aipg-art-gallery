@@ -11,6 +11,48 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
+## Studio failure visibility and security patch (2026-09-17, 02:37 UTC)
+
+Production selects `81f9d59535c3aaf87758db5cc427a99a953905b4` (PR #34) at
+`gallery-81f9d595`. Studio now shows the latest current-account job's terminal
+error next to the prompt, including after reload. Newer jobs supersede older
+errors; no other account's error is shown and no paid retry is automatic.
+
+CI caught GO-2026-6348 in the existing gRPC dependency. PR #35 patched it to
+v1.83.1 and merged as `30c9181ae477b92817db34ea102a7134e9d2253c`. That
+security-only release preserves the old UI and is the retained patched rollback.
+Do not roll back to an older vulnerable dependency to undo a UI change.
+
+All required PR and exact-main checks passed, including PostgreSQL 16 backend
+race tests, frontend/browser tests, complete-history secret scanning and CodeQL.
+Local verification passed 113 Jest tests and all 15 production-build browser
+tests. These include credit rejection, terminal failure, balance refresh,
+account isolation and reload recovery without another generation POST.
+
+Both candidate and rollback passed Node 22 builds, production-only lockfile
+reinstall/audit, Go race tests, vet, vulnerability scanning and binary builds
+on the release host. Fresh checksum-verified backups were restored into separate
+scratch databases; full candidate race suites preserved all existing row
+fingerprints and schema. Both scratch databases were dropped. No migration or
+environment change was introduced. The vulnerability gate reports no reachable
+Go findings; lower-severity npm and unreachable Go findings are not claimed fixed.
+
+Activation gated new submissions, observed an empty active/uncertain journal
+twice, switched both services, and verified process/binary identity plus
+unchanged schema, environment and final Nginx configuration. Activation finished
+at `2026-09-17T02:37:08Z`. Backend SHA-256:
+`bc4a0bd8123de5e8654f2b00e65abd5711eb77909ccf42cb2d9dea4d51572f6c`.
+Health and public Studio return 200; anonymous credits/jobs return 401 after the
+gate is removed. Private proof is under
+`/var/lib/aipg-release-proof/gallery-81f9d595/` and `gallery-30c9181a/`.
+
+A fresh authenticated browser load retained the owner's session, balance and
+private creations. The earlier paid LTX receipt still played its saved clip;
+Core showed no new job or charge and reconciled all balances. This proves
+post-release session/result recovery, not fresh OAuth/SIWE, a live zero-credit
+rejection, or a failed-generation refund. Those live cases remain separate
+launch evidence. No charging, admission or validator economic policy changed.
+
 ## Admission rejection repair (2026-09-10, 14:35 UTC)
 
 Production selects tested head `24a0fbf002d29ffab0982506ae0ef880bdfcc335`
