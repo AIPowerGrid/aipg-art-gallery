@@ -130,6 +130,39 @@ async function installStudioMocks(page: Page) {
   });
 }
 
+test("keeps cached creations isolated across account reloads", async ({ page }) => {
+  await installStudioMocks(page);
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  let owner = "account-1";
+  await page.route("**/api-preview/auth/me", route => route.fulfill({ json: {
+    authMethod: "google", accountId: owner, googleId: owner,
+    email: "fixture@example.test", name: "Fixture",
+  } }));
+  await page.route("**/api-preview/gallery/me*", route => route.fulfill({ json: {
+    items: [], count: 0, wallet: owner,
+  } }));
+  await page.goto("/create");
+  await expect(page.getByRole("button", { name: "Account", exact: true })).toBeVisible();
+  await page.evaluate(({ image }) => {
+    const jobs = ["account-1", "account-2"].map(walletAddress => ({
+      jobId: walletAddress, walletAddress, modelId: "Krea 2 Turbo", modelName: "Krea 2 Turbo",
+      prompt: `Private creation for ${walletAddress}`, type: "image",
+      isNsfw: false, isPublic: false, status: "completed", submittedAt: Date.now(),
+      result: { status: "completed", generations: [{ id: walletAddress, kind: "image", seed: "1", url: image }] },
+    }));
+    localStorage.setItem("aipg-job-store", JSON.stringify({ state: { jobs, requests: [] }, version: 0 }));
+  }, { image: IMAGE });
+  await page.reload();
+  await expect(page.getByText("Private creation for account-1", { exact: true })).toBeVisible();
+  await expect(page.getByText("Private creation for account-2", { exact: true })).toHaveCount(0);
+  owner = "account-2";
+  await page.reload();
+  await expect(page.getByText("Private creation for account-2", { exact: true })).toBeVisible();
+  await expect(page.getByText("Private creation for account-1", { exact: true })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 function liveCredits(balance: number) {
   return {
     account_id: "account-1",

@@ -60,6 +60,12 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - New local jobs use `accountId`, never a wallet address or Google subject. When
   an existing browser first receives an account ID, migrate only persisted jobs
   matching the currently proved login aliases; never relabel another user's jobs.
+- Studio `hooks/use-creations` takes the canonical account ID, not a login boolean.
+  Every local completion/progress path is owner-filtered. Account changes hide
+  the previous view immediately and discard its late history responses. Signed-out
+  Studio does not import unscoped browser history; recovery records remain intact.
+  Late submission/removal callbacks also check the currently active owner, not
+  only the owner captured when an asynchronous action started.
 - Logout is server-authoritative: await `/auth/logout` before clearing local
   profile markers, and retain the signed-in UI if cookie invalidation fails.
 - Keep request/response types aligned with `types/models.ts` and the Go structs.

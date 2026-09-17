@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useJobStore } from '@/lib/stores/job-store';
 import { fetchMyGallery, GalleryItem } from '@/lib/api';
-import { getStoredCreations, DisplayCreation, generateTagsFromPrompt } from '@/lib/storage';
+import { DisplayCreation, generateTagsFromPrompt } from '@/lib/storage';
 import { calculateProgress } from '@/lib/hooks/use-favicon-progress';
 
 /**
@@ -122,14 +122,20 @@ interface UseCreationsReturn {
 
 /**
  * Hook to manage creations with a single source of truth
- * Merges data from: job store (active/completed), server API, localStorage
+ * Merges only the selected account's persisted jobs and authenticated history.
  */
-export function useCreations(authenticated: boolean): UseCreationsReturn {
+export function useCreations(accountId?: string): UseCreationsReturn {
+  const owner = accountId?.trim().toLowerCase() || null;
   const [creations, setCreations] = useState<DisplayCreation[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [loadedOwner, setLoadedOwner] = useState<string | null>(null);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  const { jobs, getActiveJobs, removeJob } = useJobStore();
+  const { jobs: allJobs, removeJob } = useJobStore();
+  const jobs = useMemo(() => owner
+    ? allJobs.filter(job => job.walletAddress?.toLowerCase() === owner)
+    : [], [allJobs, owner]);
+  const currentLoaded = isLoaded && loadedOwner === owner;
 
   // Refresh function to reload creations
   const refresh = useCallback(() => {
@@ -139,9 +145,13 @@ export function useCreations(authenticated: boolean): UseCreationsReturn {
   // Load creations on mount and when address changes
   useEffect(() => {
     let cancelled = false;
+    setIsLoaded(false);
+    setCreations([]);
 
     async function loadCreations() {
-      const activeJobsFromStore = getActiveJobs();
+      const activeJobsFromStore = owner ? useJobStore.getState().jobs.filter(
+        job => job.walletAddress?.toLowerCase() === owner,
+      ) : [];
 
       // Build placeholders for active jobs
       const activePlaceholders = activeJobsFromStore
@@ -153,10 +163,10 @@ export function useCreations(authenticated: boolean): UseCreationsReturn {
         .filter(job => job.status === 'completed' && job.result?.generations?.length)
         .map(completedJobToCreation);
 
-      // Fetch from server or localStorage
+      // Anonymous browser history may belong to a previous account. Never import it.
       let serverCreations: DisplayCreation[] = [];
 
-      if (authenticated) {
+      if (owner) {
         try {
           const serverData = await fetchMyGallery(100);
           if (cancelled) return;
@@ -167,10 +177,6 @@ export function useCreations(authenticated: boolean): UseCreationsReturn {
         } catch (err) {
           console.error("Failed to load creations from server:", err);
         }
-      } else {
-        // Anonymous - use localStorage
-        const stored = getStoredCreations();
-        serverCreations = stored.map(c => ({ ...c, isGenerating: false }));
       }
 
       if (cancelled) return;
@@ -201,22 +207,23 @@ export function useCreations(authenticated: boolean): UseCreationsReturn {
       }
 
       setCreations(sortCreations(merged));
+      setLoadedOwner(owner);
       setIsLoaded(true);
     }
 
     loadCreations();
 
     return () => { cancelled = true; };
-  }, [authenticated, getActiveJobs, refreshTrigger]);
+  }, [owner, refreshTrigger]);
 
   // Update progress for active jobs
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!currentLoaded) return;
 
-    const activeJobsFromStore = getActiveJobs();
+    const activeJobsFromStore = jobs.filter(job => job.status === 'queued' || job.status === 'processing');
 
     setCreations(prev => {
-      let updated = [...prev];
+      const updated = [...prev];
       let changed = false;
 
       activeJobsFromStore.forEach(job => {
@@ -239,11 +246,11 @@ export function useCreations(authenticated: boolean): UseCreationsReturn {
 
       return changed ? updated : prev;
     });
-  }, [jobs, isLoaded, getActiveJobs]);
+  }, [jobs, currentLoaded]);
 
   // Handle job completions and failures
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!currentLoaded) return;
 
     const completedJobs = jobs.filter(j => j.status === 'completed' && j.result?.generations?.length);
     const faultedJobs = jobs.filter(j => j.status === 'faulted');
@@ -293,25 +300,28 @@ export function useCreations(authenticated: boolean): UseCreationsReturn {
 
       return changed ? sortCreations(updated) : prev;
     });
-  }, [jobs, isLoaded]);
+  }, [jobs, currentLoaded]);
 
   // Add a new creation (placeholder)
   const addCreation = useCallback((creation: DisplayCreation) => {
+    if (!owner || useJobStore.getState().activeOwner !== owner ||
+        creation.walletAddress?.toLowerCase() !== owner) return;
     setCreations(prev => sortCreations([creation, ...prev.filter(c => c.jobId !== creation.jobId)]));
-  }, []);
+  }, [owner]);
 
   // Remove a creation
   const removeCreation = useCallback((jobId: string) => {
+    if (!owner || useJobStore.getState().activeOwner !== owner) return;
     setCreations(prev => prev.filter(c => c.jobId !== jobId));
-    removeJob(jobId);
-  }, [removeJob]);
+    if (jobs.some(job => job.jobId === jobId)) removeJob(jobId);
+  }, [owner, jobs, removeJob]);
 
   // Check if there are active jobs
   const hasActiveJobs = jobs.some(j => j.status === 'queued' || j.status === 'processing');
 
   return {
-    creations,
-    isLoaded,
+    creations: currentLoaded ? creations : [],
+    isLoaded: currentLoaded,
     addCreation,
     removeCreation,
     hasActiveJobs,
