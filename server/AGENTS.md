@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The backend (chi router, Go ≥1.24). The only component that talks to the grid, the on-chain
+The backend (chi router, Go 1.25 toolchain pinned in go.mod). The only component that talks to the grid, the on-chain
 vaults, Cloudflare R2, and Postgres. Brokers image, video, and 3D generation jobs,
 serves the gallery + media, validates auth sessions, runs Google One Tap sign-in, and proxies prompt enhancement.
 Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app/app.go`.
@@ -22,6 +22,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 ## Local Contracts
 
+- Keep the transitive gRPC dependency at least v1.83.1 for GO-2026-6348
+  (HTTP/2 frame-fragmentation memory exhaustion). A clean vulnerability scan
+  and backend race tests remain release gates, including for frontend fixes.
 - **One handler file:** routes and handlers stay in `internal/app/app.go`; provider logic stays
   in its `internal/*` package. Env reads only in `internal/config`.
 - **Graceful degradation:** ModelVault, RecipeVault, and R2 are optional and fail soft. PostgreSQL
@@ -158,7 +161,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   without redispatch and later persists the original recovered receipt. Both
   Google-only and wallet-only signed-session cases run; these fixtures do not
   prove a live OAuth/SIWE ceremony or kill any production service.
-- `GOTOOLCHAIN=auto go test ./... && go build ./... && go vet ./...` (toolchain pinned to 1.24).
+- `GOTOOLCHAIN=auto go test -race ./...`, `go build ./...`, and `go vet ./...`
+  using the toolchain pinned in `go.mod`.
 
 ## Child DOX Index
 
