@@ -97,3 +97,19 @@ it('does not delete foreign persisted jobs through the visible history action', 
   act(() => result.current.removeCreation('foreign'));
   expect(useJobStore.getState().jobs.map(j => j.jobId)).toEqual(['foreign']);
 });
+
+it('ignores a previous account submission callback after switching accounts', async () => {
+  const { result, rerender } = renderHook(({ owner }) => useCreations(owner), {
+    initialProps: { owner: 'a' },
+  });
+  await waitFor(() => expect(result.current.isLoaded).toBe(true));
+  const oldCallback = result.current.addCreation;
+  act(() => { useJobStore.setState({ activeOwner: 'b' }); rerender({ owner: 'b' }); });
+  await waitFor(() => expect(result.current.isLoaded).toBe(true));
+  act(() => oldCallback({
+    jobId: 'late-a', walletAddress: 'a', modelId: 'fixture', modelName: 'Fixture',
+    prompt: 'private-a', type: 'image', createdAt: Date.now(), generations: [],
+    tags: [], isGenerating: true,
+  }));
+  expect(result.current.creations).toEqual([]);
+});

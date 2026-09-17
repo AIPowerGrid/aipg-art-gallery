@@ -304,15 +304,17 @@ export function useCreations(accountId?: string): UseCreationsReturn {
 
   // Add a new creation (placeholder)
   const addCreation = useCallback((creation: DisplayCreation) => {
-    if (!owner || creation.walletAddress?.toLowerCase() !== owner) return;
+    if (!owner || useJobStore.getState().activeOwner !== owner ||
+        creation.walletAddress?.toLowerCase() !== owner) return;
     setCreations(prev => sortCreations([creation, ...prev.filter(c => c.jobId !== creation.jobId)]));
   }, [owner]);
 
   // Remove a creation
   const removeCreation = useCallback((jobId: string) => {
+    if (!owner || useJobStore.getState().activeOwner !== owner) return;
     setCreations(prev => prev.filter(c => c.jobId !== jobId));
     if (jobs.some(job => job.jobId === jobId)) removeJob(jobId);
-  }, [jobs, removeJob]);
+  }, [owner, jobs, removeJob]);
 
   // Check if there are active jobs
   const hasActiveJobs = jobs.some(j => j.status === 'queued' || j.status === 'processing');
