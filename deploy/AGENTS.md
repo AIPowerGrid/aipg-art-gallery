@@ -15,9 +15,9 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
-- Production selects `gallery-81f9d595` (PR #34), with Studio terminal errors
-  visible after reload and the gRPC security patch from PR #35. The compatible
-  patched rollback is `gallery-30c9181a`; older unpatched builds were retired.
+- Production selects `gallery-0f3d3948` (PR #37), isolating Studio's cached
+  creations and late callbacks by canonical account. The compatible patched
+  rollback is `gallery-81f9d595`; both retain the gRPC security patch from PR #35.
   Both releases passed restored-backup race tests. Preserve Core's rollout
   restrictions; this does not qualify timelines or prove live failure refunds.
   See the September 17 deployment evidence in `README.md`.

@@ -11,6 +11,42 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
+## Studio account-history isolation (2026-09-17, 14:07 UTC)
+
+Production selects `0f3d3948f976403d95db196e336a873cb6a0bedf` (PR #37) at
+`gallery-0f3d3948`. Live testing with a second Google account found that Studio
+merged the previous account's locally cached completions into the new view.
+The fix scopes all history/progress/completion paths to the canonical account,
+discards stale fetches and late callbacks, and hides history immediately on
+account changes. It preserves recovery receipts without relabeling ownership.
+This was shared-browser cache disclosure, not proof of arbitrary server access.
+
+All required PR and exact-main checks passed: CI runs 35230602130 and
+35231033321, CodeQL runs 35230602025 and 35231033295. Local verification passed
+121 Jest tests and all 16 production-build browser tests. Regressions were
+observed failing before the fixes. Host Node 22 build, production lockfile
+reinstall/audit, Go race tests, vet and vulnerability scan passed. A fresh,
+checksum-verified backup restored into scratch passed the full race suite with
+existing rows and schema unchanged; scratch was dropped. No migration changed.
+
+Activation gated submissions, observed no active/uncertain jobs twice, switched
+both services, and verified the running backend, unchanged environment/schema,
+and restored Nginx configuration. Finished at `2026-09-17T14:07:23Z`.
+Backend SHA-256:
+`3a6ef3a3382af51840a6e818380bc23dbabeae8d52fd9a6ee9399a1951899a56`.
+Public Studio returns 200 and anonymous job submission returns 401. The retained
+compatible rollback is `gallery-81f9d595`; retention removes the older third
+release, not backups or evidence. Protected proof is under
+`/var/lib/aipg-release-proof/gallery-0f3d3948/`.
+
+The real second-account session survived reload. Its saved image loaded and
+the original account's cached canaries disappeared. Its daily balance remained
+USD 0.001 with no new reservation or paid-ledger entry; Core billing reconciled.
+Before release, two Music jobs and one Art job consumed the same daily allowance,
+and an unaffordable Art submission was rejected without another reservation.
+This proves cross-app daily credit accounting and Art rejection/reload behavior,
+not a live failed-generation refund. No charging or validator policy changed.
+
 ## Studio failure visibility and security patch (2026-09-17, 02:37 UTC)
 
 Production selects `81f9d59535c3aaf87758db5cc427a99a953905b4` (PR #34) at
