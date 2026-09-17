@@ -176,7 +176,7 @@ function CreatePageContent() {
 
   // Creations (single source of truth)
   const { creations, addCreation, removeCreation, hasActiveJobs, refresh } =
-    useCreations(Boolean(ownerIdentifier));
+    useCreations(ownerIdentifier);
   const hadActiveJobs = useRef(false);
 
   useEffect(() => {

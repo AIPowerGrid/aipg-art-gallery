@@ -21,6 +21,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
   Credit rejection and worker-failure fixtures check prompt retention, funding
   links, balance refresh, reload persistence, account isolation, and no automatic
   paid retry. They do not prove a real Core debit or refund.
+  Cached completed history is also checked across canonical account changes
+  and reloads; another account's browser receipts must never populate Studio.
 
 ## Local Contracts
 
