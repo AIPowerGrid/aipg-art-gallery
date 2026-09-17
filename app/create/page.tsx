@@ -214,7 +214,7 @@ function CreatePageContent() {
   });
 
   // Track job progress for favicon
-  const { getActiveJobs } = useJobStore();
+  const { getActiveJobs, jobs } = useJobStore();
   const activeJobs = getActiveJobs();
   const trackedJob = activeJobs.length > 0 ? activeJobs[0] : null;
   const jobProgress = trackedJob
@@ -227,7 +227,22 @@ function CreatePageContent() {
     : 0;
   useFaviconProgress(jobProgress, !!trackedJob);
 
-  const error = stylesError || generationError;
+  const latestJob = jobs
+    .filter(
+      (job) =>
+        ownerIdentifier &&
+        job.walletAddress?.toLowerCase() === ownerIdentifier.toLowerCase(),
+    )
+    .reduce<(typeof jobs)[number] | undefined>(
+      (latest, job) =>
+        !latest || job.submittedAt > latest.submittedAt ? job : latest,
+      undefined,
+    );
+  const terminalError =
+    latestJob?.status === "faulted"
+      ? latestJob.error || "Generation failed. Please try again."
+      : null;
+  const error = stylesError || generationError || terminalError;
 
   const handleModelChange = (modelID: string) => {
     const next = styles?.models.find((model) => model.id === modelID) ?? null;

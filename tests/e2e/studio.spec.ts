@@ -130,6 +130,135 @@ async function installStudioMocks(page: Page) {
   });
 }
 
+function liveCredits(balance: number) {
+  return {
+    account_id: "account-1",
+    promotional: { remaining_usd: 0, active: false },
+    free: { remaining_usd: 0, daily_cap_usd: 0.01, active: true },
+    paid: { balance_usd: balance },
+    total_spendable_micro: Math.round(balance * 1_000_000),
+    total_spendable_usd: balance,
+    total_preview_usd: balance,
+    charging_enabled: true,
+    charging_mode: "on",
+    estimate: { model: "Krea 2 Turbo", modality: "image", priced: true, cost_usd: 0.005 },
+  };
+}
+
+test("shows a definite credit rejection without retrying or losing the prompt", async ({ page }) => {
+  await installStudioMocks(page);
+  let posts = 0;
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/api-preview/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, "");
+    if (path === "/credits" || path === "/credits/quote") {
+      // Another app can consume the quoted balance before this POST reaches Core.
+      await route.fulfill({ json: liveCredits(0.01) });
+      return;
+    }
+    if (path === "/jobs" && route.request().method() === "POST") {
+      posts++;
+      await route.fulfill({ status: 402, json: { error: "insufficient Grid credits" } });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/create");
+  await expect(page.getByText("Estimated charge $0.005")).toBeVisible();
+  await expect(page.getByText("Free during preview")).toHaveCount(0);
+  await page.getByPlaceholder("Describe your image...").fill("Retain this rejected prompt");
+  await page.getByRole("button", { name: /Generate.*with Krea/ }).click();
+  await expect(page.getByText("insufficient Grid credits", { exact: true })).toBeVisible();
+  await expect(page.getByPlaceholder("Describe your image...")).toHaveValue("Retain this rejected prompt");
+  const funding = await page.getByRole("link", { name: "Add credits", exact: true }).last().getAttribute("href");
+  expect(new URL(funding!).origin).toBe("https://console.aipowergrid.io");
+  const state = await page.evaluate(() => JSON.parse(localStorage.getItem("aipg-job-store") || "null")?.state);
+  expect(state.requests).toEqual([]);
+  expect(state.jobs).toEqual([]);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Latest creation" })).toBeVisible();
+  expect(posts).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test("surfaces a worker failure and refreshes the balance without a paid retry", async ({ page }) => {
+  await installStudioMocks(page);
+  let posts = 0;
+  let polls = 0;
+  let released = false;
+  let refreshedAfterFailure = 0;
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/api-preview/**", async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, "");
+    if (path === "/credits" || path === "/credits/quote") {
+      const held = posts > 0 && !released;
+      if (path === "/credits" && released) refreshedAfterFailure++;
+      await route.fulfill({ json: liveCredits(held ? 0.995 : 1) });
+      return;
+    }
+    if (path === "/jobs" && route.request().method() === "POST") {
+      posts++;
+      await route.fulfill({ json: { jobId: "failed-gallery-job", status: "queued" } });
+      return;
+    }
+    if (path === "/gallery" && route.request().method() === "POST") {
+      await route.fulfill({ json: { success: true } });
+      return;
+    }
+    if (path === "/jobs/failed-gallery-job") {
+      polls++;
+      released = polls > 1;
+      await route.fulfill({ json: {
+        jobId: "failed-gallery-job", gridJobId: "failed-core-receipt",
+        status: released ? "faulted" : "processing", faulted: released,
+        processing: released ? 0 : 1, finished: 0, waiting: 0, waitTime: 1,
+        queuePosition: 0, generations: [],
+        ...(released ? { error: "Worker failed to generate image" } : {}),
+      } });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto("/create");
+  await expect(page.getByText("Estimated charge $0.005")).toBeVisible();
+  await page.getByPlaceholder("Describe your image...").fill("A controlled worker failure");
+  await page.getByRole("button", { name: /Generate.*with Krea/ }).click();
+  await expect.poll(() => released, { timeout: 20_000 }).toBe(true);
+  await expect(page.getByText("Worker failed to generate image", { exact: true })).toBeVisible();
+  await expect(page.getByText("Spendable $1.00", { exact: true })).toBeVisible();
+  expect(released).toBe(true);
+  expect(refreshedAfterFailure).toBeGreaterThan(0);
+  expect(posts).toBe(1);
+  await page.reload();
+  await expect(page.getByText("Worker failed to generate image", { exact: true })).toBeVisible();
+  expect(posts).toBe(1);
+  expect(errors).toEqual([]);
+  // This asserts display refresh, not a refund: the real ledger lives in Core.
+});
+
+for (const scenario of ["other owner", "newer success"] as const) {
+  test(`does not surface a stored failure after ${scenario}`, async ({ page }) => {
+    await installStudioMocks(page);
+    await page.addInitScript((scenario) => {
+      const failed = {
+        jobId: "old-failure", status: "faulted", error: "An unrelated failure",
+        walletAddress: scenario === "other owner" ? "account-2" : "account-1",
+        submittedAt: Date.now() - 1000, prompt: "Old job", model: "Krea 2 Turbo",
+      };
+      const jobs = scenario === "newer success" ? [failed, {
+        ...failed, jobId: "new-success", status: "completed", error: undefined,
+        submittedAt: Date.now(),
+      }] : [failed];
+      localStorage.setItem("aipg-job-store", JSON.stringify({ state: { jobs, requests: [] }, version: 0 }));
+    }, scenario);
+    await page.goto("/create");
+    await expect(page.getByRole("heading", { name: "Latest creation" })).toBeVisible();
+    await expect(page.getByText("An unrelated failure", { exact: true })).toHaveCount(0);
+  });
+}
+
 test("focuses the latest result and gives Google accounts a creation library", async ({ page }) => {
   await installStudioMocks(page);
   await page.goto("/create");

@@ -30,6 +30,9 @@ route handlers for things that must not run in the browser — including wallet 
   pockets only when their Core `active` flags are true, and renders the
   Core-owned model quote before submission. No local free counter or price book.
   A `402` links to Console funding with a return target.
+- Studio surfaces the latest current-account job's terminal error next to the
+  prompt, including after reload. A newer job supersedes old failure messages;
+  never show another account's persisted job error or automatically retry it.
 - `/auth/login` is the single logged-out entry point: Google appears first and
   wallet providers second. Wallet connection becomes an explicit `Link wallet`
   action after Google authentication.

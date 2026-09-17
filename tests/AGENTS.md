@@ -18,6 +18,9 @@ Production-build Playwright coverage for consumer-facing generation routes.
   response followed by browser reload/read-only recovery with one generation POST.
   A second case changes the canonical account at reload and recovers using
   server-provided aliases; neither case proves a funded live generation.
+  Credit rejection and worker-failure fixtures check prompt retention, funding
+  links, balance refresh, reload persistence, account isolation, and no automatic
+  paid retry. They do not prove a real Core debit or refund.
 
 ## Local Contracts
 
