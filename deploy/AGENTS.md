@@ -15,12 +15,12 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
-- Production selects `gallery-0f3d3948` (PR #37), isolating Studio's cached
-  creations and late callbacks by canonical account. The compatible patched
-  rollback is `gallery-81f9d595`; both retain the gRPC security patch from PR #35.
-  Both releases passed restored-backup race tests. Preserve Core's rollout
-  restrictions; this does not qualify timelines or prove live failure refunds.
-  See the September 17 deployment evidence in `README.md`.
+- Production selects `gallery-29f472d5`, the tree-identical tested head of
+  PR #39 (`823edfdd`), with qualified four-image Studio batches. The retained
+  rollback is `gallery-0f3d3948`; both preserve account isolation and prior
+  security patches. Core enabled image editing/batches separately after real
+  GPU/billing qualification. Timelines and 3D remain closed. See the
+  September 28 deployment evidence in `README.md`.
 - Releases are detached checkouts under
   `/opt/aipg-gallery-releases/gallery-<commit>` and are activated only through
   `/opt/aipg-gallery-current`.

@@ -11,6 +11,42 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
+## Qualified image batches (2026-09-28, 22:38 UTC)
+
+PR #39 merged as `823edfddfacf299c37ab4c398e49f6faac88d68c`.
+Production selects its tree-identical tested head
+`29f472d5d09846a253a6692807d7eb1d382c867a` at `gallery-29f472d5`.
+Studio offers four-image batches only for online Klein, Krea and Z-image
+text-to-image selections. Source uploads hide/reset batching; unsupported or
+offline models cannot retain a hidden batch choice. Core still enforces billing,
+recipe capabilities and output cardinality independently of the browser.
+
+Verification: 125 Jest tests, all 18 production-build Playwright tests including
+four decoded batch images on desktop/mobile, lint with zero errors, PR/main CI
+and CodeQL (runs 36493012724/36493012743 and 36493352369/36493352360).
+Host Node 22 build, production lockfile reinstall/audit, Go race tests, vet,
+vulnerability scan and binary build passed. The scanner found no reachable Go
+vulnerabilities; existing lower-severity npm and unreachable Go findings are
+not claimed fixed. A checksum-verified production backup restored into scratch
+and passed the full race suite with existing records/schema unchanged.
+
+Activation gated submissions, observed an empty active/uncertain job journal
+twice, switched both processes, and verified executable identity, unchanged
+environment/schema, restored ingress, public Studio 200 and anonymous credits
+401. Activation completed at `2026-09-28T22:38:10Z`; backend SHA-256 is
+`2178f0aaf973037471d6ab74eabb211ffca646e3430adf999f45c3d93c291e12`.
+Protected proof: `/var/lib/aipg-release-proof/gallery-29f472d5/`.
+Retain `gallery-0f3d3948` as the independently runnable rollback.
+
+Core separately enabled image-to-image and image-batch at 22:36:36 UTC on
+unchanged `ca1f2a12` / Alembic `0042`. Qualification used real Core, PostgreSQL,
+Redis, R2 and the owned 5090 with disposable balances: nine success cases,
+three refund/no-payout failures, disconnect/recovery, terminal replay, and 61
+PostgreSQL billing regressions. See Core's `docs/MEDIA_ONBOARDING_FOLLOWUP.md`
+for accounting and production API canaries. These are not a fresh signed-in
+Gallery browser submission: that final manual check requires the unlocked
+operator browser. Timeline and 3D activation are explicitly out of scope.
+
 ## Studio account-history isolation (2026-09-17, 14:07 UTC)
 
 Production selects `0f3d3948f976403d95db196e336a873cb6a0bedf` (PR #37) at
@@ -127,9 +163,9 @@ the purchased balance stayed USD 9.611518. This proves correct rejection, not
 successful timeline rendering. Plain Gallery video and first-frame generation
 passed separately in Core's September 10 launch record.
 
-Global charging is now on in Core and prospective worker payouts have resumed;
-older dated rollout notes below describe historical states. Batch images,
-img2img, video timelines and 3D remain disabled pending separate qualification.
+At the September 10 closeout, global charging was on and prospective payouts
+had resumed. Batch images and img2img were still closed then; the September 28
+qualification above supersedes that admission state. Timelines and 3D stay closed.
 
 ## Persisted video playback repair (2026-09-09, 15:11 UTC)
 
