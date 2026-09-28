@@ -61,6 +61,10 @@ jobs:
       - run: go test -race ./...
       - run: go vet ./...
       - run: GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - name: Scan the compiled backend as well as the source call graph
+        run: |
+          go build -o "$RUNNER_TEMP/gallery-server" ./cmd/api
+          GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@latest -mode=binary "$RUNNER_TEMP/gallery-server"
 
   browser:
     name: Browser smoke
