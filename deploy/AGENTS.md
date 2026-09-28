@@ -15,12 +15,13 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
-- Production selects `gallery-29f472d5`, the tree-identical tested head of
-  PR #39 (`823edfdd`), with qualified four-image Studio batches. The retained
-  rollback is `gallery-0f3d3948`; both preserve account isolation and prior
-  security patches. Core enabled image editing/batches separately after real
-  GPU/billing qualification. Timelines and 3D remain closed. See the
-  September 28 deployment evidence in `README.md`.
+- Production selects `gallery-c56d432d`, the tree-identical tested head of
+  PR #41 (`f2a36e6d`), preserving PR #39's qualified image batches and patching
+  gRPC to 1.83.2. Both source and binary vulnerability gates passed. Retained
+  `gallery-29f472d5` contains the linked advisory and is not an unconditional
+  security rollback: preserve this dependency patch in any rollback build.
+  Core enabled editing/batches after real billing qualification. Timelines/3D
+  remain closed. See the September 28 deployment evidence in `README.md`.
 - Releases are detached checkouts under
   `/opt/aipg-gallery-releases/gallery-<commit>` and are activated only through
   `/opt/aipg-gallery-current`.

@@ -11,10 +11,43 @@ raise their minimum runtime without failing an older npm install.
 Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
 
+## Compiled-backend hardening (2026-09-28, 22:55 UTC)
+
+Production selects `c56d432d93fd1038cbafc976ed68db35b5873d67`, the
+tree-identical tested head of PR #41 (`f2a36e6d799fee6f3f03c22fefb4b28282f9f46a`).
+This preserves the image rollout below while upgrading gRPC 1.83.1 to 1.83.2
+and its required x/net 0.58.0 dependency. CI now scans the compiled executable
+in addition to source reachability.
+
+The additional binary scan found [GO-2026-6443](https://pkg.go.dev/vuln/GO-2026-6443)
+in the previous linked artifact. Source analysis did not find a reachable call;
+the advisory requires an xDS gRPC server, which Gallery does not configure.
+This was a hardening finding, not proof of an exposed exploitable endpoint.
+The patched source and binary scans both pass; three module-only findings
+remain non-reachable and are not claimed fixed.
+
+Required PR CI/CodeQL passed (36494738403/36494738364), including PostgreSQL
+race tests and the new compiled-binary gate. The host repeated Node 22 build,
+production dependency audit/reinstall, Go race/vet/build and both vulnerability
+scans. A fresh checksum-verified backup restored into scratch and passed the
+full race suite with existing data/schema unchanged; scratch was removed.
+
+Drained activation completed at `2026-09-28T22:55:13Z`. Both processes and the
+running backend digest were verified, with unchanged environment/schema and
+normal ingress restored. Backend SHA-256:
+`26a36967f60be0f4e536cea86ac51e3e6c3efd415ee83a6cb30b88f8f0ccdb11`.
+Protected proof: `/var/lib/aipg-release-proof/gallery-c56d432d/`.
+No further generation, credit spend or Core change occurred in this follow-up.
+
+Retained `gallery-29f472d5` predates this dependency patch. Do not treat it as
+an unconditional security rollback: build a reviewed rollback retaining gRPC
+1.83.2 and pass both scans first. For an image feature incident, close only the
+affected Core admission path with a drained restart; never turn charging off.
+
 ## Qualified image batches (2026-09-28, 22:38 UTC)
 
 PR #39 merged as `823edfddfacf299c37ab4c398e49f6faac88d68c`.
-Production selects its tree-identical tested head
+At that activation, production selected its tree-identical tested head
 `29f472d5d09846a253a6692807d7eb1d382c867a` at `gallery-29f472d5`.
 Studio offers four-image batches only for online Klein, Krea and Z-image
 text-to-image selections. Source uploads hide/reset batching; unsupported or
