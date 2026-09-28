@@ -23,6 +23,9 @@ Production-build Playwright coverage for consumer-facing generation routes.
   paid retry. They do not prove a real Core debit or refund.
   Cached completed history is also checked across canonical account changes
   and reloads; another account's browser receipts must never populate Studio.
+  Four-output batch coverage checks one submission, four rendered images,
+  desktop/mobile overflow and source-upload batch reset. These mocked browser
+  tests complement, but do not replace, real Core/GPU billing canaries.
 
 ## Local Contracts
 

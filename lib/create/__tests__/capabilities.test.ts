@@ -1,4 +1,4 @@
-import { acceptsSourceImage, getModelCapabilities, listModalities, defaultModelIdForType } from '@/lib/create/capabilities';
+import { acceptsSourceImage, supportsImageBatch, getModelCapabilities, listModalities, defaultModelIdForType } from '@/lib/create/capabilities';
 import { Model } from '@/lib/types/create';
 
 const base: Model = {
@@ -9,6 +9,24 @@ const base: Model = {
   enabled: true,
   default: false,
 };
+
+describe('supportsImageBatch', () => {
+  it.each(['z-image-turbo', 'FLUX.2 Klein 4B FP8', 'Krea 2 Turbo'])('admits qualified online %s', id => {
+    expect(supportsImageBatch({ ...base, id, status: 'online' }, false)).toBe(true);
+  });
+
+  it('fails closed for unknown, offline, disabled, video and source-conditioned models', () => {
+    const model: Model = { ...base, id: 'Krea 2 Turbo', status: 'online' };
+    expect(supportsImageBatch(null, false)).toBe(false);
+    expect(supportsImageBatch({ ...model, id: 'unknown' }, false)).toBe(false);
+    expect(supportsImageBatch({ ...model, status: 'offline' }, false)).toBe(false);
+    expect(supportsImageBatch({ ...model, status: undefined }, false)).toBe(false);
+    expect(supportsImageBatch({ ...model, enabled: false }, false)).toBe(false);
+    expect(supportsImageBatch({ ...model, type: 'video' }, false)).toBe(false);
+    expect(supportsImageBatch({ ...model, requiresImage: true }, false)).toBe(false);
+    expect(supportsImageBatch(model, true)).toBe(false);
+  });
+});
 
 describe('getModelCapabilities', () => {
   it('returns a safe empty capability set for null (no model loaded yet)', () => {

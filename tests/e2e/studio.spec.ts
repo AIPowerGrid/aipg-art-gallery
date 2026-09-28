@@ -1,7 +1,9 @@
 import { expect, Page, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 
 const IMAGE =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
+const BATCH_IMAGE = `data:image/png;base64,${readFileSync("public/aipg_logo_small.png").toString("base64")}`;
 
 const STYLES = {
   models: [
@@ -329,6 +331,61 @@ test("keeps the focused Studio inside a mobile viewport", async ({ page }) => {
   }));
   expect(bounds.documentWidth).toBeLessThanOrEqual(bounds.viewportWidth);
 });
+
+for (const width of [1280, 390]) {
+  test(`submits and displays all four batch outputs at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installStudioMocks(page);
+    let posts = 0;
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/api-preview/**', async route => {
+      const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, '');
+      if (path === '/jobs' && route.request().method() === 'POST') {
+        posts++;
+        expect(route.request().postDataJSON().params.n).toBe(4);
+        await route.fulfill({ json: { jobId: 'batch-gallery-job', status: 'queued' } });
+        return;
+      }
+      if (path === '/jobs/batch-gallery-job') {
+        await route.fulfill({ json: {
+          jobId: 'batch-gallery-job', gridJobId: 'batch-core-receipt', status: 'completed',
+          finished: 4, processing: 0, waiting: 0, faulted: false, waitTime: 0, queuePosition: 0,
+          generations: Array.from({ length: 4 }, (_, i) => ({
+            id: `batch-${i}`, kind: 'image', seed: String(42+i), url: BATCH_IMAGE,
+          })),
+        } });
+        return;
+      }
+      if ((path === '/gallery' && route.request().method() === 'POST') ||
+          (path === '/gallery/batch-gallery-job' && route.request().method() === 'PATCH')) {
+        await route.fulfill({ json: { success: true } });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.goto('/create');
+    await page.getByText('Generate 4 images', { exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Generate 4 images' })).toBeChecked();
+    await page.getByPlaceholder('Describe your image...').fill('Four batch canary images');
+    await page.getByRole('button', { name: /Generate.*4/ }).click();
+    const canvas = page.getByRole('region', { name: 'Current generation' });
+    await expect(canvas.locator('img')).toHaveCount(4, { timeout: 20000 });
+    await expect.poll(() => canvas.locator('img').evaluateAll(images => images.every(
+      image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 1,
+    ))).toBe(true);
+    expect(posts).toBe(1);
+    expect(errors).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('batch-four.png'), fullPage: true });
+    await page.locator('input[type=file]').setInputFiles({
+      name: 'source.png', mimeType: 'image/png', buffer: Buffer.from(IMAGE.split(',')[1], 'base64'),
+    });
+    await expect(page.getByRole('checkbox', { name: 'Generate 4 images' })).toHaveCount(0);
+    await page.getByRole('button', { name: '×', exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Generate 4 images' })).not.toBeChecked();
+  });
+}
 
 for (const mergeAccount of [false, true]) {
 test(`recovers a lost generation response after ${mergeAccount ? "account merge and " : ""}reload without another POST`, async ({ page }, testInfo) => {
