@@ -29,7 +29,7 @@ import {
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { AdvancedSettings } from "@/lib/types/create";
 import { DisplayCreation } from "@/lib/storage";
-import { acceptsSourceImage } from "@/lib/create/capabilities";
+import { acceptsSourceImage, supportsImageBatch } from "@/lib/create/capabilities";
 
 const fundingURL =
   "https://console.aipowergrid.io/dashboard/funding?returnTo=https%3A%2F%2Faipg.art%2Fcreate";
@@ -95,9 +95,7 @@ function CreatePageContent() {
   const selectedDimension = getDimension(styles, dimensionId);
   const settingsModelId = selectedModel?.id ?? "default";
   const advancedSettings = settingsByModel[settingsModelId] ?? {};
-  // Core verifies native batch cardinality, but the current production image
-  // worker is not yet certified to return every requested output.
-  const batchAvailable = false;
+  const batchAvailable = supportsImageBatch(selectedModel, Boolean(sourceImage));
 
   const setAdvancedSettings = (settings: AdvancedSettings) => {
     setSettingsByModel((current) => ({

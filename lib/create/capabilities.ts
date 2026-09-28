@@ -45,6 +45,20 @@ export function acceptsSourceImage(model: Model | null): boolean {
   );
 }
 
+// Explicitly qualified recipe/worker combinations, not every image checkpoint.
+const BATCH_MODELS = new Set([
+  "z-image-turbo",
+  "flux.2 klein 4b fp8",
+  "krea 2 turbo",
+]);
+
+export function supportsImageBatch(model: Model | null, hasSourceImage: boolean): boolean {
+  return Boolean(
+    model?.enabled && model.type === "image" && model.status === "online" &&
+    !hasSourceImage && !model.requiresImage && BATCH_MODELS.has(model.id.toLowerCase()),
+  );
+}
+
 export function getModelCapabilities(model: Model | null): ModelCapabilities {
   const isVideo = model?.type === 'video';
   return {
