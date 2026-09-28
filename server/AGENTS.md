@@ -22,9 +22,12 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 ## Local Contracts
 
-- Keep the transitive gRPC dependency at least v1.83.1 for GO-2026-6348
-  (HTTP/2 frame-fragmentation memory exhaustion). A clean vulnerability scan
-  and backend race tests remain release gates, including for frontend fixes.
+- Keep the transitive gRPC dependency at least v1.83.2 for GO-2026-6348 and
+  GO-2026-6443. The latter requires xDS server routing, which Gallery does not
+  configure, but its affected transport symbol survives in the linked binary.
+  Source and compiled-binary vulnerability scans plus backend race tests are
+  release gates, including for frontend fixes; symbol presence alone is not
+  proof of an exposed vulnerable server.
 - **One handler file:** routes and handlers stay in `internal/app/app.go`; provider logic stays
   in its `internal/*` package. Env reads only in `internal/config`.
 - **Graceful degradation:** ModelVault, RecipeVault, and R2 are optional and fail soft. PostgreSQL
