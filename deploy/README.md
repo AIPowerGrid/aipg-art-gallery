@@ -8,8 +8,38 @@ Production runs two services behind Nginx from one commit-pinned checkout:
 The release host must run the Node 22 LTS line used by `.nvmrc`, Docker, and
 CI. Do not build production with a different Node major; wallet packages may
 raise their minimum runtime without failing an older npm install.
-Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
+Backend builds require Go 1.26.9 as declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
+
+## October 2026 backend patch gate
+
+The candidate requires Go 1.26.9 and x/net 0.60.0. The prior Go 1.25.13 /
+x/net 0.58.0 build now fails the refreshed source and compiled-binary advisory
+checks, including [GO-2026-6610](https://pkg.go.dev/vuln/GO-2026-6610) and
+[GO-2026-6617](https://pkg.go.dev/vuln/GO-2026-6617). Affected symbols are not
+proof of every advisory's runtime exposure. The September scan results below
+remain historical evidence, not current clearance.
+
+This source update does not record an activation. Require exact-source CI,
+both vulnerability scans, restored-backup/race tests, drained activation and
+executable verification before deploying. Any rollback build must retain the
+Go/x/net patches as well as gRPC 1.83.2. No charging, model or admission change
+is authorized by this dependency patch.
+
+## October 2026 frontend patch gate
+
+The candidate keeps the existing Next minor and wallet framework, pairing
+Next/ESLint 16.3.8 with sharp 0.35.5, Axios 1.20.0 and source-map-js 1.2.2.
+The Tailwind animation plugin is build-only and moves to devDependencies so
+its tooling peers do not survive the production prune. Always build before
+`npm ci --omit=dev`, then verify the actual pruned server with `next start`.
+No audit suppression or forced wallet/framework upgrade is permitted.
+
+Fresh production audit, unit/lint/build and desktop/mobile browser checks
+are required. Package findings alone do not establish runtime exploitability:
+both OG routes select Edge, which the Node-only ImageResponse RCE advisory
+excludes. This source contract does not record a production activation or
+clear unpatched Go dependencies; qualify the backend security patch separately.
 
 ## Compiled-backend hardening (2026-09-28, 22:55 UTC)
 

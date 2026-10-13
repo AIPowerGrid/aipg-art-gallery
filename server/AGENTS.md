@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The backend (chi router, Go 1.25 toolchain pinned in go.mod). The only component that talks to the grid, the on-chain
+The backend (chi router, Go 1.26.9 minimum pinned in go.mod). The only component that talks to the grid, the on-chain
 vaults, Cloudflare R2, and Postgres. Brokers image, video, and 3D generation jobs,
 serves the gallery + media, validates auth sessions, runs Google One Tap sign-in, and proxies prompt enhancement.
 Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app/app.go`.
@@ -22,6 +22,20 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 ## Local Contracts
 
+- Require Go 1.26.9 and x/net 0.60.0 or newer for the October 2026 HTTP/2
+  and standard-library security patches. Docker's builder is digest-pinned,
+  and CI/CodeQL read the module's exact Go version. Both source and compiled-
+  binary scans use govulncheck 1.9.0; advisory data remains live. Do not count
+  non-reachable module findings as fixed or infer exploitability from symbols
+  alone. Pass restored-data/race and deployment gates before replacing prod.
+- Container builds retain Go function symbols (`-w`, not `-s -w`) for the
+  compiled-binary scan. Stripping the symbol table forces govulncheck to
+  module-level precision and can report unused packages as wildcard findings.
+  Keep `-trimpath` and the non-root runtime; never suppress advisory IDs to
+  compensate for missing inspection metadata.
+  CI additionally builds the actual Linux/amd64 container, verifies its
+  non-root user and scans the extracted executable rather than inferring
+  container clearance from a differently linked native build.
 - Keep the transitive gRPC dependency at least v1.83.2 for GO-2026-6348 and
   GO-2026-6443. The latter requires xDS server routing, which Gallery does not
   configure, but its affected transport symbol survives in the linked binary.
