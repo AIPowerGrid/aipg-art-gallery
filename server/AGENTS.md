@@ -112,6 +112,11 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   exposes the owner's validated Core receipt, never the service/user token or
   input media. Source-domain/storage qualification, upload-proxy limits, real
   funded pilot and frontend selection remain activation gates.
+  Once video journal rows exist, rollback means disabling admission on a
+  video-aware binary, keeping GET recovery. A legacy broker binary ignores the
+  new metadata and may overwrite it during status polling; do not use one as
+  the post-activation rollback target. Retain all rows and qualify the exact
+  video-aware rollback/config path before consumer activation.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server
