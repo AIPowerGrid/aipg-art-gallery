@@ -133,15 +133,39 @@ func TestVideoIntentInteroperabilityVectors(t *testing.T) {
 	r.Worker = "synthetic-worker"
 	r.Style = "synthetic-style"
 	requests = append(requests, r)
+	// Computed independently by the real Core AsyncVideoRequest/request_hash,
+	// not by a second copy of the Go implementation.
+	coreDigests := []string{
+		"aa79f370967859dd762718b6d7f92a89f75b11cb6615c02038cadebd22965c68",
+		"9a5abff6cad95fb6244306d02c046dfd2a6d1e980cb86a690cf5bd0e6b98f4d2",
+		"034d1d8a19ccd95227a0e4c57a48de3371be6cf59a178347466462a8f6e99068",
+		"9231d5861d5b7c0bf1105a7705f2a4d2febe8e42d9453db0773bdd6a6ce1dff4",
+		"8224b0d0fdf97c7de01cd81c4b2ecd6da4c8f435914c581a0c7fe6bb366fd9bb",
+		"24950f4c20cd88ec3cd8f21dea770f29f5be04b3797c2c73004fff11dadac319",
+		"8b0246f47f80fef0d519b24748f55e90427312f0f1cd85a7547ad85fac7daea9",
+		"dc18510de2784270ddc5a2e01984588de4c2e553aa5f889eab6c1bdd8b2b1889",
+		"ac0d16e0873c747754238ba8a22fbc4b3205cf5a8afd235fa72606022120785a",
+		"738a34ba1e73c756b89eb4e9f9220adacfa66535dc2d105b90f47ee7cc1330a3",
+		"31ea532ac9b26e486868b5b537d9142c56c25d819df1f1dbf6be6486a3fa1697",
+		"0c1ddb36e79d2927c2ee1daba263f5eed689628550cdf3a4598a0b65d64daa4d",
+		"893e0593ed6517661b6c760d78848c1b3d4f81497db15b54fa5394320cd98c2b",
+		"893e0593ed6517661b6c760d78848c1b3d4f81497db15b54fa5394320cd98c2b",
+		"500c2bd559e03f4e92508324cf49fa3dbc43b04b6041d32c30037ad141738008",
+		"ada027443a7cdc3f6b5c3731598dd0cf16b9bf437f35b6743c9812f77b13d00c",
+		"1fd2a0c6b795c7d41485a5a68f1d15a713498412bb8643ebabc35f242483d728",
+	}
 	type vector struct {
 		Request VideoJobRequest `json:"request"`
 		Digest  string          `json:"digest"`
 	}
 	vectors := make([]vector, 0, len(requests))
-	for _, request := range requests {
+	for index, request := range requests {
 		digest, err := VideoIntentHash(request)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if digest != coreDigests[index] {
+			t.Fatalf("Core interoperability vector %d changed", index)
 		}
 		vectors = append(vectors, vector{request, digest})
 	}
