@@ -15,6 +15,11 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
+- The October source candidate requires Go 1.26.9 and x/net 0.60.0; the
+  previous scan clearance is historical after the new advisories. Do not
+  deploy or use an older security rollback without fresh source/binary scans,
+  restored-backup/race proof and the ordinary drained release checks. This
+  contract is not a record that the new candidate is already active.
 - Production selects `gallery-c56d432d`, the tree-identical tested head of
   PR #41 (`f2a36e6d`), preserving PR #39's qualified image batches and patching
   gRPC to 1.83.2. Both source and binary vulnerability gates passed. Retained
@@ -33,6 +38,11 @@ Next.js web process and Go API process from one commit-pinned release.
 - Build the frontend with production `NEXT_PUBLIC_*` values loaded.
 - Reinstall from the lockfile with `npm ci --omit=dev` after the production
   build so releases and containers retain only exact production dependencies.
+- The October frontend candidate pairs Next/ESLint 16.3.8 with sharp 0.35.5,
+  Axios 1.20.0 and source-map-js 1.2.2. Tailwind's animation plugin is build-
+  only and must be absent after pruning. Pass the production dependency audit,
+  production build/browser tests and pruned `next start` check before promotion;
+  this contract is not a record of activation or a wallet-framework upgrade.
 - Build and run the frontend on the Node major pinned by `.nvmrc` (Node 22);
   keep Docker, CI, and the release host aligned.
 - Build the backend with `GOTOOLCHAIN=auto` so the exact Go toolchain declared
