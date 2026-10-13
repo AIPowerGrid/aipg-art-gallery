@@ -30,6 +30,21 @@ func brokerVideoRequest() aipg.VideoJobRequest {
 		N: 1, Size: "512x320", Frames: 33, FPS: 24, Audio: true, MaxCostMicroUSD: 100000}
 }
 
+func TestDurableVideoOmittedFieldsKeepCoreDefaults(t *testing.T) {
+	request := newDurableVideoRequest()
+	if err := json.Unmarshal([]byte(`{"video":{"prompt":"synthetic broker fixture","size":"512x320","frames":33,"max_cost_micro_usd":100000}}`), &request); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := aipg.VideoIntentHash(request.Video)
+	expected, expectedErr := aipg.VideoIntentHash(brokerVideoRequest())
+	if err != nil || expectedErr != nil || digest != expected || !request.Video.Audio {
+		t.Fatal("omitted model/count/fps/audio changed native Core defaults")
+	}
+	if err := json.Unmarshal([]byte(`{"video":{"audio":false}}`), &request); err != nil || request.Video.Audio {
+		t.Fatal("explicit disabled audio was overwritten by a default")
+	}
+}
+
 func brokerReceipt(t *testing.T, state string) *aipg.VideoJob {
 	t.Helper()
 	digest, err := aipg.VideoIntentHash(brokerVideoRequest())

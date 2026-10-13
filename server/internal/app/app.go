@@ -1564,7 +1564,7 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, errors.New("durable video storage and Grid bridge are required"))
 		return
 	}
-	var request durableVideoRequest
+	request := newDurableVideoRequest()
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64*1024*1024+64*1024))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&request); err != nil {

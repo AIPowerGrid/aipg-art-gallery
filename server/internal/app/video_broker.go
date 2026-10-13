@@ -31,6 +31,10 @@ type durableVideoRequest struct {
 	Video     aipg.VideoJobRequest `json:"video"`
 }
 
+func newDurableVideoRequest() durableVideoRequest {
+	return durableVideoRequest{Video: aipg.VideoJobRequest{Model: durableVideoModel, N: 1, FPS: 24, Audio: true}}
+}
+
 func validateDurableVideoQuote(quote aipg.CreditQuote, request aipg.VideoJobRequest, owner string) (int, error) {
 	if quote.AccountID != owner || quote.Estimate.Model != request.Model || quote.Estimate.Modality != "video" ||
 		quote.Estimate.Frames == nil || *quote.Estimate.Frames != request.Frames ||
