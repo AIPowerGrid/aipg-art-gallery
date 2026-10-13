@@ -36,6 +36,13 @@ Next.js web process and Go API process from one commit-pinned release.
 - Secrets stay in `/opt/aipg-gallery/gallery.env`, outside every release.
 - Never place a Grid key or other secret in these tracked files.
 - Build the frontend with production `NEXT_PUBLIC_*` values loaded.
+- After building, run `node scripts/check-build-privacy.mjs` to ensure Next's
+  private framework signing/encryption keys are absent from public static
+  assets and prerendered HTML/RSC/response bodies. CI repeats this check and
+  tests synthetic exposure, missing metadata and symlink controls. It does
+  not replace general full-history/source secret scanning. Build keys are
+  legitimate server-private material, not permission to expose manifests or
+  caches through an Nginx filesystem alias.
 - Reinstall from the lockfile with `npm ci --omit=dev` after the production
   build so releases and containers retain only exact production dependencies.
 - The October frontend candidate pairs Next/ESLint 16.3.8 with sharp 0.35.5,

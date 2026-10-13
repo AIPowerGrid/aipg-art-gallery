@@ -26,7 +26,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test -- --runInBand
+      - run: node --test scripts/check-build-privacy.test.mjs
       - run: npm run build
+      - run: node scripts/check-build-privacy.mjs
       - run: npm audit --omit=dev --audit-level=high
       - run: npm ci --omit=dev
       - run: npm ls --omit=dev

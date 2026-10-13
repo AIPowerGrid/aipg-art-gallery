@@ -151,6 +151,9 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 - Backend CI scans both source reachability and the compiled executable.
   Record runtime prerequisites separately: a linked vulnerable symbol is not
   proof of an exposed vulnerable endpoint. Keep both scans passing.
+- Frontend CI checks that Next's private build keys are absent from public
+  assets and prerendered outputs after each build. `check-build-privacy.mjs`
+  fails closed and logs no key values; this is separate from Gitleaks.
 - Browser CI installs Playwright's Chromium, not system Google Chrome. Its
   disposable runner excludes the unrelated Google Chrome apt source before
   installing Ubuntu dependencies; package verification and browser tests remain

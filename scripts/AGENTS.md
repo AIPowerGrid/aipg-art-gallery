@@ -1,11 +1,18 @@
-# scripts — legacy setup, data-import, and maintenance scripts
+# scripts — build verification, legacy setup and maintenance
 
 ## Purpose
 
-One-off operational tooling: historical Supabase setup, gallery data import/migration,
-and gallery maintenance. Run by hand, not part of the app runtime.
+Build verification plus one-off historical Supabase, gallery data import/migration,
+and maintenance tooling. These scripts are not part of the app runtime.
 
 ## Ownership
+
+- `check-build-privacy.mjs` plus its Node test suite verifies that Next's
+  private framework signing/encryption keys do not appear in public static
+  assets or prerendered HTML/RSC/response bodies. CI runs it after the build.
+  Missing manifests, unknown key shapes, symlinks and excessive output sizes
+  fail closed. Logs never contain key values. This is not general secret
+  scanning; full-history Gitleaks remains independently required.
 
 - Legacy Supabase setup: `setup-supabase*.{js,ts,py}`, `run-sql-schema*.js`,
   `execute-sql-*.js`, `open-setup.js`, `setup-with-browser.js`, `verify-setup.js`,
@@ -34,7 +41,8 @@ and gallery maintenance. Run by hand, not part of the app runtime.
 
 ## Verification
 
-—
+- `node --test scripts/check-build-privacy.test.mjs`
+- After `npm run build`: `node scripts/check-build-privacy.mjs`
 
 ## Child DOX Index
 
