@@ -28,6 +28,14 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   binary scans use govulncheck 1.9.0; advisory data remains live. Do not count
   non-reachable module findings as fixed or infer exploitability from symbols
   alone. Pass restored-data/race and deployment gates before replacing prod.
+- Container builds retain Go function symbols (`-w`, not `-s -w`) for the
+  compiled-binary scan. Stripping the symbol table forces govulncheck to
+  module-level precision and can report unused packages as wildcard findings.
+  Keep `-trimpath` and the non-root runtime; never suppress advisory IDs to
+  compensate for missing inspection metadata.
+  CI additionally builds the actual Linux/amd64 container, verifies its
+  non-root user and scans the extracted executable rather than inferring
+  container clearance from a differently linked native build.
 - Keep the transitive gRPC dependency at least v1.83.2 for GO-2026-6348 and
   GO-2026-6443. The latter requires xDS server routing, which Gallery does not
   configure, but its affected transport symbol survives in the linked binary.

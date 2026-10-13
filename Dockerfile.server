@@ -10,8 +10,9 @@ RUN go mod download && go mod verify
 
 COPY server/ ./
 
+# Keep function symbols available to the compiled-artifact vulnerability gate.
 RUN CGO_ENABLED=0 GOOS=linux go build -mod=readonly -trimpath \
-    -ldflags="-s -w" -o /app/api ./cmd/api
+    -ldflags="-w" -o /app/api ./cmd/api
 
 FROM alpine:latest@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 

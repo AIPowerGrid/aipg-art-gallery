@@ -65,6 +65,17 @@ jobs:
         run: |
           go build -o "$RUNNER_TEMP/gallery-server" ./cmd/api
           GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -mode=binary "$RUNNER_TEMP/gallery-server"
+      - name: Scan the actual Linux container executable
+        working-directory: .
+        run: |
+          image="aipg-gallery-backend-ci:${{ github.sha }}"
+          docker build --platform linux/amd64 -f Dockerfile.server -t "$image" .
+          test "$(docker image inspect "$image" --format '{{.Config.User}}')" = "aipg:aipg"
+          container="$(docker create --platform linux/amd64 "$image")"
+          cleanup() { docker rm "$container"; }
+          trap cleanup EXIT
+          docker cp "$container:/app/api" "$RUNNER_TEMP/gallery-server-container"
+          GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -mode=binary "$RUNNER_TEMP/gallery-server-container"
 
   browser:
     name: Browser smoke
