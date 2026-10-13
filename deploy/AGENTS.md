@@ -15,6 +15,11 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
+- The October source candidate requires Go 1.26.9 and x/net 0.60.0; the
+  previous scan clearance is historical after the new advisories. Do not
+  deploy or use an older security rollback without fresh source/binary scans,
+  restored-backup/race proof and the ordinary drained release checks. This
+  contract is not a record that the new candidate is already active.
 - Production selects `gallery-c56d432d`, the tree-identical tested head of
   PR #41 (`f2a36e6d`), preserving PR #39's qualified image batches and patching
   gRPC to 1.83.2. Both source and binary vulnerability gates passed. Retained

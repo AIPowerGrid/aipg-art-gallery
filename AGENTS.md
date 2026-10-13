@@ -49,8 +49,13 @@ jobs to the grid and serves gallery/media.
 - **Two processes:** `npm run dev` starts Next on 3000 and Go on 4000. Use `npm run dev:web`
   or `npm run dev:server` only when intentionally running one side.
 - **Runtime:** frontend builds and production use Node 22 as pinned by `.nvmrc`;
-  the backend uses the Go 1.25 toolchain pinned by `server/go.mod`. Docker,
+  the backend requires Go 1.26.9 as pinned by `server/go.mod`. Docker,
   CI, and the LXC release build must honor both pins.
+- Keep x/net at least 0.60.0 and Go at least 1.26.9 for the October 2026
+  HTTP/2 and standard-library advisories. Source and compiled-binary scans
+  remain mandatory; a symbol finding is not proof that every advisory's
+  runtime prerequisites are exposed. Historical deployment proof is not a
+  current vulnerability clearance or permission to use an older rollback.
 - Keep Next.js and its ESLint config pinned together at the reviewed patched
   version, with the sharp override at least 0.35.4. The Next.js AVIF optimizer
   advisory GHSA-2xp9-vwfh-vxw4 and sharp advisory GHSA-rgj7-g3m4-5g8c gate
