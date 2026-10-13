@@ -45,6 +45,17 @@ func TestDurableVideoOmittedFieldsKeepCoreDefaults(t *testing.T) {
 	}
 }
 
+func TestDurableVideoViewKeepsUnknownOutcomeExplicit(t *testing.T) {
+	job := pendingJob{Status: "uncertain", Kind: "video", Video: &pendingVideo{}, Err: "Video outcome is unknown"}
+	if view := buildJobView("fixture", job); view.Status != "uncertain" || view.Faulted || view.Finished != 0 {
+		t.Fatal("unknown video outcome was presented as ordinary processing or final failure")
+	}
+	job.Video = nil
+	if view := buildJobView("fixture", job); view.Status != "processing" {
+		t.Fatal("legacy recovery view changed")
+	}
+}
+
 func brokerReceipt(t *testing.T, state string) *aipg.VideoJob {
 	t.Helper()
 	digest, err := aipg.VideoIntentHash(brokerVideoRequest())

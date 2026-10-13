@@ -2333,6 +2333,9 @@ func buildJobView(jobID string, job pendingJob) JobView {
 	case "completed":
 		view.Finished = len(job.Items)
 	}
+	if job.Video != nil && job.Status == "uncertain" {
+		view.Status = "uncertain"
+	}
 
 	if job.Grid != nil {
 		view.GridJobID = job.Grid.JobID
