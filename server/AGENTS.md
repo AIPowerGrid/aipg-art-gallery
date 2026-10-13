@@ -80,6 +80,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   and poll contract onto the synchronous grid call. The server holds the grid key, the
     client never does. Config paths are CWD-relative (`config/styles.json`,
     `./config/model_presets.json`) — run the server from the repo root.
+- An unexposed durable-video client prepares Core `/v1/videos/jobs` submission
+  and GET-only recovery. It does not enable LTX-2.5 or replace the current
+  broker. Canonical intent/quote compilation, durable receipt wiring and the
+  funded pilot must precede handler/frontend activation; see `internal/AGENTS.md`.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server

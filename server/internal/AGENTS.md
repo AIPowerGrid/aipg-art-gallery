@@ -50,6 +50,19 @@ package owns one concern; `app/app.go` wires them together.
   syntax, unique aliases and the 128-member bound are mandatory. No secrets or
   upstream error bodies appear in public failures.
 
+- `aipg/video_jobs.go` prepares the durable Core video transport but is not
+  wired into public handlers. It requires a delegated user token, positive
+  ceiling, saved UUIDv4 request key and independently computed Core intent
+  digest before its single POST. Recovery uses only GET by job ID or the saved
+  key and verifies that digest. No redirects, upstream-body disclosure or
+  automatic submission retries. Receipt validation binds exact charges and
+  terminal outputs; missing recovery is unknown, not permission to rerender or
+  proof of refund. The broker must persist the intent before transport and
+  validate every replay against its prior receipt before this client is used.
+  Exact-frame quote integration, canonical intent compilation, durable broker
+  wiring, source uploads, frontend selection and live paid acceptance remain
+  rollout gates. Existing synchronous generation is unchanged.
+
 - **One concern per package; `app/` orchestrates.** Cross-package calls go through interfaces.
 - **Gallery writes go through `GalleryStore`** — new persistence ops are added to the interface
   and implemented in BOTH backends so degraded mode works.
