@@ -17,7 +17,9 @@ import (
 
 const videoTestJobID = "00000000-0000-4000-8000-000000000111"
 const videoTestRequestKey = "00000000-0000-4000-8000-000000000222"
-const videoTestHash = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+// Independently computed by Core's AsyncVideoRequest/request_hash.
+const videoTestHash = "aa79f370967859dd762718b6d7f92a89f75b11cb6615c02038cadebd22965c68"
 
 func videoTestRequest() VideoJobRequest {
 	return VideoJobRequest{Prompt: "A river landscape", Model: "LTX-2.5 Distilled BF16", N: 1,
@@ -25,7 +27,7 @@ func videoTestRequest() VideoJobRequest {
 }
 
 func videoTestReceipt(state string) VideoJob {
-	job := VideoJob{Schema: "aipg.video-job.v1", JobID: videoTestJobID, RequestHash: strings.Repeat("a", 64),
+	job := VideoJob{Schema: "aipg.video-job.v1", JobID: videoTestJobID, RequestHash: videoTestHash,
 		Model: "LTX-2.5 Distilled BF16", State: state, ReservedMicro: 27500, MaxCostMicro: 100000}
 	if state == "completed" {
 		charge := job.ReservedMicro
@@ -195,6 +197,9 @@ func TestVideoInvalidInputNeverMakesHTTP(t *testing.T) {
 	if _, err := client.SubmitVideoJob(context.Background(), videoTestRequest(), videoTestRequestKey, videoTestHash, "fixture-service", ""); err == nil {
 		t.Fatal("missing user token accepted")
 	}
+	if _, err := client.SubmitVideoJob(context.Background(), videoTestRequest(), videoTestRequestKey, strings.Repeat("f", 64), "fixture-service", "fixture-user"); err == nil {
+		t.Fatal("request inconsistent with saved digest reached transport")
+	}
 	if requests != 0 {
 		t.Fatal("invalid inputs reached transport")
 	}
@@ -232,16 +237,17 @@ func TestVideoSavedIntentRequiredOnSubmitAndRecovery(t *testing.T) {
 		if r.Method == http.MethodPost {
 			status = 202
 		}
-		writeVideoReceipt(t, w, status, videoTestReceipt("queued"))
+		receipt := videoTestReceipt("queued")
+		receipt.RequestHash = strings.Repeat("f", 64)
+		writeVideoReceipt(t, w, status, receipt)
 	}))
 	defer server.Close()
 	client := NewClient(server.URL, "fixture")
-	wrongHash := strings.Repeat("f", 64)
-	_, err := client.SubmitVideoJob(context.Background(), videoTestRequest(), videoTestRequestKey, wrongHash, "fixture-service", "fixture-user")
+	_, err := client.SubmitVideoJob(context.Background(), videoTestRequest(), videoTestRequestKey, videoTestHash, "fixture-service", "fixture-user")
 	if !IsGenerationOutcomeUnknown(err) {
 		t.Fatal("accepted response ignored saved intent")
 	}
-	if _, err := client.RecoverVideoJob(context.Background(), "", videoTestRequestKey, wrongHash, "fixture-service", "fixture-user"); err == nil {
+	if _, err := client.RecoverVideoJob(context.Background(), "", videoTestRequestKey, videoTestHash, "fixture-service", "fixture-user"); err == nil {
 		t.Fatal("lost-reply recovery ignored saved intent")
 	}
 }

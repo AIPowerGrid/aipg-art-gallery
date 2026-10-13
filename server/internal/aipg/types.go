@@ -118,6 +118,7 @@ type CreditQuoteRequest struct {
 	Modality string  `json:"modality"`
 	N        int     `json:"n,omitempty"`
 	Seconds  float64 `json:"seconds,omitempty"`
+	Frames   int     `json:"frames,omitempty"`
 }
 
 type CreditPocket struct {

@@ -52,15 +52,18 @@ package owns one concern; `app/app.go` wires them together.
 
 - `aipg/video_jobs.go` prepares the durable Core video transport but is not
   wired into public handlers. It requires a delegated user token, positive
-  ceiling, saved UUIDv4 request key and independently computed Core intent
-  digest before its single POST. Recovery uses only GET by job ID or the saved
+  ceiling and saved UUIDv4 request key before its single POST. `video_intent.go`
+  computes Core's normalized request digest, including omitted-size semantics,
+  Python-compatible Unicode/float spelling and decoded source-byte hashes.
+  Submission recomputes and checks the saved digest before any HTTP request.
+  Recovery uses only GET by job ID or the saved
   key and verifies that digest. No redirects, upstream-body disclosure or
   automatic submission retries. Receipt validation binds exact charges and
   terminal outputs; missing recovery is unknown, not permission to rerender or
   proof of refund. The broker must persist the intent before transport and
   validate every replay against its prior receipt before this client is used.
-  Exact-frame quote integration, canonical intent compilation, durable broker
-  wiring, source uploads, frontend selection and live paid acceptance remain
+  Credit quote requests can carry exact frames without rounded seconds. Durable
+  quote/broker wiring, source uploads, frontend selection and live paid acceptance remain
   rollout gates. Existing synchronous generation is unchanged.
 
 - **One concern per package; `app/` orchestrates.** Cross-package calls go through interfaces.

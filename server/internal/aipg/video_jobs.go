@@ -24,23 +24,29 @@ const videoJobBodyLimit = 64*1024*1024 + 64*1024
 // VideoJobRequest is separate from the synchronous legacy video body. Core
 // validates recipes, private media, admission and the atomic cost ceiling.
 type VideoJobRequest struct {
-	Prompt          string             `json:"prompt"`
-	Model           string             `json:"model"`
-	N               int                `json:"n"`
-	Size            string             `json:"size"`
-	Frames          int                `json:"frames"`
-	FPS             int                `json:"fps"`
-	Seed            *int64             `json:"seed,omitempty"`
-	Image           string             `json:"image,omitempty"`
-	Keyframes       []VideoJobKeyframe `json:"keyframes,omitempty"`
-	ReferenceAudio  string             `json:"reference_audio,omitempty"`
-	ReferenceVideo  string             `json:"reference_video,omitempty"`
-	NegativePrompt  string             `json:"negative_prompt,omitempty"`
-	Steps           *int               `json:"steps,omitempty"`
-	CFGScale        *float64           `json:"cfg_scale,omitempty"`
-	GuideStrength   *float64           `json:"guide_strength,omitempty"`
-	Audio           bool               `json:"audio"`
-	MaxCostMicroUSD int64              `json:"max_cost_micro_usd"`
+	Prompt                     string             `json:"prompt"`
+	Model                      string             `json:"model"`
+	N                          int                `json:"n"`
+	Size                       string             `json:"size,omitempty"`
+	Frames                     int                `json:"frames"`
+	FPS                        int                `json:"fps"`
+	Seed                       *int64             `json:"seed,omitempty"`
+	Image                      string             `json:"image,omitempty"`
+	Keyframes                  []VideoJobKeyframe `json:"keyframes,omitempty"`
+	ReferenceAudio             string             `json:"reference_audio,omitempty"`
+	ReferenceVideo             string             `json:"reference_video,omitempty"`
+	ReferenceImage             string             `json:"reference_image,omitempty"`
+	NegativePrompt             string             `json:"negative_prompt,omitempty"`
+	Steps                      *int               `json:"steps,omitempty"`
+	CFGScale                   *float64           `json:"cfg_scale,omitempty"`
+	GuideStrength              *float64           `json:"guide_strength,omitempty"`
+	ReferenceStrength          *float64           `json:"reference_strength,omitempty"`
+	ReferenceAttentionStrength *float64           `json:"reference_attention_strength,omitempty"`
+	MotionAttentionStrength    *float64           `json:"motion_attention_strength,omitempty"`
+	Worker                     string             `json:"worker,omitempty"`
+	Style                      string             `json:"style,omitempty"`
+	Audio                      bool               `json:"audio"`
+	MaxCostMicroUSD            int64              `json:"max_cost_micro_usd"`
 }
 
 type VideoJobKeyframe struct {
@@ -152,6 +158,10 @@ func ValidateVideoReplay(previous, current *VideoJob) error {
 // SubmitVideoJob makes exactly one POST. The caller must persist its request
 // key before calling; a lost reply is recovered by GET, never another render.
 func (c *Client) SubmitVideoJob(ctx context.Context, request VideoJobRequest, key, expectedRequestHash, apiKey, userToken string) (*VideoJob, error) {
+	computedHash, intentErr := VideoIntentHash(request)
+	if intentErr != nil || computedHash != expectedRequestHash {
+		return nil, errors.New("video request does not match saved intent")
+	}
 	id, err := uuid.Parse(key)
 	if err != nil || id.Version() != 4 || id.String() != key || !videoDigest(expectedRequestHash) || request.MaxCostMicroUSD <= 0 ||
 		request.Model == "" || request.Prompt == "" || request.N != 1 ||
