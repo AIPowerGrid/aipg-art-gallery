@@ -26,6 +26,21 @@ executable verification before deploying. Any rollback build must retain the
 Go/x/net patches as well as gRPC 1.83.2. No charging, model or admission change
 is authorized by this dependency patch.
 
+## October 2026 frontend patch gate
+
+The candidate keeps the existing Next minor and wallet framework, pairing
+Next/ESLint 16.3.8 with sharp 0.35.5, Axios 1.20.0 and source-map-js 1.2.2.
+The Tailwind animation plugin is build-only and moves to devDependencies so
+its tooling peers do not survive the production prune. Always build before
+`npm ci --omit=dev`, then verify the actual pruned server with `next start`.
+No audit suppression or forced wallet/framework upgrade is permitted.
+
+Fresh production audit, unit/lint/build and desktop/mobile browser checks
+are required. Package findings alone do not establish runtime exploitability:
+both OG routes select Edge, which the Node-only ImageResponse RCE advisory
+excludes. This source contract does not record a production activation or
+clear unpatched Go dependencies; qualify the backend security patch separately.
+
 ## Compiled-backend hardening (2026-09-28, 22:55 UTC)
 
 Production selects `c56d432d93fd1038cbafc976ed68db35b5873d67`, the

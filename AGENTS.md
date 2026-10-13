@@ -56,11 +56,17 @@ jobs to the grid and serves gallery/media.
   remain mandatory; a symbol finding is not proof that every advisory's
   runtime prerequisites are exposed. Historical deployment proof is not a
   current vulnerability clearance or permission to use an older rollback.
-- Keep Next.js and its ESLint config pinned together at the reviewed patched
-  version, with the sharp override at least 0.35.4. The Next.js AVIF optimizer
+- Keep Next.js and its ESLint config pinned together at 16.3.8 or a reviewed
+  newer patch, with sharp at least 0.35.5, Axios at least 1.20.0 and source-map-js
+  at least 1.2.2. The October image-optimizer/dependency advisories supersede
+  the earlier scan clearance. The Next.js AVIF optimizer
   advisory GHSA-2xp9-vwfh-vxw4 and sharp advisory GHSA-rgj7-g3m4-5g8c gate
   deployment; do not bypass the production dependency audit or roll back to
   affected image-processing packages to undo an unrelated UI change.
+- Tailwind and its animation plugin are build-only dev dependencies. Keep
+  production builds before lockfile-based pruning and verify `next start`
+  afterward; do not reintroduce the vulnerable build-tool peer chain into the
+  production install or suppress the high/critical audit gate.
 - **Product boundary:** `aipg.art` owns Gallery, Studio, and Director. Standalone
   music generation belongs to `aipg.music`; do not add an audio/music route or
   ACE-Step API surface back to this repo. Director may still use audio as part

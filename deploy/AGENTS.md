@@ -38,6 +38,11 @@ Next.js web process and Go API process from one commit-pinned release.
 - Build the frontend with production `NEXT_PUBLIC_*` values loaded.
 - Reinstall from the lockfile with `npm ci --omit=dev` after the production
   build so releases and containers retain only exact production dependencies.
+- The October frontend candidate pairs Next/ESLint 16.3.8 with sharp 0.35.5,
+  Axios 1.20.0 and source-map-js 1.2.2. Tailwind's animation plugin is build-
+  only and must be absent after pruning. Pass the production dependency audit,
+  production build/browser tests and pruned `next start` check before promotion;
+  this contract is not a record of activation or a wallet-framework upgrade.
 - Build and run the frontend on the Node major pinned by `.nvmrc` (Node 22);
   keep Docker, CI, and the release host aligned.
 - Build the backend with `GOTOOLCHAIN=auto` so the exact Go toolchain declared
