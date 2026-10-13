@@ -283,6 +283,41 @@ func TestVideoLostReplyAndCancellationRemainUncertain(t *testing.T) {
 	}
 }
 
+func TestVideoReusedConnectionDoesNotRetryPOST(t *testing.T) {
+	var posts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(200)
+			return
+		}
+		posts.Add(1)
+		conn, _, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		if err := conn.Close(); err != nil {
+			t.Error(err)
+		}
+	}))
+	defer server.Close()
+	client := NewClient(server.URL, "fixture")
+	prime, err := client.httpClient.Get(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.Copy(io.Discard, prime.Body); err != nil {
+		t.Fatal(err)
+	}
+	if err := prime.Body.Close(); err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.SubmitVideoJob(context.Background(), videoTestRequest(), videoTestRequestKey, videoTestHash, "fixture-service", "fixture-user")
+	if !IsGenerationOutcomeUnknown(err) || posts.Load() != 1 {
+		t.Fatalf("reused connection retried POST: count=%d err=%v", posts.Load(), err)
+	}
+}
+
 func TestVideoIncompleteOrUncommittedSuccessIsUnknown(t *testing.T) {
 	for _, missing := range []string{"actual_micro", "gen_time", "seed"} {
 		t.Run(missing, func(t *testing.T) {

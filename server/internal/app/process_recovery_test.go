@@ -43,7 +43,7 @@ func TestGalleryRecoveryProcess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app := &App{cfg: config.Config{DefaultAPIKey: "local-crash-test-key"},
+	app := &App{cfg: config.Config{DefaultAPIKey: "local-crash-test-key", DurableVideoEnabled: os.Getenv("GALLERY_CRASH_TEST_VIDEO") == "1"},
 		client:  aipg.NewClient(os.Getenv("GALLERY_CRASH_TEST_CORE"), "test"),
 		catalog: catalog, pending: persistentPending(db)}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

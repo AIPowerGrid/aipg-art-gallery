@@ -6,15 +6,16 @@ import (
 )
 
 type Config struct {
-	Address          string
-	APIBaseURL       string
-	ClientAgent      string
-	DefaultAPIKey    string
-	ModelPresetPath  string
-	StylesConfigPath string
-	AllowedOrigins   []string
-	GalleryStorePath string
-	JWTSecret        string
+	Address             string
+	APIBaseURL          string
+	ClientAgent         string
+	DefaultAPIKey       string
+	ModelPresetPath     string
+	StylesConfigPath    string
+	AllowedOrigins      []string
+	GalleryStorePath    string
+	JWTSecret           string
+	DurableVideoEnabled bool
 
 	// ModelVault blockchain configuration
 	ModelVaultEnabled         bool
@@ -64,14 +65,15 @@ func Load() Config {
 		// New grid is OpenAI-shaped and lives under /v1 (no more /api/v2 async horde).
 		// Override AIPG_API_URL during DNS cutover if api.aipowergrid.io hasn't
 		// propagated yet (e.g. point it at the box's grid.aipowergrid.io/v1).
-		APIBaseURL:       getEnv("AIPG_API_URL", "https://api.aipowergrid.io/v1"),
-		ClientAgent:      getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v3"),
-		DefaultAPIKey:    os.Getenv("AIPG_API_KEY"),
-		ModelPresetPath:  getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
-		StylesConfigPath: getEnv("STYLES_CONFIG_PATH", defaultStylesConfigPath()),
-		AllowedOrigins:   splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
-		GalleryStorePath: getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
-		JWTSecret:        os.Getenv("JWT_SECRET"),
+		APIBaseURL:          getEnv("AIPG_API_URL", "https://api.aipowergrid.io/v1"),
+		ClientAgent:         getEnv("AIPG_CLIENT_AGENT", "AIPG-Art-Gallery:v3"),
+		DefaultAPIKey:       os.Getenv("AIPG_API_KEY"),
+		ModelPresetPath:     getEnv("MODEL_PRESETS_PATH", "./server/config/model_presets.json"),
+		StylesConfigPath:    getEnv("STYLES_CONFIG_PATH", defaultStylesConfigPath()),
+		AllowedOrigins:      splitAndClean(os.Getenv("GALLERY_ALLOWED_ORIGINS")),
+		GalleryStorePath:    getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
+		JWTSecret:           os.Getenv("JWT_SECRET"),
+		DurableVideoEnabled: getEnv("GALLERY_DURABLE_VIDEO_ENABLED", "false") == "true",
 
 		// ModelVault blockchain configuration (enabled by default)
 		ModelVaultEnabled:         getEnv("MODELVAULT_ENABLED", "true") == "true",

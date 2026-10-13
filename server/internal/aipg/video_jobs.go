@@ -227,6 +227,9 @@ func (c *Client) videoJobRequest(ctx context.Context, method, path string, body 
 	}
 	if method == http.MethodPost {
 		req.Header.Set("Content-Type", "application/json")
+		// Transport treats Idempotency-Key as replayable on reused connections.
+		// Keep the key for Core deduplication, but never resend this source body.
+		req.GetBody = nil
 	}
 	client := *c.httpClient
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }

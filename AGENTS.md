@@ -103,6 +103,10 @@ jobs to the grid and serves gallery/media.
 - Gallery rows retain both the Gallery polling/publishing `jobId` and Core's
   `gridJobId`. Never conflate them: `gridJobId` is the receipt handle joining
   the generation to Core's completion and credit ledgers.
+- The separate `/api/videos/jobs` broker defaults off. Its PostgreSQL receipt
+  journal and exact-frame quotes prepare LTX-2.5 but do not enable Core workers,
+  public generation or the Director UI. Native storage/worker and purchased-
+  credit qualification must precede enabling `GALLERY_DURABLE_VIDEO_ENABLED`.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result
   recovery. See `server/AGENTS.md` and `deploy/README.md` for the ordered rollout

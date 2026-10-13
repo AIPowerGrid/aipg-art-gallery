@@ -94,11 +94,24 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   and poll contract onto the synchronous grid call. The server holds the grid key, the
     client never does. Config paths are CWD-relative (`config/styles.json`,
     `./config/model_presets.json`) — run the server from the repo root.
-- An unexposed durable-video client prepares Core `/v1/videos/jobs` submission
-  and GET-only recovery. It does not enable LTX-2.5 or replace the current
-  broker. The client compiles a Core-compatible intent and supports exact-frame
-  quotes; durable receipt/quote wiring and the
-  funded pilot must precede handler/frontend activation; see `internal/AGENTS.md`.
+- `POST /api/videos/jobs` is a separate default-off durable LTX-2.5 broker.
+  `GALLERY_DURABLE_VIDEO_ENABLED=false` is the rollout default; enabling it
+  requires PostgreSQL and a configured bridge at startup. The authenticated
+  body contains `requestId` (saved UUIDv4) plus `video` (Core's typed request,
+  including exact frames and a positive `max_cost_micro_usd`). Only the
+  Distilled BF16 pilot model is admitted. Core still owns cohort, recipe,
+  worker, atomic reservation and source admission. The legacy `/api/jobs`
+  path is unchanged; no frontend selects the new path yet.
+  Owner/family replay precedes quoting. A live exact-frame, model, account and
+  cost-ceiling quote is required, then the journal commits its independently
+  computed intent and Core UUIDv4 key before one generation POST. HTTP errors
+  remain recoverable, not proof of no charge. No background resubmission occurs;
+  a crash before dispatch can remain unknown and needs operator resolution.
+  `GET /api/videos/jobs/{id}` and `/api/videos/requests/{requestID}` retain
+  authenticated GET-only recovery even with admission disabled. `videoReceipt`
+  exposes the owner's validated Core receipt, never the service/user token or
+  input media. Source-domain/storage qualification, upload-proxy limits, real
+  funded pilot and frontend selection remain activation gates.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server

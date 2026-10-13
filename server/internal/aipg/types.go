@@ -146,6 +146,8 @@ type CreditEstimate struct {
 	ShortfallMicro       *int64   `json:"shortfall_micro"`
 	N                    *int     `json:"n"`
 	Seconds              *float64 `json:"seconds"`
+	Frames               *int     `json:"frames"`
+	FPS                  *int     `json:"fps"`
 }
 
 type CreditQuote struct {

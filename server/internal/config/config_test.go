@@ -5,6 +5,7 @@ import "testing"
 func TestOperationalDefaults(t *testing.T) {
 	t.Setenv("RECIPESVAULT_ENABLED", "")
 	t.Setenv("AI_MODEL", "")
+	t.Setenv("GALLERY_DURABLE_VIDEO_ENABLED", "")
 
 	cfg := Load()
 
@@ -13,5 +14,8 @@ func TestOperationalDefaults(t *testing.T) {
 	}
 	if cfg.AIModel != "auto" {
 		t.Fatalf("AIModel = %q, want auto", cfg.AIModel)
+	}
+	if cfg.DurableVideoEnabled {
+		t.Fatal("durable video admission must default off")
 	}
 }
