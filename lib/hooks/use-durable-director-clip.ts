@@ -50,8 +50,8 @@ export function useDurableDirectorClip(options: {
     const attempt = ++imageRead.current;
     setImage(null); setImageName(""); setError(null);
     if (!file) { setImageLoading(false); return; }
-    if (!["image/png", "image/jpeg"].includes(file.type) || file.size <= 0 || file.size > 10 * 1024 * 1024) {
-      setImageLoading(false); setError("Choose a PNG or JPEG smaller than 10 MB."); return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size <= 0 || file.size > 10 * 1024 * 1024) {
+      setImageLoading(false); setError("Choose a PNG, JPEG or WebP image up to 10 MB."); return;
     }
     setImageLoading(true);
     try {

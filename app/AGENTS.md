@@ -68,9 +68,10 @@ route handlers for things that must not run in the browser — including wallet 
   standard create page. It displays Core-owned first-frame and selected-segment quotes,
   links `402` responses to Console funding, and exposes copyable Core receipt IDs after
   completion. Browser project/audio persistence is local convenience, not authority.
-- An additional LTX-2.5 clip tab appears only for a server-enabled private
-  account or that account's persisted Distilled jobs/requests. Reload defaults
-  to clip recovery when work exists, including after pilot expiry. New-account
+- An additional LTX-2.5 clip tab appears only for a server-enabled authenticated
+  account or that account's persisted Distilled jobs/requests. Eligible first
+  visits and reloads with recovery default to the clip tab, including recovery
+  after pilot expiry. Explicit timeline selection remains available. New-account
   rendering never includes previous-account receipts. The old timeline/project
   is unchanged; private clip availability is not public LTX-2.5 activation.
 - **`proxy.ts` (repo root)** sets per-request CSP. Browser API traffic is

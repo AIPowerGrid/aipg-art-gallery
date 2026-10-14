@@ -28,6 +28,15 @@ it("copies only explicitly supplied timed-image guides", () => {
   expect(p.video.keyframes![0].strength).toBe(0.8);
 });
 
+it.each(["png", "jpeg", "webp"])("preserves an inline %s opening image", (format) => {
+  const pin = { image: `data:image/${format};base64,aW1hZ2U=`, frame: 0, strength: 1 };
+  expect(buildDurableSegmentPayload({ ...base, keyframes: [pin] }).video.keyframes).toEqual([pin]);
+});
+
+it.each(["data:image/svg+xml;base64,PHN2Zy8+", "https://example.test/image.webp"])("rejects unsupported guide %s", (image) => {
+  expect(() => buildDurableSegmentPayload({ ...base, keyframes: [{ image, frame: 0, strength: 1 }] })).toThrow("inline PNG, JPEG or WebP");
+});
+
 it("preserves prepared audio without reusing raw legacy timeline slices", () => {
   expect(buildDurableSegmentPayload({ ...base, source: { audio } }).video.reference_audio).toBe(audio);
 });

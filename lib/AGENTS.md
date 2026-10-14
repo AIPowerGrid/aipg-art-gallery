@@ -119,7 +119,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   cannot enable controls. Capacity is not model-fidelity proof. The Director
   clip workspace consumes the gate; native paid acceptance still gates activation.
 - `hooks/use-durable-director-clip.ts` owns the separate text/opening-image
-  clip form. Its ephemeral image never enters persisted request/job metadata.
+  clip form. PNG, JPEG and Studio-generated WebP opening images up to 10 MB
+  remain ephemeral and never enter persisted request/job metadata. Browser
+  MIME/size checks are UX; Core still decodes and validates the actual bytes.
   Busy/unknown jobs lock fresh submissions, a synchronous in-flight guard
   prevents double-click POSTs, and library-write failure never retries paid
   generation. Canonical owner changes reset the mounted form and prevent late

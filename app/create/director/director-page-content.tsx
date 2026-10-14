@@ -24,7 +24,7 @@ export function DirectorPageContent() {
   const owner = ownerIdentifier?.toLowerCase();
   const hasRecovery = !!owner && (jobs.some((job) => job.walletAddress === owner && isDurableVideoModel(job.modelId)) || requests.some((request) => request.owner === owner && isDurableVideoModel(request.job.modelId)));
   const showClip = !!owner && (capabilities.enabled || hasRecovery);
-  const view = chosenView ?? (hasRecovery ? "clip" : "timeline");
+  const view = chosenView ?? (showClip ? "clip" : "timeline");
   const { styles } = useStylesConfig();
   const { checked: availabilityChecked, onlineModelIds } =
     useModelAvailability();

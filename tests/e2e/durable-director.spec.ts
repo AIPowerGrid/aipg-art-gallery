@@ -73,7 +73,7 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
 
 async function openClip(page: Page) {
   await page.goto("/create/director", { waitUntil: "networkidle" });
-  await page.getByRole("tab", { name: "LTX-2.5 clip" }).click();
+  await expect(page.getByRole("tab", { name: "LTX-2.5 clip" })).toHaveAttribute("aria-selected", "true");
   await page.getByLabel("Clip prompt").fill("camera glides over the ocean at sunrise");
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeEnabled();
 }
@@ -94,16 +94,17 @@ test("quotes exact frames and submits one capped clip, preserving the timeline",
   expect(state.errors).toEqual([]);
 });
 
-test("plays and seeks a completed clip, without persisting its opening image", async ({ page }) => {
+test("plays and seeks a completed clip with an ephemeral Studio WebP opening image", async ({ page }) => {
   const state = await fixture(page);
   await openClip(page);
-  await page.getByLabel("Opening image", { exact: true }).setInputFiles({ name: "guide.png", mimeType: "image/png",
-    buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nK0AAAAASUVORK5CYII=", "base64") });
+  await page.getByLabel("Opening image", { exact: true }).setInputFiles({ name: "studio.webp", mimeType: "image/webp",
+    buffer: Buffer.from("UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA", "base64") });
   await expect(page.getByAltText("Opening image guide")).toBeVisible();
+  expect(await page.getByAltText("Opening image guide").evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeEnabled();
   await page.getByRole("button", { name: "Generate clip" }).click();
   await expect.poll(state.posts).toBe(1);
-  expect(state.body()).toMatchObject({ video: { keyframes: [{ frame: 0, strength: 1, image: expect.stringMatching(/^data:image\/png;base64,/) }] } });
+  expect(state.body()).toMatchObject({ video: { keyframes: [{ frame: 0, strength: 1, image: expect.stringMatching(/^data:image\/webp;base64,/) }] } });
   expect(await page.evaluate(() => localStorage.getItem("aipg-job-store"))).not.toContain("data:image");
   state.finish();
   const video = page.getByLabel("Generated clip");

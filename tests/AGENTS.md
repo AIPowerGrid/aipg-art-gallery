@@ -19,6 +19,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
   desktop/mobile overflow and real H.264 fixture decoding/seeking. Synthetic
   playback and mocked billing are not a native worker/debit/refund proof.
   `fixtures/clip-81-frames.mp4` is a generated diagnostic pattern, not user media.
+  Eligible first visits default to the clip tab; the opening-image fixture
+  decodes WebP like Studio output while preserving request-journal privacy.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
   account-menu and creation-library navigation, mobile overflow, and a lost POST
   response followed by browser reload/read-only recovery with one generation POST.
