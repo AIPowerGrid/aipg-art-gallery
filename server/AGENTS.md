@@ -96,7 +96,16 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
     `./config/model_presets.json`) — run the server from the repo root.
 - `POST /api/videos/jobs` is a separate default-off durable LTX-2.5 broker.
   `GALLERY_DURABLE_VIDEO_ENABLED=false` is the rollout default; enabling it
-  requires PostgreSQL and a configured bridge at startup. The authenticated
+  requires PostgreSQL and a configured bridge at startup. The pilot also
+  requires 1..10 distinct canonical Core account IDs and a fixed RFC3339 expiry
+  no more than 24 hours ahead. Configure these only through
+  `GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` and
+  `GALLERY_DURABLE_VIDEO_PILOT_UNTIL` in the private environment, matching Core's
+  reviewed cohort and not outliving its deadline. Invalid enabled configs
+  refuse startup; expired valid configs may restart for GET recovery. Every new
+  quote/job rechecks canonical account/deadline. Existing owner-bound request
+  replay precedes fresh admission. Never regenerate a deadline to recover
+  uncertain work. The authenticated
   body contains `requestId` (saved UUIDv4) plus `video` (Core's typed request,
   including exact frames and a positive `max_cost_micro_usd`). Only the
   exact Distilled BF16/NVFP4 identities are admitted, with BF16 as the omitted
@@ -127,6 +136,12 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   ceiling. The quote route writes no job journal and submits no generation.
   Browser preparation/quote helpers are present but no component selects
   them yet; native funded acceptance still gates consumer activation.
+- Authenticated `GET /api/videos/capabilities` is no-store and shows only
+  exact online BF16/NVFP4 names/counts to an active pilot account. Outside,
+  expired or disabled cohorts receive a closed empty view. No account list,
+  token, private storage URL or raw upstream failure is exposed. Counts are
+  operational inventory, not GPU/model-fidelity qualification or billing
+  authority. Core's final admission and atomic hold remain mandatory.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server

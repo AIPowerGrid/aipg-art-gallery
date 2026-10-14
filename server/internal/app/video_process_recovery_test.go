@@ -37,6 +37,7 @@ func TestDurableVideoSurvivesActualProcessCrash(t *testing.T) {
 			dsn.RawQuery = query.Encode()
 			t.Setenv("JWT_SECRET", newJobID()+newJobID())
 			t.Setenv("GALLERY_CRASH_TEST_VIDEO", "1")
+			t.Setenv("GALLERY_CRASH_TEST_VIDEO_UNTIL", time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
 			var token string
 			if method == "google" {
 				token, err = auth.GenerateGoogleJWT("fixture-google", "fixture@example.test", "Fixture", "", brokerOwner)

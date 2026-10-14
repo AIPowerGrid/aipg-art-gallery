@@ -25,7 +25,6 @@ import (
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
-	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/models"
 )
 
@@ -43,7 +42,15 @@ func TestGalleryRecoveryProcess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app := &App{cfg: config.Config{DefaultAPIKey: "local-crash-test-key", DurableVideoEnabled: os.Getenv("GALLERY_CRASH_TEST_VIDEO") == "1"},
+	cfg := brokerPilotConfig("local-crash-test-key")
+	cfg.DurableVideoEnabled = os.Getenv("GALLERY_CRASH_TEST_VIDEO") == "1"
+	if cfg.DurableVideoEnabled {
+		cfg.DurableVideoPilotUntil = os.Getenv("GALLERY_CRASH_TEST_VIDEO_UNTIL")
+		if err := cfg.ValidateDurableVideoPilot(time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	app := &App{cfg: cfg,
 		client:  aipg.NewClient(os.Getenv("GALLERY_CRASH_TEST_CORE"), "test"),
 		catalog: catalog, pending: persistentPending(db)}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

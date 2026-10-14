@@ -25,6 +25,43 @@ import (
 const brokerOwner = "00000000-0000-4000-8000-000000000123"
 const brokerCoreID = "00000000-0000-4000-8000-000000000456"
 
+func brokerPilotConfig(key string) config.Config {
+	return config.Config{DefaultAPIKey: key, DurableVideoEnabled: true,
+		DurableVideoPilotAccounts: []string{brokerOwner},
+		DurableVideoPilotUntil:    time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
+}
+
+func TestDurableVideoExpiredPilotPreservesReplayAndRecovery(t *testing.T) {
+	f := newBrokerFixture(t, false)
+	requestID := uuid.NewString()
+	code, id := postBrokerVideo(t, f.app, requestID, brokerVideoRequest())
+	if code != 202 {
+		t.Fatal("initial pilot submission failed")
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	for f.posts.Load() != 1 && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if f.posts.Load() != 1 {
+		t.Fatal("original POST not observed")
+	}
+	f.app.cfg.DurableVideoPilotUntil = time.Now().Add(-time.Second).UTC().Format(time.RFC3339)
+	code, replay := postBrokerVideo(t, f.app, requestID, brokerVideoRequest())
+	if code != 202 || replay != id {
+		t.Fatal("expired pilot changed the existing request")
+	}
+	code, _ = postBrokerVideo(t, f.app, uuid.NewString(), brokerVideoRequest())
+	if code != 403 || f.posts.Load() != 1 || f.quotes.Load() != 1 {
+		t.Fatal("expired pilot authorized fresh pricing or dispatch")
+	}
+	f.state.Store(2)
+	w := httptest.NewRecorder()
+	f.app.serveJobStatus(w, requestWithClaims(&auth.Claims{GoogleID: "fixture-google", GridAccountID: brokerOwner}), id)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"status":"completed"`) || f.posts.Load() != 1 {
+		t.Fatal("expired pilot broke GET recovery")
+	}
+}
+
 func brokerVideoRequest() aipg.VideoJobRequest {
 	return aipg.VideoJobRequest{Prompt: "synthetic broker fixture", Model: durableVideoModel,
 		N: 1, Size: "512x320", Frames: 33, FPS: 24, Audio: true, MaxCostMicroUSD: 100000}
@@ -207,7 +244,7 @@ func newBrokerFixture(t *testing.T, lostReply bool) *brokerFixture {
 		}
 	}))
 	t.Cleanup(core.Close)
-	f.app = &App{cfg: config.Config{DefaultAPIKey: "fixture-service", DurableVideoEnabled: true},
+	f.app = &App{cfg: brokerPilotConfig("fixture-service"),
 		client: aipg.NewClient(core.URL, "fixture"), pending: persistentPending(db)}
 	return f
 }

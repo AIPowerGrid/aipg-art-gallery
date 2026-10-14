@@ -111,6 +111,11 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   owner or frame count hides stale data immediately; cleanup cancels pending
   responses. Refresh is quote-only. UI selection, actual audio preparation and
   native funded acceptance remain rollout gates.
+- `hooks/use-durable-video-capabilities.ts` reads only the authenticated,
+  no-store pilot capability endpoint. It validates exact model names, distinct
+  rows and positive safe worker counts; malformed/foreign-account late replies
+  cannot enable controls. Capacity is not model-fidelity proof. No component
+  selects the workflow yet; native paid acceptance still gates activation.
 - Pending requests and active jobs do not expire under the 24-hour completed
   history cleanup. The Jobs menu displays unresolved requests. Director retains
   separate `startImageRequestId` and video `requestId`; a recovered ID can only

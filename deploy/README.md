@@ -1,5 +1,19 @@
 # aipg.art production release
 
+## Durable video pilot (candidate, not activated)
+
+Keep `GALLERY_DURABLE_VIDEO_ENABLED=false` until native worker/storage and real
+funded acceptance are reviewed. Activation requires private
+`GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` (1..10 canonical Core IDs) and
+`GALLERY_DURABLE_VIDEO_PILOT_UNTIL` (fixed RFC3339 deadline at most 24h ahead).
+Match Core's reviewed cohort and do not outlive its expiry. Never publish live
+IDs or renew a deadline solely for recovery. New quotes/jobs close on expiry;
+GET recovery and existing request identity remain available. Validate disabled,
+outside-account, expiry and unchanged-deadline restart against a restored
+scratch database before selecting the video-aware release. Capability discovery
+is authenticated/no-store and reveals no cohort list or credentials. These
+candidate controls are not proof of consumer activation or paid GPU output.
+
 Production runs two services behind Nginx from one commit-pinned checkout:
 
 - `aipg-gallery-web.service` - Next.js on `127.0.0.1:3000`

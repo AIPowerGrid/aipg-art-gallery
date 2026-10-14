@@ -55,6 +55,13 @@ Next.js web process and Go API process from one commit-pinned release.
   session renewal and durable request recovery depend on that private API.
   Its absence fails closed. Keep a compatible rollback and verify Google and
   wallet session renewal against the selected Core before public cutover.
+- Durable-video activation is account-scoped and expiring, not a global flag
+  flip: set private `GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` and
+  `GALLERY_DURABLE_VIDEO_PILOT_UNTIL` to the reviewed canonical cohort/deadline,
+  no later than Core's own pilot. Native paid acceptance remains required.
+  Preserve the absolute deadline across restart; expired valid config keeps
+  GET recovery. Malformed enabled config must fail startup. No live account
+  IDs, credentials or source URLs belong in deployment documentation.
 - Release pruning must resolve and protect `/opt/aipg-gallery-current`, reject
   paths outside `/opt/aipg-gallery-releases`, and keep one inactive release.
 

@@ -13,7 +13,6 @@ import (
 
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/aipg"
 	"github.com/aipowergrid/aipg-art-gallery/server/internal/auth"
-	"github.com/aipowergrid/aipg-art-gallery/server/internal/config"
 )
 
 func quoteRequest(body string) *http.Request {
@@ -40,7 +39,7 @@ func TestDurableVideoQuoteRejectsBeforeUpstream(t *testing.T) {
 	var calls atomic.Int32
 	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(500) }))
 	defer core.Close()
-	app := &App{cfg: config.Config{DefaultAPIKey: "fixture-service", DurableVideoEnabled: true}, client: aipg.NewClient(core.URL, "fixture")}
+	app := &App{cfg: brokerPilotConfig("fixture-service"), client: aipg.NewClient(core.URL, "fixture")}
 	for _, body := range []string{
 		`{}`, `null`, `[]`,
 		`{"model":"LTX-2.3","frames":81,"fps":24}`,
@@ -126,7 +125,7 @@ func TestDurableVideoQuoteBoundToAccountModelAndFrames(t *testing.T) {
 					}
 				}))
 				defer core.Close()
-				app := &App{cfg: config.Config{DefaultAPIKey: "fixture-service", DurableVideoEnabled: true}, client: aipg.NewClient(core.URL, "fixture")}
+				app := &App{cfg: brokerPilotConfig("fixture-service"), client: aipg.NewClient(core.URL, "fixture")}
 				body, _ := json.Marshal(durableVideoQuoteRequest{Model: model, Frames: 81, FPS: 24})
 				w := httptest.NewRecorder()
 				app.handleDurableVideoQuote(w, quoteRequest(string(body)))

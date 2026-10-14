@@ -64,6 +64,9 @@ func New(cfg config.Config) (*App, error) {
 	if cfg.DurableVideoEnabled && (!cfg.PostgresEnabled || cfg.DefaultAPIKey == "") {
 		return nil, errors.New("durable video requires PostgreSQL and a configured Grid bridge")
 	}
+	if err := cfg.ValidateDurableVideoPilot(time.Now()); err != nil {
+		return nil, err
+	}
 	catalog, err := models.LoadCatalog(cfg.ModelPresetPath)
 	if err != nil {
 		return nil, err
@@ -221,6 +224,7 @@ func (a *App) Router() http.Handler {
 			protected.Get("/jobs/requests/{requestID}", a.handleJobRequestStatus)
 			protected.With(httprate.LimitByIP(4, time.Minute)).Post("/videos/jobs", a.handleCreateDurableVideo)
 			protected.With(httprate.LimitByIP(60, time.Minute)).Post("/videos/quote", a.handleDurableVideoQuote)
+			protected.With(httprate.LimitByIP(60, time.Minute)).Get("/videos/capabilities", a.handleDurableVideoCapabilities)
 			protected.Get("/videos/jobs/{id}", a.handleJobStatus)
 			protected.Get("/videos/requests/{requestID}", a.handleJobRequestStatus)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/ai/enhance", a.handleAIEnhance)
@@ -1555,6 +1559,44 @@ func writeJobStoreError(w http.ResponseWriter, err error) {
 	writeError(w, http.StatusServiceUnavailable, errors.New("generation journal unavailable; retry the same request ID"))
 }
 
+func (a *App) handleDurableVideoCapabilities(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	closed := map[string]any{"enabled": false, "models": []any{}}
+	if !a.cfg.DurableVideoEnabled || a.cfg.DefaultAPIKey == "" {
+		writeJSON(w, http.StatusOK, closed)
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	_, identity, err := a.gridAccountOwnership(ctx, r)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("video capabilities are temporarily unavailable"))
+		return
+	}
+	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {
+		writeJSON(w, http.StatusOK, closed)
+		return
+	}
+	stats, err := a.client.FetchModelStats(ctx)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("video capacity is temporarily unavailable"))
+		return
+	}
+	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {
+		writeJSON(w, http.StatusOK, closed)
+		return
+	}
+	models := make([]map[string]any, 0, 2)
+	seen := make(map[string]bool)
+	for _, stat := range stats {
+		if isDurableVideoModel(stat.Name) && stat.Type == "video" && stat.ParseCount() > 0 && !seen[stat.Name] {
+			seen[stat.Name] = true
+			models = append(models, map[string]any{"id": stat.Name, "onlineWorkers": stat.ParseCount()})
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "models": models})
+}
+
 func (a *App) handleDurableVideoQuote(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if !a.cfg.DurableVideoEnabled || a.cfg.DefaultAPIKey == "" {
@@ -1576,6 +1618,10 @@ func (a *App) handleDurableVideoQuote(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, errors.New("account identity is temporarily unavailable"))
 		return
 	}
+	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {
+		writeError(w, http.StatusForbidden, errors.New("this account is outside the active video pilot"))
+		return
+	}
 	quote, err := a.client.CreditQuote(ctx, a.cfg.DefaultAPIKey, identity.AccessToken,
 		aipg.CreditQuoteRequest{Model: request.Model, Modality: "video", N: 1, Frames: request.Frames})
 	if err != nil {
@@ -1584,6 +1630,10 @@ func (a *App) handleDurableVideoQuote(w http.ResponseWriter, r *http.Request) {
 	}
 	if status, err := validateDurableVideoEstimate(quote, request.Model, request.Frames, request.FPS, identity.AccountID); err != nil {
 		writeError(w, status, err)
+		return
+	}
+	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {
+		writeError(w, http.StatusForbidden, errors.New("this account is outside the active video pilot"))
 		return
 	}
 	// An insufficient balance is still a valid estimate, not a generation.
@@ -1635,6 +1685,10 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusAccepted, map[string]any{"jobId": id, "status": "queued", "replayed": true})
 		return
 	}
+	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {
+		writeError(w, http.StatusForbidden, errors.New("this account is outside the active video pilot"))
+		return
+	}
 	quote, err := a.client.CreditQuote(ctx, a.cfg.DefaultAPIKey, identity.AccessToken,
 		aipg.CreditQuoteRequest{Model: request.Video.Model, Modality: "video", N: 1, Frames: request.Video.Frames})
 	if err != nil {
@@ -1643,6 +1697,10 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 	}
 	if status, err := validateDurableVideoQuote(quote, request.Video, identity.AccountID); err != nil {
 		writeError(w, status, err)
+		return
+	}
+	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {
+		writeError(w, http.StatusForbidden, errors.New("this account is outside the active video pilot"))
 		return
 	}
 	key := uuid.NewString()

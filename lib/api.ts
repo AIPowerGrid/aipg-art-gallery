@@ -153,6 +153,15 @@ export function fetchDurableVideoQuote(
   });
 }
 
+export interface DurableVideoCapabilities {
+  enabled: boolean;
+  models: Array<{ id: DurableVideoRequest["model"]; onlineWorkers: number }>;
+}
+
+export function fetchDurableVideoCapabilities(): Promise<DurableVideoCapabilities> {
+  return jsonFetch("/videos/capabilities", { cache: "no-store" });
+}
+
 /** Curated creative styles from the grid (model→recipe→style layer). */
 export function fetchGridStyles(): Promise<{ styles: GridStyle[] }> {
   return jsonFetch("/styles/grid", undefined, 60);

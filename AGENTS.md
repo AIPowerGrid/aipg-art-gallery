@@ -108,6 +108,10 @@ jobs to the grid and serves gallery/media.
   LTX-2.5 but do not enable Core workers, public generation or the Director UI.
   No component selects the typed client yet. Native storage/worker and purchased-
   credit qualification must precede enabling `GALLERY_DURABLE_VIDEO_ENABLED`.
+  Activation requires a private canonical-account cohort and fixed expiry
+  matching Core's reviewed pilot. Invalid enabled configuration fails closed;
+  expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
+  capability discovery does not reveal cohort IDs or qualify model fidelity.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result
   recovery. See `server/AGENTS.md` and `deploy/README.md` for the ordered rollout

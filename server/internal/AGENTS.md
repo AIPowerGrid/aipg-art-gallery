@@ -80,6 +80,11 @@ package owns one concern; `app/app.go` wires them together.
   read to the delegated owner, exact Distilled model, frame/fps and live price.
   Quote reads may report insufficient funds but never create a job or weaken
   the generation ceiling/balance check. BF16 and NVFP4 remain separate names.
+- `config/video_pilot.go` validates the private canonical-account cohort and
+  fixed absolute deadline. Disabled defaults admit nobody; expiry closes fresh
+  quotes/jobs without rewriting journal rows or disabling GET recovery. Invalid
+  enabled startup fails closed, while an expired valid config remains usable
+  for recovery. Configuration loading stays in `config/`, never the handlers.
 
 - **One concern per package; `app/` orchestrates.** Cross-package calls go through interfaces.
 - **Gallery writes go through `GalleryStore`** — new persistence ops are added to the interface
