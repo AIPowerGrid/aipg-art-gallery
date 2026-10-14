@@ -96,9 +96,21 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   Opening/timed images and reference audio/video remain ephemeral request data,
   never copied into the pending-request journal. Recheck the active account
   after the preparation callback and before dispatch. Core and Go remain the
-  source-validation, admission and billing authorities. The typed BF16 client
-  prepares Director integration; no component selects it yet, and exact-frame
-  quote/UI/audio preparation and funded acceptance remain rollout gates.
+  source-validation, admission and billing authorities. The typed Distilled
+  client preserves separate BF16/NVFP4 names; no component selects it yet.
+- `create/durable-director-payload.ts` prepares an explicit 8n+1 output count,
+  quote ceiling, geometry, seed and optional ordered image guides. It never
+  rounds a legacy segment duration or inserts its stored portrait implicitly.
+  Reference sound must be prepared stereo48k exact-duration WAV; motion also
+  needs prepared MP4 and64-aligned geometry. Motion permits only an explicit
+  frame-zero pin. This helper checks shape, not actual media decode/fidelity;
+  Core remains authoritative. It never processes old timeline audio slices.
+- `hooks/use-durable-video-quote.ts` uses `/videos/quote`, not the legacy
+  seconds-based quote. It requires enabled/authenticated owner state and binds
+  account/model/frames/fps/live price before exposing a ceiling. A changed
+  owner or frame count hides stale data immediately; cleanup cancels pending
+  responses. Refresh is quote-only. UI selection, actual audio preparation and
+  native funded acceptance remain rollout gates.
 - Pending requests and active jobs do not expire under the 24-hour completed
   history cleanup. The Jobs menu displays unresolved requests. Director retains
   separate `startImageRequestId` and video `requestId`; a recovered ID can only

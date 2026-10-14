@@ -17,6 +17,16 @@ import (
 
 const durableVideoModel = "LTX-2.5 Distilled BF16"
 
+func isDurableVideoModel(model string) bool {
+	return model == durableVideoModel || model == "LTX-2.5 Distilled NVFP4"
+}
+
+type durableVideoQuoteRequest struct {
+	Model  string `json:"model"`
+	Frames int    `json:"frames"`
+	FPS    int    `json:"fps"`
+}
+
 // Only commitments/receipts are durable; never retain prompts or source bodies.
 type pendingVideo struct {
 	Key     string
@@ -35,14 +45,21 @@ func newDurableVideoRequest() durableVideoRequest {
 	return durableVideoRequest{Video: aipg.VideoJobRequest{Model: durableVideoModel, N: 1, FPS: 24, Audio: true}}
 }
 
-func validateDurableVideoQuote(quote aipg.CreditQuote, request aipg.VideoJobRequest, owner string) (int, error) {
-	if quote.AccountID != owner || quote.Estimate.Model != request.Model || quote.Estimate.Modality != "video" ||
-		quote.Estimate.Frames == nil || *quote.Estimate.Frames != request.Frames ||
-		quote.Estimate.FPS == nil || *quote.Estimate.FPS != request.FPS {
+func validateDurableVideoEstimate(quote aipg.CreditQuote, model string, frames, fps int, owner string) (int, error) {
+	if quote.AccountID != owner || quote.Estimate.Model != model || quote.Estimate.Modality != "video" ||
+		quote.Estimate.Frames == nil || *quote.Estimate.Frames != frames ||
+		quote.Estimate.FPS == nil || *quote.Estimate.FPS != fps {
 		return http.StatusBadGateway, errors.New("Grid video quote commitment mismatch")
 	}
 	if !quote.ChargingEnabled || !quote.Estimate.Priced || quote.Estimate.CostMicro == nil || *quote.Estimate.CostMicro <= 0 {
 		return http.StatusServiceUnavailable, errors.New("live credit-backed video pricing is required")
+	}
+	return 0, nil
+}
+
+func validateDurableVideoQuote(quote aipg.CreditQuote, request aipg.VideoJobRequest, owner string) (int, error) {
+	if status, err := validateDurableVideoEstimate(quote, request.Model, request.Frames, request.FPS, owner); err != nil {
+		return status, err
 	}
 	if !quote.Estimate.BalanceSufficient || *quote.Estimate.CostMicro > request.MaxCostMicroUSD {
 		return http.StatusPaymentRequired, errors.New("insufficient credits or video cost ceiling")

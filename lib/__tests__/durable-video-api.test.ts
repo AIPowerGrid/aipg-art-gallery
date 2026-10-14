@@ -1,4 +1,4 @@
-import { ApiError, createDurableVideoJob } from "../api";
+import { ApiError, createDurableVideoJob, fetchDurableVideoQuote } from "../api";
 import { DurableVideoRequest } from "@/types/models";
 
 const video: DurableVideoRequest = {
@@ -29,5 +29,18 @@ it("surfaces the broker rejection without a retry or legacy fallback", async () 
 it("preserves transport uncertainty for the job store to recover", async () => {
   (fetch as jest.Mock).mockRejectedValue(new TypeError("connection lost"));
   await expect(createDurableVideoJob("saved-request", video)).rejects.toThrow("connection lost");
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+it("requests an exact-frame quote without a source body or rounded duration", async () => {
+  const quote = { account_id: "fixture-owner", estimate: { frames: 81, fps: 24, model: video.model, cost_micro: 80000 } };
+  (fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => quote });
+  const signal = new AbortController().signal;
+  const request = { model: video.model, frames: video.frames, fps: video.fps };
+  await expect(fetchDurableVideoQuote(request, signal)).resolves.toEqual(quote);
+  expect(fetch).toHaveBeenCalledWith("/api/videos/quote", expect.objectContaining({
+    method: "POST", credentials: "include", cache: "no-store", signal,
+    body: JSON.stringify(request),
+  }));
   expect(fetch).toHaveBeenCalledTimes(1);
 });

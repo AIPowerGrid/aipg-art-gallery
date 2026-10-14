@@ -128,7 +128,7 @@ export interface CreateJobRequest {
 
 /** Reviewed credit-backed video input; graphs and credentials stay server-side. */
 export interface DurableVideoRequest {
-  model: "LTX-2.5 Distilled BF16";
+  model: "LTX-2.5 Distilled BF16" | "LTX-2.5 Distilled NVFP4";
   prompt: string;
   n: 1;
   size?: string;

@@ -220,6 +220,7 @@ func (a *App) Router() http.Handler {
 			protected.Get("/jobs/{id}", a.handleJobStatus)
 			protected.Get("/jobs/requests/{requestID}", a.handleJobRequestStatus)
 			protected.With(httprate.LimitByIP(4, time.Minute)).Post("/videos/jobs", a.handleCreateDurableVideo)
+			protected.With(httprate.LimitByIP(60, time.Minute)).Post("/videos/quote", a.handleDurableVideoQuote)
 			protected.Get("/videos/jobs/{id}", a.handleJobStatus)
 			protected.Get("/videos/requests/{requestID}", a.handleJobRequestStatus)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/ai/enhance", a.handleAIEnhance)
@@ -1554,6 +1555,41 @@ func writeJobStoreError(w http.ResponseWriter, err error) {
 	writeError(w, http.StatusServiceUnavailable, errors.New("generation journal unavailable; retry the same request ID"))
 }
 
+func (a *App) handleDurableVideoQuote(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	if !a.cfg.DurableVideoEnabled || a.cfg.DefaultAPIKey == "" {
+		writeError(w, http.StatusServiceUnavailable, errors.New("durable video admission is disabled"))
+		return
+	}
+	var request durableVideoQuoteRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF ||
+		!isDurableVideoModel(request.Model) || request.FPS != 24 || request.Frames < 9 || request.Frames > 337 || request.Frames%8 != 1 {
+		writeError(w, http.StatusBadRequest, errors.New("an exact-frame pilot video quote is required"))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+	defer cancel()
+	_, identity, err := a.gridAccountOwnership(ctx, r)
+	if err != nil {
+		writeError(w, http.StatusServiceUnavailable, errors.New("account identity is temporarily unavailable"))
+		return
+	}
+	quote, err := a.client.CreditQuote(ctx, a.cfg.DefaultAPIKey, identity.AccessToken,
+		aipg.CreditQuoteRequest{Model: request.Model, Modality: "video", N: 1, Frames: request.Frames})
+	if err != nil {
+		writeError(w, http.StatusBadGateway, errors.New("Grid video quote is unavailable"))
+		return
+	}
+	if status, err := validateDurableVideoEstimate(quote, request.Model, request.Frames, request.FPS, identity.AccountID); err != nil {
+		writeError(w, status, err)
+		return
+	}
+	// An insufficient balance is still a valid estimate, not a generation.
+	writeJSON(w, http.StatusOK, quote)
+}
+
 func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if !a.cfg.DurableVideoEnabled {
@@ -1576,7 +1612,7 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if decoder.Decode(new(any)) != io.EOF || !validVideoRequestID(request.RequestID) || request.Video.Model != durableVideoModel {
+	if decoder.Decode(new(any)) != io.EOF || !validVideoRequestID(request.RequestID) || !isDurableVideoModel(request.Video.Model) {
 		writeError(w, http.StatusBadRequest, errors.New("a saved UUIDv4 and the pilot video model are required"))
 		return
 	}

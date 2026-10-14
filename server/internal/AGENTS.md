@@ -76,6 +76,10 @@ package owns one concern; `app/app.go` wires them together.
   rejected outcomes stay uncertain until a terminal receipt arrives; closed
   without result is not a refund claim. Real PostgreSQL concurrency and actual
   separate-process crash tests use fixture upstreams, not native billing.
+  Its shared estimate validator also binds the default-off `/videos/quote`
+  read to the delegated owner, exact Distilled model, frame/fps and live price.
+  Quote reads may report insufficient funds but never create a job or weaken
+  the generation ceiling/balance check. BF16 and NVFP4 remain separate names.
 
 - **One concern per package; `app/` orchestrates.** Cross-package calls go through interfaces.
 - **Gallery writes go through `GalleryStore`** — new persistence ops are added to the interface

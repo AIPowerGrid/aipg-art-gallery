@@ -99,7 +99,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   requires PostgreSQL and a configured bridge at startup. The authenticated
   body contains `requestId` (saved UUIDv4) plus `video` (Core's typed request,
   including exact frames and a positive `max_cost_micro_usd`). Only the
-  Distilled BF16 pilot model is admitted. Core still owns cohort, recipe,
+  exact Distilled BF16/NVFP4 identities are admitted, with BF16 as the omitted
+  model default. No precision relabeling or old-model fallback occurs. Core still owns cohort, recipe,
   worker, atomic reservation and source admission. The legacy `/api/jobs`
   path is unchanged; no frontend selects the new path yet.
   Owner/family replay precedes quoting. A live exact-frame, model, account and
@@ -117,6 +118,15 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   new metadata and may overwrite it during status polling; do not use one as
   the post-activation rollback target. Retain all rows and qualify the exact
   video-aware rollback/config path before consumer activation.
+- `POST /api/videos/quote` shares the default-off video switch and authenticated
+  ownership proof. Its bounded body accepts only the exact model, frames
+  (9..337, 8n+1) and 24fps; it sends exact frames, never rounded seconds, to
+  Core. Account/model/modality/frame/fps and positive live-price commitments
+  must match. A valid insufficient-balance quote remains a 200 estimate for
+  funding UX, while generation still requires sufficient balance and its
+  ceiling. The quote route writes no job journal and submits no generation.
+  Browser preparation/quote helpers are present but no component selects
+  them yet; native funded acceptance still gates consumer activation.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server

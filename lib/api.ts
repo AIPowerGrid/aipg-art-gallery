@@ -118,6 +118,8 @@ export interface GridCreditQuote extends GridCredits {
     shortfall_micro: number | null;
     n: number | null;
     seconds: number | null;
+    frames?: number | null;
+    fps?: number | null;
   };
 }
 
@@ -135,6 +137,19 @@ export function fetchCreditQuote(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
     signal,
+  });
+}
+
+export function fetchDurableVideoQuote(
+  request: Pick<DurableVideoRequest, "model" | "frames" | "fps">,
+  signal?: AbortSignal,
+): Promise<GridCreditQuote> {
+  return jsonFetch("/videos/quote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+    cache: "no-store",
   });
 }
 

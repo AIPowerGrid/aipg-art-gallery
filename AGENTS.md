@@ -104,7 +104,7 @@ jobs to the grid and serves gallery/media.
   `gridJobId`. Never conflate them: `gridJobId` is the receipt handle joining
   the generation to Core's completion and credit ledgers.
 - The separate `/api/videos/jobs` broker defaults off. Its PostgreSQL receipt
-  journal, exact-frame preflight and browser submission/recovery client prepare
+  journal, exact-frame quote/preflight and browser preparation/recovery helpers prepare
   LTX-2.5 but do not enable Core workers, public generation or the Director UI.
   No component selects the typed client yet. Native storage/worker and purchased-
   credit qualification must precede enabling `GALLERY_DURABLE_VIDEO_ENABLED`.
