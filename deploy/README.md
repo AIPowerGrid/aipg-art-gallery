@@ -1,6 +1,22 @@
 # aipg.art production release
 
-## CI-built release bundle (candidate)
+## LTX-2.5 private pilot qualification
+
+Release `0469027d` is deployed. Its required main checks, signed release
+provenance, host runtime and restored-backup race tests passed. A real funded
+browser generated a Krea 2 Turbo opening image and used it for an 81-frame
+Distilled BF16 clip. The image cost USD 0.005 and the clip USD 0.0675: total
+USD 0.0725 under a separate USD 0.10 canary ceiling. Both jobs had one settled
+reservation, purchased debit and completion. Video dispatched once.
+
+The original 960x544, 24fps, 3.375-second clip played and recovered after a
+browser reload and an actual Gallery API restart, without a replacement job.
+This qualifies the opening-image path in a private account-scoped pilot,
+not public video admission, NVFP4 Gallery use, every video control or x402.
+Existing legacy timeline/3D gates are unchanged. Pilot identities, deadlines,
+operational evidence and rollback records remain in private operator state.
+
+## CI-built release bundle
 
 The new `Verified release bundle` job follows the frontend/backend/browser/
 history gates. It compiles on Linux x64/Ubuntu22.04, honors Node22 and Go1.26.9,
@@ -77,12 +93,14 @@ rollback with admission disabled and GET recovery intact; do not select the
 old broker or drop metadata. No pilot deadline, charging or tariff changes are
 implied by downloading or building a bundle.
 
-## Durable video pilot (candidate, not activated)
+## Durable video pilot controls
 
 Keep `GALLERY_DURABLE_VIDEO_ENABLED=false` until native worker/storage and real
 funded acceptance are reviewed. Activation requires private
 `GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` (1..10 canonical Core IDs) and
 `GALLERY_DURABLE_VIDEO_PILOT_UNTIL` (fixed RFC3339 deadline at most 24h ahead).
+Gallery's account list is comma-separated canonical UUIDs, not Core's JSON
+array. Keep actual identities and deadlines in the private environment.
 Match Core's reviewed cohort and do not outlive its expiry. Never publish live
 IDs or renew a deadline solely for recovery. New quotes/jobs close on expiry;
 GET recovery and existing request identity remain available. Validate disabled,
