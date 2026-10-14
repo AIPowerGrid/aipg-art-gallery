@@ -1,5 +1,70 @@
 # aipg.art production release
 
+## CI-built release bundle (candidate)
+
+The new `Verified release bundle` job follows the frontend/backend/browser/
+history gates. It compiles on Linux x64/Ubuntu22.04, honors Node22 and Go1.26.9,
+tests the pruned `next start`, scans the actual backend executable and generates
+CycloneDX inventories from installed frontend dependencies and the compiled
+backend. `release_bundle.py` binds committed source, the source tree, toolchain,
+public build profile and every runtime file. Build caches and live environment
+files are excluded. The existing `next start` layout is preserved.
+
+Configure only `GALLERY_PUBLIC_BUILD_ENV_JSON` (validated public Google client
+ID, WalletConnect project ID, relative `/api`, Base8453 and optional public
+ModelVault addresses) and `GALLERY_RELEASE_RECIPIENT_CERT` in repository variables.
+No Grid, database, OAuth-secret, session or storage credential is supplied to CI.
+The root-only recipient private key is generated and retained on Gallery,
+outside releases. The generated payload contains private Next server metadata;
+therefore Actions publishes only authenticated CMS ciphertext, a non-secret
+digest manifest and SBOMs, never the plaintext archive. Encryption uses
+AES256-GCM and RSA-OAEP-SHA256 with a3072-bit-or-larger recipient. It is not TLS.
+
+PR artifacts are test candidates. Protected main separately signs the four
+published subjects through GitHub provenance. Before production extraction,
+verify both ciphertext and `release.json`, not merely a downloaded checksum:
+
+```bash
+gh attestation verify gallery-linux-x64.tar.gz.cms \
+  --repo AIPowerGrid/aipg-art-gallery \
+  --signer-workflow AIPowerGrid/aipg-art-gallery/.github/workflows/ci.yml \
+  --source-ref refs/heads/main --source-digest "$reviewed_commit" \
+  --deny-self-hosted-runners
+gh attestation verify release.json \
+  --repo AIPowerGrid/aipg-art-gallery \
+  --signer-workflow AIPowerGrid/aipg-art-gallery/.github/workflows/ci.yml \
+  --source-ref refs/heads/main --source-digest "$reviewed_commit" \
+  --deny-self-hosted-runners
+```
+
+Also verify that every exact-main required check, including CodeQL, passed.
+Read back the source commit/platform/cipher, ciphertext byte count/SHA256,
+SBOM digests and recipient-certificate fingerprint from the attested manifest.
+Copy only that ciphertext into a root-only temporary directory on Gallery.
+Decrypt there using the matched local recipient key/certificate; do not copy
+the private key to a workstation or CI. Verify plaintext archive size/SHA256
+against the attested manifest before calling the current reviewed verifier.
+
+```bash
+openssl cms -decrypt -binary -inform DER -in "$ciphertext" \
+  -recip "$recipient_certificate" -inkey "$recipient_private_key" \
+  -out "$private_archive"
+python3 deploy/release_bundle.py verify --archive "$private_archive" \
+  --commit "$reviewed_commit"
+python3 deploy/release_bundle.py extract --archive "$private_archive" \
+  --commit "$reviewed_commit" --destination "$fresh_staging_directory"
+```
+
+The verifier checks complete file commitments before writing, rejects unsafe
+archive/link forms, refuses an existing destination and preserves1GiB of free
+headroom beyond the unpacked release. It does not rename/select the stage or
+restart services. Preserve failed stages for reconciliation. Complete ordinary
+restored-backup/race, local executable/runtime, environment/source and drained
+activation checks next. Once video receipts exist, use a video-aware patched
+rollback with admission disabled and GET recovery intact; do not select the
+old broker or drop metadata. No pilot deadline, charging or tariff changes are
+implied by downloading or building a bundle.
+
 ## Durable video pilot (candidate, not activated)
 
 Keep `GALLERY_DURABLE_VIDEO_ENABLED=false` until native worker/storage and real

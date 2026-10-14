@@ -30,6 +30,9 @@ jobs to the grid and serves gallery/media.
 - **`scripts/`** — one-off Node/Python ops + data-import + Supabase-setup scripts. Owned in
   its own AGENTS.md.
 - **`deploy/`** — pinned-release LXC deployment assets and runbook.
+  CI now prepares an encrypted, manifest/SBOM-bound Linux x64 runtime bundle
+  for low-headroom hosts. Main-only provenance and local verification precede
+  extraction; packaging is not activation or paid browser proof. Read its DOX.
 - **`tests/e2e/`** — production-build browser coverage. Owned in `tests/AGENTS.md`.
 - **`supabase/schema.sql`**, **`config/styles.json`**, **`data/gallery.json`** — DB schema,
   prompt-style presets, seed/file-store gallery data.

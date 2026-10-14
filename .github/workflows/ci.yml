@@ -26,7 +26,9 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test -- --runInBand
+      - run: node --test scripts/check-build-privacy.test.mjs
       - run: npm run build
+      - run: node scripts/check-build-privacy.mjs
       - run: npm audit --omit=dev --audit-level=high
       - run: npm ci --omit=dev
       - run: npm ls --omit=dev
@@ -121,3 +123,116 @@ jobs:
           "$RUNNER_TEMP/gitleaks" version
       - name: Scan the complete Git history for secrets
         run: "$RUNNER_TEMP/gitleaks git --redact --no-banner --log-opts='--all'"
+
+  release-bundle:
+    name: Verified release bundle
+    needs: [frontend, backend, browser, security]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      GALLERY_PUBLIC_BUILD_ENV_JSON: ${{ vars.GALLERY_PUBLIC_BUILD_ENV_JSON }}
+      GALLERY_RELEASE_RECIPIENT_CERT: ${{ vars.GALLERY_RELEASE_RECIPIENT_CERT }}
+      GALLERY_CMS_TEST: "1"
+      NEXT_TELEMETRY_DISABLED: "1"
+      GOTOOLCHAIN: auto
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Require archive and real authenticated-encryption controls
+        run: python3 -m unittest discover -s deploy -p test_release_bundle.py -v
+      - name: Load validated public-only production build settings
+        run: python3 deploy/release_bundle.py env
+      - run: npm ci
+      - run: npm run build
+      - run: node --test scripts/check-build-privacy.test.mjs
+      - run: node scripts/check-build-privacy.mjs
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm ci --omit=dev
+      - run: npm ls --omit=dev
+      - name: Verify the actual pruned frontend starts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./node_modules/.bin/next start -p 3893 -H 127.0.0.1 > "$RUNNER_TEMP/pruned-next.log" 2>&1 &
+          child=$!
+          trap 'kill "$child" 2>/dev/null || true; wait "$child" 2>/dev/null || true' EXIT
+          ready=0
+          for attempt in $(seq 1 60); do
+            kill -0 "$child"
+            if curl -fsS http://127.0.0.1:3893/create/director >/dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          test "$ready" = 1
+          curl -fsS http://127.0.0.1:3893/create >/dev/null
+      - name: Build and scan the exact deployable backend
+        working-directory: server
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod=readonly -trimpath -ldflags="-w" -o "$RUNNER_TEMP/gallery-server" ./cmd/api
+          go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 -mode=binary "$RUNNER_TEMP/gallery-server"
+      - name: Inventory the pruned frontend and compiled backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm sbom --sbom-format=cyclonedx --omit=dev > "$RUNNER_TEMP/frontend.cdx.json"
+          go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 bin -json -output "$RUNNER_TEMP/backend.cdx.json" "$RUNNER_TEMP/gallery-server"
+      - name: Bind and encrypt the complete release without application secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          certificate = os.environ["GALLERY_RELEASE_RECIPIENT_CERT"]
+          if "PRIVATE KEY" in certificate or not certificate.startswith("-----BEGIN CERTIFICATE-----"):
+              raise SystemExit("Expected public recipient certificate only")
+          Path(os.environ["RUNNER_TEMP"], "gallery-recipient.pem").write_text(certificate)
+          PY
+          commit="$(git rev-parse HEAD)"
+          python3 deploy/release_bundle.py build --commit "$commit" \
+            --output "$RUNNER_TEMP/gallery-publish" --server "$RUNNER_TEMP/gallery-server" \
+            --frontend-bom "$RUNNER_TEMP/frontend.cdx.json" --backend-bom "$RUNNER_TEMP/backend.cdx.json" \
+            --cert "$RUNNER_TEMP/gallery-recipient.pem"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gallery-linux-x64-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/gallery-publish/*
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  release-provenance:
+    name: Main release provenance
+    needs: [release-bundle]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: gallery-linux-x64-${{ github.sha }}
+          path: release
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        id: provenance
+        with:
+          subject-path: release/*
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gallery-provenance-${{ github.sha }}
+          path: ${{ steps.provenance.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 7
