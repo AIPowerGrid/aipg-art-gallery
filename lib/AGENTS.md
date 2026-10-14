@@ -7,8 +7,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 
 ## Ownership
 
-- `api.ts` — the single typed client for the Go API, including image/video job
-  submission and the canonical Core-backed credit quote. Sends the session cookie via
+- `api.ts` owns the single typed client for the Go API, including image/video job
+  submission, the separate durable-video broker, and the canonical Core-backed credit quote. Sends the session cookie via
   `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
 - `auth.ts` — wallet sign-in (calls the Go `/api/auth/wallet/*` Core broker), session helpers, and the
   non-sensitive session markers (address + canonical account ID + expiry). Exposes `signIn`, awaited `signOut` (→ Go
@@ -88,6 +88,17 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   admission rejections discard the request handle; transport, gateway, missing,
   ambiguous and malformed responses preserve it. Recovery errors back off for
   30 seconds, and neither those nor repeated status failures mean a refund.
+- A `DurableVideoSubmission` uses that same handle/polling lifecycle but calls
+  `POST /videos/jobs` once, never the legacy timeline route or model fallback.
+  A positive safe-integer ceiling is required before saving the handle. Only
+  canonical Gallery UUIDv4 plus queued status hands it off to job polling;
+  malformed success, reply loss and gateway errors retain request recovery.
+  Opening/timed images and reference audio/video remain ephemeral request data,
+  never copied into the pending-request journal. Recheck the active account
+  after the preparation callback and before dispatch. Core and Go remain the
+  source-validation, admission and billing authorities. The typed BF16 client
+  prepares Director integration; no component selects it yet, and exact-frame
+  quote/UI/audio preparation and funded acceptance remain rollout gates.
 - Pending requests and active jobs do not expire under the 24-hour completed
   history cleanup. The Jobs menu displays unresolved requests. Director retains
   separate `startImageRequestId` and video `requestId`; a recovered ID can only

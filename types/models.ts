@@ -126,6 +126,34 @@ export interface CreateJobRequest {
   }>;
 }
 
+/** Reviewed credit-backed video input; graphs and credentials stay server-side. */
+export interface DurableVideoRequest {
+  model: "LTX-2.5 Distilled BF16";
+  prompt: string;
+  n: 1;
+  size?: string;
+  frames: number;
+  fps: 24;
+  audio: boolean;
+  max_cost_micro_usd: number;
+  seed?: number;
+  image?: string;
+  keyframes?: Array<{ image: string; frame: number; strength: number }>;
+  reference_audio?: string;
+  reference_video?: string;
+  negative_prompt?: string;
+  steps?: number;
+  cfg_scale?: number;
+  guide_strength?: number;
+  reference_strength?: number;
+  worker?: string;
+  style?: string;
+}
+
+export interface DurableVideoSubmission {
+  video: DurableVideoRequest;
+}
+
 /** One curated style from GET /api/styles/grid (grid-served creative presets). */
 export interface GridStyle {
   id: string;

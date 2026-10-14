@@ -7,10 +7,10 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  ApiError, createJob, fetchJobByRequest, fetchJobStatus,
+  ApiError, createJob, createDurableVideoJob, fetchJobByRequest, fetchJobStatus,
   updateGalleryItem, addToGallery,
 } from "@/lib/api";
-import { CreateJobRequest, JobStatus } from "@/types/models";
+import { CreateJobRequest, DurableVideoSubmission, JobStatus } from "@/types/models";
 
 export interface TrackedJob {
   jobId: string;
@@ -58,7 +58,7 @@ interface JobStore {
 
   // Actions
   submitJob: (
-    payload: CreateJobRequest,
+    payload: CreateJobRequest | DurableVideoSubmission,
     owner: string | undefined,
     prepared?: (requestId: string) => void,
   ) => Promise<{ jobId: string; status: string }>;
@@ -96,11 +96,19 @@ export const useJobStore = create<JobStore>()(
       pollIntervalId: null,
 
       submitJob: async (payload, owner, prepared) => {
+        const durable = "video" in payload;
+        const modelId = durable ? payload.video.model : payload.modelId;
+        const prompt = durable ? payload.video.prompt : payload.prompt;
+        const negativePrompt = durable ? payload.video.negative_prompt : payload.negativePrompt;
+        const size = durable ? payload.video.size?.match(/^(\d+)x(\d+)$/) : undefined;
+        if (durable && (!Number.isSafeInteger(payload.video.max_cost_micro_usd) || payload.video.max_cost_micro_usd <= 0)) {
+          throw new Error("A positive video cost ceiling is required. No generation was submitted.");
+        }
         const normalized = owner?.trim().toLowerCase();
         if (!normalized || get().activeOwner !== normalized) {
           throw new Error("Your account session changed. Sign in again before generating.");
         }
-        if (get().requests.some((request) => request.owner === normalized && request.job.modelId === payload.modelId && request.job.prompt === payload.prompt)) {
+        if (get().requests.some((request) => request.owner === normalized && request.job.modelId === modelId && request.job.prompt === prompt)) {
           throw new Error(UNKNOWN_SUBMISSION);
         }
         if (get().requests.length >= 20) {
@@ -110,12 +118,13 @@ export const useJobStore = create<JobStore>()(
         const request: PendingSubmission = {
           requestId, owner: normalized,
           job: {
-            requestId, modelId: payload.modelId, modelName: payload.modelId,
-            prompt: payload.prompt, negativePrompt: payload.negativePrompt,
-            type: payload.mediaType === "video" ? "video" : "image",
-            isNsfw: !!payload.nsfw, isPublic: false, walletAddress: normalized,
-            width: payload.params.width, height: payload.params.height,
-            expectedGenerations: payload.params.n || 1, submittedAt: Date.now(),
+            requestId, modelId, modelName: modelId,
+            prompt, negativePrompt,
+            type: durable || payload.mediaType === "video" ? "video" : "image",
+            isNsfw: durable ? false : !!payload.nsfw, isPublic: false, walletAddress: normalized,
+            width: durable ? (size ? Number(size[1]) : undefined) : payload.params.width,
+            height: durable ? (size ? Number(size[2]) : undefined) : payload.params.height,
+            expectedGenerations: durable ? 1 : payload.params.n || 1, submittedAt: Date.now(),
           },
         };
         // Confirm the recovery handle reached durable browser storage BEFORE POST.
@@ -126,6 +135,9 @@ export const useJobStore = create<JobStore>()(
             throw new Error("Recovery handle was not saved");
           }
           prepared?.(requestId);
+          if (get().activeOwner !== normalized) {
+            throw new Error("Account changed before submission");
+          }
         } catch {
           // No POST has happened, so dropping this local-only attempt is safe.
           try {
@@ -138,8 +150,15 @@ export const useJobStore = create<JobStore>()(
         submitting.add(requestId);
         get().startPolling();
         try {
-          const response = await createJob({ ...payload, requestId });
-          if (!response.jobId) throw new Error("Missing generation receipt");
+          const response = durable
+            ? await createDurableVideoJob(requestId, payload.video)
+            : await createJob({ ...payload, requestId });
+          if (typeof response?.jobId !== "string" || !response.jobId.trim()) {
+            throw new Error("Missing generation receipt");
+          }
+          if (durable && (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(response.jobId) || response.status !== "queued")) {
+            throw new Error("Invalid video acceptance receipt");
+          }
           get().resolveRequest(request, response.jobId);
           return response;
         } catch (error) {

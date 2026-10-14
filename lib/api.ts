@@ -1,6 +1,7 @@
 import { StylesConfig } from "@/lib/types/create";
 import {
   CreateJobRequest,
+  DurableVideoRequest,
   GalleryModel,
   GridStyle,
   JobStatus,
@@ -66,6 +67,15 @@ export function createJob(payload: CreateJobRequest) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+  });
+}
+
+/** One POST only. The shared job store owns the saved recovery handle. */
+export function createDurableVideoJob(requestId: string, video: DurableVideoRequest) {
+  return jsonFetch<{ jobId: string; status: string }>("/videos/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId, video }),
   });
 }
 
