@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The backend (chi router, Go 1.25 toolchain pinned in go.mod). The only component that talks to the grid, the on-chain
+The backend (chi router, Go 1.26.9 minimum pinned in go.mod). The only component that talks to the grid, the on-chain
 vaults, Cloudflare R2, and Postgres. Brokers image, video, and 3D generation jobs,
 serves the gallery + media, validates auth sessions, runs Google One Tap sign-in, and proxies prompt enhancement.
 Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app/app.go`.
@@ -22,6 +22,20 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 ## Local Contracts
 
+- Require Go 1.26.9 and x/net 0.60.0 or newer for the October 2026 HTTP/2
+  and standard-library security patches. Docker's builder is digest-pinned,
+  and CI/CodeQL read the module's exact Go version. Both source and compiled-
+  binary scans use govulncheck 1.9.0; advisory data remains live. Do not count
+  non-reachable module findings as fixed or infer exploitability from symbols
+  alone. Pass restored-data/race and deployment gates before replacing prod.
+- Container builds retain Go function symbols (`-w`, not `-s -w`) for the
+  compiled-binary scan. Stripping the symbol table forces govulncheck to
+  module-level precision and can report unused packages as wildcard findings.
+  Keep `-trimpath` and the non-root runtime; never suppress advisory IDs to
+  compensate for missing inspection metadata.
+  CI additionally builds the actual Linux/amd64 container, verifies its
+  non-root user and scans the extracted executable rather than inferring
+  container clearance from a differently linked native build.
 - Keep the transitive gRPC dependency at least v1.83.2 for GO-2026-6348 and
   GO-2026-6443. The latter requires xDS server routing, which Gallery does not
   configure, but its affected transport symbol survives in the linked binary.
@@ -80,6 +94,54 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   and poll contract onto the synchronous grid call. The server holds the grid key, the
     client never does. Config paths are CWD-relative (`config/styles.json`,
     `./config/model_presets.json`) — run the server from the repo root.
+- `POST /api/videos/jobs` is a separate default-off durable LTX-2.5 broker.
+  `GALLERY_DURABLE_VIDEO_ENABLED=false` is the rollout default; enabling it
+  requires PostgreSQL and a configured bridge at startup. The pilot also
+  requires 1..10 distinct canonical Core account IDs and a fixed RFC3339 expiry
+  no more than 24 hours ahead. Configure these only through
+  `GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` and
+  `GALLERY_DURABLE_VIDEO_PILOT_UNTIL` in the private environment, matching Core's
+  reviewed cohort and not outliving its deadline. Invalid enabled configs
+  refuse startup; expired valid configs may restart for GET recovery. Every new
+  quote/job rechecks canonical account/deadline. Existing owner-bound request
+  replay precedes fresh admission. Never regenerate a deadline to recover
+  uncertain work. The authenticated
+  body contains `requestId` (saved UUIDv4) plus `video` (Core's typed request,
+  including exact frames and a positive `max_cost_micro_usd`). Only the
+  exact Distilled BF16/NVFP4 identities are admitted, with BF16 as the omitted
+  model default. No precision relabeling or old-model fallback occurs. Core still owns cohort, recipe,
+  worker, atomic reservation and source admission. The legacy `/api/jobs`
+  path is unchanged; no frontend selects the new path yet.
+  Owner/family replay precedes quoting. A live exact-frame, model, account and
+  cost-ceiling quote is required, then the journal commits its independently
+  computed intent and Core UUIDv4 key before one generation POST. HTTP errors
+  remain recoverable, not proof of no charge. No background resubmission occurs;
+  a crash before dispatch can remain unknown and needs operator resolution.
+  `GET /api/videos/jobs/{id}` and `/api/videos/requests/{requestID}` retain
+  authenticated GET-only recovery even with admission disabled. `videoReceipt`
+  exposes the owner's validated Core receipt, never the service/user token or
+  input media. Source-domain/storage qualification, upload-proxy limits, real
+  funded pilot and frontend selection remain activation gates.
+  Once video journal rows exist, rollback means disabling admission on a
+  video-aware binary, keeping GET recovery. A legacy broker binary ignores the
+  new metadata and may overwrite it during status polling; do not use one as
+  the post-activation rollback target. Retain all rows and qualify the exact
+  video-aware rollback/config path before consumer activation.
+- `POST /api/videos/quote` shares the default-off video switch and authenticated
+  ownership proof. Its bounded body accepts only the exact model, frames
+  (9..337, 8n+1) and 24fps; it sends exact frames, never rounded seconds, to
+  Core. Account/model/modality/frame/fps and positive live-price commitments
+  must match. A valid insufficient-balance quote remains a 200 estimate for
+  funding UX, while generation still requires sufficient balance and its
+  ceiling. The quote route writes no job journal and submits no generation.
+  Browser preparation/quote helpers are present but no component selects
+  them yet; native funded acceptance still gates consumer activation.
+- Authenticated `GET /api/videos/capabilities` is no-store and shows only
+  exact online BF16/NVFP4 names/counts to an active pilot account. Outside,
+  expired or disabled cohorts receive a closed empty view. No account list,
+  token, private storage URL or raw upstream failure is exposed. Counts are
+  operational inventory, not GPU/model-fidelity qualification or billing
+  authority. Core's final admission and atomic hold remain mandatory.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server

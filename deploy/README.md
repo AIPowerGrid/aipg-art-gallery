@@ -1,5 +1,96 @@
 # aipg.art production release
 
+## CI-built release bundle (candidate)
+
+The new `Verified release bundle` job follows the frontend/backend/browser/
+history gates. It compiles on Linux x64/Ubuntu22.04, honors Node22 and Go1.26.9,
+tests the pruned `next start`, scans the actual backend executable and generates
+CycloneDX inventories from installed frontend dependencies and the compiled
+backend. `release_bundle.py` binds committed source, the source tree, toolchain,
+public build profile and every runtime file. Build caches and live environment
+files are excluded. The existing `next start` layout is preserved.
+The frontend inventory uses the separately locked official CycloneDX npm6.0.1
+generator against the actual pruned install, without ignoring npm errors or
+substituting a lock-only inventory. This avoids npm's built-in SBOM checker
+rejecting intentionally absent root development dependencies. Tool dependencies
+are outside the shipped production node_modules.
+CI also compiles each backend test package into a same-source standalone race
+control, committed by `qualification/index.json` and the bundle's file hashes.
+Use those controls with their recorded package working directories, a sanitized
+environment and a disposable restored PostgreSQL database. This avoids adding
+compiler/toolchain caches on the live LXC. Never supply the live DSN or inherit
+Grid/storage/session credentials. Runtime SBOMs cover the production Node/Go
+dependencies, not these diagnostic programs or the host OS.
+
+Configure only `GALLERY_PUBLIC_BUILD_ENV_JSON` (validated public Google client
+ID, WalletConnect project ID, relative `/api`, Base8453 and optional public
+ModelVault addresses) and `GALLERY_RELEASE_RECIPIENT_CERT` in repository variables.
+No Grid, database, OAuth-secret, session or storage credential is supplied to CI.
+The root-only recipient private key is generated and retained on Gallery,
+outside releases. The generated payload contains private Next server metadata;
+therefore Actions publishes only authenticated CMS ciphertext, a non-secret
+digest manifest and SBOMs, never the plaintext archive. Encryption uses
+AES256-GCM and RSA-OAEP-SHA256 with a3072-bit-or-larger recipient. It is not TLS.
+
+PR artifacts are test candidates. Protected main separately signs the four
+published subjects through GitHub provenance. Before production extraction,
+verify both ciphertext and `release.json`, not merely a downloaded checksum:
+
+```bash
+gh attestation verify gallery-linux-x64.tar.gz.cms \
+  --repo AIPowerGrid/aipg-art-gallery \
+  --signer-workflow AIPowerGrid/aipg-art-gallery/.github/workflows/ci.yml \
+  --source-ref refs/heads/main --source-digest "$reviewed_commit" \
+  --deny-self-hosted-runners
+gh attestation verify release.json \
+  --repo AIPowerGrid/aipg-art-gallery \
+  --signer-workflow AIPowerGrid/aipg-art-gallery/.github/workflows/ci.yml \
+  --source-ref refs/heads/main --source-digest "$reviewed_commit" \
+  --deny-self-hosted-runners
+```
+
+Also verify that every exact-main required check, including CodeQL, passed.
+Read back the source commit/platform/cipher, ciphertext byte count/SHA256,
+SBOM digests and recipient-certificate fingerprint from the attested manifest.
+Copy only that ciphertext into a root-only temporary directory on Gallery.
+Decrypt there using the matched local recipient key/certificate; do not copy
+the private key to a workstation or CI. Verify plaintext archive size/SHA256
+against the attested manifest before calling the current reviewed verifier.
+
+```bash
+openssl cms -decrypt -binary -inform DER -in "$ciphertext" \
+  -recip "$recipient_certificate" -inkey "$recipient_private_key" \
+  -out "$private_archive"
+python3 deploy/release_bundle.py verify --archive "$private_archive" \
+  --commit "$reviewed_commit"
+python3 deploy/release_bundle.py extract --archive "$private_archive" \
+  --commit "$reviewed_commit" --destination "$fresh_staging_directory"
+```
+
+The verifier checks complete file commitments before writing, rejects unsafe
+archive/link forms, refuses an existing destination and preserves1GiB of free
+headroom beyond the unpacked release. It does not rename/select the stage or
+restart services. Preserve failed stages for reconciliation. Complete ordinary
+restored-backup/race, local executable/runtime, environment/source and drained
+activation checks next. Once video receipts exist, use a video-aware patched
+rollback with admission disabled and GET recovery intact; do not select the
+old broker or drop metadata. No pilot deadline, charging or tariff changes are
+implied by downloading or building a bundle.
+
+## Durable video pilot (candidate, not activated)
+
+Keep `GALLERY_DURABLE_VIDEO_ENABLED=false` until native worker/storage and real
+funded acceptance are reviewed. Activation requires private
+`GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` (1..10 canonical Core IDs) and
+`GALLERY_DURABLE_VIDEO_PILOT_UNTIL` (fixed RFC3339 deadline at most 24h ahead).
+Match Core's reviewed cohort and do not outlive its expiry. Never publish live
+IDs or renew a deadline solely for recovery. New quotes/jobs close on expiry;
+GET recovery and existing request identity remain available. Validate disabled,
+outside-account, expiry and unchanged-deadline restart against a restored
+scratch database before selecting the video-aware release. Capability discovery
+is authenticated/no-store and reveals no cohort list or credentials. These
+candidate controls are not proof of consumer activation or paid GPU output.
+
 Production runs two services behind Nginx from one commit-pinned checkout:
 
 - `aipg-gallery-web.service` - Next.js on `127.0.0.1:3000`
@@ -8,8 +99,38 @@ Production runs two services behind Nginx from one commit-pinned checkout:
 The release host must run the Node 22 LTS line used by `.nvmrc`, Docker, and
 CI. Do not build production with a different Node major; wallet packages may
 raise their minimum runtime without failing an older npm install.
-Backend builds use the Go 1.25 toolchain declared in `server/go.mod`; keep
+Backend builds require Go 1.26.9 as declared in `server/go.mod`; keep
 `GOTOOLCHAIN=auto` enabled so the pinned patch release is selected.
+
+## October 2026 backend patch gate
+
+The candidate requires Go 1.26.9 and x/net 0.60.0. The prior Go 1.25.13 /
+x/net 0.58.0 build now fails the refreshed source and compiled-binary advisory
+checks, including [GO-2026-6610](https://pkg.go.dev/vuln/GO-2026-6610) and
+[GO-2026-6617](https://pkg.go.dev/vuln/GO-2026-6617). Affected symbols are not
+proof of every advisory's runtime exposure. The September scan results below
+remain historical evidence, not current clearance.
+
+This source update does not record an activation. Require exact-source CI,
+both vulnerability scans, restored-backup/race tests, drained activation and
+executable verification before deploying. Any rollback build must retain the
+Go/x/net patches as well as gRPC 1.83.2. No charging, model or admission change
+is authorized by this dependency patch.
+
+## October 2026 frontend patch gate
+
+The candidate keeps the existing Next minor and wallet framework, pairing
+Next/ESLint 16.3.8 with sharp 0.35.5, Axios 1.20.0 and source-map-js 1.2.2.
+The Tailwind animation plugin is build-only and moves to devDependencies so
+its tooling peers do not survive the production prune. Always build before
+`npm ci --omit=dev`, then verify the actual pruned server with `next start`.
+No audit suppression or forced wallet/framework upgrade is permitted.
+
+Fresh production audit, unit/lint/build and desktop/mobile browser checks
+are required. Package findings alone do not establish runtime exploitability:
+both OG routes select Edge, which the Node-only ImageResponse RCE advisory
+excludes. This source contract does not record a production activation or
+clear unpatched Go dependencies; qualify the backend security patch separately.
 
 ## Compiled-backend hardening (2026-09-28, 22:55 UTC)
 

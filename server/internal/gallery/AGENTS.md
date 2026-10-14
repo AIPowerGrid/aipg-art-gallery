@@ -18,6 +18,11 @@ the PostgreSQL schema lifecycle. `postgres_store.go` is the production backend;
   The owner/request ID unique key elects one submission; conditional terminal
   writes prevent late failures from replacing completion. No credentials,
   prompt bodies, or uploaded timelines are stored. RLS has no anonymous policy.
+  Durable video uses the existing bounded JSON payload for its Core key and
+  receipt; no migration or second scheduler is introduced. `CompareAndUpdate`
+  conditionally replaces only a matching nonterminal payload so cross-process
+  receipt observers must reload after a race. Indexed owner/request authority
+  and terminal immutability remain mandatory.
 - Pending journal family reads accept only aliases proved by Core at the app
   boundary. They retain the original owner, cap request matches to two, and
   return `ErrAmbiguousRequest` rather than choosing between merged owners.

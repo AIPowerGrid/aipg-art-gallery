@@ -23,6 +23,13 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   Coach marks stop after the project has a completed segment.
 - Director billing UI shows only Core-owned balances and quotes, links `402`
   recovery to Console funding, and copies only server-observed Core receipt IDs.
+- `create/director/durable-clip-console.tsx` presents the private LTX-2.5 clip
+  workflow beside, not in place of, the existing timeline. Tabs reserve a fixed
+  top band so neither full-screen view covers navigation. Model/geometry/frame
+  controls, explicit optional opening image, maximum quoted charge and native
+  playback/seeking consume the dedicated hook. Owner-scoped jobs/recovery keep
+  the clip view available after pilot closure; closure never implies a refund.
+  Reference audio/video preparation remains outside this browser form.
 - The Jobs menu includes account-scoped unresolved submissions as checking the
   original request, not failed/refunded work. Director source-image replacement
   clears both job and request associations so a late result cannot replace an

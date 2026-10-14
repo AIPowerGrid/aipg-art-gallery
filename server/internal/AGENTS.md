@@ -50,6 +50,42 @@ package owns one concern; `app/app.go` wires them together.
   syntax, unique aliases and the 128-member bound are mandatory. No secrets or
   upstream error bodies appear in public failures.
 
+- `aipg/video_jobs.go` supplies the default-off durable Core video broker.
+  It requires a delegated user token, positive
+  ceiling and saved UUIDv4 request key before its single POST. `video_intent.go`
+  computes Core's normalized request digest, including omitted-size semantics,
+  Python-compatible Unicode/float spelling and decoded source-byte hashes.
+  Submission recomputes and checks the saved digest before any HTTP request.
+  The POST body disables Go Transport replay despite its Idempotency-Key;
+  reused-connection reply-loss tests and a failing negative control prove this.
+  Recovery uses only GET by job ID or the saved
+  key and verifies that digest. No redirects, upstream-body disclosure or
+  automatic submission retries. Receipt validation binds exact charges and
+  terminal outputs; missing recovery is unknown, not permission to rerender or
+  proof of refund. The broker must persist the intent before transport and
+  validate every replay against its prior receipt before this client is used.
+  Credit quote requests carry exact frames without rounded seconds. Source
+  uploads/proxy limits, frontend selection and live paid acceptance remain
+  rollout gates. Existing synchronous generation is unchanged.
+
+- `app/video_broker.go` uses the existing PostgreSQL pending journal. It stores
+  only the Core key/model/ceiling/optional seed and validated receipts, never
+  source bodies or tokens. JSON compare-and-swap serializes cross-process
+  observation; terminal receipts and their economic identity cannot change.
+  Every recovery is by saved key with fresh delegated ownership. Missing/HTTP-
+  rejected outcomes stay uncertain until a terminal receipt arrives; closed
+  without result is not a refund claim. Real PostgreSQL concurrency and actual
+  separate-process crash tests use fixture upstreams, not native billing.
+  Its shared estimate validator also binds the default-off `/videos/quote`
+  read to the delegated owner, exact Distilled model, frame/fps and live price.
+  Quote reads may report insufficient funds but never create a job or weaken
+  the generation ceiling/balance check. BF16 and NVFP4 remain separate names.
+- `config/video_pilot.go` validates the private canonical-account cohort and
+  fixed absolute deadline. Disabled defaults admit nobody; expiry closes fresh
+  quotes/jobs without rewriting journal rows or disabling GET recovery. Invalid
+  enabled startup fails closed, while an expired valid config remains usable
+  for recovery. Configuration loading stays in `config/`, never the handlers.
+
 - **One concern per package; `app/` orchestrates.** Cross-package calls go through interfaces.
 - **Gallery writes go through `GalleryStore`** — new persistence ops are added to the interface
   and implemented in BOTH backends so degraded mode works.

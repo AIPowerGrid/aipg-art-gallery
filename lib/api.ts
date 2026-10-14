@@ -1,6 +1,7 @@
 import { StylesConfig } from "@/lib/types/create";
 import {
   CreateJobRequest,
+  DurableVideoRequest,
   GalleryModel,
   GridStyle,
   JobStatus,
@@ -69,6 +70,15 @@ export function createJob(payload: CreateJobRequest) {
   });
 }
 
+/** One POST only. The shared job store owns the saved recovery handle. */
+export function createDurableVideoJob(requestId: string, video: DurableVideoRequest) {
+  return jsonFetch<{ jobId: string; status: string }>("/videos/jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requestId, video }),
+  });
+}
+
 export function fetchJobStatus(jobId: string) {
   return jsonFetch<JobStatus>(`/jobs/${encodeURIComponent(jobId)}`, { cache: "no-store" });
 }
@@ -108,6 +118,8 @@ export interface GridCreditQuote extends GridCredits {
     shortfall_micro: number | null;
     n: number | null;
     seconds: number | null;
+    frames?: number | null;
+    fps?: number | null;
   };
 }
 
@@ -126,6 +138,28 @@ export function fetchCreditQuote(
     body: JSON.stringify(request),
     signal,
   });
+}
+
+export function fetchDurableVideoQuote(
+  request: Pick<DurableVideoRequest, "model" | "frames" | "fps">,
+  signal?: AbortSignal,
+): Promise<GridCreditQuote> {
+  return jsonFetch("/videos/quote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+    cache: "no-store",
+  });
+}
+
+export interface DurableVideoCapabilities {
+  enabled: boolean;
+  models: Array<{ id: DurableVideoRequest["model"]; onlineWorkers: number }>;
+}
+
+export function fetchDurableVideoCapabilities(): Promise<DurableVideoCapabilities> {
+  return jsonFetch("/videos/capabilities", { cache: "no-store" });
 }
 
 /** Curated creative styles from the grid (model→recipe→style layer). */

@@ -1,9 +1,9 @@
-# scripts — legacy setup, data-import, and maintenance scripts
+# scripts — build verification, setup, data-import, and maintenance
 
 ## Purpose
 
-One-off operational tooling: historical Supabase setup, gallery data import/migration,
-and gallery maintenance. Run by hand, not part of the app runtime.
+Build-time verification plus one-off historical Supabase setup, gallery data
+import/migration and gallery maintenance. None is an app runtime endpoint.
 
 ## Ownership
 
@@ -13,10 +13,14 @@ and gallery maintenance. Run by hand, not part of the app runtime.
 - Data import / migration: `import-piwigo.js`, `import-tarball.js`.
 - Maintenance: `shuffle-gallery.{js,sh}`, `fix-dimensions.js`, `update-model-name.js`,
   `verify-model-update.js`.
+- `check-build-privacy.mjs` and its Node test - inspect actual Next private
+  framework-key metadata, then check static and prerendered public outputs for
+  those exact values. Reject missing metadata, unexpected shapes, symlinks and
+  excessive sizes; never log key values. This is not a general secret scanner.
 
 ## Local Contracts
 
-- These are throwaway/admin scripts, not the source of truth. The production PostgreSQL schema
+- Setup/import/maintenance scripts are admin tooling, not the source of truth. The production PostgreSQL schema
   lives in `server/internal/gallery/migrations/` and is applied by the Go service at startup.
 - Do not use `npm run setup:supabase` for a production Gallery deployment.
 - Generation automation must use the authenticated Gallery/Core account flow.
@@ -34,7 +38,8 @@ and gallery maintenance. Run by hand, not part of the app runtime.
 
 ## Verification
 
-—
+- `node --test scripts/check-build-privacy.test.mjs`
+- After `npm run build`: `node scripts/check-build-privacy.mjs`
 
 ## Child DOX Index
 

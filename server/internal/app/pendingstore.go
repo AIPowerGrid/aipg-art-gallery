@@ -36,6 +36,7 @@ type pendingJob struct {
 	Grid            *aipg.GridMeta
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+	Video           *pendingVideo `json:",omitempty"`
 }
 
 var errRequestConflict = errors.New("request ID was already used with different generation settings")
@@ -102,10 +103,14 @@ func (s *pendingStore) findRequest(ctx context.Context, owner, requestID, digest
 }
 
 func (s *pendingStore) create(ctx context.Context, requestID, digest, kind, owner string, outputs int) (string, bool, error) {
+	return s.createWithVideo(ctx, requestID, digest, kind, owner, outputs, nil)
+}
+
+func (s *pendingStore) createWithVideo(ctx context.Context, requestID, digest, kind, owner string, outputs int, video *pendingVideo) (string, bool, error) {
 	id := newJobID()
 	now := time.Now()
 	job := pendingJob{Status: "processing", Kind: kind, Owner: owner,
-		ExpectedOutputs: outputs, RequestID: requestID, RequestHash: digest, CreatedAt: now, UpdatedAt: now}
+		ExpectedOutputs: outputs, RequestID: requestID, RequestHash: digest, CreatedAt: now, UpdatedAt: now, Video: video}
 	if s.journal != nil {
 		data, err := json.Marshal(job)
 		if err != nil {

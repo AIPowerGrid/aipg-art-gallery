@@ -86,3 +86,16 @@ func (s *PendingJobStore) Update(ctx context.Context, id, owner, status string, 
         WHERE job_id=$1 AND owner=$2 AND status IN ('processing','uncertain')`, id, owner, status, []byte(payload))
 	return err
 }
+
+// CompareAndUpdate serializes receipt observation across processes. Terminal
+// rows cannot change, and stale nonterminal observations must reload first.
+func (s *PendingJobStore) CompareAndUpdate(ctx context.Context, id, owner string, previous json.RawMessage, status string, payload json.RawMessage) (bool, error) {
+	result, err := s.db.ExecContext(ctx, `UPDATE gallery_pending_jobs SET status=$4, payload=$5, updated_at=now()
+        WHERE job_id=$1 AND owner=$2 AND payload=$3::jsonb AND status IN ('processing','uncertain')`,
+		id, owner, []byte(previous), status, []byte(payload))
+	if err != nil {
+		return false, err
+	}
+	count, err := result.RowsAffected()
+	return count == 1, err
+}
