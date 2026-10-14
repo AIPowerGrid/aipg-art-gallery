@@ -63,6 +63,69 @@ func TestDurableVideoQuoteRejectsBeforeUpstream(t *testing.T) {
 	}
 }
 
+func TestPublicVideoQuoteRejectsNVFP4BeforeUpstream(t *testing.T) {
+	var calls atomic.Int32
+	core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(500) }))
+	defer core.Close()
+	cfg := brokerPilotConfig("fixture-service")
+	cfg.DurableVideoAdmissionMode = "open"
+	cfg.DurableVideoPilotAccounts = nil
+	cfg.DurableVideoPilotUntil = ""
+	app := &App{cfg: cfg, client: aipg.NewClient(core.URL, "fixture")}
+	w := httptest.NewRecorder()
+	app.handleDurableVideoQuote(w, quoteRequest(`{"model":"LTX-2.5 Distilled NVFP4","frames":81,"fps":24}`))
+	if w.Code != 403 || calls.Load() != 0 {
+		t.Fatal("public NVFP4 quote reached upstream")
+	}
+}
+
+func TestPublicVideoQuoteStillRequiresPaidPriceAndAuthentication(t *testing.T) {
+	for _, failure := range []string{"preview", "unpriced", "zero"} {
+		t.Run(failure, func(t *testing.T) {
+			core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/auth/service/exchange":
+					writeJSON(w, 200, map[string]string{"access_token": "fixture-user", "account_id": brokerOwner})
+				case "/account/ownership":
+					writeJSON(w, 200, map[string]any{"account_id": brokerOwner, "account_aliases": []string{}})
+				case "/account/credits/quote":
+					q := validBrokerQuote()
+					frames := 81
+					q.Estimate.Frames = &frames
+					switch failure {
+					case "preview":
+						q.ChargingEnabled = false
+					case "unpriced":
+						q.Estimate.Priced = false
+					case "zero":
+						zero := int64(0)
+						q.Estimate.CostMicro = &zero
+					}
+					writeJSON(w, 200, q)
+				default:
+					t.Fatal("public quote unexpectedly reached generation")
+				}
+			}))
+			defer core.Close()
+			cfg := brokerPilotConfig("fixture-service")
+			cfg.DurableVideoAdmissionMode = "open"
+			cfg.DurableVideoPilotAccounts = nil
+			cfg.DurableVideoPilotUntil = ""
+			app := &App{cfg: cfg, client: aipg.NewClient(core.URL, "fixture")}
+			w := httptest.NewRecorder()
+			app.Router().ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/videos/quote", nil))
+			if w.Code != http.StatusUnauthorized {
+				t.Fatal("public mode bypassed authentication")
+			}
+			w = httptest.NewRecorder()
+			app.handleDurableVideoQuote(w, quoteRequest(`{"model":"LTX-2.5 Distilled BF16","frames":81,"fps":24}`))
+			if w.Code != http.StatusServiceUnavailable {
+				t.Fatal("public mode accepted preview, unpriced or zero-cost work")
+			}
+		})
+	}
+}
+
 func TestDurableVideoQuoteBoundToAccountModelAndFrames(t *testing.T) {
 	for _, model := range []string{durableVideoModel, "LTX-2.5 Distilled NVFP4"} {
 		for _, failure := range []string{"", "owner", "model", "frames", "fps", "modality", "unpriced", "preview", "zero", "missing-cost", "exchange"} {

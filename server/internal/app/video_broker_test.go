@@ -282,6 +282,50 @@ func waitBrokerDispatch(t *testing.T, app *App, id string) {
 	t.Fatal("broker POST did not finish")
 }
 
+func TestPublicVideoSubmissionPreservesSinglePaidDispatch(t *testing.T) {
+	f := newBrokerFixture(t, false)
+	f.app.cfg.DurableVideoAdmissionMode = "open"
+	f.app.cfg.DurableVideoPilotAccounts = nil
+	f.app.cfg.DurableVideoPilotUntil = ""
+	requestID := uuid.NewString()
+	status, id := postBrokerVideo(t, f.app, requestID, brokerVideoRequest())
+	if status != 202 || id == "" {
+		t.Fatal("public BF16 submission did not preserve the paid broker")
+	}
+	waitBrokerDispatch(t, f.app, id)
+	if status, replay := postBrokerVideo(t, f.app, requestID, brokerVideoRequest()); status != 202 || replay != id {
+		t.Fatal("public replay changed request identity")
+	}
+	if f.posts.Load() != 1 || f.quotes.Load() != 1 {
+		t.Fatal("public mode repeated dispatch or skipped the paid quote")
+	}
+}
+
+func TestPublicVideoRejectsNewNVFP4ButPreservesPilotReplay(t *testing.T) {
+	f := newBrokerFixture(t, false)
+	f.app.cfg.DurableVideoAdmissionMode = "open"
+	f.app.cfg.DurableVideoPilotAccounts = nil
+	f.app.cfg.DurableVideoPilotUntil = ""
+	video := brokerVideoRequest()
+	video.Model = "LTX-2.5 Distilled NVFP4"
+	requestID := uuid.NewString()
+	if status, _ := postBrokerVideo(t, f.app, requestID, video); status != 403 || f.quotes.Load() != 0 || f.posts.Load() != 0 {
+		t.Fatal("public NVFP4 request reached pricing or dispatch")
+	}
+	digest, err := aipg.VideoIntentHash(video)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, created, err := f.app.pending.createWithVideo(context.Background(), requestID, digest, "video", brokerOwner, 1,
+		&pendingVideo{Key: uuid.NewString(), Model: video.Model, MaxCost: video.MaxCostMicroUSD})
+	if err != nil || !created {
+		t.Fatal("could not seed the existing private pilot intent")
+	}
+	if status, replay := postBrokerVideo(t, f.app, requestID, video); status != 202 || replay != id || f.quotes.Load() != 0 || f.posts.Load() != 0 {
+		t.Fatal("public model restrictions damaged an existing NVFP4 intent")
+	}
+}
+
 func TestDurableVideoLostReplyRestartAndDisabledRecovery(t *testing.T) {
 	f := newBrokerFixture(t, true)
 	requestID := uuid.NewString()

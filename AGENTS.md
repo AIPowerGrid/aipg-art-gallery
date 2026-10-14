@@ -121,6 +121,13 @@ jobs to the grid and serves gallery/media.
   passed real purchased billing and browser/API restart recovery. This does
   not enable public video, NVFP4 Gallery use or x402. Gallery's private cohort
   is comma-separated, unlike Core's JSON array. See `deploy/README.md`.
+- Public-admission preparation adds explicit `GALLERY_DURABLE_VIDEO_ADMISSION_MODE`
+  (`pilot` default, `open` candidate). Open mode admits only canonical,
+  authenticated accounts through the unchanged positive paid-quote/hold
+  protocol and exposes BF16 only. Both pilot fields must be empty; retained
+  pilot restrictions must never be silently ignored. Source deployment does
+  not authorize a public switch. Core's public entry points, capacity and
+  independent admission configuration still require rollout review.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result
   recovery. See `server/AGENTS.md` and `deploy/README.md` for the ordered rollout

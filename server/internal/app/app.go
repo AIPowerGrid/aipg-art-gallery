@@ -1589,7 +1589,7 @@ func (a *App) handleDurableVideoCapabilities(w http.ResponseWriter, r *http.Requ
 	models := make([]map[string]any, 0, 2)
 	seen := make(map[string]bool)
 	for _, stat := range stats {
-		if isDurableVideoModel(stat.Name) && stat.Type == "video" && stat.ParseCount() > 0 && !seen[stat.Name] {
+		if a.cfg.AllowsDurableVideoModel(stat.Name) && stat.Type == "video" && stat.ParseCount() > 0 && !seen[stat.Name] {
 			seen[stat.Name] = true
 			models = append(models, map[string]any{"id": stat.Name, "onlineWorkers": stat.ParseCount()})
 		}
@@ -1609,6 +1609,10 @@ func (a *App) handleDurableVideoQuote(w http.ResponseWriter, r *http.Request) {
 	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF ||
 		!isDurableVideoModel(request.Model) || request.FPS != 24 || request.Frames < 9 || request.Frames > 337 || request.Frames%8 != 1 {
 		writeError(w, http.StatusBadRequest, errors.New("an exact-frame pilot video quote is required"))
+		return
+	}
+	if !a.cfg.AllowsDurableVideoModel(request.Model) {
+		writeError(w, http.StatusForbidden, errors.New("this video model is not enabled"))
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
@@ -1683,6 +1687,10 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if found {
 		writeJSON(w, http.StatusAccepted, map[string]any{"jobId": id, "status": "queued", "replayed": true})
+		return
+	}
+	if !a.cfg.AllowsDurableVideoModel(request.Video.Model) {
+		writeError(w, http.StatusForbidden, errors.New("this video model is not enabled"))
 		return
 	}
 	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {

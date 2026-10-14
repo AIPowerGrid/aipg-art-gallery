@@ -46,10 +46,68 @@ func TestVideoPilotValidationAndExpiry(t *testing.T) {
 
 func TestVideoPilotEnvironment(t *testing.T) {
 	t.Setenv("GALLERY_DURABLE_VIDEO_ENABLED", "true")
+	t.Setenv("GALLERY_DURABLE_VIDEO_ADMISSION_MODE", "pilot")
 	t.Setenv("GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS", " "+pilotOwner+" ")
 	t.Setenv("GALLERY_DURABLE_VIDEO_PILOT_UNTIL", "2026-10-14T01:00:00Z")
 	c := Load()
 	if len(c.DurableVideoPilotAccounts) != 1 || c.DurableVideoPilotAccounts[0] != pilotOwner || strings.TrimSpace(c.DurableVideoPilotUntil) != "2026-10-14T01:00:00Z" {
 		t.Fatal("pilot fields not loaded")
+	}
+}
+
+func TestOpenVideoAdmissionRequiresExplicitUnrestrictedConfig(t *testing.T) {
+	now := time.Now()
+	cfg := Config{DurableVideoEnabled: true, DurableVideoAdmissionMode: "open"}
+	if cfg.ValidateDurableVideoPilot(now) != nil || !cfg.AllowsDurableVideoAccount(pilotOwner, now) ||
+		!cfg.AllowsDurableVideoAccount("00000000-0000-4000-8000-000000000456", now) {
+		t.Fatal("explicit open admission rejected canonical accounts")
+	}
+	for _, owner := range []string{"", "not-an-account", "00000000-0000-0000-0000-000000000000", "{" + pilotOwner + "}"} {
+		if cfg.AllowsDurableVideoAccount(owner, now) {
+			t.Fatal("open mode admitted a noncanonical account")
+		}
+	}
+	for _, mutate := range []func(*Config){
+		func(c *Config) { c.DurableVideoPilotAccounts = []string{pilotOwner} },
+		func(c *Config) { c.DurableVideoPilotUntil = now.Add(-time.Hour).Format(time.RFC3339) },
+		func(c *Config) { c.DurableVideoAdmissionMode = "public" },
+		func(c *Config) { c.DurableVideoAdmissionMode = "pilot" },
+		func(c *Config) { c.DurableVideoAdmissionMode = "" },
+	} {
+		candidate := cfg
+		mutate(&candidate)
+		if candidate.ValidateDurableVideoPilot(now) == nil || candidate.AllowsDurableVideoAccount(pilotOwner, now) {
+			t.Fatal("invalid or implicit public admission accepted")
+		}
+	}
+	cfg.DurableVideoEnabled = false
+	if cfg.AllowsDurableVideoAccount(pilotOwner, now) {
+		t.Fatal("open mode bypassed emergency disable")
+	}
+}
+
+func TestPublicVideoModelsRemainBF16Only(t *testing.T) {
+	cfg := Config{DurableVideoEnabled: true, DurableVideoAdmissionMode: "open"}
+	if !cfg.AllowsDurableVideoModel("LTX-2.5 Distilled BF16") || cfg.AllowsDurableVideoModel("LTX-2.5 Distilled NVFP4") || cfg.AllowsDurableVideoModel("LTX-2.3") {
+		t.Fatal("public model scope widened")
+	}
+	cfg.DurableVideoAdmissionMode = "pilot"
+	if !cfg.AllowsDurableVideoModel("LTX-2.5 Distilled NVFP4") {
+		t.Fatal("explicit pilot model support changed")
+	}
+	cfg.DurableVideoEnabled = false
+	if cfg.AllowsDurableVideoModel("LTX-2.5 Distilled BF16") {
+		t.Fatal("disabled model admitted")
+	}
+}
+
+func TestVideoAdmissionModeEnvironment(t *testing.T) {
+	t.Setenv("GALLERY_DURABLE_VIDEO_ADMISSION_MODE", "")
+	if Load().DurableVideoAdmissionMode != "pilot" {
+		t.Fatal("public mode became the default")
+	}
+	t.Setenv("GALLERY_DURABLE_VIDEO_ADMISSION_MODE", "open")
+	if Load().DurableVideoAdmissionMode != "open" {
+		t.Fatal("explicit mode was not loaded")
 	}
 }

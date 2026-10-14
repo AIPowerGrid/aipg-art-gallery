@@ -64,8 +64,8 @@ export function buildDurableSegmentPayload(args: DurableSegmentArgs): DurableVid
     if (!Number.isSafeInteger(pin.frame) || pin.frame <= previous || pin.frame >= frames || !Number.isFinite(pin.strength) || pin.strength < 0 || pin.strength > 1) {
       throw new Error("Image guides must have distinct ordered frames and bounded strength.");
     }
-    if (!/^data:image\/(png|jpeg);base64,.+/.test(pin.image)) {
-      throw new Error("An inline PNG or JPEG image guide is required.");
+    if (!/^data:image\/(png|jpeg|webp);base64,.+/.test(pin.image)) {
+      throw new Error("An inline PNG, JPEG or WebP image guide is required.");
     }
     previous = pin.frame;
   }

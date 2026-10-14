@@ -105,7 +105,13 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   refuse startup; expired valid configs may restart for GET recovery. Every new
   quote/job rechecks canonical account/deadline. Existing owner-bound request
   replay precedes fresh admission. Never regenerate a deadline to recover
-  uncertain work. The authenticated
+  uncertain work. The candidate `GALLERY_DURABLE_VIDEO_ADMISSION_MODE=open`
+  is explicit, BF16-only and requires both pilot fields empty. Its default
+  remains `pilot`; unknown modes or retained pilot restrictions fail startup.
+  Public mode still requires a canonical authenticated account, the exact
+  positive paid quote and Core's atomic hold. Existing NVFP4 intent replay
+  precedes the new-model restriction, and GET recovery remains unchanged.
+  Code preparation does not authorize public activation. The authenticated
   body contains `requestId` (saved UUIDv4) plus `video` (Core's typed request,
   including exact frames and a positive `max_cost_micro_usd`). Only the
   exact Distilled BF16/NVFP4 identities are admitted, with BF16 as the omitted

@@ -50,7 +50,7 @@ export function DurableClipConsole(props: {
           <div className="text-xs text-white/60">24 fps · {Number.isFinite(clip.frames) ? (clip.frames / 24).toFixed(3) : "—"} s</div>
           <label className="flex cursor-pointer items-center gap-2 text-sm">
             <Upload size={16} aria-hidden="true" /> Opening image
-            <input aria-label="Opening image" className="min-w-0 flex-1 text-xs" type="file" accept="image/png,image/jpeg" disabled={clip.busy} onChange={(event) => { void clip.loadImage(event.target.files?.[0]); }} />
+            <input aria-label="Opening image" className="min-w-0 flex-1 text-xs" type="file" accept="image/png,image/jpeg,image/webp" disabled={clip.busy} onChange={(event) => { void clip.loadImage(event.target.files?.[0]); }} />
           </label>
           {clip.image && <div className="flex min-w-0 items-center gap-2">
             {/* Inline, ephemeral input is never sent through the image optimizer. */}

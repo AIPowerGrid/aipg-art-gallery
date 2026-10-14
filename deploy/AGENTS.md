@@ -92,6 +92,12 @@ Next.js web process and Go API process from one commit-pinned release.
   no later than Core's own pilot. Native paid acceptance remains required.
   Gallery takes comma-separated IDs, not Core's JSON array. Validate the
   actual format before restart; never extend the deadline for recovery.
+  The separately reviewed public candidate uses explicit
+  `GALLERY_DURABLE_VIDEO_ADMISSION_MODE=open`, with both pilot fields cleared.
+  It exposes BF16 only and preserves authenticated credit quotes/holds and
+  all existing receipt readers. Default mode remains `pilot`. Do not deploy
+  or open it solely because a build passes: review Core's other entry points,
+  capacity, public model scope and the actual public-admission approval first.
   Preserve the absolute deadline across restart; expired valid config keeps
   GET recovery. Malformed enabled config must fail startup. No live account
   IDs, credentials or source URLs belong in deployment documentation.

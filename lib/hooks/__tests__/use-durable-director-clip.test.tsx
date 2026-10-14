@@ -105,3 +105,29 @@ it("rejects an unsafe seed before saving a request", async () => {
   expect(createDurableVideoJob).not.toHaveBeenCalled();
   expect(useJobStore.getState().requests).toEqual([]);
 });
+
+it("submits a Studio WebP as an ephemeral opening image", async () => {
+  jest.useRealTimers();
+  const { result } = setup();
+  await act(async () => { await result.current.loadImage(new File(["fixture-image"], "studio.webp", { type: "image/webp" })); });
+  expect(result.current.image).toMatch(/^data:image\/webp;base64,/);
+  expect(result.current.imageName).toBe("studio.webp");
+  await act(async () => { await result.current.submit(); });
+  expect(createDurableVideoJob).toHaveBeenCalledTimes(1);
+  expect((createDurableVideoJob as jest.Mock).mock.calls[0][1]).toMatchObject({ keyframes: [{ frame: 0, strength: 1, image: expect.stringMatching(/^data:image\/webp;base64,/) }] });
+  expect(JSON.stringify(useJobStore.getState().requests)).not.toContain("data:image");
+  expect(JSON.stringify(useJobStore.getState().jobs)).not.toContain("data:image");
+});
+
+it("rejects unsupported, empty and oversized images without dispatch", async () => {
+  const { result } = setup();
+  const oversized = new File(["image"], "large.webp", { type: "image/webp" });
+  Object.defineProperty(oversized, "size", { value: 10 * 1024 * 1024 + 1 });
+  for (const file of [new File(["<svg/>"], "guide.svg", { type: "image/svg+xml" }), new File([], "empty.webp", { type: "image/webp" }), oversized]) {
+    await act(async () => { await result.current.loadImage(file); });
+    expect(result.current.image).toBeNull();
+    expect(result.current.imageLoading).toBe(false);
+    expect(result.current.error).toContain("10 MB");
+  }
+  expect(createDurableVideoJob).not.toHaveBeenCalled();
+});

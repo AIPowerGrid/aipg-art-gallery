@@ -29,6 +29,7 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   controls, explicit optional opening image, maximum quoted charge and native
   playback/seeking consume the dedicated hook. Owner-scoped jobs/recovery keep
   the clip view available after pilot closure; closure never implies a refund.
+  The opening-image picker accepts PNG, JPEG and Studio-generated WebP.
   Reference audio/video preparation remains outside this browser form.
 - The Jobs menu includes account-scoped unresolved submissions as checking the
   original request, not failed/refunded work. Director source-image replacement
