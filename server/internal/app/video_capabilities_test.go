@@ -14,11 +14,11 @@ import (
 )
 
 func TestVideoCapabilitiesAndQuoteRespectOwnerDeadline(t *testing.T) {
-	for _, mode := range []string{"allowed", "outside", "expired", "disabled", "upstream"} {
+	for _, mode := range []string{"allowed", "open", "outside", "expired", "disabled", "upstream"} {
 		t.Run(mode, func(t *testing.T) {
 			var statsCalls, quoteCalls atomic.Int32
 			owner := brokerOwner
-			if mode == "outside" {
+			if mode == "outside" || mode == "open" {
 				owner = brokerCoreID
 			}
 			core := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,15 +33,20 @@ func TestVideoCapabilitiesAndQuoteRespectOwnerDeadline(t *testing.T) {
 						http.Error(w, "private-operator-detail", 500)
 						return
 					}
+					nvCount := 0
+					if mode == "open" {
+						nvCount = 5
+					}
 					writeJSON(w, 200, []map[string]any{
 						{"name": durableVideoModel, "type": "video", "count": 2},
 						{"name": durableVideoModel, "type": "video", "count": 2},
-						{"name": "LTX-2.5 Distilled NVFP4", "type": "video", "count": 0},
+						{"name": "LTX-2.5 Distilled NVFP4", "type": "video", "count": nvCount},
 						{"name": "LTX-2.3", "type": "video", "count": 1},
 					})
 				case "/account/credits/quote":
 					quoteCalls.Add(1)
 					q := validBrokerQuote()
+					q.AccountID = owner
 					frames := 81
 					q.Estimate.Frames = &frames
 					writeJSON(w, 200, q)
@@ -52,6 +57,11 @@ func TestVideoCapabilitiesAndQuoteRespectOwnerDeadline(t *testing.T) {
 			}))
 			defer core.Close()
 			cfg := brokerPilotConfig("fixture-service")
+			if mode == "open" {
+				cfg.DurableVideoAdmissionMode = "open"
+				cfg.DurableVideoPilotAccounts = nil
+				cfg.DurableVideoPilotUntil = ""
+			}
 			if mode == "expired" {
 				cfg.DurableVideoPilotUntil = time.Now().Add(-time.Second).UTC().Format(time.RFC3339)
 			}
@@ -84,7 +94,7 @@ func TestVideoCapabilitiesAndQuoteRespectOwnerDeadline(t *testing.T) {
 			if strings.Contains(w.Body.String(), brokerOwner) || strings.Contains(w.Body.String(), "fixture-user") {
 				t.Fatal("private capability data exposed")
 			}
-			if mode == "allowed" {
+			if mode == "allowed" || mode == "open" {
 				if !result.Enabled || len(result.Models) != 1 || result.Models[0].ID != durableVideoModel || result.Models[0].OnlineWorkers != 2 {
 					t.Fatal("models misreported or duplicated")
 				}
@@ -92,13 +102,13 @@ func TestVideoCapabilitiesAndQuoteRespectOwnerDeadline(t *testing.T) {
 				t.Fatal("closed pilot queried or exposed capacity")
 			}
 			r = quoteRequest(`{"model":"LTX-2.5 Distilled BF16","frames":81,"fps":24}`)
-			if mode == "outside" {
+			if mode == "outside" || mode == "open" {
 				r = r.WithContext(requestWithClaims(&auth.Claims{GoogleID: "fixture-google", GridAccountID: owner}).Context())
 			}
 			w = httptest.NewRecorder()
 			app.handleDurableVideoQuote(w, r)
 			want := 403
-			if mode == "allowed" {
+			if mode == "allowed" || mode == "open" {
 				want = 200
 			}
 			if mode == "disabled" {
@@ -107,7 +117,7 @@ func TestVideoCapabilitiesAndQuoteRespectOwnerDeadline(t *testing.T) {
 			if w.Code != want {
 				t.Fatalf("quote status %d, want %d", w.Code, want)
 			}
-			if mode != "allowed" && quoteCalls.Load() != 0 {
+			if mode != "allowed" && mode != "open" && quoteCalls.Load() != 0 {
 				t.Fatal("closed pilot reached pricing")
 			}
 		})

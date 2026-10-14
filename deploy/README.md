@@ -95,6 +95,16 @@ implied by downloading or building a bundle.
 
 ## Durable video pilot controls
 
+The public-admission candidate adds
+`GALLERY_DURABLE_VIDEO_ADMISSION_MODE=pilot|open`, defaulting to `pilot`.
+Explicit `open` requires empty pilot account/expiry fields and permits new
+BF16 jobs only. It does not expose NVFP4, bypass canonical authentication,
+allow preview/unpriced quotes or remove Core's atomic credit hold. Existing
+NVFP4 intent replay and owner-bound result recovery remain available. Unknown
+modes and attempts to ignore retained pilot restrictions fail closed. This is
+preparation, not a record of public activation; review Core's entry points,
+worker capacity and rollout authorization before changing either service.
+
 Keep `GALLERY_DURABLE_VIDEO_ENABLED=false` until native worker/storage and real
 funded acceptance are reviewed. Activation requires private
 `GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` (1..10 canonical Core IDs) and

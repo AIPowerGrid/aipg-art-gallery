@@ -11,6 +11,16 @@ func (cfg Config) ValidateDurableVideoPilot(now time.Time) error {
 	if !cfg.DurableVideoEnabled {
 		return nil
 	}
+	switch cfg.DurableVideoAdmissionMode {
+	case "open":
+		if len(cfg.DurableVideoPilotAccounts) != 0 || cfg.DurableVideoPilotUntil != "" {
+			return errors.New("open durable video admission cannot ignore pilot restrictions")
+		}
+		return nil
+	case "", "pilot":
+	default:
+		return errors.New("invalid durable video admission mode")
+	}
 	invalid := errors.New("enabled durable video requires distinct canonical pilot accounts and a fixed RFC3339 expiry within 24 hours")
 	if len(cfg.DurableVideoPilotAccounts) == 0 || len(cfg.DurableVideoPilotAccounts) > 10 {
 		return invalid
@@ -35,6 +45,13 @@ func (cfg Config) AllowsDurableVideoAccount(account string, now time.Time) bool 
 	if !cfg.DurableVideoEnabled || cfg.ValidateDurableVideoPilot(now) != nil {
 		return false
 	}
+	id, err := uuid.Parse(account)
+	if err != nil || id == uuid.Nil || id.String() != account {
+		return false
+	}
+	if cfg.DurableVideoAdmissionMode == "open" {
+		return true
+	}
 	until, err := time.Parse(time.RFC3339, cfg.DurableVideoPilotUntil)
 	if err != nil || !now.Before(until) {
 		return false
@@ -45,4 +62,18 @@ func (cfg Config) AllowsDurableVideoAccount(account string, now time.Time) bool 
 		}
 	}
 	return false
+}
+
+func (cfg Config) AllowsDurableVideoModel(model string) bool {
+	if !cfg.DurableVideoEnabled {
+		return false
+	}
+	switch cfg.DurableVideoAdmissionMode {
+	case "open":
+		return model == "LTX-2.5 Distilled BF16"
+	case "", "pilot":
+		return model == "LTX-2.5 Distilled BF16" || model == "LTX-2.5 Distilled NVFP4"
+	default:
+		return false
+	}
 }
