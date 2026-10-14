@@ -97,7 +97,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   never copied into the pending-request journal. Recheck the active account
   after the preparation callback and before dispatch. Core and Go remain the
   source-validation, admission and billing authorities. The typed Distilled
-  client preserves separate BF16/NVFP4 names; no component selects it yet.
+  client preserves separate BF16/NVFP4 names; the private Director clip tab
+  selects it only through the server capability gate.
 - `create/durable-director-payload.ts` prepares an explicit 8n+1 output count,
   quote ceiling, geometry, seed and optional ordered image guides. It never
   rounds a legacy segment duration or inserts its stored portrait implicitly.
@@ -109,13 +110,22 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   seconds-based quote. It requires enabled/authenticated owner state and binds
   account/model/frames/fps/live price before exposing a ceiling. A changed
   owner or frame count hides stale data immediately; cleanup cancels pending
-  responses. Refresh is quote-only. UI selection, actual audio preparation and
-  native funded acceptance remain rollout gates.
+  responses. Refresh is quote-only; terminal clip observation refreshes the
+  balance/ceiling without generating. Actual audio preparation and native
+  funded acceptance remain rollout gates.
 - `hooks/use-durable-video-capabilities.ts` reads only the authenticated,
   no-store pilot capability endpoint. It validates exact model names, distinct
   rows and positive safe worker counts; malformed/foreign-account late replies
-  cannot enable controls. Capacity is not model-fidelity proof. No component
-  selects the workflow yet; native paid acceptance still gates activation.
+  cannot enable controls. Capacity is not model-fidelity proof. The Director
+  clip workspace consumes the gate; native paid acceptance still gates activation.
+- `hooks/use-durable-director-clip.ts` owns the separate text/opening-image
+  clip form. Its ephemeral image never enters persisted request/job metadata.
+  Busy/unknown jobs lock fresh submissions, a synchronous in-flight guard
+  prevents double-click POSTs, and library-write failure never retries paid
+  generation. Canonical owner changes reset the mounted form and prevent late
+  callbacks from dispatching or altering the next account's form. Legacy
+  timeline data is never implicitly migrated. Reference audio/video preparation
+  and timed multi-image controls are not yet exposed by this form.
 - Pending requests and active jobs do not expire under the 24-hour completed
   history cleanup. The Jobs menu displays unresolved requests. Director retains
   separate `startImageRequestId` and video `requestId`; a recovered ID can only

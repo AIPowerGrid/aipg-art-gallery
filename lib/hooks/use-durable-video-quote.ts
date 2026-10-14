@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchDurableVideoQuote, GridCreditQuote } from "@/lib/api";
 import { DurableVideoRequest } from "@/types/models";
 
@@ -22,6 +22,7 @@ export function useDurableVideoQuote(options: VideoQuoteOptions) {
   const owner = ownerIdentifier?.trim().toLowerCase();
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<QuoteState | null>(null);
+  const refresh = useCallback(() => setAttempt((value) => value + 1), []);
   const validFrames = Number.isSafeInteger(frames) && frames >= 9 && frames <= 337 && frames % 8 === 1;
   const key = enabled && authenticated && owner && validFrames
     ? JSON.stringify([owner, model, frames, attempt]) : null;
@@ -58,6 +59,6 @@ export function useDurableVideoQuote(options: VideoQuoteOptions) {
     costCeilingMicro: current?.quote?.estimate.cost_micro ?? null,
     loading: !!key && current === null,
     error: current?.error ?? null,
-    refresh: () => setAttempt((value) => value + 1),
+    refresh,
   };
 }

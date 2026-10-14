@@ -13,6 +13,12 @@ Production-build Playwright coverage for consumer-facing generation routes.
 - `e2e/navigation.spec.ts` - top-level Director discovery, stable account/auth
   controls across reload, responsive navigation, and the retired
   `aipg.art/audio` route contract.
+- `e2e/durable-director.spec.ts` - server-gated clip selection, exact-frame
+  quote/ceiling, one paid-intent POST, explicit opening-image privacy, lost
+  reply/reload with admission closed, account isolation, credit rejection,
+  desktop/mobile overflow and real H.264 fixture decoding/seeking. Synthetic
+  playback and mocked billing are not a native worker/debit/refund proof.
+  `fixtures/clip-81-frames.mp4` is a generated diagnostic pattern, not user media.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
   account-menu and creation-library navigation, mobile overflow, and a lost POST
   response followed by browser reload/read-only recovery with one generation POST.

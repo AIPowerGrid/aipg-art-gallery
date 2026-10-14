@@ -50,6 +50,10 @@ async function installDirectorMocks(page: Page) {
   await page.route("**/api-preview/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api-preview/, "");
+    if (path === "/videos/capabilities") {
+      await route.fulfill({ json: { enabled: false, models: [] } });
+      return;
+    }
     if (path === "/auth/me") {
       await route.fulfill({
         json: {

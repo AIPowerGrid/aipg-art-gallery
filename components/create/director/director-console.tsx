@@ -64,6 +64,7 @@ type DirectorCoachStep =
   | null;
 
 interface DirectorConsoleProps {
+  workspaceInset?: boolean;
   styles: StylesConfig | null;
   ownerIdentifier?: string;
   authenticated: boolean;
@@ -76,6 +77,7 @@ interface DirectorConsoleProps {
 }
 
 export function DirectorConsole({
+  workspaceInset = false,
   styles,
   ownerIdentifier,
   authenticated,
@@ -361,7 +363,7 @@ export function DirectorConsole({
   return (
     <div
       data-testid="director-console"
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#0a0a0c] font-sans text-[14px] text-[#e9e9ec]"
+      className={`fixed ${workspaceInset ? "inset-x-0 bottom-0 top-12" : "inset-0"} z-50 flex flex-col overflow-hidden bg-[#0a0a0c] font-sans text-[14px] text-[#e9e9ec]`}
     >
       {/* ===== top bar ===== */}
       <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-[#242429] px-3 py-2 sm:gap-4 sm:px-5 sm:py-3 max-sm:flex-wrap">

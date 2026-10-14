@@ -167,7 +167,7 @@ export interface GridStyle {
 
 export interface JobStatus {
   jobId: string;
-  status: "queued" | "processing" | "completed" | "faulted";
+  status: "queued" | "processing" | "completed" | "faulted" | "uncertain";
   faulted: boolean;
   /** The grid's actual failure message when faulted (e.g. the 404 model-not-available detail). */
   error?: string;
