@@ -117,6 +117,10 @@ jobs to the grid and serves gallery/media.
   matching Core's reviewed pilot. Invalid enabled configuration fails closed;
   expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
   capability discovery does not reveal cohort IDs or qualify model fidelity.
+- Release `0469027d` is deployed and its private BF16 opening-image pilot
+  passed real purchased billing and browser/API restart recovery. This does
+  not enable public video, NVFP4 Gallery use or x402. Gallery's private cohort
+  is comma-separated, unlike Core's JSON array. See `deploy/README.md`.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result
   recovery. See `server/AGENTS.md` and `deploy/README.md` for the ordered rollout

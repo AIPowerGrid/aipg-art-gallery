@@ -111,7 +111,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   exact Distilled BF16/NVFP4 identities are admitted, with BF16 as the omitted
   model default. No precision relabeling or old-model fallback occurs. Core still owns cohort, recipe,
   worker, atomic reservation and source admission. The legacy `/api/jobs`
-  path is unchanged; no frontend selects the new path yet.
+  path is unchanged. The separate private Director clip tab selects the new
+  path only for eligible pilot accounts or existing read-only recovery.
   Owner/family replay precedes quoting. A live exact-frame, model, account and
   cost-ceiling quote is required, then the journal commits its independently
   computed intent and Core UUIDv4 key before one generation POST. HTTP errors
@@ -121,7 +122,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   authenticated GET-only recovery even with admission disabled. `videoReceipt`
   exposes the owner's validated Core receipt, never the service/user token or
   input media. Source-domain/storage qualification, upload-proxy limits, real
-  funded pilot and frontend selection remain activation gates.
+  funded acceptance and frontend selection gate any expansion. The private
+  BF16 opening-image browser pilot passed; wider source controls and public
+  video/x402 admission are not implied.
   Once video journal rows exist, rollback means disabling admission on a
   video-aware binary, keeping GET recovery. A legacy broker binary ignores the
   new metadata and may overwrite it during status polling; do not use one as
@@ -134,8 +137,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   must match. A valid insufficient-balance quote remains a 200 estimate for
   funding UX, while generation still requires sufficient balance and its
   ceiling. The quote route writes no job journal and submits no generation.
-  Browser preparation/quote helpers are present but no component selects
-  them yet; native funded acceptance still gates consumer activation.
+  The private Director clip client uses these quote helpers. Real funded
+  BF16 acceptance passed; wider admission requires separate qualification.
 - Authenticated `GET /api/videos/capabilities` is no-store and shows only
   exact online BF16/NVFP4 names/counts to an active pilot account. Outside,
   expired or disabled cohorts receive a closed empty view. No account list,

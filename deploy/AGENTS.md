@@ -33,13 +33,13 @@ Next.js web process and Go API process from one commit-pinned release.
   deploy or use an older security rollback without fresh source/binary scans,
   restored-backup/race proof and the ordinary drained release checks. This
   contract is not a record that the new candidate is already active.
-- Production selects `gallery-c56d432d`, the tree-identical tested head of
-  PR #41 (`f2a36e6d`), preserving PR #39's qualified image batches and patching
-  gRPC to 1.83.2. Both source and binary vulnerability gates passed. Retained
-  `gallery-29f472d5` contains the linked advisory and is not an unconditional
-  security rollback: preserve this dependency patch in any rollback build.
-  Core enabled editing/batches after real billing qualification. Timelines/3D
-  remain closed. See the September 28 deployment evidence in `README.md`.
+- Production selects `gallery-0469027d`, the verified main release of PR #43.
+  Signed artifacts, host runtime and restored-backup race gates passed. A
+  real purchased-credit opening-image/BF16 browser pilot passed exact-once
+  billing and browser/API restart recovery. This is not public/x402 admission
+  or NVFP4 Gallery qualification. Retained older brokers are not compatible
+  post-video-receipt rollback targets: keep this patched video-aware reader
+  with admission disabled. Timelines/3D remain closed. See `README.md`.
 - Releases are detached checkouts under
   `/opt/aipg-gallery-releases/gallery-<commit>` and are activated only through
   `/opt/aipg-gallery-current`.
@@ -90,6 +90,8 @@ Next.js web process and Go API process from one commit-pinned release.
   flip: set private `GALLERY_DURABLE_VIDEO_PILOT_ACCOUNTS` and
   `GALLERY_DURABLE_VIDEO_PILOT_UNTIL` to the reviewed canonical cohort/deadline,
   no later than Core's own pilot. Native paid acceptance remains required.
+  Gallery takes comma-separated IDs, not Core's JSON array. Validate the
+  actual format before restart; never extend the deadline for recovery.
   Preserve the absolute deadline across restart; expired valid config keeps
   GET recovery. Malformed enabled config must fail startup. No live account
   IDs, credentials or source URLs belong in deployment documentation.
