@@ -16,6 +16,15 @@ Next.js web process and Go API process from one commit-pinned release.
   packaging and bounded, verify-before-write extraction. The bundle contains
   the pruned Next runtime, exact Go executable, committed source, SBOMs and
   file commitments. It never selects a release or starts services.
+  The encrypted payload also binds same-source standalone Go race-test
+  executables and an index for restored-backup verification without compiling
+  on the live LXC. These diagnostic programs are not app endpoints and must
+  run only with a disposable database and no inherited application credentials.
+  Runtime SBOMs do not inventory those diagnostic programs or the host OS.
+- `sbom-tools/` - a separate frozen CycloneDX npm6.0.1 tool install for the
+  actual pruned dependency tree. Its node_modules never ships in the runtime.
+  Do not use lock-only inventory or ignore dependency errors: npm's built-in
+  sbom currently rejects intentionally absent root devDependencies.
 
 ## Local Contracts
 

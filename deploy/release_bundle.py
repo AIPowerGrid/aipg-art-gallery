@@ -296,7 +296,7 @@ def extract_verified(archive, destination, commit):
             ):
                 raise ValueError("Extracted bytes changed; preserve incomplete stage")
         else:
-            target.resolve(strict=True).relative_to(destination)
+            target.resolve(strict=True).relative_to(destination.resolve())
     return manifest
 
 
@@ -340,6 +340,64 @@ def encrypt_archive(archive, encrypted, cert):
         ["openssl", "x509", "-in", str(cert), "-outform", "DER"]
     )
     return hashlib.sha256(der).hexdigest()
+
+
+def build_race_controls(repo, destination, commit):
+    if (
+        os.environ.get("GITHUB_ACTIONS") != "true"
+        or platform.system() != "Linux"
+        or platform.machine() != "x86_64"
+    ):
+        raise ValueError("Race controls require Linux x64 CI")
+    if (
+        run(["git", "rev-parse", "HEAD"], repo) != commit
+        or run(["go", "env", "GOVERSION"]) != "go1.26.9"
+        or destination.exists()
+    ):
+        raise ValueError("Invalid race-control source, toolchain or destination")
+    # Go emits a stream of JSON objects, not a JSON array.
+    raw = run(["go", "list", "-json", "./..."], repo / "server")
+    decoder = json.JSONDecoder()
+    position = 0
+    packages = []
+    while position < len(raw):
+        item, position = decoder.raw_decode(raw, position)
+        packages.append(item)
+        while position < len(raw) and raw[position].isspace():
+            position += 1
+    destination.mkdir(mode=0o700)
+    controls = []
+    for package in packages:
+        if not package.get("TestGoFiles") and not package.get("XTestGoFiles"):
+            continue
+        name = package["ImportPath"]
+        if not name.startswith("github.com/aipowergrid/aipg-art-gallery/server/"):
+            raise ValueError("Unexpected qualification package")
+        cwd = Path(package["Dir"]).relative_to(repo).as_posix()
+        safe_name(cwd)
+        binary = hashlib.sha256(name.encode()).hexdigest() + ".test"
+        subprocess.run(
+            ["go", "test", "-race", "-c", "-o", str(destination / binary), name],
+            cwd=repo / "server",
+            check=True,
+        )
+        controls.append({"package": name, "cwd": cwd, "binary": binary})
+    if not controls:
+        raise ValueError("Missing race qualification controls")
+    (destination / "index.json").write_text(
+        json.dumps(
+            {
+                "schema": "aipg.gallery-race-controls.v1",
+                "commit": commit,
+                "platform": "linux-x64",
+                "go": "go1.26.9",
+                "controls": controls,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    return len(controls)
 
 
 def build_bundle(repo, output, server, frontend_bom, backend_bom, cert, commit):
@@ -430,6 +488,22 @@ def build_bundle(repo, output, server, frontend_bom, backend_bom, cert, commit):
         if path.is_symlink():
             raise ValueError("Generated artifact symlink")
         add(name, path)
+    qualification = server.parent / "gallery-qualification"
+    index = read_json((qualification / "index.json").read_bytes())
+    if (
+        index.get("schema") != "aipg.gallery-race-controls.v1"
+        or index.get("commit") != commit
+        or not index.get("controls")
+    ):
+        raise ValueError("Missing same-source race controls")
+    add("qualification/index.json", qualification / "index.json")
+    for control in index["controls"]:
+        binary = control["binary"]
+        if not re.fullmatch(r"[0-9a-f]{64}\.test", binary) or not control[
+            "cwd"
+        ].startswith("server/"):
+            raise ValueError("Invalid race-control path")
+        add("qualification/" + binary, qualification / binary)
     manifest = {
         "schema": SCHEMA,
         "commit": commit,
@@ -499,7 +573,9 @@ def build_bundle(repo, output, server, frontend_bom, backend_bom, cert, commit):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("env", "build", "verify", "extract"))
+    parser.add_argument(
+        "mode", choices=("env", "build", "verify", "extract", "race-controls")
+    )
     parser.add_argument("--commit")
     parser.add_argument("--archive", type=Path)
     parser.add_argument("--destination", type=Path)
@@ -521,6 +597,9 @@ def main():
                 "GALLERY_API_ORIGIN=http://localhost:4000\nNEXT_TELEMETRY_DISABLED=1\n"
             )
         print("Validated public-only build profile")
+    elif args.mode == "race-controls":
+        count = build_race_controls(Path.cwd(), args.output, args.commit)
+        print(json.dumps({"same_source_race_controls": count}))
     elif args.mode == "build":
         result = build_bundle(
             Path.cwd(),

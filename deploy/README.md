@@ -9,6 +9,18 @@ CycloneDX inventories from installed frontend dependencies and the compiled
 backend. `release_bundle.py` binds committed source, the source tree, toolchain,
 public build profile and every runtime file. Build caches and live environment
 files are excluded. The existing `next start` layout is preserved.
+The frontend inventory uses the separately locked official CycloneDX npm6.0.1
+generator against the actual pruned install, without ignoring npm errors or
+substituting a lock-only inventory. This avoids npm's built-in SBOM checker
+rejecting intentionally absent root development dependencies. Tool dependencies
+are outside the shipped production node_modules.
+CI also compiles each backend test package into a same-source standalone race
+control, committed by `qualification/index.json` and the bundle's file hashes.
+Use those controls with their recorded package working directories, a sanitized
+environment and a disposable restored PostgreSQL database. This avoids adding
+compiler/toolchain caches on the live LXC. Never supply the live DSN or inherit
+Grid/storage/session credentials. Runtime SBOMs cover the production Node/Go
+dependencies, not these diagnostic programs or the host OS.
 
 Configure only `GALLERY_PUBLIC_BUILD_ENV_JSON` (validated public Google client
 ID, WalletConnect project ID, relative `/api`, Base8453 and optional public

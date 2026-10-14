@@ -183,8 +183,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm sbom --sbom-format=cyclonedx --omit=dev > "$RUNNER_TEMP/frontend.cdx.json"
+          npm ci --prefix deploy/sbom-tools --ignore-scripts
+          ./deploy/sbom-tools/node_modules/.bin/cyclonedx-npm --omit dev --validate --output-format JSON --output-file "$RUNNER_TEMP/frontend.cdx.json"
           go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.9.0 bin -json -output "$RUNNER_TEMP/backend.cdx.json" "$RUNNER_TEMP/gallery-server"
+      - name: Compile standalone restored-backup race controls
+        run: python3 deploy/release_bundle.py race-controls --commit "$(git rev-parse HEAD)" --output "$RUNNER_TEMP/gallery-qualification"
       - name: Bind and encrypt the complete release without application secrets
         shell: bash
         run: |
