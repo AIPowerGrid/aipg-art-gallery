@@ -36,8 +36,10 @@ func codecCommand(ctx context.Context, program, directory string, args []string)
 	sandbox := []string{"--as=1073741824", "--cpu=45", "--fsize=35651584", "--nofile=64", "--", "bwrap",
 		"--unshare-all", "--die-with-parent", "--new-session", "--cap-drop", "ALL",
 		"--ro-bind", "/usr/bin", "/usr/bin", "--ro-bind", "/usr/lib", "/usr/lib", "--ro-bind", "/lib", "/lib", "--ro-bind-try", "/lib64", "/lib64",
+		"--ro-bind-try", "/etc/ld.so.cache", "/etc/ld.so.cache", "--ro-bind-try", "/etc/alternatives", "/etc/alternatives",
 		"--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", directory, "/work", "--chdir", "/work",
-		"--clearenv", "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", "/tmp", "--", path}
+		"--clearenv", "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", "/tmp",
+		"--setenv", "OPENBLAS_NUM_THREADS", "1", "--setenv", "OMP_NUM_THREADS", "1", "--", path}
 	sandbox = append(sandbox, args...)
 	command := exec.CommandContext(ctx, "prlimit", sandbox...)
 	command.Env = []string{"PATH=/usr/bin:/bin"}

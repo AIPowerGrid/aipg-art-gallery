@@ -48,6 +48,13 @@ func TestLinuxCodecSandboxActuallyIsolatesHost(t *testing.T) {
 	if _, err := run(ctx, "test", work, "-e", secret); err == nil {
 		t.Fatal("sandbox can read a host file outside its workspace")
 	}
+	if _, err := run(ctx, "test", work, "-e", "/etc/shadow"); err == nil {
+		t.Fatal("sandbox exposes host credentials")
+	}
+	status, err := run(ctx, "cat", work, "/proc/self/status")
+	if err != nil || !strings.Contains(string(status), "CapEff:\t0000000000000000\n") {
+		t.Fatal("codec retains effective capabilities")
+	}
 	t.Setenv("GALLERY_SANDBOX_FIXTURE_SECRET", "must-not-reach-codec")
 	environment, err := run(ctx, "env", work)
 	if err != nil || strings.Contains(string(environment), "GALLERY_SANDBOX_FIXTURE_SECRET") {
