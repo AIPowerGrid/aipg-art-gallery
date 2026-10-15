@@ -20,6 +20,9 @@ package owns one concern; `app/app.go` wires them together.
   with the distribution library cache/alternative links read-only, not all of
   `/etc`; BLAS/OpenMP initialization is single-threaded. Linux tests also prove
   zero effective capabilities and absence of host credentials.
+  The resolved executable alone is bound at `/codec/tool`, not its parent;
+  a versioned static codec requires separate provenance/hash/service proof.
+  Deployment must verify actual PATH resolution, not accept a system fallback.
   Non-root macOS execution is
   local codec-test evidence only. Private temp files are removed on every exit.
   Preparation never quotes, reserves credits, uploads to Core/R2 or generates.

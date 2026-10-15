@@ -28,6 +28,9 @@ func codecCommand(ctx context.Context, program, directory string, args []string)
 		command.Dir = directory
 		return command, nil
 	}
+	if !filepath.IsAbs(path) {
+		return nil, invalid
+	}
 	for i, arg := range args {
 		if strings.HasPrefix(arg, directory+string(os.PathSeparator)) {
 			args[i] = "/work/" + filepath.Base(arg)
@@ -39,7 +42,8 @@ func codecCommand(ctx context.Context, program, directory string, args []string)
 		"--ro-bind-try", "/etc/ld.so.cache", "/etc/ld.so.cache", "--ro-bind-try", "/etc/alternatives", "/etc/alternatives",
 		"--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp", "--bind", directory, "/work", "--chdir", "/work",
 		"--clearenv", "--setenv", "PATH", "/usr/bin:/bin", "--setenv", "HOME", "/tmp",
-		"--setenv", "OPENBLAS_NUM_THREADS", "1", "--setenv", "OMP_NUM_THREADS", "1", "--", path}
+		"--setenv", "OPENBLAS_NUM_THREADS", "1", "--setenv", "OMP_NUM_THREADS", "1",
+		"--ro-bind", path, "/codec/tool", "--", "/codec/tool"}
 	sandbox = append(sandbox, args...)
 	command := exec.CommandContext(ctx, "prlimit", sandbox...)
 	command.Env = []string{"PATH=/usr/bin:/bin"}
