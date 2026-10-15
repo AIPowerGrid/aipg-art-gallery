@@ -73,6 +73,27 @@ func TestVideoIntentSourceAndOmissionSemantics(t *testing.T) {
 	}
 }
 
+func TestVideoIntentLongerBF16KeepsOtherModelLimits(t *testing.T) {
+	request := videoTestRequest()
+	request.Model = "LTX-2.5 Distilled BF16"
+	request.Frames = 481
+	request.MaxCostMicroUSD = 400834
+	if _, err := VideoIntentHash(request); err != nil {
+		t.Fatalf("long BF16 intent rejected: %v", err)
+	}
+	for _, model := range []string{"LTX-2.5 Distilled NVFP4", "LTX-2.5 Dev BF16"} {
+		request.Model = model
+		if _, err := VideoIntentHash(request); err == nil {
+			t.Fatalf("long duration admitted for %s", model)
+		}
+	}
+	request.Model = "LTX-2.5 Distilled BF16"
+	request.Frames = 489
+	if _, err := VideoIntentHash(request); err == nil {
+		t.Fatal("over-limit BF16 intent accepted")
+	}
+}
+
 func TestVideoIntentRejectsInvalidWithoutPrivateErrors(t *testing.T) {
 	for name, mutate := range map[string]func(*VideoJobRequest){
 		"prompt":            func(r *VideoJobRequest) { r.Prompt = strings.Repeat("x", 8001) },

@@ -13,6 +13,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { saveAudioTrack, loadAudioTrack, deleteAudioTrack } from '@/lib/utils/audio-db';
+import { MAX_DURABLE_VIDEO_FRAMES } from '@/lib/create/durable-video-limits';
 import {
   DirectorSegment,
   DirectorAudio,
@@ -191,7 +192,7 @@ export const useDirectorStore = create<DirectorStore>()(
       importRenderedClip: ({url,frames,gridJobId}) => {
         const location = new URL(url);
         if (location.protocol !== 'https:' || location.hostname !== 'media.aipg.art' || location.username || location.password ||
-            !Number.isSafeInteger(frames) || frames < 9 || frames > 337 || frames%8 !== 1) throw new Error('Invalid completed clip');
+            !Number.isSafeInteger(frames) || frames < 9 || frames > MAX_DURABLE_VIDEO_FRAMES || frames%8 !== 1) throw new Error('Invalid completed clip');
         const seg = newSegment({importedClip:true,lengthFrames:frames,status:'done',outputUrl:url,gridJobId,chained:false});
         set((s)=>({segments:[...s.segments,seg],selectedId:seg.id,queueActive:false}));
         return seg.id;

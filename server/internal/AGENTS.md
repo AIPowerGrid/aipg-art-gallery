@@ -10,6 +10,10 @@ package owns one concern; `app/app.go` wires them together.
 - `app/` — router + HTTP handlers (owned by `server/AGENTS.md`, not re-described here).
 - `config/` — typed `Config` + `Load()`; the single home for `os.Getenv`.
 - `videosource/` prepares owner-private local audio/video uploads using exact
+  BF16 candidate windows up to481frames/24fps. Larger source windows still
+  require full-length audio/picture and cannot pad, exceed byte/resource limits
+  or bypass the separate source gate. Native capacity/release proof is separate.
+  It uses exact
   windows, stereo48k PCM16 WAV and optional 24fps H.264 MP4. It rejects short,
   silent/ambiguous video sources, bad geometry and playlist/network formats;
   never pads sound or accepts remote URLs. Two global slots, bounded uploads,
@@ -68,6 +72,11 @@ package owns one concern; `app/app.go` wires them together.
   upstream error bodies appear in public failures.
 
 - `aipg/video_jobs.go` supplies the default-off durable Core video broker.
+  `aipg/video_limits.go` keeps BF16's candidate481-frame limit separate from
+  NVFP4's337 across submission, intent hashing and the quote handler. Existing
+  intent digests remain unchanged. Deploy Core's matching parser/quote/recipe
+  contract first, qualify native long output and retain long-intent recovery
+  readers on rollback; do not silently clamp an accepted frame count.
   It requires a delegated user token, positive
   ceiling and saved UUIDv4 request key before its single POST. `video_intent.go`
   computes Core's normalized request digest, including omitted-size semantics,

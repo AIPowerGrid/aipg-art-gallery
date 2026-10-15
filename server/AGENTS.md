@@ -139,7 +139,7 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   video-aware rollback/config path before consumer activation.
 - `POST /api/videos/quote` shares the default-off video switch and authenticated
   ownership proof. Its bounded body accepts only the exact model, frames
-  (9..337, 8n+1) and 24fps; it sends exact frames, never rounded seconds, to
+  (BF16 candidate9..481; NVFP49..337, 8n+1) and24fps; it sends exact frames, never rounded seconds, to
   Core. Account/model/modality/frame/fps and positive live-price commitments
   must match. A valid insufficient-balance quote remains a 200 estimate for
   funding UX, while generation still requires sufficient balance and its

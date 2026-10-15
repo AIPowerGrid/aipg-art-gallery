@@ -165,7 +165,7 @@ func (c *Client) SubmitVideoJob(ctx context.Context, request VideoJobRequest, ke
 	id, err := uuid.Parse(key)
 	if err != nil || id.Version() != 4 || id.String() != key || !videoDigest(expectedRequestHash) || request.MaxCostMicroUSD <= 0 ||
 		request.Model == "" || request.Prompt == "" || request.N != 1 ||
-		request.Frames < 9 || request.Frames > 337 || request.Frames%8 != 1 || request.FPS != 24 {
+		request.Frames < 9 || request.Frames > MaxVideoFrames(request.Model) || request.Frames%8 != 1 || request.FPS != 24 {
 		return nil, errors.New("invalid durable video request")
 	}
 	if request.Seed != nil && (*request.Seed < 0 || *request.Seed > 1<<53-1) {

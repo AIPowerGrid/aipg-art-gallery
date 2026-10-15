@@ -24,6 +24,10 @@ Production-build Playwright coverage for consumer-facing generation routes.
   Signed-out visitors see the same Generate entry and all three modes. Source
   preparation fixtures prove one ephemeral upload/POST and no stored media;
   real codec/sandbox tests live in the backend, not mocked browser responses.
+  Longer BF16 coverage selects481 frames, binds the rounded400834-micro quote
+  to one POST and checks desktop/mobile overflow. It is not native20-second
+  GPU execution or a real debit. Source preparation has independent real-codec
+  481-frame window/short-input/cleanup tests in the Go suite.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
   account-menu and creation-library navigation, mobile overflow, and a lost POST
   response followed by browser reload/read-only recovery with one generation POST.

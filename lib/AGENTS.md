@@ -100,6 +100,12 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   client preserves separate BF16/NVFP4 names; the common Generate workspace
   gates submission, not visibility, through authenticated server capabilities.
 - `create/durable-director-payload.ts` prepares an explicit 8n+1 output count,
+  using `create/durable-video-limits.ts` for the BF16481-frame candidate ceiling
+  and unchanged NVFP4337-frame ceiling. Quote and payload validation share the
+  same per-model limit; changing models invalidates incompatible long quotes,
+  never silently shortens a request. Completed481-frame clips remain immutable
+  when imported for assembly. These bounds need native/release qualification.
+  It prepares the
   quote ceiling, geometry, seed and optional ordered image guides. It never
   rounds a legacy segment duration or inserts its stored portrait implicitly.
   Reference sound must be prepared stereo48k exact-duration WAV; motion also

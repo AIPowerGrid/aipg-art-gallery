@@ -45,7 +45,8 @@ func TestDurableVideoQuoteRejectsBeforeUpstream(t *testing.T) {
 		`{"model":"LTX-2.3","frames":81,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":0,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":80,"fps":24}`,
-		`{"model":"LTX-2.5 Distilled BF16","frames":345,"fps":24}`,
+		`{"model":"LTX-2.5 Distilled BF16","frames":489,"fps":24}`,
+		`{"model":"LTX-2.5 Distilled NVFP4","frames":345,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":81,"fps":30}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":81.5,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":81,"fps":24,"reference_video":"private"}`,
@@ -127,7 +128,11 @@ func TestPublicVideoQuoteStillRequiresPaidPriceAndAuthentication(t *testing.T) {
 }
 
 func TestDurableVideoQuoteBoundToAccountModelAndFrames(t *testing.T) {
-	for _, model := range []string{durableVideoModel, "LTX-2.5 Distilled NVFP4"} {
+	for _, timing := range []struct {
+		model  string
+		frames int
+	}{{durableVideoModel, 81}, {durableVideoModel, 481}, {"LTX-2.5 Distilled NVFP4", 81}} {
+		model, requestedFrames := timing.model, timing.frames
 		for _, failure := range []string{"", "owner", "model", "frames", "fps", "modality", "unpriced", "preview", "zero", "missing-cost", "exchange"} {
 			t.Run(model+"/"+failure, func(t *testing.T) {
 				var quotes, unexpected atomic.Int32
@@ -152,12 +157,12 @@ func TestDurableVideoQuoteBoundToAccountModelAndFrames(t *testing.T) {
 					case "/account/credits/quote":
 						quotes.Add(1)
 						var input aipg.CreditQuoteRequest
-						if json.NewDecoder(r.Body).Decode(&input) != nil || input.Model != model || input.Frames != 81 || input.N != 1 || input.Seconds != 0 {
+						if json.NewDecoder(r.Body).Decode(&input) != nil || input.Model != model || input.Frames != requestedFrames || input.N != 1 || input.Seconds != 0 {
 							t.Error("quote timing or model changed")
 						}
 						q := validBrokerQuote()
 						q.Estimate.Model = model
-						frames := 81
+						frames := requestedFrames
 						q.Estimate.Frames = &frames
 						q.Estimate.BalanceSufficient = false
 						switch failure {
@@ -189,7 +194,7 @@ func TestDurableVideoQuoteBoundToAccountModelAndFrames(t *testing.T) {
 				}))
 				defer core.Close()
 				app := &App{cfg: brokerPilotConfig("fixture-service"), client: aipg.NewClient(core.URL, "fixture")}
-				body, _ := json.Marshal(durableVideoQuoteRequest{Model: model, Frames: 81, FPS: 24})
+				body, _ := json.Marshal(durableVideoQuoteRequest{Model: model, Frames: requestedFrames, FPS: 24})
 				w := httptest.NewRecorder()
 				app.handleDurableVideoQuote(w, quoteRequest(string(body)))
 				want := 502
@@ -207,7 +212,7 @@ func TestDurableVideoQuoteBoundToAccountModelAndFrames(t *testing.T) {
 				}
 				if failure == "" {
 					var q aipg.CreditQuote
-					if json.Unmarshal(w.Body.Bytes(), &q) != nil || q.Estimate.BalanceSufficient || *q.Estimate.Frames != 81 {
+					if json.Unmarshal(w.Body.Bytes(), &q) != nil || q.Estimate.BalanceSufficient || *q.Estimate.Frames != requestedFrames {
 						t.Fatal("insufficient balance estimate hidden or changed")
 					}
 				}

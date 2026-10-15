@@ -47,6 +47,18 @@ separate gates. Never substitute an opening portrait for an identity reference.
 
 ## Operational Bounds
 
+The duration-extension candidate offers BF16 clips through481frames at24fps
+(20.041667seconds), with unchanged default81frames, resolution and tariff.
+NVFP4 remains337frames. Model-specific frontend, quote, broker/intent and Core
+bounds must match; a smaller model selection cannot silently trim a long clip.
+At USD0.020/second the maximum BF16 quote is400834micro-USD, including upward
+rounding. This code is not a native capacity or production deployment claim.
+The approved two-source-test USD0.06 budget cannot pay for a20-second clip.
+Core's matching release must precede Gallery, followed by independent native
+long-duration proof and reviewed release checks. Keep readers that accept
+existing long intents on rollback; closing new jobs is not permission to lose
+their original receipts or repeat generation.
+
 Uploads are local files up to64MiB, never arbitrary URLs. Preparation admits two
 concurrent uploads, checks exact geometry/frames/start, bounds parsing/tool
 output, removes private temporary files and creates no quota, hold or job.

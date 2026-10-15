@@ -8,6 +8,7 @@ import { AuthModal } from "@/components/auth-modal";
 import { DurableVideoCapabilities } from "@/lib/api";
 import { useDurableDirectorClip } from "@/lib/hooks/use-durable-director-clip";
 import { DurableVideoRequest } from "@/types/models";
+import { maxDurableVideoFrames } from "@/lib/create/durable-video-limits";
 
 const field = "w-full min-w-0 rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm";
 const funding = "https://console.aipowergrid.io/dashboard/funding?returnTo=https%3A%2F%2Faipg.art%2Fcreate%2Fdirector";
@@ -25,6 +26,7 @@ export function DurableClipConsole(props: {
   const [showAuth, setShowAuth] = useState(false);
   const [timing,setTiming] = useState<{url:string;duration:number}|null>(null);
   const latest = clip.jobs[0];
+  const maxFrames = maxDurableVideoFrames(clip.model);
   const resultPanel = useRef<HTMLDivElement>(null);
   const followResult = useRef<{previous?:string}|null>(null);
   const latestId = latest?.jobId;
@@ -52,7 +54,7 @@ export function DurableClipConsole(props: {
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-1 text-sm">Clip length
-              <select className={field} value={clip.frames} disabled={clip.busy} onChange={(event)=>clip.setFrames(Number(event.target.value))}>{Array.from(new Set([9,33,81,121,169,241,337,clip.frames])).filter(Number.isFinite).sort((a,b)=>a-b).map((frames)=><option key={frames} value={frames}>{(frames/24).toFixed(2)} seconds</option>)}</select>
+              <select className={field} value={clip.frames} disabled={clip.busy} onChange={(event)=>clip.setFrames(Number(event.target.value))}>{Array.from(new Set([9,33,81,121,169,241,337,385,433,481,clip.frames])).filter((frames)=>Number.isFinite(frames) && (frames <= maxFrames || frames === clip.frames)).sort((a,b)=>a-b).map((frames)=><option key={frames} value={frames} disabled={frames > maxFrames}>{(frames/24).toFixed(2)} seconds{frames > maxFrames ? " · exceeds model limit" : ""}</option>)}</select>
             </label>
             <label className="block space-y-1 text-sm">Resolution
               <select className={field} value={clip.size} disabled={clip.busy} onChange={(event) => clip.setSize(event.target.value)}>
@@ -83,7 +85,7 @@ export function DurableClipConsole(props: {
           <details className="border-t border-white/10 pt-3">
             <summary className="cursor-pointer text-sm">Advanced</summary>
             <div className="mt-3 space-y-3">
-              <label className="block space-y-1 text-sm">Output frames<input className={field} type="number" min={9} max={337} step={8} value={clip.frames} disabled={clip.busy} onChange={(event)=>clip.setFrames(Number(event.target.value))} /></label>
+              <label className="block space-y-1 text-sm">Output frames<input className={field} type="number" min={9} max={maxFrames} step={8} value={clip.frames} disabled={clip.busy} onChange={(event)=>clip.setFrames(Number(event.target.value))} /></label>
               <label className="block space-y-1 text-sm">Model
                 <select className={field} value={clip.model} disabled={clip.busy} onChange={(event) => clip.setModel(event.target.value as DurableVideoRequest["model"])}>
                   {(["LTX-2.5 Distilled BF16", "LTX-2.5 Distilled NVFP4"] as const).map((id) => {
