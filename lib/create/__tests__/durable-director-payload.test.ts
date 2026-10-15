@@ -51,14 +51,14 @@ it.each([0, 8, 80, 96, 338, 81.5, Number.NaN])("rejects frame count %s instead o
   expect(() => buildDurableSegmentPayload({ ...base, frames })).toThrow("exact frame count");
 });
 
-it.each([385, 433, 481])("preserves a longer BF16 clip of %s frames", (frames) => {
+it.each([385, 433, 481, 577, 673, 721])("preserves a longer BF16 clip of %s frames", (frames) => {
   const payload = buildDurableSegmentPayload({ ...base, frames, maxCostMicroUSD: 400834 });
   expect(payload.video.frames).toBe(frames);
   expect(payload.video.max_cost_micro_usd).toBe(400834);
   expect(() => buildDurableSegmentPayload({ ...base, model: "LTX-2.5 Distilled NVFP4", frames })).toThrow("exact frame count");
 });
 
-it.each([480, 482, 489])("rejects invalid or over-limit long clips at %s frames", (frames) => {
+it.each([720, 722, 729])("rejects invalid or over-limit long clips at %s frames", (frames) => {
   expect(() => buildDurableSegmentPayload({ ...base, frames })).toThrow("exact frame count");
 });
 

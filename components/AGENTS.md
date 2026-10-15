@@ -31,7 +31,7 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   playback/seeking consume the dedicated hook. Owner-scoped jobs/recovery keep
   the clip view available after pilot closure; closure never implies a refund.
   The opening-image picker accepts PNG, JPEG and Studio-generated WebP.
-  The BF16 candidate offers up to481frames (20.04seconds) while NVFP4 retains
+  The BF16 candidate offers up to721frames (30.04seconds) while NVFP4 retains
   337. Controls share model-specific quote/payload bounds; switching to a model
   with a smaller limit never silently trims the current selection. No production
   capacity or source-mode activation is implied by the option being implemented.

@@ -131,7 +131,7 @@ describe('director store', () => {
     expect(segment.startImageJobId).toBeUndefined();
   });
 });
-it.each([33,481])('imports a finished %s-frame clip for assembly without turning it into a render request',(frames)=>{
+it.each([33,481,721])('imports a finished %s-frame clip for assembly without turning it into a render request',(frames)=>{
   const state=useDirectorStore.getState();
   const id=state.importRenderedClip({url:'https://media.aipg.art/video/fixture/final.mp4',frames,gridJobId:'fixture-receipt'});
   state.updateSegment(id,{lengthFrames:192,status:'idle',outputUrl:undefined});

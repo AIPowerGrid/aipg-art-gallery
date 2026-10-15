@@ -47,13 +47,20 @@ separate gates. Never substitute an opening portrait for an identity reference.
 
 ## Operational Bounds
 
-The duration-extension candidate offers BF16 clips through481frames at24fps
-(20.041667seconds), with unchanged default81frames, resolution and tariff.
+`GALLERY_DURABLE_VIDEO_NVFP4_ENABLED=false` and Core's corresponding
+`MEDIA_ASYNC_NVFP4_ENABLED=0` independently keep public NVFP4 closed. Their
+explicit opt-in candidate covers text/opening-image only, retaining337frames,
+pricing/holds/one-job limits and recovery after closure. Qualify the actual
+owned worker, exporter and credential lifetime before activating either flag.
+These switches do not open source modes or qualify30-second NVFP4 workloads.
+
+The duration-extension candidate offers BF16 clips through721frames at24fps
+(30.041667seconds), with unchanged default81frames, resolution and tariff.
 NVFP4 remains337frames. Model-specific frontend, quote, broker/intent and Core
 bounds must match; a smaller model selection cannot silently trim a long clip.
-At USD0.020/second the maximum BF16 quote is400834micro-USD, including upward
+At USD0.020/second the maximum BF16 quote is600834micro-USD, including upward
 rounding. This code is not a native capacity or production deployment claim.
-The approved two-source-test USD0.06 budget cannot pay for a20-second clip.
+The approved two-source-test USD0.06 budget cannot pay for a30-second clip.
 Core's matching release must precede Gallery, followed by independent native
 long-duration proof and reviewed release checks. Keep readers that accept
 existing long intents on rollback; closing new jobs is not permission to lose

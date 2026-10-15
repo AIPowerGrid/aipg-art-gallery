@@ -99,8 +99,8 @@ test("quotes exact frames and submits one capped clip, preserving the timeline",
 test("offers a longer clip with exact billing and one submission on desktop and mobile", async ({ page }) => {
   const state = await fixture(page);
   await openClip(page);
-  await page.getByRole("combobox", {name:"Clip length",exact:true}).selectOption("481");
-  await expect(page.getByText("$0.4008", {exact:true})).toBeVisible();
+  await page.getByRole("combobox", {name:"Clip length",exact:true}).selectOption("721");
+  await expect(page.getByText("$0.6008", {exact:true})).toBeVisible();
   for (const width of [1280, 390]) {
     await page.setViewportSize({width,height:900});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -108,7 +108,7 @@ test("offers a longer clip with exact billing and one submission on desktop and 
   }
   await page.getByRole("button", {name:"Generate clip"}).click();
   await expect.poll(state.posts).toBe(1);
-  expect(state.body()).toMatchObject({video:{model,frames:481,fps:24,max_cost_micro_usd:400834}});
+  expect(state.body()).toMatchObject({video:{model,frames:721,fps:24,max_cost_micro_usd:600834}});
   await expect(page.getByRole("button", {name:"Generate clip"})).toBeDisabled();
   expect(state.errors).toEqual([]);
 });

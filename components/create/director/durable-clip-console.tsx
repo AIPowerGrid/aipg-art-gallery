@@ -54,7 +54,7 @@ export function DurableClipConsole(props: {
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-1 text-sm">Clip length
-              <select className={field} value={clip.frames} disabled={clip.busy} onChange={(event)=>clip.setFrames(Number(event.target.value))}>{Array.from(new Set([9,33,81,121,169,241,337,385,433,481,clip.frames])).filter((frames)=>Number.isFinite(frames) && (frames <= maxFrames || frames === clip.frames)).sort((a,b)=>a-b).map((frames)=><option key={frames} value={frames} disabled={frames > maxFrames}>{(frames/24).toFixed(2)} seconds{frames > maxFrames ? " · exceeds model limit" : ""}</option>)}</select>
+              <select className={field} value={clip.frames} disabled={clip.busy} onChange={(event)=>clip.setFrames(Number(event.target.value))}>{Array.from(new Set([9,33,81,121,169,241,337,385,433,481,577,673,721,clip.frames])).filter((frames)=>Number.isFinite(frames) && (frames <= maxFrames || frames === clip.frames)).sort((a,b)=>a-b).map((frames)=><option key={frames} value={frames} disabled={frames > maxFrames}>{(frames/24).toFixed(2)} seconds{frames > maxFrames ? " · exceeds model limit" : ""}</option>)}</select>
             </label>
             <label className="block space-y-1 text-sm">Resolution
               <select className={field} value={clip.size} disabled={clip.busy} onChange={(event) => clip.setSize(event.target.value)}>

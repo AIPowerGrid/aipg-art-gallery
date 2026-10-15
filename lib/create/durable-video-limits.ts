@@ -1,6 +1,6 @@
 import type { DurableVideoRequest } from "@/types/models";
 
-export const MAX_DURABLE_VIDEO_FRAMES = 481;
+export const MAX_DURABLE_VIDEO_FRAMES = 721;
 
 export function maxDurableVideoFrames(model: DurableVideoRequest["model"]): number {
   return model === "LTX-2.5 Distilled BF16" ? MAX_DURABLE_VIDEO_FRAMES : 337;

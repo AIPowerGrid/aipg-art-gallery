@@ -23,7 +23,7 @@ import (
 )
 
 const MaxUploadBytes int64 = 64 * 1024 * 1024
-const MaxFrames = 481
+const MaxFrames = 721
 const formats = "mov,mp4,m4a,3gp,3g2,mj2,mp3,wav,flac,ogg,aac,matroska,webm"
 
 var slots = make(chan struct{}, 2)

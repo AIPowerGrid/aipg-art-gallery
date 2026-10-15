@@ -45,7 +45,7 @@ func TestDurableVideoQuoteRejectsBeforeUpstream(t *testing.T) {
 		`{"model":"LTX-2.3","frames":81,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":0,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":80,"fps":24}`,
-		`{"model":"LTX-2.5 Distilled BF16","frames":489,"fps":24}`,
+		`{"model":"LTX-2.5 Distilled BF16","frames":729,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled NVFP4","frames":345,"fps":24}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":81,"fps":30}`,
 		`{"model":"LTX-2.5 Distilled BF16","frames":81.5,"fps":24}`,
@@ -131,7 +131,7 @@ func TestDurableVideoQuoteBoundToAccountModelAndFrames(t *testing.T) {
 	for _, timing := range []struct {
 		model  string
 		frames int
-	}{{durableVideoModel, 81}, {durableVideoModel, 481}, {"LTX-2.5 Distilled NVFP4", 81}} {
+	}{{durableVideoModel, 81}, {durableVideoModel, 481}, {durableVideoModel, 721}, {"LTX-2.5 Distilled NVFP4", 81}} {
 		model, requestedFrames := timing.model, timing.frames
 		for _, failure := range []string{"", "owner", "model", "frames", "fps", "modality", "unpriced", "preview", "zero", "missing-cost", "exchange"} {
 			t.Run(model+"/"+failure, func(t *testing.T) {
