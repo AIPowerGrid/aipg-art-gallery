@@ -117,8 +117,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   exact Distilled BF16/NVFP4 identities are admitted, with BF16 as the omitted
   model default. No precision relabeling or old-model fallback occurs. Core still owns cohort, recipe,
   worker, atomic reservation and source admission. The legacy `/api/jobs`
-  path is unchanged. The separate private Director clip tab selects the new
-  path only for eligible pilot accounts or existing read-only recovery.
+  path is unchanged. Director exposes one Generate workspace to all visitors;
+  only authenticated server-eligible accounts may submit. Existing read-only
+  recovery does not depend on fresh admission. Edit / Assemble cannot render.
   Owner/family replay precedes quoting. A live exact-frame, model, account and
   cost-ceiling quote is required, then the journal commits its independently
   computed intent and Core UUIDv4 key before one generation POST. HTTP errors

@@ -97,8 +97,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   never copied into the pending-request journal. Recheck the active account
   after the preparation callback and before dispatch. Core and Go remain the
   source-validation, admission and billing authorities. The typed Distilled
-  client preserves separate BF16/NVFP4 names; the private Director clip tab
-  selects it only through the server capability gate.
+  client preserves separate BF16/NVFP4 names; the common Generate workspace
+  gates submission, not visibility, through authenticated server capabilities.
 - `create/durable-director-payload.ts` prepares an explicit 8n+1 output count,
   quote ceiling, geometry, seed and optional ordered image guides. It never
   rounds a legacy segment duration or inserts its stored portrait implicitly.
@@ -117,9 +117,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   no-store pilot capability endpoint. It validates exact model names, distinct
   rows and positive safe worker counts; malformed/foreign-account late replies
   cannot enable controls. Capacity is not model-fidelity proof. The Director
-  clip workspace consumes the gate; native paid acceptance still gates activation.
-- `hooks/use-durable-director-clip.ts` owns the separate text/opening-image
-  clip form. PNG, JPEG and Studio-generated WebP opening images up to 10 MB
+  workspace consumes the gate; native paid acceptance still gates activation.
+- `hooks/use-durable-director-clip.ts` owns the common Text/Audio/Video form.
+  PNG, JPEG and Studio-generated WebP opening images up to 10 MB
   remain ephemeral and never enter persisted request/job metadata. Browser
   MIME/size checks are UX; Core still decodes and validates the actual bytes.
   Busy/unknown jobs lock fresh submissions, a synchronous in-flight guard

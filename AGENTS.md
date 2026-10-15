@@ -111,24 +111,26 @@ jobs to the grid and serves gallery/media.
 - The separate `/api/videos/jobs` broker defaults off. Its PostgreSQL receipt
   journal, exact-frame quote/preflight and browser preparation/recovery helpers prepare
   LTX-2.5 without enabling Core workers or public generation. The Director's
-  separate private clip tab selects the typed client only for server-eligible
-  accounts, or keeps read-only recovery visible for their existing jobs.
+  Generate workspace is visible signed in or out; server eligibility gates
+  submission, not the interface. Existing jobs retain read-only recovery.
+  Edit / Assemble preserves timelines without legacy generation.
   Native storage/worker and purchased-
   credit qualification must precede enabling `GALLERY_DURABLE_VIDEO_ENABLED`.
   Activation requires a private canonical-account cohort and fixed expiry
   matching Core's reviewed pilot. Invalid enabled configuration fails closed;
   expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
   capability discovery does not reveal cohort IDs or qualify model fidelity.
-- Release `0469027d` is deployed and its private BF16 opening-image pilot
-  passed real purchased billing and browser/API restart recovery. This does
-  not enable public video, NVFP4 Gallery use or x402. Gallery's private cohort
-  is comma-separated, unlike Core's JSON array. See `deploy/README.md`.
+- Production selects `cf533e97` and public authenticated credit-backed BF16
+  text/opening-image video. Purchased billing and original-receipt/browser/API
+  restart recovery passed; source audio/video, NVFP4 Gallery, timeline
+  generation and video x402 remain closed. Gallery's source cohort is
+  comma-separated, unlike Core's JSON array. See `deploy/README.md`.
 - Public-admission preparation adds explicit `GALLERY_DURABLE_VIDEO_ADMISSION_MODE`
-  (`pilot` default, `open` candidate). Open mode admits only canonical,
+  (`pilot` default, explicit `open`). Open mode admits only canonical,
   authenticated accounts through the unchanged positive paid-quote/hold
   protocol and exposes BF16 only. Both pilot fields must be empty; retained
-  pilot restrictions must never be silently ignored. Source deployment does
-  not authorize a public switch. Core's public entry points, capacity and
+  pilot restrictions must never be silently ignored. The separate source
+  candidate does not authorize another public switch. Core's public entry points, capacity and
   independent admission configuration still require rollout review.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result

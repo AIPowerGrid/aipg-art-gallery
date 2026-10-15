@@ -114,6 +114,13 @@ Next.js web process and Go API process from one commit-pinned release.
   capability-denying child stack; never disable the host restriction, substitute
   a broadly unconfined profile or run codec tests as root to hide a failure.
   CI loads that same distribution policy before real unprivileged tests.
+  A production policy load needs explicit operator approval for that exact
+  profile and server-wide Bubblewrap scope; staging or CI approval is not that
+  permission. Keep unapproved profiles outside active configuration.
+  A separately verified static codec candidate is owned by Core's
+  `deploy/MEDIA_CODEC_RUNTIME.md`; its executable alone is mounted into the
+  sandbox. Verify the exact selected paths/hashes and real Gallery preparation
+  under service restrictions, not just availability or a newer version number.
   Keep source admission default-off while deploying;
   qualify an independent expiring source cohort without closing public text
   video, then explicitly clear its cohort fields for source `open` mode.
