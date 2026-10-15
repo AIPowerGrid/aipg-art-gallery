@@ -108,7 +108,13 @@ Next.js web process and Go API process from one commit-pinned release.
   plus a successful sandbox self-test under the actual service restrictions.
   Do not disable host isolation to pass a test. Codec tests on macOS do not
   establish Linux namespace isolation. Check package security and free disk
-  before installing tools. Keep source admission default-off while deploying;
+  before installing tools. Ubuntu's restricted user namespaces may require the
+  packaged `bwrap-userns-restrict` profile from `apparmor-profiles`, explicitly
+  loaded by an administrator. Use the distribution profile, including its
+  capability-denying child stack; never disable the host restriction, substitute
+  a broadly unconfined profile or run codec tests as root to hide a failure.
+  CI loads that same distribution policy before real unprivileged tests.
+  Keep source admission default-off while deploying;
   qualify an independent expiring source cohort without closing public text
   video, then explicitly clear its cohort fields for source `open` mode.
   Exact source upload/job Nginx locations allow65MiB; other routes retain32MiB.

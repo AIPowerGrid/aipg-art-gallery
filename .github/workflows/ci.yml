@@ -61,7 +61,19 @@ jobs:
           go-version-file: server/go.mod
           cache-dependency-path: server/go.sum
       - name: Install real source-media codecs and Linux isolation
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg bubblewrap util-linux
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg bubblewrap util-linux apparmor-profiles
+      - name: Load the distribution Bubblewrap namespace policy
+        run: |
+          set -euo pipefail
+          restriction=/proc/sys/kernel/apparmor_restrict_unprivileged_userns
+          if [ -r "$restriction" ] && [ "$(cat "$restriction")" = 1 ]; then
+            profile=/etc/apparmor.d/bwrap-userns-restrict
+            if [ ! -f "$profile" ]; then
+              sudo install -m 0644 /usr/share/apparmor/extra-profiles/bwrap-userns-restrict "$profile"
+            fi
+            sudo apparmor_parser -r "$profile"
+            test "$(cat "$restriction")" = 1
+          fi
       - run: go test -race ./...
       - run: go vet ./...
       - run: GOTOOLCHAIN=auto go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...

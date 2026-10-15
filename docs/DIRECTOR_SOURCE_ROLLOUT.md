@@ -56,5 +56,14 @@ nonworking isolation refuses source-enabled startup. macOS codec tests do not
 waive that requirement. Keep source bodies out of request logs, durable job
 journals and browser storage.
 
+On Ubuntu with restricted unprivileged user namespaces, installing Bubblewrap
+alone may fail before decoding (`loopback: Failed RTM_NEWADDR`). CI installs
+`apparmor-profiles` and explicitly loads its distribution
+`bwrap-userns-restrict` policy. That policy grants Bubblewrap namespace setup
+while denying capabilities to its children; it is not a globally disabled
+restriction or an unconfined custom exception. Production needs the same
+reviewed policy and an actual service-user isolation test before activation.
+See [Ubuntu's namespace restriction guidance](https://discourse.ubuntu.com/t/understanding-apparmor-user-namespace-restriction/58007).
+
 The source soundtrack is retained after normalization; that is not a guarantee
 of matching generated mouth motion, identity or the original scene exactly.
