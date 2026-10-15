@@ -78,8 +78,9 @@ func TestVideoIntentLongerBF16KeepsOtherModelLimits(t *testing.T) {
 	request.Model = "LTX-2.5 Distilled BF16"
 	request.Frames = 481
 	request.MaxCostMicroUSD = 400834
-	if _, err := VideoIntentHash(request); err != nil {
-		t.Fatalf("long BF16 intent rejected: %v", err)
+	// Independently computed by the actual Core AsyncVideoRequest/request_hash.
+	if digest, err := VideoIntentHash(request); err != nil || digest != "6d3dec164f2d32d904d1808f99683ebdb08b46e0e3e9c5bccf1f5926ea70bab5" {
+		t.Fatalf("long BF16 Core commitment mismatch: %s %v", digest, err)
 	}
 	for _, model := range []string{"LTX-2.5 Distilled NVFP4", "LTX-2.5 Dev BF16"} {
 		request.Model = model
