@@ -10,10 +10,22 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLinuxCodecSandboxActuallyIsolatesHost(t *testing.T) {
 	if err := VerifyRuntime(); err != nil {
+		// Only the fixed -version self-test may emit diagnostics. Uploaded
+		// media and application environment are never part of this command.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		command, commandErr := codecCommand(ctx, "ffprobe", t.TempDir(), []string{"-version"})
+		if commandErr == nil {
+			var diagnostic boundedOutput
+			command.Stdout, command.Stderr = &diagnostic, &diagnostic
+			runErr := command.Run()
+			t.Logf("trusted codec self-test exit=%v diagnostic=%s", runErr, diagnostic.String())
+		}
 		t.Fatal(err)
 	}
 	parent := t.TempDir()
