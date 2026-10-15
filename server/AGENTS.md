@@ -117,8 +117,9 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   exact Distilled BF16/NVFP4 identities are admitted, with BF16 as the omitted
   model default. No precision relabeling or old-model fallback occurs. Core still owns cohort, recipe,
   worker, atomic reservation and source admission. The legacy `/api/jobs`
-  path is unchanged. The separate private Director clip tab selects the new
-  path only for eligible pilot accounts or existing read-only recovery.
+  path is unchanged. Director exposes one Generate workspace to all visitors;
+  only authenticated server-eligible accounts may submit. Existing read-only
+  recovery does not depend on fresh admission. Edit / Assemble cannot render.
   Owner/family replay precedes quoting. A live exact-frame, model, account and
   cost-ceiling quote is required, then the journal commits its independently
   computed intent and Core UUIDv4 key before one generation POST. HTTP errors
@@ -151,6 +152,22 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   token, private storage URL or raw upstream failure is exposed. Counts are
   operational inventory, not GPU/model-fidelity qualification or billing
   authority. Core's final admission and atomic hold remain mandatory.
+- The separate default-off `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` admits
+  BF16 audio/video sources, not appearance references or NVFP4. It requires
+  durable video plus working Linux FFmpeg/ffprobe, bubblewrap and prlimit;
+  startup fails if isolation does not execute. Authenticated bounded multipart
+  `/api/videos/prepare-source` accepts one local file and exact window/geometry,
+  normalizes without storing a job, and returns ephemeral inline sources.
+  Sound is required; V2V retains the source soundtrack and uses contain fitting.
+  Native billing/cleanup/capacity canaries and the Core source-path flags remain
+  activation gates. Disabling sources must preserve all original GET recovery.
+  Source admission independently defaults to `pilot`, with its own
+  `GALLERY_DURABLE_VIDEO_SOURCES_PILOT_ACCOUNTS` and fixed
+  `GALLERY_DURABLE_VIDEO_SOURCES_PILOT_UNTIL` (the same UUID/count/24h rules).
+  Ordinary text video may remain public during this private source cohort.
+  `GALLERY_DURABLE_VIDEO_SOURCES_ADMISSION_MODE=open` requires both source
+  cohort fields cleared. Recheck source eligibility after preparation and
+  quoting; existing replay precedes all new-source gates.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server

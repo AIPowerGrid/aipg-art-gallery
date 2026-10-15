@@ -7,6 +7,22 @@ import (
 	"github.com/google/uuid"
 )
 
+func (cfg Config) sourceAdmission() Config {
+	cfg.DurableVideoEnabled = cfg.DurableVideoEnabled && cfg.DurableVideoSourcesEnabled
+	cfg.DurableVideoAdmissionMode = cfg.DurableVideoSourcesAdmissionMode
+	cfg.DurableVideoPilotAccounts = cfg.DurableVideoSourcesPilotAccounts
+	cfg.DurableVideoPilotUntil = cfg.DurableVideoSourcesPilotUntil
+	return cfg
+}
+
+func (cfg Config) ValidateDurableVideoSources(now time.Time) error {
+	return cfg.sourceAdmission().ValidateDurableVideoPilot(now)
+}
+
+func (cfg Config) AllowsDurableVideoSourceAccount(account string, now time.Time) bool {
+	return cfg.sourceAdmission().AllowsDurableVideoAccount(account, now)
+}
+
 func (cfg Config) ValidateDurableVideoPilot(now time.Time) error {
 	if !cfg.DurableVideoEnabled {
 		return nil

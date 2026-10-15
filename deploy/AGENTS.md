@@ -33,11 +33,12 @@ Next.js web process and Go API process from one commit-pinned release.
   deploy or use an older security rollback without fresh source/binary scans,
   restored-backup/race proof and the ordinary drained release checks. This
   contract is not a record that the new candidate is already active.
-- Production selects `gallery-0469027d`, the verified main release of PR #43.
+- Production selects `gallery-cf533e97`, the verified main release of PR #46.
   Signed artifacts, host runtime and restored-backup race gates passed. A
   real purchased-credit opening-image/BF16 browser pilot passed exact-once
-  billing and browser/API restart recovery. This is not public/x402 admission
-  or NVFP4 Gallery qualification. Retained older brokers are not compatible
+  billing and browser/API restart recovery. Public credit-backed BF16
+  text/opening-image admission subsequently passed a separate27500-micro clip.
+  Source modes, video x402 and NVFP4 Gallery remain closed. Retained older brokers are not compatible
   post-video-receipt rollback targets: keep this patched video-aware reader
   with admission disabled. Timelines/3D remain closed. See `README.md`.
 - Releases are detached checkouts under
@@ -103,6 +104,31 @@ Next.js web process and Go API process from one commit-pinned release.
   IDs, credentials or source URLs belong in deployment documentation.
 - Release pruning must resolve and protect `/opt/aipg-gallery-current`, reject
   paths outside `/opt/aipg-gallery-releases`, and keep one inactive release.
+- Source-mode candidates require host FFmpeg/ffprobe, bubblewrap and prlimit,
+  plus a successful sandbox self-test under the actual service restrictions.
+  Do not disable host isolation to pass a test. Codec tests on macOS do not
+  establish Linux namespace isolation. Check package security and free disk
+  before installing tools. Ubuntu's restricted user namespaces may require the
+  packaged `bwrap-userns-restrict` profile from `apparmor-profiles`, explicitly
+  loaded by an administrator. Use the distribution profile, including its
+  capability-denying child stack; never disable the host restriction, substitute
+  a broadly unconfined profile or run codec tests as root to hide a failure.
+  CI loads that same distribution policy before real unprivileged tests.
+  A production policy load needs explicit operator approval for that exact
+  profile and server-wide Bubblewrap scope; staging or CI approval is not that
+  permission. Keep unapproved profiles outside active configuration.
+  A separately verified static codec candidate is owned by Core's
+  `deploy/MEDIA_CODEC_RUNTIME.md`; its executable alone is mounted into the
+  sandbox. Verify the exact selected paths/hashes and real Gallery preparation
+  under service restrictions, not just availability or a newer version number.
+  Keep source admission default-off while deploying;
+  qualify an independent expiring source cohort without closing public text
+  video, then explicitly clear its cohort fields for source `open` mode.
+  Exact source upload/job Nginx locations allow65MiB; other routes retain32MiB.
+  The upload location streams its bounded body and permits75-second preparation;
+  Next's direct/local proxy has the matching65MiB ceiling. Verify every outer
+  proxy, not only the application handler. Rollback closes source admission on
+  a source-aware release without dropping any job receipts.
 
 ## Verification
 

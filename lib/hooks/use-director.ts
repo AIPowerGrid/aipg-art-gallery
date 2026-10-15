@@ -35,6 +35,7 @@ import { DirectorSegment, segmentOffsets } from '@/lib/types/director';
 import { StylesConfig } from '@/lib/types/create';
 
 interface UseDirectorOptions {
+  generationEnabled?: boolean;
   styles: StylesConfig | null;
   ownerIdentifier?: string;
   authenticated: boolean;
@@ -58,6 +59,7 @@ export function __setDirectorOfflineForTests(v: boolean) {
 }
 
 export function useDirector({
+  generationEnabled = true,
   styles,
   ownerIdentifier,
   authenticated,
@@ -73,6 +75,7 @@ export function useDirector({
 
   const generateFirstFrame = useCallback(
     async (segmentId: string): Promise<boolean> => {
+      if (!generationEnabled) { setError("Timeline generation is unavailable."); return false; }
       if (!authenticated) {
         setError("Sign in with Google or a Base wallet to generate a first frame.");
         onAuthRequired();
@@ -81,6 +84,7 @@ export function useDirector({
 
       const state = useDirectorStore.getState();
       const segment = state.segments.find((candidate) => candidate.id === segmentId);
+      if (segment?.importedClip) return false;
       if (!segment || generatingFrames.current.has(segmentId)) return false;
       if (useJobStore.getState().requests.some((request) => request.requestId === segment.startImageRequestId && request.owner === ownerIdentifier?.toLowerCase())) {
         setError('Checking the original first-frame request. Do not generate it again yet.');
@@ -174,11 +178,12 @@ export function useDirector({
         generatingFrames.current.delete(segmentId);
       }
     },
-    [ownerIdentifier, authenticated, modelAvailability, onAuthRequired, addJob]
+    [generationEnabled, ownerIdentifier, authenticated, modelAvailability, onAuthRequired, addJob]
   );
 
   const renderSegment = useCallback(
     async (segmentId: string, opts?: { manual?: boolean }): Promise<boolean> => {
+      if (!generationEnabled) { setError("Timeline generation is unavailable."); return false; }
       if (!authenticated) {
         setError("Sign in with Google or a Base wallet to render.");
         onAuthRequired();
@@ -195,6 +200,7 @@ export function useDirector({
       const state = useDirectorStore.getState();
       const idx = state.segments.findIndex((s) => s.id === segmentId);
       const segment = state.segments[idx];
+      if (segment?.importedClip) return false;
       if (!segment || submitting.current.has(segmentId)) return false;
       if (useJobStore.getState().requests.some((request) => request.requestId === segment.requestId && request.owner === ownerIdentifier?.toLowerCase())) {
         setError('Checking the original segment request. Do not render it again yet.');
@@ -348,13 +354,14 @@ export function useDirector({
         submitting.current.delete(segmentId);
       }
     },
-    [ownerIdentifier, authenticated, modelAvailability, onAuthRequired, addJob]
+    [generationEnabled, ownerIdentifier, authenticated, modelAvailability, onAuthRequired, addJob]
   );
 
   const renderPending = useCallback(() => {
+    if (!generationEnabled) { setError("Timeline generation is unavailable."); return; }
     setError(null);
     useDirectorStore.getState().setQueueActive(true);
-  }, []);
+  }, [generationEnabled]);
 
   const stopQueue = useCallback(() => {
     useDirectorStore.getState().setQueueActive(false);

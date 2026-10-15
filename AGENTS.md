@@ -13,8 +13,8 @@ contracts, workflows, I/O, permissions, or the Child DOX Index. Remove stale tex
 ## Purpose
 
 The creative frontend for the AI Power Grid: distributed GPU workers generate images,
-video, and 3D; the Director provides a browser-side timeline for chained
-image-conditioned video segments. Image/video results can land in the public gallery. No
+video, and 3D; Director has one generation workspace for text, soundtrack and
+motion-guided clips plus a separate Edit / Assemble timeline. Image/video results can land in the public gallery. No
 account is required to browse. Google or wallet sign-in unlocks credit-backed generation,
 personal creations, publishing, and favorites. Two deployables live in one repo: a Next.js
 16 web app and a Go API server that brokers generation
@@ -39,6 +39,8 @@ jobs to the grid and serves gallery/media.
 - **`docs/`** — `SECURITY_AUDIT_REPORT.md`, `GALLERY_OPTIMIZATION.md` (reference, read before
   related work). `public/` — static assets. `Dockerfile.frontend*` / `Dockerfile.server` +
   `docker-compose.yml` — deploy.
+  `docs/DIRECTOR_SOURCE_ROLLOUT.md` tracks unified Director/source acceptance;
+  implemented controls must not be mistaken for completed public qualification.
 
 ## Local Contracts
 
@@ -109,24 +111,26 @@ jobs to the grid and serves gallery/media.
 - The separate `/api/videos/jobs` broker defaults off. Its PostgreSQL receipt
   journal, exact-frame quote/preflight and browser preparation/recovery helpers prepare
   LTX-2.5 without enabling Core workers or public generation. The Director's
-  separate private clip tab selects the typed client only for server-eligible
-  accounts, or keeps read-only recovery visible for their existing jobs.
+  Generate workspace is visible signed in or out; server eligibility gates
+  submission, not the interface. Existing jobs retain read-only recovery.
+  Edit / Assemble preserves timelines without legacy generation.
   Native storage/worker and purchased-
   credit qualification must precede enabling `GALLERY_DURABLE_VIDEO_ENABLED`.
   Activation requires a private canonical-account cohort and fixed expiry
   matching Core's reviewed pilot. Invalid enabled configuration fails closed;
   expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
   capability discovery does not reveal cohort IDs or qualify model fidelity.
-- Release `0469027d` is deployed and its private BF16 opening-image pilot
-  passed real purchased billing and browser/API restart recovery. This does
-  not enable public video, NVFP4 Gallery use or x402. Gallery's private cohort
-  is comma-separated, unlike Core's JSON array. See `deploy/README.md`.
+- Production selects `cf533e97` and public authenticated credit-backed BF16
+  text/opening-image video. Purchased billing and original-receipt/browser/API
+  restart recovery passed; source audio/video, NVFP4 Gallery, timeline
+  generation and video x402 remain closed. Gallery's source cohort is
+  comma-separated, unlike Core's JSON array. See `deploy/README.md`.
 - Public-admission preparation adds explicit `GALLERY_DURABLE_VIDEO_ADMISSION_MODE`
-  (`pilot` default, `open` candidate). Open mode admits only canonical,
+  (`pilot` default, explicit `open`). Open mode admits only canonical,
   authenticated accounts through the unchanged positive paid-quote/hold
   protocol and exposes BF16 only. Both pilot fields must be empty; retained
-  pilot restrictions must never be silently ignored. Source deployment does
-  not authorize a public switch. Core's public entry points, capacity and
+  pilot restrictions must never be silently ignored. The separate source
+  candidate does not authorize another public switch. Core's public entry points, capacity and
   independent admission configuration still require rollout review.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result
@@ -185,6 +189,10 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 
 - New generation capability → backend handler in `server/` first, then `lib/api.ts` client +
   `app/` UI. Keep request/response shapes in sync with `types/models.ts` and Go structs.
+- Audio/video source modes have a separate default-off
+  `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Linux codec isolation, native
+  source conditioning, purchased billing and cleanup must qualify before it
+  opens; an available UI or codec unit test is not release acceptance.
 - New env var → add to `.env.example` and, for the backend, `server/internal/config`.
 
 ## Verification

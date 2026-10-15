@@ -131,3 +131,13 @@ describe('director store', () => {
     expect(segment.startImageJobId).toBeUndefined();
   });
 });
+it('imports a finished clip for assembly without turning it into a render request',()=>{
+  const state=useDirectorStore.getState();
+  const id=state.importRenderedClip({url:'https://media.aipg.art/video/fixture/final.mp4',frames:33,gridJobId:'fixture-receipt'});
+  state.updateSegment(id,{lengthFrames:192,status:'idle',outputUrl:undefined});
+  const clip=useDirectorStore.getState().segments.find((item)=>item.id===id)!;
+  expect(clip).toMatchObject({status:'done',importedClip:true,lengthFrames:33,outputUrl:'https://media.aipg.art/video/fixture/final.mp4'});
+  const before=useDirectorStore.getState().segments.length;state.splitSegment(id,0.5);expect(useDirectorStore.getState().segments).toHaveLength(before);
+  const copy=state.duplicateSegment(id);expect(useDirectorStore.getState().segments.find((item)=>item.id===copy)).toMatchObject({status:'done',importedClip:true,outputUrl:clip.outputUrl});
+  expect(()=>state.importRenderedClip({url:'http://127.0.0.1/private',frames:33})).toThrow('Invalid completed clip');
+});

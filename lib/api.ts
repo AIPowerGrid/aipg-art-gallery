@@ -156,6 +156,25 @@ export function fetchDurableVideoQuote(
 export interface DurableVideoCapabilities {
   enabled: boolean;
   models: Array<{ id: DurableVideoRequest["model"]; onlineWorkers: number }>;
+  sourceModes?: Array<"audio" | "video">;
+}
+
+export interface PreparedVideoSource {
+  audio: string;
+  video?: string;
+  frames: number;
+  width: number;
+  height: number;
+  startSeconds: number;
+}
+
+export function prepareVideoSource(file: File, options: {
+  mode: "audio" | "video"; frames: number; width: number; height: number; startSeconds: number;
+}, signal?: AbortSignal): Promise<PreparedVideoSource> {
+  const body = new FormData();
+  body.append("file", file);
+  for (const [key, value] of Object.entries(options)) body.append(key, String(value));
+  return jsonFetch("/videos/prepare-source", { method: "POST", body, signal, cache: "no-store" });
 }
 
 export function fetchDurableVideoCapabilities(): Promise<DurableVideoCapabilities> {

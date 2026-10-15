@@ -26,6 +26,8 @@ it.each([
   { enabled: true, models: [{ ...model, onlineWorkers: 0 }] },
   { enabled: true, models: [model, model] },
   { enabled: "true", models: [] },
+  { enabled: true, models: [model], sourceModes: ["url"] },
+  { enabled: true, models: [model], sourceModes: ["audio", "audio"] },
 ])("fails closed on invalid capability response %j", async (value) => {
   (fetchDurableVideoCapabilities as jest.Mock).mockResolvedValue(value);
   const { result } = renderHook(() => useDurableVideoCapabilities(true, "owner-a"));

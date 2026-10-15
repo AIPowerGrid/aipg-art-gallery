@@ -97,8 +97,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   never copied into the pending-request journal. Recheck the active account
   after the preparation callback and before dispatch. Core and Go remain the
   source-validation, admission and billing authorities. The typed Distilled
-  client preserves separate BF16/NVFP4 names; the private Director clip tab
-  selects it only through the server capability gate.
+  client preserves separate BF16/NVFP4 names; the common Generate workspace
+  gates submission, not visibility, through authenticated server capabilities.
 - `create/durable-director-payload.ts` prepares an explicit 8n+1 output count,
   quote ceiling, geometry, seed and optional ordered image guides. It never
   rounds a legacy segment duration or inserts its stored portrait implicitly.
@@ -117,17 +117,26 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   no-store pilot capability endpoint. It validates exact model names, distinct
   rows and positive safe worker counts; malformed/foreign-account late replies
   cannot enable controls. Capacity is not model-fidelity proof. The Director
-  clip workspace consumes the gate; native paid acceptance still gates activation.
-- `hooks/use-durable-director-clip.ts` owns the separate text/opening-image
-  clip form. PNG, JPEG and Studio-generated WebP opening images up to 10 MB
+  workspace consumes the gate; native paid acceptance still gates activation.
+- `hooks/use-durable-director-clip.ts` owns the common Text/Audio/Video form.
+  PNG, JPEG and Studio-generated WebP opening images up to 10 MB
   remain ephemeral and never enter persisted request/job metadata. Browser
   MIME/size checks are UX; Core still decodes and validates the actual bytes.
   Busy/unknown jobs lock fresh submissions, a synchronous in-flight guard
   prevents double-click POSTs, and library-write failure never retries paid
   generation. Canonical owner changes reset the mounted form and prevent late
   callbacks from dispatching or altering the next account's form. Legacy
-  timeline data is never implicitly migrated. Reference audio/video preparation
-  and timed multi-image controls are not yet exposed by this form.
+  timeline data is never implicitly migrated. Audio/video modes call the
+  authenticated preparation endpoint before saving a generation intent; the
+  returned exact frames/geometry/source start must match. An owner change,
+  cancellation, closed source mode or failed preparation dispatches nothing.
+  File objects, object URLs and normalized source bodies stay in memory only;
+  revoke preview URLs on replacement/unmount. V2V fits 64-aligned geometry and
+  retains explicit prepared sound; appearance-only references stay disabled.
+  A confirmed terminal original receipt clears only its stale unknown-submit
+  notice, not unrelated errors. Edit / Assemble disables all legacy render
+  entry points. Imported finished clips remain completed, immutable-length
+  output references and cannot become paid render requests.
 - Pending requests and active jobs do not expire under the 24-hour completed
   history cleanup. The Jobs menu displays unresolved requests. Director retains
   separate `startImageRequestId` and video `requestId`; a recovered ID can only

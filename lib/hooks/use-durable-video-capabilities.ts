@@ -13,6 +13,7 @@ export function useDurableVideoCapabilities(authenticated: boolean, ownerIdentif
       if (!active) return;
       const seen = new Set<string>();
       if (typeof value?.enabled !== "boolean" || !Array.isArray(value.models) || value.models.length > 2 ||
+          (value.sourceModes !== undefined && (!Array.isArray(value.sourceModes) || value.sourceModes.length > 2 || new Set(value.sourceModes).size !== value.sourceModes.length || value.sourceModes.some((mode) => mode !== "audio" && mode !== "video"))) ||
           (!value.enabled && value.models.length > 0) || value.models.some((model) => {
             if (!model || !["LTX-2.5 Distilled BF16", "LTX-2.5 Distilled NVFP4"].includes(model.id) ||
                 !Number.isSafeInteger(model.onlineWorkers) || model.onlineWorkers <= 0 || seen.has(model.id)) return true;
@@ -27,6 +28,7 @@ export function useDurableVideoCapabilities(authenticated: boolean, ownerIdentif
     ready: !!current,
     enabled: current?.value?.enabled ?? false,
     models: current?.value?.models ?? [],
+    sourceModes: current?.value?.sourceModes ?? [],
     error: current?.error ?? false,
     refresh: () => setAttempt((value) => value + 1),
   };

@@ -65,6 +65,7 @@ type DirectorCoachStep =
 
 interface DirectorConsoleProps {
   workspaceInset?: boolean;
+  assemblyOnly?: boolean;
   styles: StylesConfig | null;
   ownerIdentifier?: string;
   authenticated: boolean;
@@ -78,6 +79,7 @@ interface DirectorConsoleProps {
 
 export function DirectorConsole({
   workspaceInset = false,
+  assemblyOnly = false,
   styles,
   ownerIdentifier,
   authenticated,
@@ -119,6 +121,7 @@ export function DirectorConsole({
   const duplicateSegment = useDirectorStore((s) => s.duplicateSegment);
 
   const { renderSegment, generateFirstFrame, renderPending, stopQueue, error, model } = useDirector({
+    generationEnabled: !assemblyOnly,
     styles,
     ownerIdentifier,
     authenticated,
@@ -142,7 +145,7 @@ export function DirectorConsole({
     ? segmentBlockers(selected, selectedIndex, globalPrompt)
     : [];
   const coachStep: DirectorCoachStep =
-    doneCount > 0
+    assemblyOnly || doneCount > 0
       ? null
       : segments.length === 0
         ? "add-segment"
@@ -158,10 +161,11 @@ export function DirectorConsole({
   const totalSec = segments.reduce((a, s) => a + s.lengthFrames, 0) / 24;
   const hasAudio = audios.length > 0;
   const modelReady =
+    !assemblyOnly &&
     !!model?.enabled &&
     modelAvailability.checked &&
     (modelAvailability.director || (!hasAudio && modelAvailability.fallback));
-  const degradedMode = !modelAvailability.director && !hasAudio && modelAvailability.fallback;
+  const degradedMode = !assemblyOnly && !modelAvailability.director && !hasAudio && modelAvailability.fallback;
   const { credits, firstFrameQuote, segmentQuote } = useDirectorBilling({
     authenticated,
     selected,
@@ -500,12 +504,12 @@ export function DirectorConsole({
               fallback video
             </span>
           )}
-          {modelAvailability.checked && !modelReady && (
+          {!assemblyOnly && modelAvailability.checked && !modelReady && (
             <span className="rounded-md border border-[#f5b544]/40 bg-[#f5b544]/10 px-2.5 py-1 text-[11.5px] text-[#f5b544]">
               model offline
             </span>
           )}
-          <button
+          {!assemblyOnly && <button
             type="button"
             onClick={() => (queueActive ? stopQueue() : renderPending())}
             disabled={!queueActive && (pendingCount === 0 || !modelReady)}
@@ -525,7 +529,7 @@ export function DirectorConsole({
                 Render{pendingCount > 0 ? ` (${pendingCount})` : ""}
               </>
             )}
-          </button>
+          </button>}
           <button
             type="button"
             onClick={handleExport}
@@ -595,6 +599,7 @@ export function DirectorConsole({
       {(() => {
         const inspectorEl = selected ? (
           <SegmentInspector
+            generationEnabled={!assemblyOnly}
             segment={selected}
             index={selectedIndex}
             count={segments.length}
@@ -608,8 +613,8 @@ export function DirectorConsole({
             onToggleChain={() => handleToggleChain(selected.id)}
             onUploadImage={(f) => handleUploadImage(selected.id)(f)}
             onGenerateImage={() => generateFirstFrame(selected.id)}
-            kreaAvailable={modelAvailability.checked && modelAvailability.krea}
-            canGenerateImage={Boolean(selected.prompt.trim() || globalPrompt.trim())}
+            kreaAvailable={!assemblyOnly && modelAvailability.checked && modelAvailability.krea}
+            canGenerateImage={!assemblyOnly && Boolean(selected.prompt.trim() || globalPrompt.trim())}
             onRender={() => renderSegment(selected.id, { manual: true })}
             onDuplicate={() => duplicateSegment(selected.id)}
             onRemove={() => removeSegment(selected.id)}
@@ -631,7 +636,7 @@ export function DirectorConsole({
             )}
           </>
         );
-        const settingsEl = (
+        const settingsEl = assemblyOnly ? null : (
           <RenderSettingsPanel
             settings={settings}
             model={model}

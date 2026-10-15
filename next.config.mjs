@@ -2,6 +2,7 @@
 const nextConfig = {
   // output: 'standalone',
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  experimental: { proxyClientMaxBodySize: "65mb" },
   async rewrites() {
     // Mirror the production nginx contract: the browser talks to a single origin
     // and /api is proxied to the Go backend. This runs only when Next handles the

@@ -9,6 +9,23 @@ package owns one concern; `app/app.go` wires them together.
 
 - `app/` — router + HTTP handlers (owned by `server/AGENTS.md`, not re-described here).
 - `config/` — typed `Config` + `Load()`; the single home for `os.Getenv`.
+- `videosource/` prepares owner-private local audio/video uploads using exact
+  windows, stereo48k PCM16 WAV and optional 24fps H.264 MP4. It rejects short,
+  silent/ambiguous video sources, bad geometry and playlist/network formats;
+  never pads sound or accepts remote URLs. Two global slots, bounded uploads,
+  output sizes, tool output and deadlines apply. Linux executes codecs through
+  bubblewrap with no host network/app filesystem/environment and prlimit CPU,
+  address-space/file/descriptor bounds. Startup self-tests the actual sandbox
+  before the independent source gate can open,
+  with the distribution library cache/alternative links read-only, not all of
+  `/etc`; BLAS/OpenMP initialization is single-threaded. Linux tests also prove
+  zero effective capabilities and absence of host credentials.
+  The resolved executable alone is bound at `/codec/tool`, not its parent;
+  a versioned static codec requires separate provenance/hash/service proof.
+  Deployment must verify actual PATH resolution, not accept a system fallback.
+  Non-root macOS execution is
+  local codec-test evidence only. Private temp files are removed on every exit.
+  Preparation never quotes, reserves credits, uploads to Core/R2 or generates.
 - `aipg/` — HTTP client for the new grid `/v1` (OpenAI-shaped). `GenerateMedia` is a
   single synchronous call to `/v1/images|videos|3d/generations`.
   `MediaGenerationTimeout` is the shared image/video client + detached-job
@@ -80,6 +97,12 @@ package owns one concern; `app/app.go` wires them together.
   read to the delegated owner, exact Distilled model, frame/fps and live price.
   Quote reads may report insufficient funds but never create a job or weaken
   the generation ceiling/balance check. BF16 and NVFP4 remain separate names.
+  `app/video_source.go` protects `/videos/prepare-source` with normal session,
+  CSRF, canonical ownership, source gate, upload limits and rate/concurrency
+  guards. Fresh source submissions separately enforce the gate after original
+  intent replay and before quoting/journaling. Reference images remain closed;
+  motion without explicit sound or with audio disabled is rejected. Core still
+  independently decodes sources and enforces its source-path gates and holds.
 - `config/video_pilot.go` validates the private canonical-account cohort and
   fixed absolute deadline. Disabled defaults admit nobody; expiry closes fresh
   quotes/jobs without rewriting journal rows or disabling GET recovery. Invalid

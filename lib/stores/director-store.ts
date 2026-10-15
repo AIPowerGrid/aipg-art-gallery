@@ -87,6 +87,7 @@ interface DirectorStore {
 
   /** Append a segment; chained by default when a predecessor exists. */
   addSegment: () => string;
+  importRenderedClip: (args: { url: string; frames: number; gridJobId?: string }) => string;
   /** Append a segment anchored on an external clip's extracted last frame
    *  (the "Extend in Director" entry point from the gallery). */
   appendClipSegment: (args: { image: string; name: string; prompt?: string }) => string;
@@ -187,6 +188,15 @@ export const useDirectorStore = create<DirectorStore>()(
         return seg.id;
       },
 
+      importRenderedClip: ({url,frames,gridJobId}) => {
+        const location = new URL(url);
+        if (location.protocol !== 'https:' || location.hostname !== 'media.aipg.art' || location.username || location.password ||
+            !Number.isSafeInteger(frames) || frames < 9 || frames > 337 || frames%8 !== 1) throw new Error('Invalid completed clip');
+        const seg = newSegment({importedClip:true,lengthFrames:frames,status:'done',outputUrl:url,gridJobId,chained:false});
+        set((s)=>({segments:[...s.segments,seg],selectedId:seg.id,queueActive:false}));
+        return seg.id;
+      },
+
       appendClipSegment: ({ image, name, prompt }) => {
         const seg = newSegment({
           chained: false,
@@ -203,7 +213,9 @@ export const useDirectorStore = create<DirectorStore>()(
           segments: s.segments.map((seg) => {
             if (seg.id !== id) return seg;
             const next = { ...seg, ...patch };
-            if (patch.lengthFrames !== undefined) {
+            if (seg.importedClip) {
+              next.lengthFrames=seg.lengthFrames; next.outputUrl=seg.outputUrl; next.status='done'; next.importedClip=true;
+            } else if (patch.lengthFrames !== undefined) {
               next.lengthFrames = clampSegmentFrames(patch.lengthFrames);
             }
             return next;
@@ -267,6 +279,7 @@ export const useDirectorStore = create<DirectorStore>()(
           const idx = s.segments.findIndex((x) => x.id === id);
           if (idx < 0) return s;
           const seg = s.segments[idx];
+          if (seg.importedClip) return s;
           const firstLen = clampSegmentFrames(Math.round(seg.lengthFrames * atFraction));
           const secondLen = seg.lengthFrames - firstLen;
           // Refuse a split that would leave either half under the 1s minimum.
@@ -301,6 +314,7 @@ export const useDirectorStore = create<DirectorStore>()(
         const src = get().segments.find((s) => s.id === id);
         if (!src) return null;
         const copy = newSegment({
+          ...(src.importedClip ? {importedClip:true,status:'done' as const,outputUrl:src.outputUrl,gridJobId:src.gridJobId} : {}),
           prompt: src.prompt,
           lengthFrames: src.lengthFrames,
           chained: src.chained,
