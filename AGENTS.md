@@ -189,6 +189,10 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 
 - New generation capability → backend handler in `server/` first, then `lib/api.ts` client +
   `app/` UI. Keep request/response shapes in sync with `types/models.ts` and Go structs.
+- Public NVFP4 has its own default-off `GALLERY_DURABLE_VIDEO_NVFP4_ENABLED`
+  rollout switch, with a matching independent Core gate and unchanged337-frame
+  limit. Native/exporter/worker-credential and purchased-path qualification
+  precede activation; closing it must preserve old receipt replay and GET.
 - Audio/video source modes have a separate default-off
   `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Linux codec isolation, native
   source conditioning, purchased billing and cleanup must qualify before it

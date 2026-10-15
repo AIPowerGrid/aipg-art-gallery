@@ -16,6 +16,7 @@ type Config struct {
 	GalleryStorePath                 string
 	JWTSecret                        string
 	DurableVideoEnabled              bool
+	DurableVideoNVFP4Enabled         bool
 	DurableVideoSourcesEnabled       bool
 	DurableVideoSourcesAdmissionMode string
 	DurableVideoSourcesPilotAccounts []string
@@ -81,6 +82,7 @@ func Load() Config {
 		GalleryStorePath:                 getEnv("GALLERY_STORE_PATH", "./data/gallery.json"),
 		JWTSecret:                        os.Getenv("JWT_SECRET"),
 		DurableVideoEnabled:              getEnv("GALLERY_DURABLE_VIDEO_ENABLED", "false") == "true",
+		DurableVideoNVFP4Enabled:         getEnv("GALLERY_DURABLE_VIDEO_NVFP4_ENABLED", "false") == "true",
 		DurableVideoSourcesEnabled:       getEnv("GALLERY_DURABLE_VIDEO_SOURCES_ENABLED", "false") == "true",
 		DurableVideoSourcesAdmissionMode: getEnv("GALLERY_DURABLE_VIDEO_SOURCES_ADMISSION_MODE", "pilot"),
 		DurableVideoSourcesPilotAccounts: splitAndClean(os.Getenv("GALLERY_DURABLE_VIDEO_SOURCES_PILOT_ACCOUNTS")),
