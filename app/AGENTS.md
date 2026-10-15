@@ -68,12 +68,12 @@ route handlers for things that must not run in the browser — including wallet 
   standard create page. It displays Core-owned first-frame and selected-segment quotes,
   links `402` responses to Console funding, and exposes copyable Core receipt IDs after
   completion. Browser project/audio persistence is local convenience, not authority.
-- An additional LTX-2.5 clip tab appears only for a server-enabled authenticated
-  account or that account's persisted Distilled jobs/requests. Eligible first
-  visits and reloads with recovery default to the clip tab, including recovery
-  after pilot expiry. Explicit timeline selection remains available. New-account
-  rendering never includes previous-account receipts. The old timeline/project
-  is unchanged; private clip availability is not public LTX-2.5 activation.
+- Director always defaults to Generate, signed in or out, without switching
+  layouts when account capabilities arrive. Login gates generation, not mode
+  discovery. Edit / Assemble preserves existing projects but disables legacy
+  generation, including queue/recovery callbacks. Explicitly adding a finished
+  current-account clip imports its existing output, never submits a new job.
+  Source modes remain governed by independent authenticated server capabilities.
 - **`proxy.ts` (repo root)** sets per-request CSP. Browser API traffic is
   same-origin `/api`; keep any exceptional external connection origin explicit.
 - **`layout.tsx`** passes the request cookie into the SSR-enabled wagmi provider; keep

@@ -2,13 +2,14 @@
 // SPDX-FileCopyrightText: 2026 AI Power Grid
 import { act, renderHook } from "@testing-library/react";
 import { randomUUID } from "crypto";
-import { addToGallery, createDurableVideoJob, createJob, ApiError } from "@/lib/api";
+import { addToGallery, createDurableVideoJob, createJob, prepareVideoSource, ApiError } from "@/lib/api";
 import { useJobStore } from "@/lib/stores/job-store";
 import { useDurableDirectorClip } from "../use-durable-director-clip";
 
 jest.mock("@/lib/api", () => ({
   ApiError: jest.requireActual("@/lib/api").ApiError,
   createDurableVideoJob: jest.fn(), createJob: jest.fn(), addToGallery: jest.fn(),
+  prepareVideoSource: jest.fn(),
   fetchJobStatus: jest.fn(), fetchJobByRequest: jest.fn(), updateGalleryItem: jest.fn(),
 }));
 const mockQuote = { costCeilingMicro: 67500, quote: { estimate: { balance_sufficient: true } }, loading: false, error: null, refresh: jest.fn() };
@@ -22,6 +23,8 @@ beforeEach(() => {
   Object.defineProperty(crypto, "randomUUID", { configurable: true, value: randomUUID });
   useJobStore.setState({ jobs: [], requests: [], activeOwner: "owner" });
   mockQuote.quote.estimate.balance_sufficient = true;
+  URL.createObjectURL = jest.fn(() => "blob:fixture-source");
+  URL.revokeObjectURL = jest.fn();
   (createDurableVideoJob as jest.Mock).mockResolvedValue({ jobId, status: "queued" });
   (addToGallery as jest.Mock).mockResolvedValue({ success: true });
 });
@@ -130,4 +133,50 @@ it("rejects unsupported, empty and oversized images without dispatch", async () 
     expect(result.current.error).toContain("10 MB");
   }
   expect(createDurableVideoJob).not.toHaveBeenCalled();
+});
+
+it.each(["audio", "video"] as const)("prepares %s once and sends only ephemeral source bytes", async (mode) => {
+  const { result } = renderHook(() => useDurableDirectorClip({ ...options, sourceModes: ["audio", "video"] }));
+  act(() => { result.current.setMode(mode); result.current.setPrompt("a boat on the water"); });
+  const height = mode === "video" ? 512 : 544;
+  (prepareVideoSource as jest.Mock).mockResolvedValue({ audio: "data:audio/wav;base64,YQ==", ...(mode === "video" ? { video: "data:video/mp4;base64,dg==" } : {}), frames:81,width:960,height,startSeconds:0 });
+  act(() => result.current.loadSource(new File(["private-source-bytes"], mode === "audio" ? "sound.mp3" : "source.mp4")));
+  await act(async () => { await Promise.all([result.current.submit(),result.current.submit()]); });
+  expect(prepareVideoSource).toHaveBeenCalledTimes(1);
+  expect(createDurableVideoJob).toHaveBeenCalledTimes(1);
+  expect((createDurableVideoJob as jest.Mock).mock.calls[0][1]).toMatchObject({reference_audio:"data:audio/wav;base64,YQ==", ...(mode === "video" ? {reference_video:"data:video/mp4;base64,dg==",guide_strength:0.85} : {})});
+  expect(JSON.stringify(useJobStore.getState().jobs)).not.toContain("data:audio");
+  expect(JSON.stringify(useJobStore.getState().requests)).not.toContain("private-source");
+});
+
+it("never dispatches source work when closed, malformed, cancelled or prepared for another account", async () => {
+  const { result,rerender } = renderHook((props) => useDurableDirectorClip(props), {initialProps:{...options,sourceModes:[] as Array<"audio"|"video">}});
+  act(() => {result.current.setMode("audio");result.current.setPrompt("a scene");result.current.loadSource(new File(["source"],"a.mp3"));});
+  await act(async()=>{await result.current.submit();});
+  expect(prepareVideoSource).not.toHaveBeenCalled();
+  rerender({...options,sourceModes:["audio"]});
+  (prepareVideoSource as jest.Mock).mockResolvedValue({audio:"data:audio/wav;base64,YQ==",frames:33,width:960,height:544,startSeconds:0});
+  await act(async()=>{await result.current.submit();});
+  expect(result.current.error).toContain("did not match");
+  (prepareVideoSource as jest.Mock).mockRejectedValue(new Error("source too short"));
+  await act(async()=>{await result.current.submit();});
+  expect(result.current.error).toContain("too short");
+  let finish!: (value:unknown)=>void;
+  (prepareVideoSource as jest.Mock).mockReturnValue(new Promise((resolve)=>{finish=resolve;}));
+  let pending!:Promise<void>;
+  act(()=>{pending=result.current.submit();});
+  act(()=>useJobStore.setState({activeOwner:"someone-else"}));
+  await act(async()=>{finish({audio:"data:audio/wav;base64,YQ==",frames:81,width:960,height:544,startSeconds:0});await pending;});
+  expect(createDurableVideoJob).not.toHaveBeenCalled();
+  expect(useJobStore.getState().requests).toEqual([]);
+});
+
+it("clears the stale unknown notice only after the original request closes", async()=>{
+  (createDurableVideoJob as jest.Mock).mockRejectedValue(new TypeError("reply lost"));
+  const {result}=setup();
+  await act(async()=>{await result.current.submit();});
+  expect(result.current.error).toContain("outcome is unknown");
+  act(()=>useJobStore.setState({requests:[],jobs:[{jobId,modelId:model,walletAddress:"owner",status:"completed",createdAt:Date.now()}] as never}));
+  expect(result.current.error).toBeNull();
+  expect(createDurableVideoJob).toHaveBeenCalledTimes(1);
 });

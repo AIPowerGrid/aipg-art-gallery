@@ -1,4 +1,6 @@
 import { expect, Page, test } from "@playwright/test";
+import {readFileSync} from "node:fs";
+import {join} from "node:path";
 
 const STYLES = {
   models: [
@@ -175,7 +177,7 @@ async function installDirectorMocks(page: Page) {
   });
 }
 
-test("submits a Director segment through the authenticated job contract", async ({ page }) => {
+test("assembly preserves a legacy completed project without submitting generation", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") browserErrors.push(message.text());
@@ -185,20 +187,18 @@ test("submits a Director segment through the authenticated job contract", async 
 
   await page.goto("/create/director", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Director" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Add your first segment" }).click();
-
-  const onePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nK0AAAAASUVORK5CYII=", "base64");
-  await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
-    name: "keyframe.png",
-    mimeType: "image/png",
-    buffer: onePixelPng,
-  });
-  await page.getByLabel("Segment prompt").fill("camera glides forward");
-  await page.getByRole("button", { name: "Render segment" }).click();
-
-  await expect(page.getByText("1 / 1 rendered")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Stop queue" })).toHaveCount(0);
+  await page.route("https://images.aipg.art/legacy.mp4",route=>route.fulfill({contentType:"video/mp4",body:readFileSync(join(__dirname,"../fixtures/clip-81-frames.mp4"))}));
+  await page.evaluate(()=>localStorage.setItem("aipg-director-store",JSON.stringify({version:1,state:{segments:[{id:"legacy-segment",prompt:"legacy prompt",lengthFrames:81,chained:false,startImage:null,strength:1,status:"done",outputUrl:"https://images.aipg.art/legacy.mp4",gridJobId:"legacy-receipt"}],projects:[],activeProjectName:"Existing project",queueActive:false}})));
+  await page.reload({waitUntil:"networkidle"});
+  const generation:string[]=[];page.on("request",request=>{if(request.method()==="POST"&&/\/(jobs|videos\/jobs)$/.test(new URL(request.url()).pathname))generation.push(request.url());});
+  await page.getByRole("tab",{name:"Edit / Assemble"}).click();
+  await expect(page.getByRole("button",{name:/^Render/})).toHaveCount(0);
+  await page.locator('[aria-label="Select segment 1"]').click();
+  await expect(page.getByText("legacy-receipt",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Duplicate clip",exact:true}).click();
+  expect(generation).toEqual([]);
+  const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem("aipg-director-store")!).state);
+  expect(saved.segments[0]).toMatchObject({id:"legacy-segment",prompt:"legacy prompt",status:"done",outputUrl:"https://images.aipg.art/legacy.mp4"});
   expect(browserErrors, `browser errors:\n${browserErrors.join("\n")}`).toEqual([]);
   await page.screenshot({
     path: "test-results/director-submitted.png",
@@ -206,36 +206,20 @@ test("submits a Director segment through the authenticated job contract", async 
   });
 });
 
-test("guides a first-time Director through each required setup step", async ({ page }) => {
+test("generation defaults remain stable while the assembly workspace stays separate", async ({ page }) => {
   await installDirectorMocks(page);
 
   await page.goto("/create/director", { waitUntil: "networkidle" });
-  await expect(page.getByText("Start here: add your first segment")).toBeVisible();
-  await page.getByRole("button", { name: "Start here: add your first segment" }).click();
-  await expect(page.getByText("Describe what should happen during this segment.")).toBeVisible();
-
-  // The project persists, but the selected segment intentionally does not.
-  // This was the confusing production path that prompted the coach marks.
+  await expect(page.getByRole("tab",{name:"Generate",exact:true})).toHaveAttribute("aria-selected","true");
+  await page.getByRole("tab",{name:"Edit / Assemble"}).click();
+  await expect(page.getByRole("button",{name:/^Render/})).toHaveCount(0);
   await page.reload({ waitUntil: "networkidle" });
-  await expect(page.getByText("Click segment 1 in the timeline to open its required fields.")).toBeVisible();
-  await page.locator('[aria-label="Select segment 1"]').click();
-  await expect(page.getByText("Describe what should happen during this segment.")).toBeVisible();
-  await page.getByLabel("Segment prompt").fill("camera glides forward");
-  await expect(
-    page.getByText("Generate the first frame with Krea 2 Turbo, or upload your own image."),
-  ).toBeVisible();
+  await expect(page.getByRole("tab",{name:"Generate",exact:true})).toHaveAttribute("aria-selected","true");
+  await expect(page.getByLabel("Clip prompt")).toBeVisible();
   await page.screenshot({
     path: "test-results/director-onboarding.png",
     fullPage: true,
   });
-
-  const onePixelPng = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nK0AAAAASUVORK5CYII=", "base64");
-  await page.locator('input[type="file"][accept="image/*"]').setInputFiles({
-    name: "keyframe.png",
-    mimeType: "image/png",
-    buffer: onePixelPng,
-  });
-  await expect(page.getByText("Render this segment. Sign-in will open here if needed.")).toBeVisible();
 });
 
 test("stacks the Director workspace inside a mobile viewport", async ({ page }) => {
@@ -244,6 +228,7 @@ test("stacks the Director workspace inside a mobile viewport", async ({ page }) 
 
   await page.goto("/create/director", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Director" })).toBeVisible();
+  await page.getByRole("tab",{name:"Edit / Assemble"}).click();
 
   const bounds = await page.evaluate(() => {
     const root = document.querySelector('[data-testid="director-console"]');

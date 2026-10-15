@@ -29,6 +29,8 @@ export interface DirectorSegment {
   prompt: string;
   /** Clip length in frames at 24fps (24..192). */
   lengthFrames: number;
+  /** A completed clip added for assembly only; never a pending render request. */
+  importedClip?: boolean;
   /** true = start from the previous segment's last frame (seamless join). */
   chained: boolean;
   /** Start image as a data URI. For chained segments this is backfilled from

@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, Download, Trash2 } from "lucide-react";
 import {
   DirectorSegment,
   MIN_SEGMENT_SECONDS,
@@ -33,6 +33,7 @@ interface SegmentInspectorProps {
   kreaAvailable: boolean;
   canGenerateImage: boolean;
   onRender: () => void;
+  generationEnabled?: boolean;
   onDuplicate: () => void;
   onRemove: () => void;
   onMove: (delta: -1 | 1) => void;
@@ -60,6 +61,7 @@ export function SegmentInspector({
   kreaAvailable,
   canGenerateImage,
   onRender,
+  generationEnabled = true,
   onDuplicate,
   onRemove,
   onMove,
@@ -98,6 +100,19 @@ export function SegmentInspector({
   const sourceBusy =
     segment.startImageStatus === "queued" || segment.startImageStatus === "generating";
   const renderBusy = segment.status === "queued" || segment.status === "rendering";
+
+  if (!generationEnabled) return <div className="space-y-4 p-4">
+    <h2 className="text-sm font-medium">Clip {index+1}</h2>
+    <p className="text-sm tabular-nums text-white/60">{seconds.toFixed(3)} seconds · {status.text}</p>
+    {segment.gridJobId && <button type="button" className="flex max-w-full items-center gap-2 text-xs text-white/60" title="Copy Core receipt" onClick={()=>{void copyReceipt("segment",segment.gridJobId!);}}><Copy size={14}/><span className="truncate">{segment.gridJobId}</span></button>}
+    <div className="flex items-center gap-4">
+      <button type="button" title="Move clip left" aria-label="Move clip left" disabled={index===0} onClick={()=>onMove(-1)}><ArrowLeft size={16}/></button>
+      <button type="button" title="Move clip right" aria-label="Move clip right" disabled={index===count-1} onClick={()=>onMove(1)}><ArrowRight size={16}/></button>
+      <button type="button" title="Duplicate clip" aria-label="Duplicate clip" onClick={onDuplicate}><Copy size={16}/></button>
+      {onDownload && <button type="button" title="Download clip" aria-label="Download clip" onClick={onDownload}><Download size={16}/></button>}
+      <button type="button" title="Remove clip from assembly" aria-label="Remove clip from assembly" onClick={onRemove}><Trash2 size={16}/></button>
+    </div>
+  </div>;
 
   return (
     <div className="rounded-[10px] border border-[#242429] bg-[#121215] p-4">
@@ -356,13 +371,13 @@ export function SegmentInspector({
         <p className="mb-2 text-[11px] text-[#5a5a64]">This segment {blockers.join("; ")}.</p>
       )}
 
-      {coachStep === "render" && (
+      {generationEnabled && !segment.importedClip && coachStep === "render" && (
         <CoachTip id="director-coach-render" label="Ready">
           Render this segment. Sign-in will open here if needed.
         </CoachTip>
       )}
       <div className="flex flex-wrap items-center gap-[7px]">
-        <button
+        {generationEnabled && !segment.importedClip && <button
           type="button"
           onClick={onRender}
           disabled={blockers.length > 0 || segment.status === "queued" || segment.status === "rendering"}
@@ -374,7 +389,7 @@ export function SegmentInspector({
           }`}
         >
           {segment.status === "done" ? "Re-render" : "Render segment"}
-        </button>
+        </button>}
         <button
           type="button"
           onClick={onDuplicate}

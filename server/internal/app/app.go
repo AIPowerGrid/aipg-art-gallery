@@ -67,6 +67,17 @@ func New(cfg config.Config) (*App, error) {
 	if err := cfg.ValidateDurableVideoPilot(time.Now()); err != nil {
 		return nil, err
 	}
+	if cfg.DurableVideoSourcesEnabled {
+		if err := cfg.ValidateDurableVideoSources(time.Now()); err != nil {
+			return nil, err
+		}
+		if !cfg.DurableVideoEnabled {
+			return nil, errors.New("source video requires durable video admission")
+		}
+		if err := verifyVideoSourceRuntime(); err != nil {
+			return nil, err
+		}
+	}
 	catalog, err := models.LoadCatalog(cfg.ModelPresetPath)
 	if err != nil {
 		return nil, err
@@ -225,6 +236,7 @@ func (a *App) Router() http.Handler {
 			protected.With(httprate.LimitByIP(4, time.Minute)).Post("/videos/jobs", a.handleCreateDurableVideo)
 			protected.With(httprate.LimitByIP(60, time.Minute)).Post("/videos/quote", a.handleDurableVideoQuote)
 			protected.With(httprate.LimitByIP(60, time.Minute)).Get("/videos/capabilities", a.handleDurableVideoCapabilities)
+			protected.With(httprate.LimitByIP(4, time.Minute)).Post("/videos/prepare-source", a.handlePrepareVideoSource)
 			protected.Get("/videos/jobs/{id}", a.handleJobStatus)
 			protected.Get("/videos/requests/{requestID}", a.handleJobRequestStatus)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/ai/enhance", a.handleAIEnhance)
@@ -1594,7 +1606,11 @@ func (a *App) handleDurableVideoCapabilities(w http.ResponseWriter, r *http.Requ
 			models = append(models, map[string]any{"id": stat.Name, "onlineWorkers": stat.ParseCount()})
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "models": models})
+	modes := []string{}
+	if a.cfg.AllowsDurableVideoSourceAccount(identity.AccountID, time.Now()) && videoSourceToolsAvailable() {
+		modes = []string{"audio", "video"}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"enabled": true, "models": models, "sourceModes": modes})
 }
 
 func (a *App) handleDurableVideoQuote(w http.ResponseWriter, r *http.Request) {
@@ -1693,6 +1709,10 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, errors.New("this video model is not enabled"))
 		return
 	}
+	if err := a.validateVideoSourceAdmission(request.Video, identity.AccountID); err != nil {
+		writeError(w, http.StatusForbidden, err)
+		return
+	}
 	if !a.cfg.AllowsDurableVideoAccount(identity.AccountID, time.Now()) {
 		writeError(w, http.StatusForbidden, errors.New("this account is outside the active video pilot"))
 		return
@@ -1712,6 +1732,10 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	key := uuid.NewString()
+	if err := a.validateVideoSourceAdmission(request.Video, identity.AccountID); err != nil {
+		writeError(w, http.StatusForbidden, err)
+		return
+	}
 	id, created, err := a.pending.createWithVideo(ctx, request.RequestID, digest, "video", ownership.AccountID, 1,
 		&pendingVideo{Key: key, Model: request.Video.Model, MaxCost: request.Video.MaxCostMicroUSD, Seed: request.Video.Seed})
 	if err != nil {

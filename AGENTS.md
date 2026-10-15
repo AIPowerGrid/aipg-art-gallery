@@ -13,8 +13,8 @@ contracts, workflows, I/O, permissions, or the Child DOX Index. Remove stale tex
 ## Purpose
 
 The creative frontend for the AI Power Grid: distributed GPU workers generate images,
-video, and 3D; the Director provides a browser-side timeline for chained
-image-conditioned video segments. Image/video results can land in the public gallery. No
+video, and 3D; Director has one generation workspace for text, soundtrack and
+motion-guided clips plus a separate Edit / Assemble timeline. Image/video results can land in the public gallery. No
 account is required to browse. Google or wallet sign-in unlocks credit-backed generation,
 personal creations, publishing, and favorites. Two deployables live in one repo: a Next.js
 16 web app and a Go API server that brokers generation
@@ -39,6 +39,8 @@ jobs to the grid and serves gallery/media.
 - **`docs/`** — `SECURITY_AUDIT_REPORT.md`, `GALLERY_OPTIMIZATION.md` (reference, read before
   related work). `public/` — static assets. `Dockerfile.frontend*` / `Dockerfile.server` +
   `docker-compose.yml` — deploy.
+  `docs/DIRECTOR_SOURCE_ROLLOUT.md` tracks unified Director/source acceptance;
+  implemented controls must not be mistaken for completed public qualification.
 
 ## Local Contracts
 
@@ -185,6 +187,10 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 
 - New generation capability → backend handler in `server/` first, then `lib/api.ts` client +
   `app/` UI. Keep request/response shapes in sync with `types/models.ts` and Go structs.
+- Audio/video source modes have a separate default-off
+  `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Linux codec isolation, native
+  source conditioning, purchased billing and cleanup must qualify before it
+  opens; an available UI or codec unit test is not release acceptance.
 - New env var → add to `.env.example` and, for the backend, `server/internal/config`.
 
 ## Verification

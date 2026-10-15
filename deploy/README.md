@@ -1,5 +1,38 @@
 # aipg.art production release
 
+## Current BF16 Scope And Source Candidate
+
+Protected-main PR46 release `cf533e97` is deployed with public authenticated,
+credit-backed BF16 text/opening-image admission. Its separate one-clip release
+check consumed USD0.0275 with one dispatch/debit/completion, matching full native
+decode and browser reload recovery. The older private-pilot record below is
+historical. NVFP4, reference audio/video, timeline generation and video x402
+remain closed. This document is not authority to widen them.
+
+The unified Director/source candidate adds a separate default-off
+`GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Before enabling it, install and
+security-check FFmpeg/ffprobe, bubblewrap and prlimit; run the actual Linux codec
+and isolation tests under the service restrictions. Startup must fail rather
+than fall back to an unsandboxed codec. Container runtimes that cannot create
+the required namespaces must keep source modes disabled; do not grant broad
+container privileges to bypass this gate.
+
+Use `GALLERY_DURABLE_VIDEO_SOURCES_ADMISSION_MODE=pilot` with private comma-
+separated `GALLERY_DURABLE_VIDEO_SOURCES_PILOT_ACCOUNTS` and a fixed aware
+`GALLERY_DURABLE_VIDEO_SOURCES_PILOT_UNTIL` within24hours for the bounded source
+canary. This source cohort is independent of the existing public text-video
+mode. Core needs matching source-account admission plus its audio/video path
+gates; enabling its paths globally before a source-account gate exists is not
+a private canary. Only after purchased A2V/V2V acceptance, failure/replay and
+private-input cleanup may source mode become `open` with both pilot fields
+cleared. Existing source receipts must remain recoverable on rollback.
+
+Verify65MiB source-upload and durable-video body limits across every public
+proxy. The upload route has a75-second application deadline and90-second
+Nginx response allowance. The source body never belongs in request logs,
+Gallery journals, browser storage or a public bucket. Preparation creates no
+hold/job; generation still needs the exact live quote and atomic Core hold.
+
 ## LTX-2.5 private pilot qualification
 
 Release `0469027d` is deployed. Its required main checks, signed release

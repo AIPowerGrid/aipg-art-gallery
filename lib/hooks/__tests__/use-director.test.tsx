@@ -82,6 +82,13 @@ describe('useDirector', () => {
     Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: randomUUID });
     useJobStore.setState({ activeOwner: 'account-test' });
   });
+  it('assembly mode cannot generate frames, render segments or resume paid queues', async () => {
+    const id=useDirectorStore.getState().addSegment();
+    useDirectorStore.getState().updateSegment(id,{prompt:'a scene',startImage:'data:image/jpeg;base64,START'});
+    const {result}=renderHook(()=>useDirector({styles:STYLES,authenticated:true,ownerIdentifier:'account-test',generationEnabled:false,onAuthRequired:jest.fn()}));
+    await act(async()=>{expect(await result.current.generateFirstFrame(id)).toBe(false);expect(await result.current.renderSegment(id,{manual:true})).toBe(false);result.current.renderPending();});
+    expect(createJob).not.toHaveBeenCalled();expect(useDirectorStore.getState().queueActive).toBe(false);
+  });
   it.each(['image', 'video'] as const)('recovers a lost %s stage without another generation', async (kind) => {
     const id = useDirectorStore.getState().addSegment();
     useDirectorStore.getState().updateSegment(id, { prompt: 'a scene', startImage: 'data:image/jpeg;base64,START' });

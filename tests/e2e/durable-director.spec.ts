@@ -13,7 +13,7 @@ const credits = { account_id: owner, promotional: { remaining_usd: 0, active: fa
 const queued = { jobId, gridJobId: "31a9054f-4da2-46e1-9eb3-0d18d24cdd00", status: "processing", faulted: false,
   processing: 1, finished: 0, waiting: 0, waitTime: 0, queuePosition: 0, generations: [] };
 
-async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?: boolean } = {}) {
+async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?: boolean; signedOut?: boolean; sources?: boolean } = {}) {
   let posts = 0;
   let enabled = true;
   let finished = false;
@@ -27,15 +27,17 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     // Chromium reports our intentional rejection responses as console errors.
     if (options.rejectCredit && text.startsWith("Failed to load resource:") && text.includes("status of 402")) return;
     if (options.loseReply && text.startsWith("Failed to load resource:") && text.includes("status of 503")) return;
+    if (options.signedOut && text.startsWith("Failed to load resource:") && text.includes("status of 401")) return;
     errors.push(text);
   });
   await page.route("**/api-preview/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api-preview/, "");
-    if (path === "/auth/me") return route.fulfill({ json: { authMethod: "google", accountId: account, googleId: "clip-preview", email: "clip@example.test", name: "Clip Preview" } });
+    if (path === "/auth/me") return options.signedOut ? route.fulfill({status:401,json:{error:"Sign in required"}}) : route.fulfill({ json: { authMethod: "google", accountId: account, googleId: "clip-preview", email: "clip@example.test", name: "Clip Preview" } });
     if (path === "/styles") return route.fulfill({ json: { models: [], dimensions: [], defaultDimensionId: 0, defaults: { steps: 8, cfgScale: 1, sampler: "euler", scheduler: "normal" } } });
     if (path === "/models") return route.fulfill({ json: { chainSource: true, models: [{ id: model, name: model, type: "video", status: "online", onlineWorkers: 2, capabilities: [] }] } });
-    if (path === "/videos/capabilities") return route.fulfill({ json: { enabled, models: enabled ? [{ id: model, onlineWorkers: 2 }] : [] } });
+    if (path === "/videos/capabilities") return route.fulfill({ json: { enabled, models: enabled ? [{ id: model, onlineWorkers: 2 }] : [],sourceModes:options.sources?["audio","video"]:[] } });
+    if (path === "/videos/prepare-source") return route.fulfill({json:{audio:"data:audio/wav;base64,c291bmQ=",...(request.postDataBuffer()?.toString().includes('\r\nvideo\r\n')?{video:"data:video/mp4;base64,bW90aW9u"}:{}),frames:33,width:512,height:512,startSeconds:0}});
     if (path === "/credits") return route.fulfill({ json: { ...credits, account_id: account } });
     if (path === "/credits/quote") {
       const quote = request.postDataJSON();
@@ -59,7 +61,7 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
       return route.fulfill({ status: 202, json: { jobId, status: "queued" } });
     }
     if (path.startsWith("/jobs/requests/") || path === `/jobs/${jobId}`) return route.fulfill({ json: finished ? { ...queued, status: "completed", processing: 0, finished: 1,
-      generations: [{ id: `${jobId}-0`, kind: "video", seed: "1", url: "https://images.aipg.art/e2e-clip.mp4" }] } : queued });
+      generations: [{ id: `${jobId}-0`, kind: "video", seed: "1", url: "https://media.aipg.art/e2e-clip.mp4" }] } : queued });
     if (path === "/gallery" && request.method() === "POST") return route.fulfill({ json: { success: true } });
     if (path === `/gallery/${jobId}` && request.method() === "PATCH") return route.fulfill({ json: { success: true } });
     if (path === "/gallery/me") return route.fulfill({ json: { items: [], count: 0, wallet: account } });
@@ -67,13 +69,13 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     return route.fulfill({ status: 404, json: { error: "not found" } });
   });
   await page.route("https://api.web3modal.org/**", (route) => route.fulfill({ json: {} }));
-  await page.route("https://images.aipg.art/e2e-clip.mp4", (route) => route.fulfill({ contentType: "video/mp4", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(join(__dirname, "../fixtures/clip-81-frames.mp4")) }));
+  await page.route("https://media.aipg.art/e2e-clip.mp4", (route) => route.fulfill({ contentType: "video/mp4", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(join(__dirname, "../fixtures/clip-81-frames.mp4")) }));
   return { posts: () => posts, body: () => body, errors, finish: () => { finished = true; }, close: () => { enabled = false; }, switchAccount: () => { account = "c0d7a372-adb5-4a1d-b5e3-dda4935f8141"; enabled = false; } };
 }
 
 async function openClip(page: Page) {
   await page.goto("/create/director", { waitUntil: "networkidle" });
-  await expect(page.getByRole("tab", { name: "LTX-2.5 clip" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Generate",exact:true })).toHaveAttribute("aria-selected", "true");
   await page.getByLabel("Clip prompt").fill("camera glides over the ocean at sunrise");
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeEnabled();
 }
@@ -89,8 +91,8 @@ test("quotes exact frames and submits one capped clip, preserving the timeline",
   await expect(page.getByText(`Gallery job ${jobId}`)).toBeVisible();
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeDisabled();
   await page.screenshot({ path: "test-results/durable-director-desktop.png", fullPage: true });
-  await page.getByRole("tab", { name: "Timeline", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Start here: add your first segment" })).toBeVisible();
+  await page.getByRole("tab", { name: "Edit / Assemble", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^Render/ })).toHaveCount(0);
   expect(state.errors).toEqual([]);
 });
 
@@ -142,6 +144,11 @@ test("plays and seeks a completed clip with an ephemeral Studio WebP opening ima
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.getByRole("region", { name: "LTX-2.5 clip workspace" }).evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: "test-results/durable-director-playback-mobile.png", fullPage: true });
+  await page.getByRole("button",{name:"Add to assembly",exact:true}).click();
+  await expect(page.getByRole("tab",{name:"Edit / Assemble",exact:true})).toHaveAttribute("aria-selected","true");
+  const assembled=await page.evaluate(()=>JSON.parse(localStorage.getItem("aipg-director-store")!).state.segments);
+  expect(assembled).toHaveLength(1);
+  expect(assembled[0]).toMatchObject({importedClip:true,status:"done",lengthFrames:81,outputUrl:"https://media.aipg.art/e2e-clip.mp4"});
   expect(state.posts()).toBe(1);
   expect(state.errors).toEqual([]);
 });
@@ -167,10 +174,38 @@ test("hides a prior account's clip and recovery after switching accounts", async
   await expect(page.getByText(`Gallery job ${jobId}`)).toBeVisible();
   state.switchAccount();
   await page.reload({ waitUntil: "networkidle" });
-  await expect(page.getByRole("tab", { name: "LTX-2.5 clip" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "Generate",exact:true })).toHaveAttribute("aria-selected","true");
   await expect(page.getByText(`Gallery job ${jobId}`)).toHaveCount(0);
   expect(state.posts()).toBe(1);
   expect(state.errors).toEqual([]);
+});
+
+test("signed-out visitors see the same Director without a capability or generation request",async({page})=>{
+  const state=await fixture(page,{signedOut:true});
+  await page.goto("/create/director",{waitUntil:"networkidle"});
+  await expect(page.getByRole("tab",{name:"Generate",exact:true})).toHaveAttribute("aria-selected","true");
+  await expect(page.getByRole("button",{name:"Sign in to generate"})).toBeVisible();
+  for(const mode of ["Text to video","Audio to video","Video to video"]){await page.getByRole("button",{name:mode,exact:true}).click();await expect(page.getByRole("button",{name:mode,exact:true})).toHaveAttribute("aria-pressed","true");}
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.screenshot({path:"test-results/director-signed-out-mobile.png",fullPage:true});
+  expect(state.posts()).toBe(0);expect(state.errors).toEqual([]);
+});
+
+for(const mode of ["audio","video"] as const)test(`${mode} mode prepares one ephemeral source and submits once`,async({page})=>{
+  const state=await fixture(page,{sources:true});await openClip(page);
+  await page.getByRole("button",{name:mode==="audio"?"Audio to video":"Video to video",exact:true}).click();
+  await page.getByRole("combobox",{name:"Clip length",exact:true}).selectOption("33");
+  await page.getByRole("combobox",{name:"Resolution",exact:true}).selectOption("512x512");
+  await page.getByLabel(mode==="audio"?"Soundtrack":"Source video",{exact:true}).setInputFiles({name:mode==="audio"?"sound.wav":"motion.mp4",mimeType:mode==="audio"?"audio/wav":"video/mp4",buffer:mode==="audio"?Buffer.from("synthetic source sound"):readFileSync(join(__dirname,"../fixtures/clip-81-frames.mp4"))});
+  await expect(page.getByRole("button",{name:"Generate clip",exact:true})).toBeEnabled();
+  await page.getByRole("button",{name:"Generate clip",exact:true}).click();await expect.poll(state.posts).toBe(1);
+  expect(state.body()).toMatchObject({video:{frames:33,max_cost_micro_usd:27500,reference_audio:expect.stringMatching(/^data:audio\/wav;base64,/),...(mode==="video"?{reference_video:expect.stringMatching(/^data:video\/mp4;base64,/)}:{})}});
+  expect(await page.evaluate(()=>localStorage.getItem("aipg-job-store"))).not.toContain("data:audio");
+  state.finish();await expect(page.getByLabel("Generated clip")).toBeVisible();
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:`test-results/director-${mode}-mobile.png`,fullPage:true});
+  expect(state.posts()).toBe(1);expect(state.errors).toEqual([]);
 });
 
 test("retains prompt and funding recovery after a definite credit rejection on mobile", async ({ page }) => {

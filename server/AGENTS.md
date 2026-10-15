@@ -151,6 +151,22 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   token, private storage URL or raw upstream failure is exposed. Counts are
   operational inventory, not GPU/model-fidelity qualification or billing
   authority. Core's final admission and atomic hold remain mandatory.
+- The separate default-off `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` admits
+  BF16 audio/video sources, not appearance references or NVFP4. It requires
+  durable video plus working Linux FFmpeg/ffprobe, bubblewrap and prlimit;
+  startup fails if isolation does not execute. Authenticated bounded multipart
+  `/api/videos/prepare-source` accepts one local file and exact window/geometry,
+  normalizes without storing a job, and returns ephemeral inline sources.
+  Sound is required; V2V retains the source soundtrack and uses contain fitting.
+  Native billing/cleanup/capacity canaries and the Core source-path flags remain
+  activation gates. Disabling sources must preserve all original GET recovery.
+  Source admission independently defaults to `pilot`, with its own
+  `GALLERY_DURABLE_VIDEO_SOURCES_PILOT_ACCOUNTS` and fixed
+  `GALLERY_DURABLE_VIDEO_SOURCES_PILOT_UNTIL` (the same UUID/count/24h rules).
+  Ordinary text video may remain public during this private source cohort.
+  `GALLERY_DURABLE_VIDEO_SOURCES_ADMISSION_MODE=open` requires both source
+  cohort fields cleared. Recheck source eligibility after preparation and
+  quoting; existing replay precedes all new-source gates.
 - `/api/models` preserves Core's recipe-derived generation modes when present;
   preset capabilities are a compatibility fallback, not authority to execute a workflow.
 - Jobs, prompt enhancement, and credits require the session cookie. The server

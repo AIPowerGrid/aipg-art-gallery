@@ -6,10 +6,10 @@ Production-build Playwright coverage for consumer-facing generation routes.
 
 ## Ownership
 
-- `e2e/director.spec.ts` - authenticated keyframe upload and Director timeline
-  submission, including the no-client-wallet-identity request invariant,
-  first-render onboarding progression/reload recovery, and mobile workspace
-  overflow coverage.
+- `e2e/director.spec.ts` - legacy project preservation in Edit / Assemble,
+  no paid timeline submission, stable default Generate selection and mobile
+  assembly overflow. Old render-hook contracts remain separately unit tested;
+  this browser workspace must not expose an unqualified render action.
 - `e2e/navigation.spec.ts` - top-level Director discovery, stable account/auth
   controls across reload, responsive navigation, and the retired
   `aipg.art/audio` route contract.
@@ -21,6 +21,9 @@ Production-build Playwright coverage for consumer-facing generation routes.
   `fixtures/clip-81-frames.mp4` is a generated diagnostic pattern, not user media.
   Eligible first visits default to the clip tab; the opening-image fixture
   decodes WebP like Studio output while preserving request-journal privacy.
+  Signed-out visitors see the same Generate entry and all three modes. Source
+  preparation fixtures prove one ephemeral upload/POST and no stored media;
+  real codec/sandbox tests live in the backend, not mocked browser responses.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
   account-menu and creation-library navigation, mobile overflow, and a lost POST
   response followed by browser reload/read-only recovery with one generation POST.
