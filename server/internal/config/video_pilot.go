@@ -86,7 +86,8 @@ func (cfg Config) AllowsDurableVideoModel(model string) bool {
 	}
 	switch cfg.DurableVideoAdmissionMode {
 	case "open":
-		return model == "LTX-2.5 Distilled BF16"
+		return model == "LTX-2.5 Distilled BF16" ||
+			(model == "LTX-2.5 Distilled NVFP4" && cfg.DurableVideoNVFP4Enabled)
 	case "", "pilot":
 		return model == "LTX-2.5 Distilled BF16" || model == "LTX-2.5 Distilled NVFP4"
 	default:

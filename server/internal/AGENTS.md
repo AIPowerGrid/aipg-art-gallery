@@ -104,6 +104,9 @@ package owns one concern; `app/app.go` wires them together.
   motion without explicit sound or with audio disabled is rejected. Core still
   independently decodes sources and enforces its source-path gates and holds.
 - `config/video_pilot.go` validates the private canonical-account cohort and
+  the default-off public NVFP4 opt-in. That switch admits only the exact NVFP4
+  model alongside BF16 when public video is open, never bypassing global closure
+  or enabling uploaded sources. It also validates the
   fixed absolute deadline. Disabled defaults admit nobody; expiry closes fresh
   quotes/jobs without rewriting journal rows or disabling GET recovery. Invalid
   enabled startup fails closed, while an expired valid config remains usable

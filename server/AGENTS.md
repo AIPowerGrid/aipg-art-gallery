@@ -110,6 +110,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   remains `pilot`; unknown modes or retained pilot restrictions fail startup.
   Public mode still requires a canonical authenticated account, the exact
   positive paid quote and Core's atomic hold. Existing NVFP4 intent replay
+  remains available. `GALLERY_DURABLE_VIDEO_NVFP4_ENABLED=false` separately
+  keeps fresh public NVFP4 quotes/jobs closed. Its explicit opt-in requires the
+  matching Core/worker/runtime and purchased-path review; source modes remain
+  BF16-only. Closing the switch preserves original replay and GET. Replay
   precedes the new-model restriction, and GET recovery remains unchanged.
   Code preparation does not authorize public activation. The authenticated
   body contains `requestId` (saved UUIDv4) plus `video` (Core's typed request,
