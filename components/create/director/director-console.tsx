@@ -10,6 +10,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Film } from "lucide-react";
 import { toast } from "sonner";
 import { AuthModal } from "@/components/auth-modal";
 import { confirmDialog } from "@/components/confirm-dialog";
@@ -64,6 +65,7 @@ type DirectorCoachStep =
   | null;
 
 interface DirectorConsoleProps {
+  embedded?: boolean;
   workspaceInset?: boolean;
   assemblyOnly?: boolean;
   styles: StylesConfig | null;
@@ -78,6 +80,7 @@ interface DirectorConsoleProps {
 }
 
 export function DirectorConsole({
+  embedded = false,
   workspaceInset = false,
   assemblyOnly = false,
   styles,
@@ -167,7 +170,7 @@ export function DirectorConsole({
     (modelAvailability.director || (!hasAudio && modelAvailability.fallback));
   const degradedMode = !assemblyOnly && !modelAvailability.director && !hasAudio && modelAvailability.fallback;
   const { credits, firstFrameQuote, segmentQuote } = useDirectorBilling({
-    authenticated,
+    authenticated: authenticated && !assemblyOnly,
     selected,
     hasAudio,
     modelAvailability,
@@ -367,19 +370,19 @@ export function DirectorConsole({
   return (
     <div
       data-testid="director-console"
-      className={`fixed ${workspaceInset ? "inset-x-0 bottom-0 top-12" : "inset-0"} z-50 flex flex-col overflow-hidden bg-[#0a0a0c] font-sans text-[14px] text-[#e9e9ec]`}
+      className={`${embedded ? "relative h-full" : `fixed ${workspaceInset ? "inset-x-0 bottom-0 top-12" : "inset-0"} z-50`} flex flex-col overflow-hidden bg-[#0a0a0c] font-sans text-[14px] text-[#e9e9ec]`}
     >
       {/* ===== top bar ===== */}
       <div className="flex flex-shrink-0 items-center justify-between gap-2 border-b border-[#242429] px-3 py-2 sm:gap-4 sm:px-5 sm:py-3 max-sm:flex-wrap">
         <div className="flex min-w-0 flex-shrink-0 items-center gap-2 sm:gap-3 max-sm:w-full">
           <button
             type="button"
-            onClick={() => router.push("/create")}
-            title="Back to Studio"
+            onClick={() => router.push(assemblyOnly ? "/create?type=video" : "/create")}
+            title={assemblyOnly ? "Create a clip in Studio" : "Back to Studio"}
             className="flex items-center gap-1 rounded-lg border border-[#313138] bg-[#17171b] py-[6px] pl-1.5 pr-2.5 text-[12px] text-[#8f8f99] hover:text-[#e9e9ec]"
           >
-            <IconChevronLeft className="h-[13px] w-[13px]" />
-            <span className="max-sm:hidden">Studio</span>
+            {assemblyOnly ? <Film className="h-4 w-4" aria-hidden="true" /> : <IconChevronLeft className="h-[13px] w-[13px]" />}
+            <span>{assemblyOnly ? "Create clip" : "Studio"}</span>
           </button>
           <h1 className="text-[16px] font-semibold">Director</h1>
 

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Film, ImageIcon } from "lucide-react";
 import { Header } from "@/components/header";
 import { AuthModal } from "@/components/auth-modal";
 import { PromptForm, StudioRail, CreationsGrid } from "@/components/create";
@@ -30,6 +32,9 @@ import { useAuthStore } from "@/lib/stores/auth-store";
 import { AdvancedSettings } from "@/lib/types/create";
 import { DisplayCreation } from "@/lib/storage";
 import { acceptsSourceImage, supportsImageBatch } from "@/lib/create/capabilities";
+import { DurableClipConsole } from "@/components/create/director/durable-clip-console";
+import { useDurableVideoCapabilities } from "@/lib/hooks/use-durable-video-capabilities";
+import { useDirectorStore } from "@/lib/stores/director-store";
 
 const fundingURL =
   "https://console.aipowergrid.io/dashboard/funding?returnTo=https%3A%2F%2Faipg.art%2Fcreate";
@@ -59,10 +64,70 @@ export default function CreatePage() {
     );
   }
 
-  return <CreatePageContent />;
+  return <Suspense><StudioWorkspace /></Suspense>;
 }
 
-function CreatePageContent() {
+function StudioWorkspace() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const video = search.get("type") === "video";
+  const { isAuthenticated, accountId } = useAuthStore();
+  const owner = isAuthenticated ? accountId || undefined : undefined;
+  const [videoVisited, setVideoVisited] = useState(video);
+  const capabilities = useDurableVideoCapabilities(
+    isAuthenticated && (video || videoVisited), owner,
+  );
+  useEffect(() => {
+    if (video) setVideoVisited(true);
+  }, [video]);
+  const selectMedia = (type: "image" | "video") => {
+    const params = new URLSearchParams(search.toString());
+    if (type === "video") params.set("type", "video");
+    else params.delete("type");
+    router.replace(`/create${params.size ? `?${params}` : ""}`, { scroll: false });
+  };
+  return (
+    <main className="min-h-screen bg-black">
+      <Header />
+      <div className="mx-auto max-w-[1400px] px-4 pt-6 md:px-8">
+        <div role="group" aria-label="Media type" className="inline-flex gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
+          {([['image', 'Image', ImageIcon], ['video', 'Video', Film]] as const).map(([type, label, Icon]) => (
+            <button
+              key={type}
+              type="button"
+              aria-pressed={video === (type === 'video')}
+              onClick={() => selectMedia(type)}
+              className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors ${video === (type === 'video') ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'}`}
+            >
+              <Icon size={16} aria-hidden="true" />{label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div hidden={video}>
+        <CreatePageContent key={owner ?? 'signed-out'} onVideo={() => selectMedia('video')} />
+      </div>
+      {(videoVisited || video) && (
+        <div hidden={!video}>
+          <DurableClipConsole
+            key={owner ?? 'signed-out'}
+            ownerIdentifier={owner}
+            authenticated={isAuthenticated}
+            enabled={capabilities.enabled}
+            models={capabilities.models}
+            sourceModes={capabilities.sourceModes}
+            onAssemble={(clip) => {
+              useDirectorStore.getState().importRenderedClip(clip);
+              router.push('/create/director');
+            }}
+          />
+        </div>
+      )}
+    </main>
+  );
+}
+
+function CreatePageContent({ onVideo }: { onVideo: () => void }) {
   // Wallet state
   const { isAuthenticated: hasSession, accountId } = useAuthStore();
   const authenticated = hasSession;
@@ -85,7 +150,10 @@ function CreatePageContent() {
   const [lora, setLora] = useState<LoraSpec | null>(null);
 
   // Styles/config
-  const { styles, error: stylesError } = useStylesConfig();
+  const { styles: catalog, error: stylesError } = useStylesConfig();
+  const styles = useMemo(() => catalog ? {
+    ...catalog, models: catalog.models.filter((model) => model.type === 'image'),
+  } : null, [catalog]);
   // Curated creative styles served by the grid (separate from the config blob above).
   const { gridStyles } = useGridStyles();
   const defaultModel = getDefaultModel(styles);
@@ -228,6 +296,7 @@ function CreatePageContent() {
   const latestJob = jobs
     .filter(
       (job) =>
+        job.type === "image" &&
         ownerIdentifier &&
         job.walletAddress?.toLowerCase() === ownerIdentifier.toLowerCase(),
     )
@@ -267,6 +336,7 @@ function CreatePageContent() {
 
   // Handle "Edit in Studio" - prefill prompt and settings from existing creation
   const handleEditInStudio = (creation: DisplayCreation) => {
+    if (creation.type === 'video') { onVideo(); return; }
     setPrompt(creation.prompt);
     const modelExists = styles?.models.some(
       (model) => model.id === creation.modelId,
@@ -287,9 +357,7 @@ function CreatePageContent() {
   };
 
   return (
-    <main className="min-h-screen bg-black">
-      <Header />
-
+    <>
       <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-8">
         {authenticated && credits && (
           <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-zinc-800 pb-4 text-sm text-zinc-300">
@@ -389,6 +457,7 @@ function CreatePageContent() {
           </div>
 
           <StudioRail
+            imageOnly
             styles={styles}
             gridStyles={gridStyles}
             selectedModel={selectedModel}
@@ -418,6 +487,6 @@ function CreatePageContent() {
         title="Sign in to generate"
         message="Continue with Google or verify a Base wallet. Both methods can be linked to one Grid account and credit balance."
       />
-    </main>
+    </>
   );
 }

@@ -191,7 +191,6 @@ test("assembly preserves a legacy completed project without submitting generatio
   await page.evaluate(()=>localStorage.setItem("aipg-director-store",JSON.stringify({version:1,state:{segments:[{id:"legacy-segment",prompt:"legacy prompt",lengthFrames:81,chained:false,startImage:null,strength:1,status:"done",outputUrl:"https://images.aipg.art/legacy.mp4",gridJobId:"legacy-receipt"}],projects:[],activeProjectName:"Existing project",queueActive:false}})));
   await page.reload({waitUntil:"networkidle"});
   const generation:string[]=[];page.on("request",request=>{if(request.method()==="POST"&&/\/(jobs|videos\/jobs)$/.test(new URL(request.url()).pathname))generation.push(request.url());});
-  await page.getByRole("tab",{name:"Edit / Assemble"}).click();
   await expect(page.getByRole("button",{name:/^Render/})).toHaveCount(0);
   await page.locator('[aria-label="Select segment 1"]').click();
   await expect(page.getByText("legacy-receipt",{exact:true})).toBeVisible();
@@ -206,16 +205,17 @@ test("assembly preserves a legacy completed project without submitting generatio
   });
 });
 
-test("generation defaults remain stable while the assembly workspace stays separate", async ({ page }) => {
+test("Director defaults to assembly and links generation to Studio", async ({ page }) => {
   await installDirectorMocks(page);
 
   await page.goto("/create/director", { waitUntil: "networkidle" });
-  await expect(page.getByRole("tab",{name:"Generate",exact:true})).toHaveAttribute("aria-selected","true");
-  await page.getByRole("tab",{name:"Edit / Assemble"}).click();
+  await expect(page.getByRole("heading",{name:"Director",exact:true})).toBeVisible();
+  await expect(page.getByRole("button",{name:"Create clip",exact:true})).toBeVisible();
   await expect(page.getByRole("button",{name:/^Render/})).toHaveCount(0);
   await page.reload({ waitUntil: "networkidle" });
-  await expect(page.getByRole("tab",{name:"Generate",exact:true})).toHaveAttribute("aria-selected","true");
-  await expect(page.getByLabel("Clip prompt")).toBeVisible();
+  await expect(page.getByRole("heading",{name:"Director",exact:true})).toBeVisible();
+  await expect(page.getByLabel("Clip prompt")).toHaveCount(0);
+  await expect(page.getByRole('link', {name:'AIPG AI Power Grid'})).toBeVisible();
   await page.screenshot({
     path: "test-results/director-onboarding.png",
     fullPage: true,
@@ -228,7 +228,6 @@ test("stacks the Director workspace inside a mobile viewport", async ({ page }) 
 
   await page.goto("/create/director", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Director" })).toBeVisible();
-  await page.getByRole("tab",{name:"Edit / Assemble"}).click();
 
   const bounds = await page.evaluate(() => {
     const root = document.querySelector('[data-testid="director-console"]');

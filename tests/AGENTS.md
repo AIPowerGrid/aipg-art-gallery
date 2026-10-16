@@ -7,8 +7,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
 ## Ownership
 
 - `e2e/director.spec.ts` - legacy project preservation in Edit / Assemble,
-  no paid timeline submission, stable default Generate selection and mobile
-  assembly overflow. Old render-hook contracts remain separately unit tested;
+  no paid timeline submission, assembly-first navigation/shared site header and
+  mobile assembly overflow. Old render-hook contracts remain separately unit tested;
   this browser workspace must not expose an unqualified render action.
 - `e2e/navigation.spec.ts` - top-level Director discovery, stable account/auth
   controls across reload, responsive navigation, and the retired
@@ -19,9 +19,11 @@ Production-build Playwright coverage for consumer-facing generation routes.
   desktop/mobile overflow and real H.264 fixture decoding/seeking. Synthetic
   playback and mocked billing are not a native worker/debit/refund proof.
   `fixtures/clip-81-frames.mp4` is a generated diagnostic pattern, not user media.
-  Eligible first visits default to the clip tab; the opening-image fixture
+  Studio's URL selects Video; the opening-image fixture
   decodes WebP like Studio output while preserving request-journal privacy.
-  Signed-out visitors see the same Generate entry and all three modes. Source
+  Image/video drafts survive mode switching independently, stale catalog video
+  models stay hidden, and 390/768/1024/1440 layouts retain the site shell without
+  overflow. Signed-out visitors see the same Video entry and all three modes. Source
   preparation fixtures prove one ephemeral upload/POST and no stored media;
   real codec/sandbox tests live in the backend, not mocked browser responses.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal

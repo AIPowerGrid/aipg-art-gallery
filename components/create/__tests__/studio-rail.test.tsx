@@ -77,9 +77,11 @@ const GRID_STYLES: GridStyle[] = [
 function Harness({
   initialModelId = "z-image-turbo",
   batchAvailable = true,
+  imageOnly = false,
 }: {
   initialModelId?: string;
   batchAvailable?: boolean;
+  imageOnly?: boolean;
 }) {
   const [modelId, setModelId] = useState(initialModelId);
   const [tab, setTab] = useState<StudioTab>("basic");
@@ -91,6 +93,7 @@ function Harness({
 
   return (
     <StudioRail
+      imageOnly={imageOnly}
       styles={STYLES}
       gridStyles={GRID_STYLES}
       selectedModel={model}
@@ -127,6 +130,12 @@ function openAdvanced() {
 }
 
 describe("StudioRail", () => {
+  it("keeps the image-only rail out of the legacy video flow", () => {
+    render(<Harness imageOnly />);
+    expect(screen.getByText("Z-Image Turbo")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /video/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("LTX-2.3 Video")).not.toBeInTheDocument();
+  });
   it("offers modality tabs and filters the model list to the active modality", () => {
     render(<Harness />);
     expect(screen.getByRole("tab", { name: /image/i })).toBeInTheDocument();
