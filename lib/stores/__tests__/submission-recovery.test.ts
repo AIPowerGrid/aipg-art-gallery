@@ -25,7 +25,8 @@ const videoPayload: DurableVideoSubmission = {
     keyframes: [{ image: "private-ending-image", frame: 80, strength: 0.5 }],
   },
 };
-const videoJobId = "b9a21451-405b-447f-8d9c-11abbc0f667a";
+// Gallery IDs are random 16-byte lowercase hex, not Core receipt UUIDs.
+const videoJobId = "b9a21451405b447f8d9c11abbc0f667a";
 const completed: JobStatus = {
   jobId: "server-job", gridJobId: "core-receipt", status: "completed", faulted: false,
   waitTime: 0, queuePosition: 0, processing: 0, finished: 1, waiting: 0,
@@ -146,6 +147,8 @@ it("persists only a handle before a durable-video POST and never uses the legacy
   expect(createDurableVideoJob).toHaveBeenCalledTimes(1);
   expect(createJob).not.toHaveBeenCalled();
   expect(useJobStore.getState().requests).toEqual([]);
+  expect(useJobStore.getState().jobs[0]).toMatchObject({ jobId: videoJobId, status: "queued" });
+  expect(fetchJobByRequest).not.toHaveBeenCalled();
 });
 
 it("recovers durable video after reply loss and reload with no second POST", async () => {
@@ -190,6 +193,8 @@ it.each([
   { jobId: 123, status: "queued" },
   { jobId: " ", status: "queued" },
   { jobId: "not-a-job", status: "queued" },
+  { jobId: "b9a21451-405b-447f-8d9c-11abbc0f667a", status: "queued" },
+  { jobId: videoJobId.toUpperCase(), status: "queued" },
   { jobId: videoJobId, status: "completed" },
   { jobId: videoJobId },
 ])("keeps malformed durable-video success %j recoverable", async (response) => {

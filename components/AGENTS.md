@@ -33,6 +33,10 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   Generation details. Owner-scoped jobs/recovery keep
   the clip view available after pilot closure; closure never implies a refund.
   The opening-image picker accepts PNG, JPEG and Studio-generated WebP.
+  Seed remains under Advanced: blank requests a random seed; zero and other
+  safe non-negative integers are sent explicitly.
+  Model, length and resolution selects retain native keyboard behavior with
+  inset Lucide chevrons and reserved text padding, not edge-clipped native arrows.
   Source modes show one ephemeral upload preview, explicit source start and
   exact clip length, with original soundtrack retention. Model/sampling knobs
   live under Advanced except the model picker. First frame is explicitly an opening constraint, not an
