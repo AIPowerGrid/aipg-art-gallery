@@ -17,6 +17,7 @@ import { LoraInput, LoraSpec } from "./lora-input";
 export type StudioTab = "basic" | "advanced";
 
 interface StudioRailProps {
+  imageOnly?: boolean;
   styles: StylesConfig | null;
   gridStyles: GridStyle[];
   selectedModel: Model | null;
@@ -85,6 +86,7 @@ function AccItem({
  * when the grid serves no styles for this modality) is omitted, not left blank.
  */
 export function StudioRail({
+  imageOnly = false,
   styles,
   gridStyles,
   selectedModel,
@@ -104,7 +106,7 @@ export function StudioRail({
   activeTab,
   onActiveTabChange,
 }: StudioRailProps) {
-  const models = styles?.models ?? [];
+  const models = (styles?.models ?? []).filter((model) => !imageOnly || model.type === "image");
   const caps = getModelCapabilities(selectedModel);
   const modalities = listModalities(models);
   const activeModality = selectedModel?.type ?? modalities[0] ?? "image";

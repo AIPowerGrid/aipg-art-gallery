@@ -7,10 +7,11 @@ separate gates. Never substitute an opening portrait for an identity reference.
 
 ## Implemented Candidate
 
-- One Generate workspace, independent of sign-in and delayed capabilities.
+- One Studio Video workspace (`/create?type=video`), independent of sign-in and
+  delayed capabilities, with the same header/account controls as images.
 - Text, Audio and Video modes with relevant source controls and preview.
 - Exact clip lengths, source start time and optional explicit first frame.
-- Model, raw frame count and sampling controls under Advanced.
+- Visible model/clip-length/resolution controls; raw frames and sampling under Advanced.
 - Ephemeral source preparation through the authenticated Go broker.
 - Exact stereo48k PCM16 soundtrack window; no short-source padding.
 - Motion normalization to H.264/24fps, contain fitting and64-aligned geometry.
@@ -18,8 +19,11 @@ separate gates. Never substitute an opening portrait for an identity reference.
 - Single durable paid-intent POST after preparation; GET-only recovery.
 - Owner changes/cancellation prevent late preparation from dispatching.
 - Original terminal receipt clears its stale unknown-submit notice.
-- Edit / Assemble keeps legacy projects and forbids all legacy render hooks.
+- Director opens directly into assembly, keeps legacy projects and forbids all
+  legacy render hooks. Its Create clip action returns to Studio Video.
 - Explicit finished-clip import, duplicate and reorder do not create jobs.
+- Independent in-memory image/video drafts survive mode switching; technical
+  receipt IDs are available under details, not the primary result presentation.
 
 ## Acceptance Still Required
 
