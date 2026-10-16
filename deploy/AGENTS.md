@@ -8,6 +8,8 @@ Next.js web process and Go API process from one commit-pinned release.
 ## Ownership
 
 - `README.md` - build, activate, verify, and rollback runbook.
+- `STUDIO_VIDEO_DEPLOYMENT_2026_10_16.md` - PR #50 production activation,
+  unchanged economic/admission controls, verification and rollback evidence.
 - `nginx/aipg-gallery.conf` - public reverse proxy and upload limit.
 - `systemd/` - frontend/API services plus the release-retention unit and timer.
 - `prune-releases.sh` + the release-prune service/timer - retain the active
@@ -33,14 +35,14 @@ Next.js web process and Go API process from one commit-pinned release.
   deploy or use an older security rollback without fresh source/binary scans,
   restored-backup/race proof and the ordinary drained release checks. This
   contract is not a record that the new candidate is already active.
-- Production selects `gallery-cf533e97`, the verified main release of PR #46.
-  Signed artifacts, host runtime and restored-backup race gates passed. A
-  real purchased-credit opening-image/BF16 browser pilot passed exact-once
-  billing and browser/API restart recovery. Public credit-backed BF16
-  text/opening-image admission subsequently passed a separate27500-micro clip.
-  Source modes, video x402 and NVFP4 Gallery remain closed. Retained older brokers are not compatible
-  post-video-receipt rollback targets: keep this patched video-aware reader
-  with admission disabled. Timelines/3D remain closed. See `README.md`.
+- Production selects `gallery-b9cc4378`, the protected-main PR #50 release.
+  Signed artifacts, host runtime and all seven restored-backup race packages
+  passed without skips. Studio now owns image/video generation; Director is
+  assembly-only. Existing BF16/NVFP4 availability and all source/admission,
+  billing, auth and frame-limit settings are preserved, not newly qualified
+  by this UI rollout. No new paid canary ran. The verified compatible rollback
+  is `gallery-bac2dd5d`; keep its receipt readers and security patches.
+  See `README.md` and `STUDIO_VIDEO_DEPLOYMENT_2026_10_16.md`.
 - Releases are detached checkouts under
   `/opt/aipg-gallery-releases/gallery-<commit>` and are activated only through
   `/opt/aipg-gallery-current`.

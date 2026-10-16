@@ -1,13 +1,17 @@
 # aipg.art production release
 
-## Current BF16 Scope And Source Candidate
+## Current Production And Source Candidate
 
-Protected-main PR46 release `cf533e97` is deployed with public authenticated,
-credit-backed BF16 text/opening-image admission. Its separate one-clip release
-check consumed USD0.0275 with one dispatch/debit/completion, matching full native
-decode and browser reload recovery. The older private-pilot record below is
-historical. NVFP4, reference audio/video, timeline generation and video x402
-remain closed. This document is not authority to widen them.
+Protected-main PR #50 release `b9cc4378` is deployed. Studio owns image and
+LTX-2.5 video generation at `/create` and `/create?type=video`; Director is the
+assembly workspace under the same site header. The preceding release's BF16/
+NVFP4 availability, source admission, frame limits, billing and auth are
+unchanged. This UI release does not enable or qualify another generation mode.
+See [the deployment record](STUDIO_VIDEO_DEPLOYMENT_2026_10_16.md) for exact
+artifact provenance, restore/runtime checks, existing-clip browser recovery
+and the compatible `bac2dd5d` rollback. No new paid generation ran for this
+rollout. Earlier paid-canary and activation records below are historical;
+none authorizes widening current source, timeline or x402 admission.
 
 The unified Director/source candidate adds a separate default-off
 `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Before enabling it, install and
@@ -35,7 +39,7 @@ hold/job; generation still needs the exact live quote and atomic Core hold.
 
 ## LTX-2.5 private pilot qualification
 
-Release `0469027d` is deployed. Its required main checks, signed release
+Release `0469027d` was deployed for this historical pilot. Its required main checks, signed release
 provenance, host runtime and restored-backup race tests passed. A real funded
 browser generated a Krea 2 Turbo opening image and used it for an 81-frame
 Distilled BF16 clip. The image cost USD 0.005 and the clip USD 0.0675: total
@@ -195,7 +199,7 @@ clear unpatched Go dependencies; qualify the backend security patch separately.
 
 ## Compiled-backend hardening (2026-09-28, 22:55 UTC)
 
-Production selects `c56d432d93fd1038cbafc976ed68db35b5873d67`, the
+At this historical activation, production selected `c56d432d93fd1038cbafc976ed68db35b5873d67`, the
 tree-identical tested head of PR #41 (`f2a36e6d799fee6f3f03c22fefb4b28282f9f46a`).
 This preserves the image rollout below while upgrading gRPC 1.83.1 to 1.83.2
 and its required x/net 0.58.0 dependency. CI now scans the compiled executable
