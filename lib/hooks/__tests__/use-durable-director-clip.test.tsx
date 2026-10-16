@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 AI Power Grid
 import { act, renderHook } from "@testing-library/react";
 import { randomUUID } from "crypto";
-import { addToGallery, createDurableVideoJob, createJob, prepareVideoSource, ApiError } from "@/lib/api";
+import { addToGallery, createDurableVideoJob, createJob, fetchJobByRequest, fetchJobStatus, prepareVideoSource, ApiError } from "@/lib/api";
 import { useJobStore } from "@/lib/stores/job-store";
 import { useDurableDirectorClip } from "../use-durable-director-clip";
 
@@ -15,7 +15,7 @@ jest.mock("@/lib/api", () => ({
 const mockQuote = { costCeilingMicro: 67500, quote: { estimate: { balance_sufficient: true } }, loading: false, error: null, refresh: jest.fn() };
 jest.mock("../use-durable-video-quote", () => ({ useDurableVideoQuote: () => mockQuote }));
 const model = "LTX-2.5 Distilled BF16" as const;
-const jobId = "b9a21451-405b-447f-8d9c-11abbc0f667a";
+const jobId = "b9a21451405b447f8d9c11abbc0f667a";
 const options = { ownerIdentifier: "owner", authenticated: true, enabled: true, models: [{ id: model, onlineWorkers: 2 }] };
 
 beforeEach(() => {
@@ -42,7 +42,10 @@ it("submits one exact-frame credit-capped private clip, without legacy fallback"
   expect(createJob).not.toHaveBeenCalled();
   expect((createDurableVideoJob as jest.Mock).mock.calls[0][1]).toMatchObject({ model, frames: 81, fps: 24, n: 1, max_cost_micro_usd: 67500, size: "960x544" });
   expect((createDurableVideoJob as jest.Mock).mock.calls[0][1]).not.toHaveProperty("keyframes");
+  expect((createDurableVideoJob as jest.Mock).mock.calls[0][1]).not.toHaveProperty("seed");
   expect(addToGallery).toHaveBeenCalledWith(expect.objectContaining({ jobId, isPublic: false }));
+  expect(result.current.error).toBeNull();
+  expect(result.current.pending).toEqual([]);
   expect(result.current.canSubmit).toBe(false);
 });
 
@@ -100,11 +103,20 @@ it("hides other-account receipts and stops dispatch on an account change", async
   expect(result.current.jobs).toEqual([]);
 });
 
-it("rejects an unsafe seed before saving a request", async () => {
+it.each(["0", "31337", "9007199254740991"])("submits an explicit seed %s without randomizing it", async (seed) => {
   const { result } = setup();
-  act(() => result.current.setSeed("9007199254740992"));
+  act(() => result.current.setSeed(seed));
   await act(async () => { await result.current.submit(); });
-  expect(result.current.error).toContain("seed");
+  expect(createDurableVideoJob).toHaveBeenCalledTimes(1);
+  expect((createDurableVideoJob as jest.Mock).mock.calls[0][1].seed).toBe(Number(seed));
+  expect(result.current.error).toBeNull();
+});
+
+it.each(["-1", "1.5", "1e3", "not-a-seed", "9007199254740992"])("rejects unsafe seed %s before saving a request", async (seed) => {
+  const { result } = setup();
+  act(() => result.current.setSeed(seed));
+  await act(async () => { await result.current.submit(); });
+  expect(result.current.error).toMatch(/seed/i);
   expect(createDurableVideoJob).not.toHaveBeenCalled();
   expect(useJobStore.getState().requests).toEqual([]);
 });
@@ -171,12 +183,41 @@ it("never dispatches source work when closed, malformed, cancelled or prepared f
   expect(useJobStore.getState().requests).toEqual([]);
 });
 
-it("clears the stale unknown notice only after the original request closes", async()=>{
+it.each(["processing", "completed", "faulted"])("clears a stale unknown notice when the original request is confirmed %s", async(status)=>{
   (createDurableVideoJob as jest.Mock).mockRejectedValue(new TypeError("reply lost"));
   const {result}=setup();
   await act(async()=>{await result.current.submit();});
   expect(result.current.error).toContain("outcome is unknown");
-  act(()=>useJobStore.setState({requests:[],jobs:[{jobId,modelId:model,walletAddress:"owner",status:"completed",createdAt:Date.now()}] as never}));
+  const observed = { jobId, status, faulted: status === "faulted", waitTime: 0, queuePosition: 0,
+    processing: status === "processing" ? 1 : 0, finished: 0, waiting: 0, generations: [] };
+  (fetchJobByRequest as jest.Mock).mockResolvedValue(observed);
+  (fetchJobStatus as jest.Mock).mockResolvedValue(observed);
+  await act(async()=>{await useJobStore.getState().pollOnce();});
   expect(result.current.error).toBeNull();
   expect(createDurableVideoJob).toHaveBeenCalledTimes(1);
+  if (status === "processing") expect(result.current.canSubmit).toBe(false);
+});
+
+it("keeps the warning when the recovered original result is still uncertain", async()=>{
+  (createDurableVideoJob as jest.Mock).mockRejectedValue(new TypeError("reply lost"));
+  const {result}=setup();
+  await act(async()=>{await result.current.submit();});
+  const uncertain = { jobId, status: "uncertain", faulted: false, waitTime: 0, queuePosition: 0,
+    processing: 1, finished: 0, waiting: 0, generations: [], error: "Video outcome is unknown" };
+  (fetchJobByRequest as jest.Mock).mockResolvedValue(uncertain);
+  (fetchJobStatus as jest.Mock).mockResolvedValue(uncertain);
+  await act(async()=>{await useJobStore.getState().pollOnce();});
+  expect(result.current.error).toContain("outcome is unknown");
+  expect(result.current.canSubmit).toBe(false);
+  expect(createDurableVideoJob).toHaveBeenCalledTimes(1);
+});
+
+it("does not clear a submission warning for an unrelated completed request", async()=>{
+  (createDurableVideoJob as jest.Mock).mockRejectedValue(new TypeError("reply lost"));
+  const {result}=setup();
+  await act(async()=>{await result.current.submit();});
+  act(()=>useJobStore.getState().addJob({jobId,modelId:model,modelName:model,prompt:"other",type:"video",
+    isNsfw:false,isPublic:false,walletAddress:"owner",requestId:"unrelated",status:"completed"}));
+  expect(result.current.error).toContain("outcome is unknown");
+  expect(result.current.canSubmit).toBe(false);
 });

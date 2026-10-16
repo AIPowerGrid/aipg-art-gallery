@@ -3,6 +3,7 @@
 "use client";
 
 import {
+  ChevronDown,
   Download,
   Film,
   ImagePlus,
@@ -12,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { ComponentProps } from "react";
 import { AuthModal } from "@/components/auth-modal";
 import { DurableVideoCapabilities } from "@/lib/api";
 import { useDurableDirectorClip } from "@/lib/hooks/use-durable-director-clip";
@@ -21,6 +23,19 @@ const field =
   "w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400";
 const funding =
   "https://console.aipowergrid.io/dashboard/funding?returnTo=https%3A%2F%2Faipg.art%2Fcreate%3Ftype%3Dvideo";
+
+function ClipSelect(props: ComponentProps<"select">) {
+  return (
+    <span className="relative block">
+      <select {...props} className={`${field} appearance-none pr-10`} />
+      <ChevronDown
+        size={16}
+        aria-hidden="true"
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400"
+      />
+    </span>
+  );
+}
 
 export function DurableClipConsole(props: {
   ownerIdentifier?: string;
@@ -152,8 +167,7 @@ export function DurableClipConsole(props: {
           </div>
           <label className="block space-y-2 text-sm text-zinc-300">
             Model
-            <select
-              className={field}
+            <ClipSelect
               value={clip.model}
               disabled={clip.busy}
               onChange={(event) =>
@@ -177,13 +191,12 @@ export function DurableClipConsole(props: {
                   </option>
                 );
               })}
-            </select>
+            </ClipSelect>
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block space-y-2 text-sm text-zinc-300">
               Clip length
-              <select
-                className={field}
+              <ClipSelect
                 value={clip.frames}
                 disabled={clip.busy}
                 onChange={(event) => clip.setFrames(Number(event.target.value))}
@@ -198,12 +211,11 @@ export function DurableClipConsole(props: {
                       {(frames / 24).toFixed(2)} seconds
                     </option>
                   ))}
-              </select>
+              </ClipSelect>
             </label>
             <label className="block space-y-2 text-sm text-zinc-300">
               Resolution
-              <select
-                className={field}
+              <ClipSelect
                 value={clip.size}
                 disabled={clip.busy}
                 onChange={(event) => clip.setSize(event.target.value)}
@@ -220,7 +232,7 @@ export function DurableClipConsole(props: {
                   </>
                 )}
                 <option value="512x512">512 × 512</option>
-              </select>
+              </ClipSelect>
             </label>
           </div>
           {clip.mode !== "text" && (

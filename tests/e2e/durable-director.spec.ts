@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const owner = "aa37ea21-367e-4b1d-bba0-d1f987001ce3";
-const jobId = "b9a21451-405b-447f-8d9c-11abbc0f667a";
+const jobId = "b9a21451405b447f8d9c11abbc0f667a";
 const model = "LTX-2.5 Distilled BF16";
 const credits = { account_id: owner, promotional: { remaining_usd: 0, active: false },
   free: { remaining_usd: 0, daily_cap_usd: 0, active: false }, paid: { balance_usd: 1 },
@@ -85,14 +85,19 @@ test("quotes exact frames and submits one capped clip, preserving the timeline",
   const state = await fixture(page);
   await openClip(page);
   await expect(page.getByText("$0.0675", { exact: true })).toBeVisible();
+  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByLabel("Seed", { exact: true }).fill("31337");
   await page.getByRole("button", { name: "Generate clip" }).click();
   await expect.poll(state.posts).toBe(1);
-  expect(state.body()).toMatchObject({ requestId: expect.any(String), video: { model, frames: 81, fps: 24, n: 1, max_cost_micro_usd: 67500 } });
+  expect(state.body()).toMatchObject({ requestId: expect.any(String), video: { model, frames: 81, fps: 24, n: 1, seed: 31337, max_cost_micro_usd: 67500 } });
   expect(state.body()).not.toHaveProperty("walletAddress");
   await expect(page.getByText(`Gallery job ${jobId}`)).not.toBeVisible();
   await page.getByText('Generation details', { exact: true }).click();
   await expect(page.getByText(`Gallery job ${jobId}`)).toBeVisible();
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeDisabled();
+  await expect(page.getByText("Generation outcome is unknown.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Checking the original request.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Generating clip", { exact: true })).toBeVisible();
   await page.screenshot({ path: "test-results/durable-director-desktop.png", fullPage: true });
   await page.getByRole('link', { name: 'Director', exact: true }).click();
   await expect(page.getByRole("button", { name: /^Render/ })).toHaveCount(0);
@@ -139,6 +144,19 @@ test("video Studio fits phone, tablet and desktop without hiding the site shell"
     expect(bounds.document).toBeLessThanOrEqual(bounds.width);
     expect(bounds.settings.left).toBeGreaterThanOrEqual(0);
     expect(bounds.settings.right).toBeLessThanOrEqual(width);
+    for (const name of ["Model", "Clip length", "Resolution"]) {
+      const inset = await page.getByRole("combobox", { name, exact: true }).evaluate((element) => {
+        const select = element.getBoundingClientRect();
+        const arrow = element.parentElement!.querySelector("svg")!.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return { right: select.right - arrow.right, left: arrow.left - select.left,
+          padding: parseFloat(style.paddingRight), appearance: style.appearance };
+      });
+      expect(inset.appearance).toBe("none");
+      expect(inset.right).toBeGreaterThanOrEqual(10);
+      expect(inset.left).toBeGreaterThan(0);
+      expect(inset.padding).toBeGreaterThanOrEqual(40);
+    }
     if (width >= 1024) expect(bounds.prompt.right).toBeLessThanOrEqual(bounds.settings.left);
     else expect(bounds.prompt.bottom).toBeLessThanOrEqual(bounds.settings.top);
     await page.screenshot({ path: `test-results/video-studio-${width}.png`, fullPage: true });
@@ -231,6 +249,19 @@ test("recovers after a lost reply and reload with admission closed, never resubm
   await page.getByText('Generation details', { exact: true }).click();
   await expect(page.getByText(`Gallery job ${jobId}`)).toBeVisible();
   await expect(page.getByText("New clip submissions are closed.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Generate clip" })).toBeDisabled();
+  expect(state.posts()).toBe(1);
+  expect(state.errors).toEqual([]);
+});
+
+test("clears reply-loss warnings as soon as the original video is confirmed processing", async ({ page }) => {
+  const state = await fixture(page, { loseReply: true });
+  await openClip(page);
+  await page.getByRole("button", { name: "Generate clip" }).click();
+  await expect(page.getByText("Generation outcome is unknown.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Generating clip", { exact: true })).toBeVisible();
+  await expect(page.getByText("Generation outcome is unknown.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Checking the original request.", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeDisabled();
   expect(state.posts()).toBe(1);
   expect(state.errors).toEqual([]);
