@@ -121,11 +121,13 @@ jobs to the grid and serves gallery/media.
   matching Core's reviewed pilot. Invalid enabled configuration fails closed;
   expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
   capability discovery does not reveal cohort IDs or qualify model fidelity.
-- Production selects `cf533e97` and public authenticated credit-backed BF16
-  text/opening-image video. Purchased billing and original-receipt/browser/API
-  restart recovery passed; source audio/video, NVFP4 Gallery, timeline
-  generation and video x402 remain closed. Gallery's source cohort is
-  comma-separated, unlike Core's JSON array. See `deploy/README.md`.
+- Production selects `b9cc4378` (PR #50): Studio owns image/video generation
+  and Director owns assembly under the shared header. This UI deployment
+  preserved the preceding release's BF16/NVFP4 settings, source admission,
+  billing, auth and frame limits; it did not qualify or enable another mode.
+  Existing receipts recover read-only. Gallery's source cohort is comma-
+  separated, unlike Core's JSON array. See `deploy/README.md` and the linked
+  deployment record for exact provenance, checks and rollback.
 - Public-admission preparation adds explicit `GALLERY_DURABLE_VIDEO_ADMISSION_MODE`
   (`pilot` default, explicit `open`). Open mode admits only canonical,
   authenticated accounts through the unchanged positive paid-quote/hold
