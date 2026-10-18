@@ -23,23 +23,32 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   Coach marks stop after the project has a completed segment.
 - Director billing UI shows only Core-owned balances and quotes, links `402`
   recovery to Console funding, and copies only server-observed Core receipt IDs.
-- `create/director/durable-clip-console.tsx` presents the unified text/audio/video
-  generation workflow; Edit / Assemble retains the existing local timeline.
-  Tabs reserve a fixed
-  top band so neither full-screen view covers navigation. Model/geometry/frame
+- `create/director/durable-clip-console.tsx` presents Studio's text/audio/video
+  generation workflow; Director retains the existing local assembly timeline.
+  Both remain below the shared site header, never a full-screen overlay that
+  hides account/navigation controls. Model/geometry/frame
   controls, explicit optional opening image, maximum quoted charge and native
-  playback/seeking consume the dedicated hook. Owner-scoped jobs/recovery keep
+  playback/seeking consume the unchanged dedicated hook. Model selection is
+  visible with the essential settings; technical IDs are collapsed under
+  Generation details. Owner-scoped jobs/recovery keep
   the clip view available after pilot closure; closure never implies a refund.
   The opening-image picker accepts PNG, JPEG and Studio-generated WebP.
-  The BF16 candidate offers up to721frames (30.04seconds) while NVFP4 retains
+  The BF16 candidate offers up to625frames (26.04seconds) while NVFP4 retains
   337. Controls share model-specific quote/payload bounds; switching to a model
   with a smaller limit never silently trims the current selection. No production
   capacity or source-mode activation is implied by the option being implemented.
+  Seed remains under Advanced: blank requests a random seed; zero and other
+  safe non-negative integers are sent explicitly.
+  Model, length and resolution selects retain native keyboard behavior with
+  inset Lucide chevrons and reserved text padding, not edge-clipped native arrows.
   Source modes show one ephemeral upload preview, explicit source start and
   exact clip length, with original soundtrack retention. Model/sampling knobs
-  live under Advanced. First frame is explicitly an opening constraint, not an
+  live under Advanced except the model picker. First frame is explicitly an opening constraint, not an
   appearance-only identity reference. Signed-out users see the same form and
   explicit Google/wallet sign-in action, never automatic authentication.
+- Finished qualified video cards and Studio outputs open the existing clip
+  in Director, never an unrendered last-frame segment. Require loaded finite
+  media duration and preserve the importer's existing host/frame validation.
 - The Jobs menu includes account-scoped unresolved submissions as checking the
   original request, not failed/refunded work. Director source-image replacement
   clears both job and request associations so a late result cannot replace an

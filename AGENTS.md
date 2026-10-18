@@ -13,8 +13,8 @@ contracts, workflows, I/O, permissions, or the Child DOX Index. Remove stale tex
 ## Purpose
 
 The creative frontend for the AI Power Grid: distributed GPU workers generate images,
-video, and 3D; Director has one generation workspace for text, soundtrack and
-motion-guided clips plus a separate Edit / Assemble timeline. Image/video results can land in the public gallery. No
+video, and 3D; Studio owns image and LTX-2.5 clip generation. Director is the
+separate assembly workspace under the same Gallery header. Image/video results can land in the public gallery. No
 account is required to browse. Google or wallet sign-in unlocks credit-backed generation,
 personal creations, publishing, and favorites. Two deployables live in one repo: a Next.js
 16 web app and a Go API server that brokers generation
@@ -110,10 +110,11 @@ jobs to the grid and serves gallery/media.
   the generation to Core's completion and credit ledgers.
 - The separate `/api/videos/jobs` broker defaults off. Its PostgreSQL receipt
   journal, exact-frame quote/preflight and browser preparation/recovery helpers prepare
-  LTX-2.5 without enabling Core workers or public generation. The Director's
-  Generate workspace is visible signed in or out; server eligibility gates
+  LTX-2.5 without enabling Core workers or public generation. Studio's
+  Video workspace is visible signed in or out; server eligibility gates
   submission, not the interface. Existing jobs retain read-only recovery.
-  Edit / Assemble preserves timelines without legacy generation.
+  Director preserves timelines without legacy generation. Switching Studio
+  modes retains independent in-memory drafts; no uploaded source is persisted.
   Native storage/worker and purchased-
   credit qualification must precede enabling `GALLERY_DURABLE_VIDEO_ENABLED`.
   Activation requires a private canonical-account cohort and fixed expiry
@@ -189,6 +190,10 @@ These are non-negotiable across the repo. Children may add stricter rules, never
 
 - New generation capability → backend handler in `server/` first, then `lib/api.ts` client +
   `app/` UI. Keep request/response shapes in sync with `types/models.ts` and Go structs.
+- Public NVFP4 has its own default-off `GALLERY_DURABLE_VIDEO_NVFP4_ENABLED`
+  rollout switch, with a matching independent Core gate and unchanged337-frame
+  limit. Native/exporter/worker-credential and purchased-path qualification
+  precede activation; closing it must preserve old receipt replay and GET.
 - Audio/video source modes have a separate default-off
   `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Linux codec isolation, native
   source conditioning, purchased billing and cleanup must qualify before it

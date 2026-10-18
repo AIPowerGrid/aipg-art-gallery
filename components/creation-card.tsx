@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Scissors } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { confirmDialog } from "@/components/confirm-dialog";
 import { deleteGalleryItem, publishGalleryItem, unpublishGalleryItem, extractSingleImage, GalleryItem } from "@/lib/api";
 import { downloadMedia, getMediaFilename } from "@/lib/utils/download";
 import { getThumbnailUrl } from "@/lib/utils/thumbnails";
-import { extractFrame } from "@/lib/utils/video-frames";
 import { useDirectorStore } from "@/lib/stores/director-store";
 import { DisplayCreation, removeCreation } from "@/lib/storage";
 import { ImageModal } from "./image-modal";
@@ -31,7 +30,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [isExtending, setIsExtending] = useState(false);
+  const [videoTiming, setVideoTiming] = useState<{ url: string; duration: number } | null>(null);
   const [copiedGridJob, setCopiedGridJob] = useState(false);
   const router = useRouter();
   const [showFeedback, setShowFeedback] = useState<'published' | 'unpublished' | 'extracted' | null>(null);
@@ -41,6 +40,9 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   const firstGen = creation.generations[0];
   const mediaUrl = firstGen?.url || firstGen?.base64;
   const isVideo = creation.type === "video" || firstGen?.kind === "video";
+  const importFrames = videoTiming && videoTiming.url === mediaUrl ? Math.round(videoTiming.duration * 24) : 0;
+  const canImportClip = mediaUrl?.startsWith('https://media.aipg.art/') &&
+    Number.isSafeInteger(importFrames) && importFrames >= 9 && importFrames <= 337 && importFrames % 8 === 1;
   
   // Calculate aspect ratio for generating placeholder
   const aspectRatio = creation.width && creation.height 
@@ -129,25 +131,19 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
     }
   };
   
-  // Extend this clip in the Director: grab its last frame as a new segment's
-  // start image, then jump into the console to chain from it.
-  const handleExtendInDirector = async (e: React.MouseEvent) => {
+  const handleOpenInDirector = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!mediaUrl || isExtending) return;
-    setIsExtending(true);
+    if (!mediaUrl || !canImportClip) return;
     try {
-      const frame = await extractFrame(mediaUrl, 'last');
-      // New project seeded with this clip's last frame; the current project is
-      // auto-saved by the store.
-      useDirectorStore.getState().startProjectFromClip({
-        image: frame,
-        name: (creation.prompt || 'Extended clip').slice(0, 40),
+      useDirectorStore.getState().importRenderedClip({
+        url: mediaUrl,
+        frames: importFrames,
+        gridJobId: creation.gridJobId,
       });
       router.push('/create/director');
     } catch (err) {
-      console.error('Extend in Director failed:', err);
-      toast.error('Could not read the clip’s last frame.');
-      setIsExtending(false);
+      console.error('Open in Director failed:', err);
+      toast.error('Could not open this clip in Director.');
     }
   };
 
@@ -268,6 +264,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                       src={thumbnailUrl} 
                       className={`${displayMode === 'focus' ? 'h-full w-full object-contain' : 'w-full h-auto block'} ${showImage ? '' : 'sr-only'}`}
                       autoPlay loop muted playsInline 
+                      onLoadedMetadata={(event) => { if (mediaUrl) setVideoTiming({ url: mediaUrl, duration: event.currentTarget.duration }); }}
                       onLoadedData={() => setImageLoaded(true)}
                       onError={() => setMediaError(true)} 
                     />
@@ -418,23 +415,14 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                   </div>
                 </div>
               )}
-              {/* Extend in Director (videos): last frame → new chained segment */}
-              {isVideo && !isBatchMode && mediaUrl && !mediaError && (
+              {/* Assembly imports the existing output, never a new generation. */}
+              {isVideo && !isBatchMode && mediaUrl && !mediaError && canImportClip && (
                 <button
-                  onClick={handleExtendInDirector}
-                  disabled={isExtending}
-                  className="w-7 h-7 flex items-center justify-center rounded-full bg-black/50 hover:bg-amber-600 text-white opacity-0 group-hover:opacity-100 transition-all"
-                  title="Extend in Director — continue this clip from its last frame"
+                  onClick={handleOpenInDirector}
+                  className="w-7 h-7 flex items-center justify-center rounded-full bg-black/50 hover:bg-amber-600 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-all"
+                  title="Open in Director"
                 >
-                  {isExtending ? (
-                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 17H7A5 5 0 0 1 7 7h2" />
-                      <path d="M15 7h2a5 5 0 1 1 0 10h-2" />
-                      <line x1="8" y1="12" x2="16" y2="12" />
-                    </svg>
-                  )}
+                  <Scissors className="h-4 w-4" aria-hidden="true" />
                 </button>
               )}
               {/* Publish toggle button */}

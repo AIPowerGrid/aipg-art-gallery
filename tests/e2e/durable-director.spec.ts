@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const owner = "aa37ea21-367e-4b1d-bba0-d1f987001ce3";
-const jobId = "b9a21451-405b-447f-8d9c-11abbc0f667a";
+const jobId = "b9a21451405b447f8d9c11abbc0f667a";
 const model = "LTX-2.5 Distilled BF16";
 const credits = { account_id: owner, promotional: { remaining_usd: 0, active: false },
   free: { remaining_usd: 0, daily_cap_usd: 0, active: false }, paid: { balance_usd: 1 },
@@ -35,6 +35,7 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     const path = new URL(request.url()).pathname.replace(/^\/api-preview/, "");
     if (path === "/auth/me") return options.signedOut ? route.fulfill({status:401,json:{error:"Sign in required"}}) : route.fulfill({ json: { authMethod: "google", accountId: account, googleId: "clip-preview", email: "clip@example.test", name: "Clip Preview" } });
     if (path === "/styles") return route.fulfill({ json: { models: [], dimensions: [], defaultDimensionId: 0, defaults: { steps: 8, cfgScale: 1, sampler: "euler", scheduler: "normal" } } });
+    if (path === "/styles/grid") return route.fulfill({ json: { styles: [] } });
     if (path === "/models") return route.fulfill({ json: { chainSource: true, models: [{ id: model, name: model, type: "video", status: "online", onlineWorkers: 2, capabilities: [] }] } });
     if (path === "/videos/capabilities") return route.fulfill({ json: { enabled, models: enabled ? [{ id: model, onlineWorkers: 2 }] : [],sourceModes:options.sources?["audio","video"]:[] } });
     if (path === "/videos/prepare-source") return route.fulfill({json:{audio:"data:audio/wav;base64,c291bmQ=",...(request.postDataBuffer()?.toString().includes('\r\nvideo\r\n')?{video:"data:video/mp4;base64,bW90aW9u"}:{}),frames:33,width:512,height:512,startSeconds:0}});
@@ -74,8 +75,8 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
 }
 
 async function openClip(page: Page) {
-  await page.goto("/create/director", { waitUntil: "networkidle" });
-  await expect(page.getByRole("tab", { name: "Generate",exact:true })).toHaveAttribute("aria-selected", "true");
+  await page.goto("/create?type=video", { waitUntil: "networkidle" });
+  await expect(page.getByRole("button", { name: "Video",exact:true })).toHaveAttribute("aria-pressed", "true");
   await page.getByLabel("Clip prompt").fill("camera glides over the ocean at sunrise");
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeEnabled();
 }
@@ -84,14 +85,21 @@ test("quotes exact frames and submits one capped clip, preserving the timeline",
   const state = await fixture(page);
   await openClip(page);
   await expect(page.getByText("$0.0675", { exact: true })).toBeVisible();
+  await page.getByText("Advanced", { exact: true }).click();
+  await page.getByLabel("Seed", { exact: true }).fill("31337");
   await page.getByRole("button", { name: "Generate clip" }).click();
   await expect.poll(state.posts).toBe(1);
-  expect(state.body()).toMatchObject({ requestId: expect.any(String), video: { model, frames: 81, fps: 24, n: 1, max_cost_micro_usd: 67500 } });
+  expect(state.body()).toMatchObject({ requestId: expect.any(String), video: { model, frames: 81, fps: 24, n: 1, seed: 31337, max_cost_micro_usd: 67500 } });
   expect(state.body()).not.toHaveProperty("walletAddress");
+  await expect(page.getByText(`Gallery job ${jobId}`)).not.toBeVisible();
+  await page.getByText('Generation details', { exact: true }).click();
   await expect(page.getByText(`Gallery job ${jobId}`)).toBeVisible();
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeDisabled();
+  await expect(page.getByText("Generation outcome is unknown.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Checking the original request.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Generating clip", { exact: true })).toBeVisible();
   await page.screenshot({ path: "test-results/durable-director-desktop.png", fullPage: true });
-  await page.getByRole("tab", { name: "Edit / Assemble", exact: true }).click();
+  await page.getByRole('link', { name: 'Director', exact: true }).click();
   await expect(page.getByRole("button", { name: /^Render/ })).toHaveCount(0);
   expect(state.errors).toEqual([]);
 });
@@ -99,8 +107,8 @@ test("quotes exact frames and submits one capped clip, preserving the timeline",
 test("offers a longer clip with exact billing and one submission on desktop and mobile", async ({ page }) => {
   const state = await fixture(page);
   await openClip(page);
-  await page.getByRole("combobox", {name:"Clip length",exact:true}).selectOption("721");
-  await expect(page.getByText("$0.6008", {exact:true})).toBeVisible();
+  await page.getByRole("combobox", {name:"Clip length",exact:true}).selectOption("625");
+  await expect(page.getByText("$0.5208", {exact:true})).toBeVisible();
   for (const width of [1280, 390]) {
     await page.setViewportSize({width,height:900});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -108,8 +116,85 @@ test("offers a longer clip with exact billing and one submission on desktop and 
   }
   await page.getByRole("button", {name:"Generate clip"}).click();
   await expect.poll(state.posts).toBe(1);
-  expect(state.body()).toMatchObject({video:{model,frames:721,fps:24,max_cost_micro_usd:600834}});
+  expect(state.body()).toMatchObject({video:{model,frames:625,fps:24,max_cost_micro_usd:520834}});
   await expect(page.getByRole("button", {name:"Generate clip"})).toBeDisabled();
+  expect(state.errors).toEqual([]);
+});
+
+test("Studio keeps image and video drafts separate and never offers legacy video models", async ({ page }) => {
+  const state = await fixture(page);
+  await page.route('**/api-preview/styles', (route) => route.fulfill({ json: {
+    models: [
+      { id: 'Krea 2 Turbo', name: 'Krea 2 Turbo', type: 'image', enabled: true, default: true },
+      { id: 'LTX-2.3 Video', name: 'LTX-2.3 Video', type: 'video', enabled: true },
+    ],
+    dimensions: [], defaultDimensionId: 0,
+    defaults: { steps: 8, cfgScale: 1, sampler: 'euler', scheduler: 'normal' },
+  } }));
+  await openClip(page);
+  await expect(page.getByRole('link', { name: 'AIPG AI Power Grid' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Account', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Model', exact: true })).toHaveValue(model);
+  await page.getByRole('button', { name: 'Image', exact: true }).click();
+  await page.getByPlaceholder('Describe your image...').fill('a sunlit forest');
+  await expect(page.getByText('LTX-2.3 Video', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Video', exact: true }).click();
+  await expect(page.getByLabel('Clip prompt')).toHaveValue('camera glides over the ocean at sunrise');
+  await page.getByRole('button', { name: 'Image', exact: true }).click();
+  await expect(page.getByPlaceholder('Describe your image...')).toHaveValue('a sunlit forest');
+  expect(state.posts()).toBe(0);
+  expect(state.errors).toEqual([]);
+});
+
+test("video Studio fits phone, tablet and desktop without hiding the site shell", async ({ page }) => {
+  const state = await fixture(page);
+  await openClip(page);
+  for (const width of [390, 768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 960 });
+    await expect(page.getByRole('link', { name: /^AIPG/ })).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    const bounds = await page.evaluate(() => {
+      const settings = document.querySelector('[aria-label="Video settings"]')!.getBoundingClientRect();
+      const prompt = document.querySelector('#video-clip-prompt')!.getBoundingClientRect();
+      return { width: innerWidth, document: document.documentElement.scrollWidth, settings: { left: settings.left, right: settings.right, top: settings.top }, prompt: { right: prompt.right, bottom: prompt.bottom } };
+    });
+    expect(bounds.document).toBeLessThanOrEqual(bounds.width);
+    expect(bounds.settings.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.settings.right).toBeLessThanOrEqual(width);
+    for (const name of ["Model", "Clip length", "Resolution"]) {
+      const inset = await page.getByRole("combobox", { name, exact: true }).evaluate((element) => {
+        const select = element.getBoundingClientRect();
+        const arrow = element.parentElement!.querySelector("svg")!.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return { right: select.right - arrow.right, left: arrow.left - select.left,
+          padding: parseFloat(style.paddingRight), appearance: style.appearance };
+      });
+      expect(inset.appearance).toBe("none");
+      expect(inset.right).toBeGreaterThanOrEqual(10);
+      expect(inset.left).toBeGreaterThan(0);
+      expect(inset.padding).toBeGreaterThanOrEqual(40);
+    }
+    if (width >= 1024) expect(bounds.prompt.right).toBeLessThanOrEqual(bounds.settings.left);
+    else expect(bounds.prompt.bottom).toBeLessThanOrEqual(bounds.settings.top);
+    await page.screenshot({ path: `test-results/video-studio-${width}.png`, fullPage: true });
+  }
+  expect(state.errors).toEqual([]);
+});
+
+test("a completed creation opens in Director as existing output without another paid intent", async ({ page }) => {
+  const state = await fixture(page);
+  await openClip(page);
+  await page.getByRole('button', { name: 'Generate clip', exact: true }).click();
+  await expect.poll(state.posts).toBe(1);
+  state.finish();
+  await expect(page.getByLabel('Generated clip')).toBeVisible();
+  await page.getByRole('button', { name: 'Image', exact: true }).click();
+  await page.getByTitle('Open in Director', { exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Director', exact: true })).toBeVisible();
+  const segments = await page.evaluate(() => JSON.parse(localStorage.getItem('aipg-director-store')!).state.segments);
+  expect(segments).toHaveLength(1);
+  expect(segments[0]).toMatchObject({ importedClip: true, status: 'done', lengthFrames: 81, outputUrl: 'https://media.aipg.art/e2e-clip.mp4' });
+  expect(state.posts()).toBe(1);
   expect(state.errors).toEqual([]);
 });
 
@@ -157,12 +242,13 @@ test("plays and seeks a completed clip with an ephemeral Studio WebP opening ima
   });
   expect(after).not.toBe(before);
   await expect(page.getByRole("link", { name: "Download clip" })).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: "test-results/durable-director-playback.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.getByRole("region", { name: "LTX-2.5 clip workspace" }).evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await page.screenshot({ path: "test-results/durable-director-playback-mobile.png", fullPage: true });
-  await page.getByRole("button",{name:"Add to assembly",exact:true}).click();
-  await expect(page.getByRole("tab",{name:"Edit / Assemble",exact:true})).toHaveAttribute("aria-selected","true");
+  await page.getByRole("button",{name:"Open in Director",exact:true}).click();
+  await expect(page.getByRole('heading', { name: 'Director', exact: true })).toBeVisible();
   const assembled=await page.evaluate(()=>JSON.parse(localStorage.getItem("aipg-director-store")!).state.segments);
   expect(assembled).toHaveLength(1);
   expect(assembled[0]).toMatchObject({importedClip:true,status:"done",lengthFrames:81,outputUrl:"https://media.aipg.art/e2e-clip.mp4"});
@@ -177,8 +263,22 @@ test("recovers after a lost reply and reload with admission closed, never resubm
   await expect(page.getByRole("region", { name: "LTX-2.5 clip workspace" }).getByRole("alert")).toContainText("outcome is unknown");
   state.close();
   await page.reload({ waitUntil: "networkidle" });
+  await page.getByText('Generation details', { exact: true }).click();
   await expect(page.getByText(`Gallery job ${jobId}`)).toBeVisible();
   await expect(page.getByText("New clip submissions are closed.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Generate clip" })).toBeDisabled();
+  expect(state.posts()).toBe(1);
+  expect(state.errors).toEqual([]);
+});
+
+test("clears reply-loss warnings as soon as the original video is confirmed processing", async ({ page }) => {
+  const state = await fixture(page, { loseReply: true });
+  await openClip(page);
+  await page.getByRole("button", { name: "Generate clip" }).click();
+  await expect(page.getByText("Generation outcome is unknown.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Generating clip", { exact: true })).toBeVisible();
+  await expect(page.getByText("Generation outcome is unknown.", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Checking the original request.", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeDisabled();
   expect(state.posts()).toBe(1);
   expect(state.errors).toEqual([]);
@@ -188,10 +288,11 @@ test("hides a prior account's clip and recovery after switching accounts", async
   const state = await fixture(page);
   await openClip(page);
   await page.getByRole("button", { name: "Generate clip" }).click();
+  await page.getByText('Generation details', { exact: true }).click();
   await expect(page.getByText(`Gallery job ${jobId}`)).toBeVisible();
   state.switchAccount();
   await page.reload({ waitUntil: "networkidle" });
-  await expect(page.getByRole("tab", { name: "Generate",exact:true })).toHaveAttribute("aria-selected","true");
+  await expect(page.getByRole("button", { name: "Video",exact:true })).toHaveAttribute("aria-pressed","true");
   await expect(page.getByText(`Gallery job ${jobId}`)).toHaveCount(0);
   expect(state.posts()).toBe(1);
   expect(state.errors).toEqual([]);
@@ -199,8 +300,8 @@ test("hides a prior account's clip and recovery after switching accounts", async
 
 test("signed-out visitors see the same Director without a capability or generation request",async({page})=>{
   const state=await fixture(page,{signedOut:true});
-  await page.goto("/create/director",{waitUntil:"networkidle"});
-  await expect(page.getByRole("tab",{name:"Generate",exact:true})).toHaveAttribute("aria-selected","true");
+  await page.goto("/create?type=video",{waitUntil:"networkidle"});
+  await expect(page.getByRole("button",{name:"Video",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(page.getByRole("button",{name:"Sign in to generate"})).toBeVisible();
   for(const mode of ["Text to video","Audio to video","Video to video"]){await page.getByRole("button",{name:mode,exact:true}).click();await expect(page.getByRole("button",{name:mode,exact:true})).toHaveAttribute("aria-pressed","true");}
   await page.setViewportSize({width:390,height:844});

@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * /create/director — the full-screen Director console (merged
- * Storyboard + Director). Fixed-viewport takeover; the "‹ Studio" button in
- * the console's top bar routes back to /create.
+ * /create/director owns assembly; /create?type=video owns clip generation.
+ * The editor stays below the shared Gallery header.
  *
  * The console tree pulls in wagmi/RainbowKit, so it loads with ssr:false
  * (same rule as Providers in the root layout) — wallet libs must never touch

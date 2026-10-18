@@ -7,10 +7,11 @@ separate gates. Never substitute an opening portrait for an identity reference.
 
 ## Implemented Candidate
 
-- One Generate workspace, independent of sign-in and delayed capabilities.
+- One Studio Video workspace (`/create?type=video`), independent of sign-in and
+  delayed capabilities, with the same header/account controls as images.
 - Text, Audio and Video modes with relevant source controls and preview.
 - Exact clip lengths, source start time and optional explicit first frame.
-- Model, raw frame count and sampling controls under Advanced.
+- Visible model/clip-length/resolution controls; raw frames and sampling under Advanced.
 - Ephemeral source preparation through the authenticated Go broker.
 - Exact stereo48k PCM16 soundtrack window; no short-source padding.
 - Motion normalization to H.264/24fps, contain fitting and64-aligned geometry.
@@ -18,8 +19,11 @@ separate gates. Never substitute an opening portrait for an identity reference.
 - Single durable paid-intent POST after preparation; GET-only recovery.
 - Owner changes/cancellation prevent late preparation from dispatching.
 - Original terminal receipt clears its stale unknown-submit notice.
-- Edit / Assemble keeps legacy projects and forbids all legacy render hooks.
+- Director opens directly into assembly, keeps legacy projects and forbids all
+  legacy render hooks. Its Create clip action returns to Studio Video.
 - Explicit finished-clip import, duplicate and reorder do not create jobs.
+- Independent in-memory image/video drafts survive mode switching; technical
+  receipt IDs are available under details, not the primary result presentation.
 
 ## Acceptance Still Required
 
@@ -52,17 +56,20 @@ separate gates. Never substitute an opening portrait for an identity reference.
 explicit opt-in candidate covers text/opening-image only, retaining337frames,
 pricing/holds/one-job limits and recovery after closure. Qualify the actual
 owned worker, exporter and credential lifetime before activating either flag.
-These switches do not open source modes or qualify30-second NVFP4 workloads.
+These switches do not open source modes or qualify26-second NVFP4 workloads.
 
-The duration-extension candidate offers BF16 clips through721frames at24fps
-(30.041667seconds), with unchanged default81frames, resolution and tariff.
+The duration-extension candidate offers BF16 clips through625frames at24fps
+(26.041667seconds), with unchanged default81frames, resolution and tariff.
 NVFP4 remains337frames. Model-specific frontend, quote, broker/intent and Core
 bounds must match; a smaller model selection cannot silently trim a long clip.
-At USD0.020/second the maximum BF16 quote is600834micro-USD, including upward
+At USD0.020/second the maximum BF16 quote is520834micro-USD, including upward
 rounding. This code is not a native capacity or production deployment claim.
-The approved two-source-test USD0.06 budget cannot pay for a30-second clip.
-Core's matching release must precede Gallery, followed by independent native
-long-duration proof and reviewed release checks. Keep readers that accept
+The approved two-source-test USD0.06 budget cannot pay for a26-second clip.
+The serving exporter still caps337frames; the media worker's uploaded-source
+adapter has the same bound. Upgrade and qualify the exporter before any long
+clip release, and separately qualify the source adapter before long A2V/V2V.
+Native long-duration proof and reviewed release checks precede Core's matching
+deployment, which must precede Gallery. Keep readers that accept
 existing long intents on rollback; closing new jobs is not permission to lose
 their original receipts or repeat generation.
 

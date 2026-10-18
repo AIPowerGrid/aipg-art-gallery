@@ -110,10 +110,10 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   remains `pilot`; unknown modes or retained pilot restrictions fail startup.
   Public mode still requires a canonical authenticated account, the exact
   positive paid quote and Core's atomic hold. Existing NVFP4 intent replay
-  is retained. The separate default-off `GALLERY_DURABLE_VIDEO_NVFP4_ENABLED`
-  candidate can admit NVFP4 text/opening-image jobs in open mode only after
-  matching Core/worker/runtime qualification; source modes remain BF16-only.
-  Closing this switch must retain original owner-bound replay and GET. Replay
+  remains available. `GALLERY_DURABLE_VIDEO_NVFP4_ENABLED=false` separately
+  keeps fresh public NVFP4 quotes/jobs closed. Its explicit opt-in requires the
+  matching Core/worker/runtime and purchased-path review; source modes remain
+  BF16-only. Closing the switch preserves original replay and GET. Replay
   precedes the new-model restriction, and GET recovery remains unchanged.
   Code preparation does not authorize public activation. The authenticated
   body contains `requestId` (saved UUIDv4) plus `video` (Core's typed request,
@@ -143,7 +143,7 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
   video-aware rollback/config path before consumer activation.
 - `POST /api/videos/quote` shares the default-off video switch and authenticated
   ownership proof. Its bounded body accepts only the exact model, frames
-  (BF16 candidate9..721; NVFP49..337, 8n+1) and24fps; it sends exact frames, never rounded seconds, to
+  (BF16 candidate9..625; NVFP49..337, 8n+1) and24fps; it sends exact frames, never rounded seconds, to
   Core. Account/model/modality/frame/fps and positive live-price commitments
   must match. A valid insufficient-balance quote remains a 200 estimate for
   funding UX, while generation still requires sufficient balance and its

@@ -156,7 +156,8 @@ export const useJobStore = create<JobStore>()(
           if (typeof response?.jobId !== "string" || !response.jobId.trim()) {
             throw new Error("Missing generation receipt");
           }
-          if (durable && (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(response.jobId) || response.status !== "queued")) {
+          // This is Gallery's 16-byte hex ID, not the separate Core UUID receipt.
+          if (durable && (!/^[0-9a-f]{32}$/.test(response.jobId) || response.status !== "queued")) {
             throw new Error("Invalid video acceptance receipt");
           }
           get().resolveRequest(request, response.jobId);

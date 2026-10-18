@@ -135,14 +135,14 @@ func TestPrepareLongAudioAndVideoWithoutPadding(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			root := t.TempDir()
 			t.Setenv("TMPDIR", root)
-			options := Options{Mode: mode, Frames: 721, Width: 256, Height: 256, StartSeconds: 0.5}
-			source := fixtureDuration(t, mode == "video", true, "31")
+			options := Options{Mode: mode, Frames: 625, Width: 256, Height: 256, StartSeconds: 0.5}
+			source := fixtureDuration(t, mode == "video", true, "27")
 			prepared, err := Prepare(context.Background(), bytes.NewReader(source), options)
 			if err != nil {
 				t.Fatal(err)
 			}
 			audio, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(prepared.Audio, "data:audio/wav;base64,"))
-			if err != nil || !exactWAV(audio, 721*2000) || prepared.Frames != 721 {
+			if err != nil || !exactWAV(audio, 625*2000) || prepared.Frames != 625 {
 				t.Fatal("long soundtrack was not exact length")
 			}
 			options.StartSeconds = 1.5
@@ -195,7 +195,7 @@ func TestOptionsRejectNonfiniteAndUnsupportedGeometry(t *testing.T) {
 		func(o *Options) { o.StartSeconds = math.NaN() }, func(o *Options) { o.StartSeconds = math.Inf(1) },
 		func(o *Options) { o.StartSeconds = -1 }, func(o *Options) { o.StartSeconds = 601 },
 		func(o *Options) { o.Width = 960; o.Height = 544 }, func(o *Options) { o.Frames = 32 },
-		func(o *Options) { o.Frames = 729 },
+		func(o *Options) { o.Frames = 633 },
 		func(o *Options) { o.Mode = "url" }, func(o *Options) { o.Width = 4096 },
 	} {
 		copy := valid

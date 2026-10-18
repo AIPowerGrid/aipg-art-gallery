@@ -68,11 +68,15 @@ route handlers for things that must not run in the browser — including wallet 
   standard create page. It displays Core-owned first-frame and selected-segment quotes,
   links `402` responses to Console funding, and exposes copyable Core receipt IDs after
   completion. Browser project/audio persistence is local convenience, not authority.
-- Director always defaults to Generate, signed in or out, without switching
-  layouts when account capabilities arrive. Login gates generation, not mode
-  discovery. Edit / Assemble preserves existing projects but disables legacy
-  generation, including queue/recovery callbacks. Explicitly adding a finished
-  current-account clip imports its existing output, never submits a new job.
+- Studio `/create?type=video` owns LTX-2.5 clip generation under the same header
+  and Image/Video selector as images. Image catalog controls must not expose
+  legacy video models or submit a legacy video job. Mode switching preserves
+  independent in-memory drafts; reload keeps the URL-selected mode and existing
+  owner-bound request recovery, not uploaded inputs. Login gates generation,
+  not mode discovery. Director opens directly into assembly under the shared
+  site header and disables legacy generation, including queue/recovery callbacks.
+  Explicitly adding a finished current-account clip imports its existing output,
+  never submits a new job. Assembly never fetches obsolete render quotes.
   Source modes remain governed by independent authenticated server capabilities.
 - **`proxy.ts` (repo root)** sets per-request CSP. Browser API traffic is
   same-origin `/api`; keep any exceptional external connection origin explicit.

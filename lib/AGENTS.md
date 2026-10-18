@@ -91,7 +91,8 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 - A `DurableVideoSubmission` uses that same handle/polling lifecycle but calls
   `POST /videos/jobs` once, never the legacy timeline route or model fallback.
   A positive safe-integer ceiling is required before saving the handle. Only
-  canonical Gallery UUIDv4 plus queued status hands it off to job polling;
+  Gallery's 32-character lowercase hexadecimal job ID plus queued status hands
+  it off to job polling. This is not the request's UUIDv4 or Core's receipt UUID;
   malformed success, reply loss and gateway errors retain request recovery.
   Opening/timed images and reference audio/video remain ephemeral request data,
   never copied into the pending-request journal. Recheck the active account
@@ -100,10 +101,10 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   client preserves separate BF16/NVFP4 names; the common Generate workspace
   gates submission, not visibility, through authenticated server capabilities.
 - `create/durable-director-payload.ts` prepares an explicit 8n+1 output count,
-  using `create/durable-video-limits.ts` for the BF16721-frame candidate ceiling
+  using `create/durable-video-limits.ts` for the BF16625-frame candidate ceiling
   and unchanged NVFP4337-frame ceiling. Quote and payload validation share the
   same per-model limit; changing models invalidates incompatible long quotes,
-  never silently shortens a request. Completed721-frame clips remain immutable
+  never silently shortens a request. Completed625-frame clips remain immutable
   when imported for assembly. These bounds need native/release qualification.
   It prepares the
   quote ceiling, geometry, seed and optional ordered image guides. It never
@@ -139,8 +140,10 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   File objects, object URLs and normalized source bodies stay in memory only;
   revoke preview URLs on replacement/unmount. V2V fits 64-aligned geometry and
   retains explicit prepared sound; appearance-only references stay disabled.
-  A confirmed terminal original receipt clears only its stale unknown-submit
-  notice, not unrelated errors. Edit / Assemble disables all legacy render
+  A successful queued/processing/terminal poll for the exact saved request clears
+  only its stale unknown-submit notice. Uncertain results, failed polls and
+  unrelated requests must not clear it or enable a second submission.
+  Edit / Assemble disables all legacy render
   entry points. Imported finished clips remain completed, immutable-length
   output references and cannot become paid render requests.
 - Pending requests and active jobs do not expire under the 24-hour completed

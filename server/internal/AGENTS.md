@@ -10,7 +10,7 @@ package owns one concern; `app/app.go` wires them together.
 - `app/` — router + HTTP handlers (owned by `server/AGENTS.md`, not re-described here).
 - `config/` — typed `Config` + `Load()`; the single home for `os.Getenv`.
 - `videosource/` prepares owner-private local audio/video uploads using exact
-  BF16 candidate windows up to721frames/24fps. Larger source windows still
+  BF16 candidate windows up to625frames/24fps. Larger source windows still
   require full-length audio/picture and cannot pad, exceed byte/resource limits
   or bypass the separate source gate. Native capacity/release proof is separate.
   It uses exact
@@ -72,7 +72,7 @@ package owns one concern; `app/app.go` wires them together.
   upstream error bodies appear in public failures.
 
 - `aipg/video_jobs.go` supplies the default-off durable Core video broker.
-  `aipg/video_limits.go` keeps BF16's candidate721-frame limit separate from
+  `aipg/video_limits.go` keeps BF16's candidate625-frame limit separate from
   NVFP4's337 across submission, intent hashing and the quote handler. Existing
   intent digests remain unchanged. Deploy Core's matching parser/quote/recipe
   contract first, qualify native long output and retain long-intent recovery
@@ -113,9 +113,9 @@ package owns one concern; `app/app.go` wires them together.
   motion without explicit sound or with audio disabled is rejected. Core still
   independently decodes sources and enforces its source-path gates and holds.
 - `config/video_pilot.go` validates the private canonical-account cohort and
-  the independent default-off public NVFP4 opt-in. That switch cannot override
-  global video closure, authorize sources or promote other model identities.
-  It also validates the
+  the default-off public NVFP4 opt-in. That switch admits only the exact NVFP4
+  model alongside BF16 when public video is open, never bypassing global closure
+  or enabling uploaded sources. It also validates the
   fixed absolute deadline. Disabled defaults admit nobody; expiry closes fresh
   quotes/jobs without rewriting journal rows or disabling GET recovery. Invalid
   enabled startup fails closed, while an expired valid config remains usable

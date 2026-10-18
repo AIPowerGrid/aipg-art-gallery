@@ -43,7 +43,7 @@ export function useDurableDirectorClip(options: {
   const [startSeconds, setStartSeconds] = useState(0);
   const [motionStrength, setMotionStrength] = useState(0.85);
   const preparation = useRef<AbortController | null>(null);
-  const submittedAfterJob = useRef<string | undefined>(undefined);
+  const [submittedRequest, setSubmittedRequest] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (!sourceFile) { setSourceURL(null); return; }
     const url = URL.createObjectURL(sourceFile);
@@ -57,14 +57,16 @@ export function useDurableDirectorClip(options: {
   const busy = submitting || imageLoading || pending.length > 0 || jobs.some((job) => job.status === "queued" || job.status === "processing");
   const quote = useDurableVideoQuote({ enabled: available, authenticated: options.authenticated, ownerIdentifier: owner, model, frames });
   const terminal = jobs[0] && ["completed", "faulted"].includes(jobs[0].status) ? `${jobs[0].jobId}:${jobs[0].status}` : null;
-  const latestJobId = jobs[0]?.jobId;
+  const originalRequestConfirmed = submittedRequest !== undefined && jobs.some((job) =>
+    job.requestId === submittedRequest && !job.pollFailures &&
+    job.result !== undefined && ["queued", "processing", "completed", "faulted"].includes(job.result.status));
   const refreshQuote = quote.refresh;
   useEffect(() => { if (terminal) refreshQuote(); }, [terminal, refreshQuote]);
   useEffect(() => {
-    if (terminal && latestJobId !== submittedAfterJob.current && pending.length === 0) {
+    if (originalRequestConfirmed) {
       setError((value) => value?.startsWith("Generation outcome is unknown.") ? null : value);
     }
-  }, [terminal, latestJobId, pending.length]);
+  }, [originalRequestConfirmed]);
   const sourceEnabled = mode === "text" || (model === "LTX-2.5 Distilled BF16" && options.sourceModes?.includes(mode) === true);
   const canSubmit = options.authenticated && available && sourceEnabled && !busy && !!prompt.trim() &&
     (mode === "text" || (!!sourceFile && Number.isFinite(startSeconds) && startSeconds >= 0 && startSeconds <= 600)) &&
@@ -111,7 +113,7 @@ export function useDurableDirectorClip(options: {
   async function submit() {
     if (inFlight.current || !canSubmit || !owner || useJobStore.getState().activeOwner !== owner) return;
     inFlight.current = true; setSubmitting(true); setError(null);
-    submittedAfterJob.current = jobs[0]?.jobId;
+    setSubmittedRequest(undefined);
     const abort = new AbortController();
     preparation.current = abort;
     try {
@@ -136,7 +138,9 @@ export function useDurableDirectorClip(options: {
         ...(source ? { source: { audio: source.audio, ...(source.video ? { video: source.video, motionStrength } : {}) } } : {}),
       });
       if (abort.signal.aborted || useJobStore.getState().activeOwner !== owner) return;
-      const accepted = await useJobStore.getState().submitJob(payload, owner);
+      const accepted = await useJobStore.getState().submitJob(payload, owner, (requestId) => {
+        setSubmittedRequest(requestId);
+      });
       if (useJobStore.getState().activeOwner !== owner) return;
       // The job is already tracked; failure to add its private library row is
       // not permission to repeat a paid generation.
