@@ -18,6 +18,8 @@ import { AuthModal } from "@/components/auth-modal";
 import { DurableVideoCapabilities } from "@/lib/api";
 import { useDurableDirectorClip } from "@/lib/hooks/use-durable-director-clip";
 import { DurableVideoRequest } from "@/types/models";
+import { maxDurableVideoFrames } from "@/lib/create/durable-video-limits";
+import { durableVideoResolutions } from "@/lib/create/durable-video-resolutions";
 
 const field =
   "w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400";
@@ -57,6 +59,7 @@ export function DurableClipConsole(props: {
     duration: number;
   } | null>(null);
   const latest = clip.jobs[0];
+  const maxFrames = maxDurableVideoFrames(clip.model);
   const resultPanel = useRef<HTMLDivElement>(null);
   const followResult = useRef<{ previous?: string } | null>(null);
   const latestId = latest?.jobId;
@@ -193,7 +196,7 @@ export function DurableClipConsole(props: {
               })}
             </ClipSelect>
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <label className="block space-y-2 text-sm text-zinc-300">
               Clip length
               <ClipSelect
@@ -202,13 +205,14 @@ export function DurableClipConsole(props: {
                 onChange={(event) => clip.setFrames(Number(event.target.value))}
               >
                 {Array.from(
-                  new Set([9, 33, 81, 121, 169, 241, 337, clip.frames]),
+                  new Set([9, 33, 81, 121, 169, 241, 337, 385, 433, 481, 577, 625, clip.frames]),
                 )
-                  .filter(Number.isFinite)
+                  .filter((frames) => Number.isFinite(frames) && (frames <= maxFrames || frames === clip.frames))
                   .sort((a, b) => a - b)
                   .map((frames) => (
-                    <option key={frames} value={frames}>
+                    <option key={frames} value={frames} disabled={frames > maxFrames}>
                       {(frames / 24).toFixed(2)} seconds
+                      {frames > maxFrames ? " · exceeds model limit" : ""}
                     </option>
                   ))}
               </ClipSelect>
@@ -220,18 +224,11 @@ export function DurableClipConsole(props: {
                 disabled={clip.busy}
                 onChange={(event) => clip.setSize(event.target.value)}
               >
-                {clip.mode === "video" ? (
-                  <>
-                    <option value="960x512">960 × 512</option>
-                    <option value="512x960">512 × 960</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="960x544">960 × 544</option>
-                    <option value="544x960">544 × 960</option>
-                  </>
-                )}
-                <option value="512x512">512 × 512</option>
+                {durableVideoResolutions(clip.mode).map(({ shape, size }) => (
+                  <option key={size} value={size}>
+                    {shape} · {size.replace("x", " × ")}
+                  </option>
+                ))}
               </ClipSelect>
             </label>
           </div>
@@ -355,7 +352,7 @@ export function DurableClipConsole(props: {
                   className={field}
                   type="number"
                   min={9}
-                  max={337}
+                  max={maxFrames}
                   step={8}
                   value={clip.frames}
                   disabled={clip.busy}

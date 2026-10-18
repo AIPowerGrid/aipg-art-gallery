@@ -72,6 +72,18 @@ it("refreshes the read-only quote without issuing any generation", async () => {
   expect(fetchDurableVideoQuote).toHaveBeenCalledTimes(2);
 });
 
+it("quotes the exact longer BF16 duration but refuses that length for NVFP4", async () => {
+  (fetchDurableVideoQuote as jest.Mock).mockResolvedValue({ ...quote, estimate: { ...quote.estimate, frames: 481, cost_micro: 400834 } });
+  const { result, rerender } = renderHook(({ model }: {model: "LTX-2.5 Distilled BF16" | "LTX-2.5 Distilled NVFP4"}) => useDurableVideoQuote({ ...options, model, frames: 481 }), { initialProps: { model: "LTX-2.5 Distilled BF16" } });
+  await tick();
+  expect(fetchDurableVideoQuote).toHaveBeenCalledWith({ model: options.model, frames: 481, fps: 24 }, expect.any(AbortSignal));
+  expect(result.current.costCeilingMicro).toBe(400834);
+  rerender({model: "LTX-2.5 Distilled NVFP4"});
+  expect(result.current.costCeilingMicro).toBeNull();
+  await tick();
+  expect(fetchDurableVideoQuote).toHaveBeenCalledTimes(1);
+});
+
 it("does not restore an old ceiling after the pilot is disabled and re-enabled", async () => {
   const { result, rerender } = renderHook(({ enabled }) => useDurableVideoQuote({ ...options, enabled }), { initialProps: { enabled: true } });
   await tick();

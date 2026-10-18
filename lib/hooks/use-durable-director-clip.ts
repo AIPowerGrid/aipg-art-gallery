@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { addToGallery, prepareVideoSource, PreparedVideoSource } from "@/lib/api";
 import { buildDurableSegmentPayload } from "@/lib/create/durable-director-payload";
+import { durableVideoSizeForMode } from "@/lib/create/durable-video-resolutions";
 import { useDurableVideoQuote } from "@/lib/hooks/use-durable-video-quote";
 import { useJobStore } from "@/lib/stores/job-store";
 import { DurableVideoRequest } from "@/types/models";
@@ -75,8 +76,7 @@ export function useDurableDirectorClip(options: {
   function setMode(next: "text" | "audio" | "video") {
     if (inFlight.current) return;
     preparation.current?.abort(); setModeState(next); setSourceFile(null); setStartSeconds(0); setError(null);
-    if (next === "video" && size !== "512x512") setSize("960x512");
-    if (next !== "video" && ["960x512", "512x960"].includes(size)) setSize("960x544");
+    setSize((current) => durableVideoSizeForMode(current, next));
   }
 
   function loadSource(file?: File) {

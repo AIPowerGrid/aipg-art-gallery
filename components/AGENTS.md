@@ -33,10 +33,19 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   Generation details. Owner-scoped jobs/recovery keep
   the clip view available after pilot closure; closure never implies a refund.
   The opening-image picker accepts PNG, JPEG and Studio-generated WebP.
+  The BF16 candidate offers up to625frames (26.04seconds) while NVFP4 retains
+  337. Controls share model-specific quote/payload bounds; switching to a model
+  with a smaller limit never silently trims the current selection. No production
+  capacity or source-mode activation is implied by the option being implemented.
   Seed remains under Advanced: blank requests a random seed; zero and other
   safe non-negative integers are sent explicitly.
   Model, length and resolution selects retain native keyboard behavior with
   inset Lucide chevrons and reserved text padding, not edge-clipped native arrows.
+  Resolution has a full-width selector with six bounded landscape/portrait/square
+  presets: 768x448, 960x544, 448x768, 544x960, 512x512 and704x704.
+  Motion substitutes960x512/512x960 for the larger non-square presets to
+  preserve64-pixel alignment; changing modes preserves orientation and tier.
+  Options do not raise the existing axis/pixel caps or qualify native capacity.
   Source modes show one ephemeral upload preview, explicit source start and
   exact clip length, with original soundtrack retention. Model/sampling knobs
   live under Advanced except the model picker. First frame is explicitly an opening constraint, not an

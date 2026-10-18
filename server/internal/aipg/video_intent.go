@@ -25,7 +25,7 @@ func VideoIntentHash(request VideoJobRequest) (string, error) {
 	invalid := errors.New("invalid durable video intent")
 	if !videoText(request.Prompt, 8000, true) || !videoText(request.Model, 255, true) ||
 		!videoText(request.NegativePrompt, 8000, false) || request.N != 1 ||
-		request.Frames < 9 || request.Frames > 337 || request.Frames%8 != 1 || request.FPS != 24 ||
+		request.Frames < 9 || request.Frames > MaxVideoFrames(request.Model) || request.Frames%8 != 1 || request.FPS != 24 ||
 		request.MaxCostMicroUSD <= 0 || !videoText(request.Size, 32, false) ||
 		!videoText(request.Worker, 255, false) || !videoText(request.Style, 128, false) ||
 		len(request.Keyframes) > 16 || (request.Image != "" && len(request.Keyframes) != 0) {
@@ -96,7 +96,7 @@ func VideoIntentHash(request VideoJobRequest) (string, error) {
 	}
 	pins := make([]any, 0, len(request.Keyframes))
 	for _, pin := range request.Keyframes {
-		if pin.Frame < 0 || pin.Frame > 336 || !videoFloat(pin.Strength, 0, 1) {
+		if pin.Frame < 0 || pin.Frame >= MaxVideoFrames(request.Model) || !videoFloat(pin.Strength, 0, 1) {
 			return "", invalid
 		}
 		commitment, err := imageCommitment(pin.Image)

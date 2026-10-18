@@ -73,6 +73,33 @@ func TestVideoIntentSourceAndOmissionSemantics(t *testing.T) {
 	}
 }
 
+func TestVideoIntentLongerBF16KeepsOtherModelLimits(t *testing.T) {
+	request := videoTestRequest()
+	request.Model = "LTX-2.5 Distilled BF16"
+	request.Frames = 481
+	request.MaxCostMicroUSD = 400834
+	// Independently computed by the actual Core AsyncVideoRequest/request_hash.
+	if digest, err := VideoIntentHash(request); err != nil || digest != "6d3dec164f2d32d904d1808f99683ebdb08b46e0e3e9c5bccf1f5926ea70bab5" {
+		t.Fatalf("long BF16 Core commitment mismatch: %s %v", digest, err)
+	}
+	request.Frames = 625
+	request.MaxCostMicroUSD = 520834
+	if digest, err := VideoIntentHash(request); err != nil || digest != "ca6b6ebcf66b77436b29447056ff009ee5e0a207695a731e79cef6bebae4ef83" {
+		t.Fatalf("26-second BF16 Core commitment mismatch: %s %v", digest, err)
+	}
+	for _, model := range []string{"LTX-2.5 Distilled NVFP4", "LTX-2.5 Dev BF16"} {
+		request.Model = model
+		if _, err := VideoIntentHash(request); err == nil {
+			t.Fatalf("long duration admitted for %s", model)
+		}
+	}
+	request.Model = "LTX-2.5 Distilled BF16"
+	request.Frames = 633
+	if _, err := VideoIntentHash(request); err == nil {
+		t.Fatal("over-limit BF16 intent accepted")
+	}
+}
+
 func TestVideoIntentRejectsInvalidWithoutPrivateErrors(t *testing.T) {
 	for name, mutate := range map[string]func(*VideoJobRequest){
 		"prompt":            func(r *VideoJobRequest) { r.Prompt = strings.Repeat("x", 8001) },

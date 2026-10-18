@@ -51,8 +51,8 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
       const quote = request.postDataJSON();
       expect(quote).toEqual({ model, frames: expect.any(Number), fps: 24 });
       return route.fulfill({ json: { ...credits, account_id: account, estimate: { model, modality: "video", priced: true, reason: null,
-        frames: quote.frames, fps: 24, n: 1, seconds: quote.frames / 24, cost_micro: quote.frames * 20000 / 24,
-        cost_usd: quote.frames * 0.02 / 24, balance_sufficient: true, from_paid_micro: quote.frames * 20000 / 24,
+        frames: quote.frames, fps: 24, n: 1, seconds: quote.frames / 24, cost_micro: Math.ceil(quote.frames * 20000 / 24),
+        cost_usd: Math.ceil(quote.frames * 20000 / 24) / 1000000, balance_sufficient: true, from_paid_micro: Math.ceil(quote.frames * 20000 / 24),
         from_daily_micro: 0, from_promotional_micro: 0, shortfall_micro: 0 } } });
     }
     if (path === "/videos/jobs" && request.method() === "POST") {
@@ -101,6 +101,57 @@ test("quotes exact frames and submits one capped clip, preserving the timeline",
   await page.screenshot({ path: "test-results/durable-director-desktop.png", fullPage: true });
   await page.getByRole('link', { name: 'Director', exact: true }).click();
   await expect(page.getByRole("button", { name: /^Render/ })).toHaveCount(0);
+  expect(state.errors).toEqual([]);
+});
+
+test("offers a longer clip with exact billing and one submission on desktop and mobile", async ({ page }) => {
+  const state = await fixture(page);
+  await openClip(page);
+  await page.getByRole("combobox", {name:"Clip length",exact:true}).selectOption("625");
+  await expect(page.getByText("$0.5208", {exact:true})).toBeVisible();
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({width,height:900});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({path:`test-results/director-long-clip-${width}.png`,fullPage:true});
+  }
+  await page.getByRole("button", {name:"Generate clip"}).click();
+  await expect.poll(state.posts).toBe(1);
+  expect(state.body()).toMatchObject({video:{model,frames:625,fps:24,max_cost_micro_usd:520834}});
+  await expect(page.getByRole("button", {name:"Generate clip"})).toBeDisabled();
+  expect(state.errors).toEqual([]);
+});
+
+test("offers six resolutions and preserves portrait geometry across modes on small screens", async ({ page }) => {
+  const state = await fixture(page, { sources: true });
+  await openClip(page);
+  const resolution = page.getByRole("combobox", { name: "Resolution", exact: true });
+  await expect(resolution.locator("option")).toHaveCount(6);
+  await resolution.selectOption("544x960");
+  await page.getByRole("button", { name: "Video to video", exact: true }).click();
+  await expect(resolution).toHaveValue("512x960");
+  await expect(resolution.locator("option")).toHaveCount(6);
+  await page.getByRole("button", { name: "Audio to video", exact: true }).click();
+  await expect(resolution).toHaveValue("544x960");
+  await page.getByRole("button", { name: "Text to video", exact: true }).click();
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const size of ["768x448", "960x544", "448x768", "544x960", "512x512", "704x704"]) {
+      await resolution.selectOption(size);
+      const bounds = await resolution.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width,
+          viewport: innerWidth, page: document.documentElement.scrollWidth };
+      });
+      expect(bounds.left).toBeGreaterThanOrEqual(0);
+      expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
+      expect(bounds.page).toBeLessThanOrEqual(bounds.viewport);
+      expect(bounds.width).toBeGreaterThan(250);
+    }
+    await page.screenshot({ path: `test-results/video-resolutions-${width}.png`, fullPage: true });
+  }
+  await page.getByRole("button", { name: "Generate clip" }).click();
+  await expect.poll(state.posts).toBe(1);
+  expect(state.body()).toMatchObject({ video: { size: "704x704", frames: 81, max_cost_micro_usd: 67500 } });
   expect(state.errors).toEqual([]);
 });
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchDurableVideoQuote, GridCreditQuote } from "@/lib/api";
 import { DurableVideoRequest } from "@/types/models";
+import { validDurableVideoFrames } from "@/lib/create/durable-video-limits";
 
 interface VideoQuoteOptions {
   enabled: boolean;
@@ -23,7 +24,7 @@ export function useDurableVideoQuote(options: VideoQuoteOptions) {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<QuoteState | null>(null);
   const refresh = useCallback(() => setAttempt((value) => value + 1), []);
-  const validFrames = Number.isSafeInteger(frames) && frames >= 9 && frames <= 337 && frames % 8 === 1;
+  const validFrames = validDurableVideoFrames(model, frames);
   const key = enabled && authenticated && owner && validFrames
     ? JSON.stringify([owner, model, frames, attempt]) : null;
 

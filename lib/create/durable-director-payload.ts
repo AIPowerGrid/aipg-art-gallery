@@ -1,5 +1,6 @@
 import { DurableVideoRequest, DurableVideoSubmission } from "@/types/models";
 import { DirectorSegment, DirectorSettings } from "@/lib/types/director";
+import { maxDurableVideoFrames, validDurableVideoFrames } from "./durable-video-limits";
 
 interface DurableSegmentArgs {
   model: DurableVideoRequest["model"];
@@ -29,8 +30,8 @@ export function buildDurableSegmentPayload(args: DurableSegmentArgs): DurableVid
   if (args.model !== "LTX-2.5 Distilled BF16" && args.model !== "LTX-2.5 Distilled NVFP4") {
     throw new Error("Select a reviewed LTX-2.5 Distilled model.");
   }
-  if (!Number.isSafeInteger(frames) || frames < 9 || frames > 337 || frames % 8 !== 1) {
-    throw new Error("Choose an exact frame count from 9 to 337 in steps of 8.");
+  if (!validDurableVideoFrames(args.model, frames)) {
+    throw new Error(`Choose an exact frame count from 9 to ${maxDurableVideoFrames(args.model)} in steps of 8.`);
   }
   if (!Number.isSafeInteger(args.maxCostMicroUSD) || args.maxCostMicroUSD <= 0) {
     throw new Error("A positive quoted video cost ceiling is required.");

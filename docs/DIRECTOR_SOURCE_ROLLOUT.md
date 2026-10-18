@@ -51,6 +51,28 @@ separate gates. Never substitute an opening portrait for an identity reference.
 
 ## Operational Bounds
 
+`GALLERY_DURABLE_VIDEO_NVFP4_ENABLED=false` and Core's corresponding
+`MEDIA_ASYNC_NVFP4_ENABLED=0` independently keep public NVFP4 closed. Their
+explicit opt-in candidate covers text/opening-image only, retaining337frames,
+pricing/holds/one-job limits and recovery after closure. Qualify the actual
+owned worker, exporter and credential lifetime before activating either flag.
+These switches do not open source modes or qualify26-second NVFP4 workloads.
+
+The duration-extension candidate offers BF16 clips through625frames at24fps
+(26.041667seconds), with unchanged default81frames, resolution and tariff.
+NVFP4 remains337frames. Model-specific frontend, quote, broker/intent and Core
+bounds must match; a smaller model selection cannot silently trim a long clip.
+At USD0.020/second the maximum BF16 quote is520834micro-USD, including upward
+rounding. This code is not a native capacity or production deployment claim.
+The approved two-source-test USD0.06 budget cannot pay for a26-second clip.
+The serving exporter still caps337frames; the media worker's uploaded-source
+adapter has the same bound. Upgrade and qualify the exporter before any long
+clip release, and separately qualify the source adapter before long A2V/V2V.
+Native long-duration proof and reviewed release checks precede Core's matching
+deployment, which must precede Gallery. Keep readers that accept
+existing long intents on rollback; closing new jobs is not permission to lose
+their original receipts or repeat generation.
+
 Uploads are local files up to64MiB, never arbitrary URLs. Preparation admits two
 concurrent uploads, checks exact geometry/frames/start, bounds parsing/tool
 output, removes private temporary files and creates no quota, hold or job.

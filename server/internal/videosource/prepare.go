@@ -23,6 +23,7 @@ import (
 )
 
 const MaxUploadBytes int64 = 64 * 1024 * 1024
+const MaxFrames = 625
 const formats = "mov,mp4,m4a,3gp,3g2,mj2,mp3,wav,flac,ogg,aac,matroska,webm"
 
 var slots = make(chan struct{}, 2)
@@ -63,7 +64,7 @@ func (o Options) Valid() bool {
 	if o.Mode == "video" {
 		multiple = 64
 	}
-	return (o.Mode == "audio" || o.Mode == "video") && o.Frames >= 9 && o.Frames <= 337 && o.Frames%8 == 1 &&
+	return (o.Mode == "audio" || o.Mode == "video") && o.Frames >= 9 && o.Frames <= MaxFrames && o.Frames%8 == 1 &&
 		o.Width >= 256 && o.Height >= 256 && o.Width <= 960 && o.Height <= 960 && o.Width%multiple == 0 && o.Height%multiple == 0 &&
 		o.Width*o.Height <= 960*544 && !math.IsNaN(o.StartSeconds) && !math.IsInf(o.StartSeconds, 0) && o.StartSeconds >= 0 && o.StartSeconds <= 600
 }

@@ -1623,7 +1623,7 @@ func (a *App) handleDurableVideoQuote(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF ||
-		!isDurableVideoModel(request.Model) || request.FPS != 24 || request.Frames < 9 || request.Frames > 337 || request.Frames%8 != 1 {
+		!isDurableVideoModel(request.Model) || request.FPS != 24 || request.Frames < 9 || request.Frames > aipg.MaxVideoFrames(request.Model) || request.Frames%8 != 1 {
 		writeError(w, http.StatusBadRequest, errors.New("an exact-frame pilot video quote is required"))
 		return
 	}

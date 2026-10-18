@@ -59,6 +59,10 @@ func TestPreparedSoundPreservesSelectedPCMWindow(t *testing.T) {
 }
 
 func fixture(t *testing.T, video, sound bool) []byte {
+	return fixtureDuration(t, video, sound, "2")
+}
+
+func fixtureDuration(t *testing.T, video, sound bool, duration string) []byte {
 	t.Helper()
 	if !Available() {
 		t.Fatal("FFmpeg and ffprobe are required for source preparation verification")
@@ -67,10 +71,10 @@ func fixture(t *testing.T, video, sound bool) []byte {
 	args := []string{"-nostdin", "-v", "error", "-y"}
 	if video {
 		path = filepath.Join(t.TempDir(), "fixture.mp4")
-		args = append(args, "-f", "lavfi", "-i", "testsrc2=size=128x96:rate=24:duration=2")
+		args = append(args, "-f", "lavfi", "-i", "testsrc2=size=128x96:rate=24:duration="+duration)
 	}
 	if sound {
-		args = append(args, "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100:duration=2")
+		args = append(args, "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100:duration="+duration)
 	}
 	if video {
 		args = append(args, "-c:v", "libx264", "-pix_fmt", "yuv420p")
@@ -126,6 +130,33 @@ func TestPrepareExactAudioAndVideo(t *testing.T) {
 	}
 }
 
+func TestPrepareLongAudioAndVideoWithoutPadding(t *testing.T) {
+	for _, mode := range []string{"audio", "video"} {
+		t.Run(mode, func(t *testing.T) {
+			root := t.TempDir()
+			t.Setenv("TMPDIR", root)
+			options := Options{Mode: mode, Frames: 625, Width: 256, Height: 256, StartSeconds: 0.5}
+			source := fixtureDuration(t, mode == "video", true, "27")
+			prepared, err := Prepare(context.Background(), bytes.NewReader(source), options)
+			if err != nil {
+				t.Fatal(err)
+			}
+			audio, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(prepared.Audio, "data:audio/wav;base64,"))
+			if err != nil || !exactWAV(audio, 625*2000) || prepared.Frames != 625 {
+				t.Fatal("long soundtrack was not exact length")
+			}
+			options.StartSeconds = 1.5
+			if _, err := Prepare(context.Background(), bytes.NewReader(source), options); err == nil {
+				t.Fatal("short selected window was silently padded")
+			}
+			files, _ := filepath.Glob(filepath.Join(root, "gallery-video-source-*"))
+			if len(files) != 0 {
+				t.Fatal("long source temp files retained")
+			}
+		})
+	}
+}
+
 func TestPrepareRejectsShortSilentInvalidAndRemoteSources(t *testing.T) {
 	audio := fixture(t, false, true)
 	videoWithoutAudio := fixture(t, true, false)
@@ -164,6 +195,7 @@ func TestOptionsRejectNonfiniteAndUnsupportedGeometry(t *testing.T) {
 		func(o *Options) { o.StartSeconds = math.NaN() }, func(o *Options) { o.StartSeconds = math.Inf(1) },
 		func(o *Options) { o.StartSeconds = -1 }, func(o *Options) { o.StartSeconds = 601 },
 		func(o *Options) { o.Width = 960; o.Height = 544 }, func(o *Options) { o.Frames = 32 },
+		func(o *Options) { o.Frames = 633 },
 		func(o *Options) { o.Mode = "url" }, func(o *Options) { o.Width = 4096 },
 	} {
 		copy := valid
