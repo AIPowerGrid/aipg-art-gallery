@@ -32,6 +32,9 @@ Production-build Playwright coverage for consumer-facing generation routes.
   overflow. Signed-out visitors see the same Video entry and all three modes. Source
   preparation fixtures prove one ephemeral upload/POST and no stored media;
   real codec/sandbox tests live in the backend, not mocked browser responses.
+  Resolution coverage exercises six presets at390/768/1280 widths, preserves
+  portrait geometry across source modes and binds the selected size to one POST.
+  These browser fixtures do not prove native render capacity.
   Longer BF16 coverage selects625 frames, binds the rounded520834-micro quote
   to one POST and checks desktop/mobile overflow. It is not native26-second
   GPU execution or a real debit. Source preparation has independent real-codec

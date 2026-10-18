@@ -19,6 +19,7 @@ import { DurableVideoCapabilities } from "@/lib/api";
 import { useDurableDirectorClip } from "@/lib/hooks/use-durable-director-clip";
 import { DurableVideoRequest } from "@/types/models";
 import { maxDurableVideoFrames } from "@/lib/create/durable-video-limits";
+import { durableVideoResolutions } from "@/lib/create/durable-video-resolutions";
 
 const field =
   "w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400";
@@ -195,7 +196,7 @@ export function DurableClipConsole(props: {
               })}
             </ClipSelect>
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             <label className="block space-y-2 text-sm text-zinc-300">
               Clip length
               <ClipSelect
@@ -223,18 +224,11 @@ export function DurableClipConsole(props: {
                 disabled={clip.busy}
                 onChange={(event) => clip.setSize(event.target.value)}
               >
-                {clip.mode === "video" ? (
-                  <>
-                    <option value="960x512">960 × 512</option>
-                    <option value="512x960">512 × 960</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="960x544">960 × 544</option>
-                    <option value="544x960">544 × 960</option>
-                  </>
-                )}
-                <option value="512x512">512 × 512</option>
+                {durableVideoResolutions(clip.mode).map(({ shape, size }) => (
+                  <option key={size} value={size}>
+                    {shape} · {size.replace("x", " × ")}
+                  </option>
+                ))}
               </ClipSelect>
             </label>
           </div>

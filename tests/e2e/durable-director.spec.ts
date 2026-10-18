@@ -121,6 +121,40 @@ test("offers a longer clip with exact billing and one submission on desktop and 
   expect(state.errors).toEqual([]);
 });
 
+test("offers six resolutions and preserves portrait geometry across modes on small screens", async ({ page }) => {
+  const state = await fixture(page, { sources: true });
+  await openClip(page);
+  const resolution = page.getByRole("combobox", { name: "Resolution", exact: true });
+  await expect(resolution.locator("option")).toHaveCount(6);
+  await resolution.selectOption("544x960");
+  await page.getByRole("button", { name: "Video to video", exact: true }).click();
+  await expect(resolution).toHaveValue("512x960");
+  await expect(resolution.locator("option")).toHaveCount(6);
+  await page.getByRole("button", { name: "Audio to video", exact: true }).click();
+  await expect(resolution).toHaveValue("544x960");
+  await page.getByRole("button", { name: "Text to video", exact: true }).click();
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const size of ["768x448", "960x544", "448x768", "544x960", "512x512", "704x704"]) {
+      await resolution.selectOption(size);
+      const bounds = await resolution.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width,
+          viewport: innerWidth, page: document.documentElement.scrollWidth };
+      });
+      expect(bounds.left).toBeGreaterThanOrEqual(0);
+      expect(bounds.right).toBeLessThanOrEqual(bounds.viewport);
+      expect(bounds.page).toBeLessThanOrEqual(bounds.viewport);
+      expect(bounds.width).toBeGreaterThan(250);
+    }
+    await page.screenshot({ path: `test-results/video-resolutions-${width}.png`, fullPage: true });
+  }
+  await page.getByRole("button", { name: "Generate clip" }).click();
+  await expect.poll(state.posts).toBe(1);
+  expect(state.body()).toMatchObject({ video: { size: "704x704", frames: 81, max_cost_micro_usd: 67500 } });
+  expect(state.errors).toEqual([]);
+});
+
 test("Studio keeps image and video drafts separate and never offers legacy video models", async ({ page }) => {
   const state = await fixture(page);
   await page.route('**/api-preview/styles', (route) => route.fulfill({ json: {

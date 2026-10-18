@@ -35,6 +35,20 @@ function setup() {
   return hook;
 }
 
+it.each([
+  ["544x960", "512x960"], ["960x544", "960x512"],
+  ["448x768", "448x768"], ["768x448", "768x448"],
+  ["512x512", "512x512"], ["704x704", "704x704"],
+])("preserves the %s resolution tier while changing source modes", (size, motionSize) => {
+  const { result } = setup();
+  act(() => result.current.setSize(size));
+  act(() => result.current.setMode("video"));
+  expect(result.current.size).toBe(motionSize);
+  act(() => result.current.setMode("audio"));
+  expect(result.current.size).toBe(size);
+  expect(createDurableVideoJob).not.toHaveBeenCalled();
+});
+
 it("submits one exact-frame credit-capped private clip, without legacy fallback", async () => {
   const { result } = setup();
   await act(async () => { await result.current.submit(); });

@@ -100,6 +100,9 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   source-validation, admission and billing authorities. The typed Distilled
   client preserves separate BF16/NVFP4 names; the common Generate workspace
   gates submission, not visibility, through authenticated server capabilities.
+- `create/durable-video-resolutions.ts` owns the six bounded UI presets
+  and orientation-preserving source-mode alignment. Presets do not alter
+  server geometry limits, model admission or per-second tariffs.
 - `create/durable-director-payload.ts` prepares an explicit 8n+1 output count,
   using `create/durable-video-limits.ts` for the BF16625-frame candidate ceiling
   and unchanged NVFP4337-frame ceiling. Quote and payload validation share the
