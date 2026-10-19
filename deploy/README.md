@@ -2,7 +2,9 @@
 
 ## Current Public Video Scope
 
-Protected-main PR54 release `950979d3` is deployed with Core `8e74ef37`.
+Protected-main PR54 release `950979d3` is deployed. Core `8e74ef37` introduced
+the matching public source rollout; later dependency-only security releases
+retain these bounds. Read Core's public `/health` for its selected exact SHA.
 Public authenticated, credit-backed BF16/NVFP4 text/opening-image admission
 continues: BF16 supports625frames at24fps (26.04seconds); NVFP4 retains337frames
 (14.04seconds). The separately approved actual

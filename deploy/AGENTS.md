@@ -44,7 +44,8 @@ Next.js web process and Go API process from one commit-pinned release.
   seeking/reload. Public BF16 audio/video sources now pass two separately
   approved purchased canaries, native/output/audio binding, private-input
   deletion and completed-result recovery across reload/API restart. Source
-  admission is `open` on Gallery and Core `8e74ef37`, pilot fields cleared;
+  admission is `open` on Gallery and the Core `8e74ef37` source rollout
+  (or a verified compatible successor), pilot fields cleared;
   source output stays337frames even with512MiB original uploads. NVFP4 sources,
   Ingredients, timelines/3D and video x402 remain closed. Retained older brokers
   are not compatible

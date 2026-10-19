@@ -121,7 +121,9 @@ jobs to the grid and serves gallery/media.
   matching Core's reviewed pilot. Invalid enabled configuration fails closed;
   expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
   capability discovery does not reveal cohort IDs or qualify model fidelity.
-- Production selects `950979d3` with Core `8e74ef37`. Public authenticated,
+- Production selects Gallery `950979d3`; Core `8e74ef37` introduced the
+  matching public source rollout. Later dependency-only Core releases retain
+  this contract; read its live `/health` for the selected SHA. Public authenticated,
   credit-backed BF16 supports text/opening-image through625frames and audio/
   video sources through337frames at24fps. NVFP4 supports text/opening-image
   through337frames; NVFP4 sources, Ingredients, timeline generation and video
