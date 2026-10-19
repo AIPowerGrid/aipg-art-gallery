@@ -1,17 +1,27 @@
 # aipg.art production release
 
-## Current BF16 Scope And Source Candidate
+## Current Public Video Scope
 
-Protected-main PR48 release `4ee2d473` is deployed with public authenticated,
-credit-backed BF16/NVFP4 text/opening-image admission. Core `777c81f9` supports
-625-frame BF16 clips; NVFP4 retains337frames. The separately approved actual
+Protected-main PR54 release `950979d3` is deployed. Core `8e74ef37` introduced
+the matching public source rollout; later dependency-only security releases
+retain these bounds. Read Core's public `/health` for its selected exact SHA.
+Public authenticated, credit-backed BF16/NVFP4 text/opening-image admission
+continues: BF16 supports625frames at24fps (26.04seconds); NVFP4 retains337frames
+(14.04seconds). The separately approved actual
 625-frame BF16 release check consumed USD0.520834 with one dispatch/settlement/
 completion, matching full native decode, playback/seeking and reload recovery.
-The older private-pilot record below is historical. Reference audio/video,
-timeline generation and video x402 remain closed. This document is not
-authority to widen them.
+The older private-pilot record below is historical. BF16 audio-to-video and
+video-to-video are now public for authenticated, credit-backed accounts, with
+one active video per account and337-frame output. The two purchased source
+canaries pass native graph/output binding, full decode, exact output clocks,
+original soundtrack correlation, one dispatch/charge/completion per job,
+private-input deletion and completed-result reload/API-restart recovery.
+Both tests used short diagnostic sources on one GPU; they do not qualify
+arbitrary identity replacement, lip sync, full512MiB browser uploads or every
+accepted source format. NVFP4 sources, Ingredients, timeline generation and
+video x402 remain closed. This document is not authority to widen them.
 
-The unified Director/source candidate adds a separate default-off
+The source implementation retains a separate default-off
 `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Before enabling it, install and
 security-check FFmpeg/ffprobe, bubblewrap and prlimit; run the actual Linux codec
 and isolation tests under the service restrictions. Startup must fail rather
@@ -35,7 +45,7 @@ Nginx response allowance. The source body never belongs in request logs,
 Gallery journals, browser storage or a public bucket. Preparation creates no
 hold/job; generation still needs the exact live quote and atomic Core hold.
 
-The larger-source candidate accepts original files up to512MiB without raising
+The larger-source implementation accepts original files up to512MiB without raising
 site-wide request limits. Files<=64MiB use the existing multipart route. Larger
 files use authenticated `POST /api/videos/source-uploads` with exact size,
 mode/window/geometry; sequential `PUT /api/videos/source-uploads/{id}?offset=N`
