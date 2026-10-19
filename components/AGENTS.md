@@ -47,8 +47,12 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   preserve64-pixel alignment; changing modes preserves orientation and tier.
   Options do not raise the existing axis/pixel caps or qualify native capacity.
   Source modes show one ephemeral upload preview, explicit source start and
-  exact clip length, with original soundtrack retention. Model/sampling knobs
-  live under Advanced except the model picker. First frame is explicitly an opening constraint, not an
+  exact clip length, with original soundtrack retention.
+  Large source uploads expose progress, then segment preparation, without
+  persisting original files or normalized source bodies. Source modes retain
+  a337-frame output ceiling distinct from generated BF16's625; preserve an
+  existing oversized selection as disabled rather than silently trimming it.
+  Model/sampling knobs live under Advanced except the model picker. First frame is explicitly an opening constraint, not an
   appearance-only identity reference. Signed-out users see the same form and
   explicit Google/wallet sign-in action, never automatic authentication.
 - Finished qualified video cards and Studio outputs open the existing clip

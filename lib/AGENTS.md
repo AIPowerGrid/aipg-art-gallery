@@ -140,6 +140,13 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   authenticated preparation endpoint before saving a generation intent; the
   returned exact frames/geometry/source start must match. An owner change,
   cancellation, closed source mode or failed preparation dispatches nothing.
+  Sources may be up to512MiB. `api.prepareVideoSource` preserves the <=64MiB
+  multipart route and uses owner-bound sequential8MiB chunks above it, with
+  progress and independent bounded DELETE cleanup after abort/error. Validate
+  ticket identity/size/chunk size and every acknowledged offset; no upload or
+  generation retry. Settings are frozen by the server at ticket creation.
+  Uploaded-source output stays337frames until the worker's separate longer
+  audio/motion qualification; larger files do not extend generated duration.
   File objects, object URLs and normalized source bodies stay in memory only;
   revoke preview URLs on replacement/unmount. V2V fits 64-aligned geometry and
   retains explicit prepared sound; appearance-only references stay disabled.

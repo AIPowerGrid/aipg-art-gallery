@@ -129,6 +129,14 @@ Next.js web process and Go API process from one commit-pinned release.
   Next's direct/local proxy has the matching65MiB ceiling. Verify every outer
   proxy, not only the application handler. Rollback closes source admission on
   a source-aware release without dropping any job receipts.
+  Larger original files use512MiB process-local upload tickets, never a512MiB
+  request. `/api/videos/source-uploads` and its children receive <=8MiB chunks
+  with streaming/no buffering and90-second read deadlines. Ordinary outer32MiB
+  limits already accommodate these chunks; preserve the65MiB prepared-source/
+  job routes separately. Require PrivateTmp, actual temp-filesystem capacity
+  and single-process routing. Upload reservations preserve1GiB free disk and
+  cap two files globally. API restart invalidates unfinished tickets and cleans
+  its PrivateTmp; no generation receipt or billing row is dropped.
 
 ## Verification
 

@@ -20,6 +20,7 @@ import { useDurableDirectorClip } from "@/lib/hooks/use-durable-director-clip";
 import { DurableVideoRequest } from "@/types/models";
 import { maxDurableVideoFrames } from "@/lib/create/durable-video-limits";
 import { durableVideoResolutions } from "@/lib/create/durable-video-resolutions";
+import { MAX_SOURCE_VIDEO_FRAMES } from "@/lib/create/video-source-limits";
 
 const field =
   "w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400";
@@ -59,7 +60,7 @@ export function DurableClipConsole(props: {
     duration: number;
   } | null>(null);
   const latest = clip.jobs[0];
-  const maxFrames = maxDurableVideoFrames(clip.model);
+  const maxFrames = clip.mode === "text" ? maxDurableVideoFrames(clip.model) : MAX_SOURCE_VIDEO_FRAMES;
   const resultPanel = useRef<HTMLDivElement>(null);
   const followResult = useRef<{ previous?: string } | null>(null);
   const latestId = latest?.jobId;
@@ -252,6 +253,12 @@ export function DurableClipConsole(props: {
                   onChange={(event) => clip.loadSource(event.target.files?.[0])}
                 />
               </label>
+              {clip.sourceProgress !== null && (
+                <div role="status" className="space-y-2 text-xs text-zinc-400">
+                  <span>{clip.sourceProgress < 1 ? `Uploading source · ${Math.round(clip.sourceProgress * 100)}%` : "Preparing selected segment…"}</span>
+                  <progress aria-label="Source upload" max={1} value={clip.sourceProgress} className="block h-1 w-full accent-emerald-400" />
+                </div>
+              )}
               {clip.sourceURL &&
                 (clip.mode === "audio" ? (
                   <audio

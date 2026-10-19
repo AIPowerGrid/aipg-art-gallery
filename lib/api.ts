@@ -1,4 +1,5 @@
 import { StylesConfig } from "@/lib/types/create";
+import { MAX_SOURCE_UPLOAD_BYTES, SOURCE_UPLOAD_CHUNK_BYTES } from "@/lib/create/video-source-limits";
 import {
   CreateJobRequest,
   DurableVideoRequest,
@@ -168,13 +169,62 @@ export interface PreparedVideoSource {
   startSeconds: number;
 }
 
-export function prepareVideoSource(file: File, options: {
+export async function prepareVideoSource(file: File, options: {
   mode: "audio" | "video"; frames: number; width: number; height: number; startSeconds: number;
-}, signal?: AbortSignal): Promise<PreparedVideoSource> {
-  const body = new FormData();
-  body.append("file", file);
-  for (const [key, value] of Object.entries(options)) body.append(key, String(value));
-  return jsonFetch("/videos/prepare-source", { method: "POST", body, signal, cache: "no-store" });
+}, signal?: AbortSignal, progress?: (value: number) => void): Promise<PreparedVideoSource> {
+  if (file.size <= 0 || file.size > MAX_SOURCE_UPLOAD_BYTES) throw new Error("Choose a source file up to 512 MiB.");
+  if (signal?.aborted) throw new DOMException("Source preparation cancelled.", "AbortError");
+  progress?.(0);
+  if (file.size <= 64 * 1024 * 1024) {
+    const body = new FormData();
+    body.append("file", file);
+    for (const [key, value] of Object.entries(options)) body.append(key, String(value));
+    const result = await jsonFetch<PreparedVideoSource>("/videos/prepare-source", { method: "POST", body, signal, cache: "no-store" });
+    progress?.(1);
+    return result;
+  }
+  const ticket = await jsonFetch<{ uploadId: string; chunkBytes: number; size: number; expiresAt: string }>("/videos/source-uploads", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...options, size: file.size }), signal, cache: "no-store",
+  });
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(ticket.uploadId) ||
+      ticket.chunkBytes !== SOURCE_UPLOAD_CHUNK_BYTES || ticket.size !== file.size) {
+    throw new Error("Invalid source upload authorization.");
+  }
+  const path = `/videos/source-uploads/${ticket.uploadId}`;
+  let complete = false;
+  try {
+    for (let offset = 0; offset < file.size;) {
+      if (signal?.aborted) throw new DOMException("Source preparation cancelled.", "AbortError");
+      const end = Math.min(offset + ticket.chunkBytes, file.size);
+      const result = await jsonFetch<{ offset: number }>(`${path}?offset=${offset}`, {
+        method: "PUT", headers: { "Content-Type": "application/octet-stream" },
+        body: file.slice(offset, end), signal, cache: "no-store",
+      });
+      if (result.offset !== end) throw new Error("Source upload acknowledgement did not match.");
+      offset = end;
+      progress?.(offset / file.size);
+    }
+    if (signal?.aborted) throw new DOMException("Source preparation cancelled.", "AbortError");
+    const result = await jsonFetch<PreparedVideoSource>(`${path}/prepare`, { method: "POST", signal, cache: "no-store" });
+    complete = true;
+    return result;
+  } finally {
+    if (!complete) {
+      // A failed/aborted upload never submits a generation. Cleanup has its own
+      // short deadline; the fixed server TTL also removes abandoned uploads.
+      const cleanup = new AbortController();
+      const deadline = setTimeout(() => cleanup.abort(), 5000);
+      try {
+        const response = await fetch(`${getApiBase()}${path}`, { method: "DELETE", credentials: "include", signal: cleanup.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("Cleanup unavailable");
+      } catch {
+        console.warn("Temporary source upload cleanup deferred to expiry.");
+      } finally {
+        clearTimeout(deadline);
+      }
+    }
+  }
 }
 
 export function fetchDurableVideoCapabilities(): Promise<DurableVideoCapabilities> {

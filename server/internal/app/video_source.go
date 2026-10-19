@@ -29,6 +29,9 @@ func (a *App) validateVideoSourceAdmission(request aipg.VideoJobRequest, account
 	if !a.cfg.AllowsDurableVideoSourceAccount(account, time.Now()) || request.Model != durableVideoModel {
 		return errors.New("Audio/video source generation is not enabled.")
 	}
+	if request.Frames > 337 {
+		return errors.New("Audio/video source clips support up to 337 frames (14.04 seconds).")
+	}
 	if request.ReferenceAudio == "" || !request.Audio {
 		return errors.New("Source video requires an explicit soundtrack; source modes retain audio.")
 	}
