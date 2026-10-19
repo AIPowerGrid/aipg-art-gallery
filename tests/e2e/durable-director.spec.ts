@@ -28,7 +28,13 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     if (options.rejectCredit && text.startsWith("Failed to load resource:") && text.includes("status of 402")) return;
     if (options.loseReply && text.startsWith("Failed to load resource:") && text.includes("status of 503")) return;
     if (options.signedOut && text.startsWith("Failed to load resource:") && text.includes("status of 401")) return;
-    errors.push(text);
+    const location = message.location().url;
+    let source = "unknown source";
+    if (location) {
+      try { const url = new URL(location); source = url.origin + url.pathname; }
+      catch { source = "non-URL source"; }
+    }
+    errors.push(`${text} [${source}]`);
   });
   await page.route("**/api-preview/**", async (route) => {
     const request = route.request();

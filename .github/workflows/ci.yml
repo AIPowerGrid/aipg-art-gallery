@@ -115,6 +115,14 @@ jobs:
           done
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - name: Preserve failed fixture browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: gallery-browser-failure-${{ github.sha }}
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   security:
     name: Security
