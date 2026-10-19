@@ -2,12 +2,14 @@
 
 ## Current BF16 Scope And Source Candidate
 
-Protected-main PR46 release `cf533e97` is deployed with public authenticated,
-credit-backed BF16 text/opening-image admission. Its separate one-clip release
-check consumed USD0.0275 with one dispatch/debit/completion, matching full native
-decode and browser reload recovery. The older private-pilot record below is
-historical. NVFP4, reference audio/video, timeline generation and video x402
-remain closed. This document is not authority to widen them.
+Protected-main PR48 release `4ee2d473` is deployed with public authenticated,
+credit-backed BF16/NVFP4 text/opening-image admission. Core `777c81f9` supports
+625-frame BF16 clips; NVFP4 retains337frames. The separately approved actual
+625-frame BF16 release check consumed USD0.520834 with one dispatch/settlement/
+completion, matching full native decode, playback/seeking and reload recovery.
+The older private-pilot record below is historical. Reference audio/video,
+timeline generation and video x402 remain closed. This document is not
+authority to widen them.
 
 The unified Director/source candidate adds a separate default-off
 `GALLERY_DURABLE_VIDEO_SOURCES_ENABLED` gate. Before enabling it, install and
@@ -32,6 +34,26 @@ proxy. The upload route has a75-second application deadline and90-second
 Nginx response allowance. The source body never belongs in request logs,
 Gallery journals, browser storage or a public bucket. Preparation creates no
 hold/job; generation still needs the exact live quote and atomic Core hold.
+
+The larger-source candidate accepts original files up to512MiB without raising
+site-wide request limits. Files<=64MiB use the existing multipart route. Larger
+files use authenticated `POST /api/videos/source-uploads` with exact size,
+mode/window/geometry; sequential `PUT /api/videos/source-uploads/{id}?offset=N`
+requests carry at most8MiB each. One `POST .../{id}/prepare` consumes the exact
+file and returns only the selected normalized window. `DELETE .../{id}` is
+owner-bound, idempotent cleanup and remains usable after source-cohort expiry.
+No endpoint accepts a source URL or creates a generation.
+
+Verify the matching streaming8MiB prefix location and90-second response timeout
+at Gallery; ordinary outer32MiB limits accommodate each chunk. Keep the separate
+65MiB normalized job/multipart routes intact. Tickets are process-local, require
+one API process, and expire after90seconds idle or15minutes absolute. One ticket
+per account/two globally plus full-file reservations above1GiB free disk bound
+storage. Keep PrivateTmp enabled for crash cleanup; unfinished uploads cannot
+resume across API restart and never constitute an unknown paid generation.
+Opening source modes requires matching Core/worker limits: source-conditioned
+output stays337frames even though the normalizer can prepare625. A larger
+original file does not qualify a longer GPU source job.
 
 ## LTX-2.5 private pilot qualification
 
