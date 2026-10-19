@@ -76,6 +76,8 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     return route.fulfill({ status: 404, json: { error: "not found" } });
   });
   await page.route("https://api.web3modal.org/**", (route) => route.fulfill({ json: {} }));
+  // Fixture credentials cannot authenticate WalletConnect telemetry.
+  await page.route("https://pulse.walletconnect.org/batch", (route) => route.fulfill({ status: 204 }));
   await page.route("https://media.aipg.art/e2e-clip.mp4", (route) => route.fulfill({ contentType: "video/mp4", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(join(__dirname, "../fixtures/clip-81-frames.mp4")) }));
   return { posts: () => posts, body: () => body, errors, finish: () => { finished = true; }, close: () => { enabled = false; }, switchAccount: () => { account = "c0d7a372-adb5-4a1d-b5e3-dda4935f8141"; enabled = false; } };
 }

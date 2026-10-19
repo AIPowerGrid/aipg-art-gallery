@@ -64,6 +64,8 @@ Production-build Playwright coverage for consumer-facing generation routes.
   Google credentials.
 - Mocked API responses must preserve the real Go and Core response shapes.
 - Fail on uncaught page errors and unexpected console errors.
+- Clip fixtures stub WalletConnect's exact telemetry batch endpoint because
+  their project ID is synthetic; application HTTP errors remain failures.
 - Console diagnostics retain resource origins/paths, not query strings. Failed
   synthetic browser runs retain traces for seven days in CI; never run that
   artifact upload against authenticated production sessions.
