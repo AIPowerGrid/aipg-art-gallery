@@ -123,6 +123,8 @@ test("uploads a larger source in chunks before exactly one video submission", as
   truncateSync(sourcePath, bytes);
   await page.getByLabel("Soundtrack", { exact: true }).setInputFiles(sourcePath);
   await page.getByRole("button", { name: "Generate clip", exact: true }).click();
+  await expect.poll(() => chunks, { timeout: 30_000, message: "All nine source chunks must finish before generation" }).toBe(9);
+  await expect.poll(() => preparations).toBe(1);
   await expect.poll(state.posts).toBe(1);
   expect(chunks).toBe(9);
   expect(preparations).toBe(1);
