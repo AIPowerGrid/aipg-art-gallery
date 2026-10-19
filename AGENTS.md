@@ -121,17 +121,25 @@ jobs to the grid and serves gallery/media.
   matching Core's reviewed pilot. Invalid enabled configuration fails closed;
   expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
   capability discovery does not reveal cohort IDs or qualify model fidelity.
-- Production selects `cf533e97` and public authenticated credit-backed BF16
-  text/opening-image video. Purchased billing and original-receipt/browser/API
-  restart recovery passed; source audio/video, NVFP4 Gallery, timeline
-  generation and video x402 remain closed. Gallery's source cohort is
-  comma-separated, unlike Core's JSON array. See `deploy/README.md`.
+- Production selects `950979d3` with Core `8e74ef37`. Public authenticated,
+  credit-backed BF16 supports text/opening-image through625frames and audio/
+  video sources through337frames at24fps. NVFP4 supports text/opening-image
+  through337frames; NVFP4 sources, Ingredients, timeline generation and video
+  x402 remain closed. Source admission is explicitly `open` on both services,
+  with pilot fields cleared. Original uploads allow512MiB through bounded
+  chunks; larger input files do not increase the source output limit. Two
+  purchased source canaries pass native/output/audio, exact-once settlement,
+  private-input deletion and completed-result reload/API-restart checks.
+  These are not arbitrary identity, lip-sync or full512MiB upload proofs.
+  Gallery's pilot cohort is comma-separated, unlike Core's JSON array.
+  See `deploy/README.md`.
 - Public-admission preparation adds explicit `GALLERY_DURABLE_VIDEO_ADMISSION_MODE`
   (`pilot` default, explicit `open`). Open mode admits only canonical,
   authenticated accounts through the unchanged positive paid-quote/hold
-  protocol and exposes BF16 only. Both pilot fields must be empty; retained
-  pilot restrictions must never be silently ignored. The separate source
-  candidate does not authorize another public switch. Core's public entry points, capacity and
+  protocol. NVFP4 and source modes require their independent gates. Both pilot
+  fields must be empty; retained pilot restrictions must never be silently
+  ignored. A source-code change does not authorize another public switch.
+  Core's public entry points, capacity and
   independent admission configuration still require rollout review.
 - Production image/video jobs additionally use a private PostgreSQL broker
   journal for owner-scoped request deduplication and read-only Core result

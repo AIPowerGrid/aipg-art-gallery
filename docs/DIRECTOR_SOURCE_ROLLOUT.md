@@ -1,11 +1,17 @@
 # Unified Director Source Rollout
 
-This is an implementation and acceptance checklist, not production activation.
-Current public production remains BF16 text/opening-image video. Source audio,
-source video, timeline generation, appearance references and video x402 are
-separate gates. Never substitute an opening portrait for an identity reference.
+As of October19, Gallery `950979d3` and Core `8e74ef37` publicly admit
+authenticated, credit-backed BF16 audio-to-video and video-to-video in Studio
+Video. Original source files allow512MiB through bounded uploads, with source
+output capped at337frames/14.04seconds. Two purchased source canaries pass
+native/output/audio checks, exact-once billing, private-input deletion and
+completed-result reload/API-restart recovery. This is not arbitrary identity,
+lip-sync, full512MiB browser-upload or long source-generation qualification.
+NVFP4 sources, timeline generation, appearance references and video x402 remain
+separate closed gates. Never substitute an opening portrait for an identity
+reference.
 
-## Implemented Candidate
+## Implementation
 
 - One Studio Video workspace (`/create?type=video`), independent of sign-in and
   delayed capabilities, with the same header/account controls as images.
@@ -25,7 +31,10 @@ separate gates. Never substitute an opening portrait for an identity reference.
 - Independent in-memory image/video drafts survive mode switching; technical
   receipt IDs are available under details, not the primary result presentation.
 
-## Acceptance Still Required
+## Release Acceptance Requirements
+
+Recheck these requirements for a future widening; the current activation does
+not qualify untested modes or longer source workloads.
 
 1. Pass exact-head frontend, backend, security and browser CI. Local codec
    tests are not Linux sandbox qualification or native worker acceptance.
@@ -51,31 +60,33 @@ separate gates. Never substitute an opening portrait for an identity reference.
 
 ## Operational Bounds
 
-`GALLERY_DURABLE_VIDEO_NVFP4_ENABLED=false` and Core's corresponding
-`MEDIA_ASYNC_NVFP4_ENABLED=0` independently keep public NVFP4 closed. Their
-explicit opt-in candidate covers text/opening-image only, retaining337frames,
-pricing/holds/one-job limits and recovery after closure. Qualify the actual
-owned worker, exporter and credential lifetime before activating either flag.
-These switches do not open source modes or qualify26-second NVFP4 workloads.
+`GALLERY_DURABLE_VIDEO_NVFP4_ENABLED` and Core's corresponding
+`MEDIA_ASYNC_NVFP4_ENABLED` independently gate public NVFP4. Both are enabled
+for text/opening-image only, retaining337frames, pricing/holds/one-job limits
+and recovery after closure. These switches do not open NVFP4 source modes or
+qualify26-second NVFP4 workloads.
 
-The duration-extension candidate offers BF16 clips through625frames at24fps
-(26.041667seconds), with unchanged default81frames, resolution and tariff.
+The deployed duration extension offers BF16 generated/opening-image clips
+through625frames at24fps (26.041667seconds), with unchanged default81frames,
+resolution and tariff.
 NVFP4 remains337frames. Model-specific frontend, quote, broker/intent and Core
 bounds must match; a smaller model selection cannot silently trim a long clip.
 At USD0.020/second the maximum BF16 quote is520834micro-USD, including upward
-rounding. This code is not a native capacity or production deployment claim.
-The approved two-source-test USD0.06 budget cannot pay for a26-second clip.
-The serving exporter still caps337frames; the media worker's uploaded-source
-adapter has the same bound. Upgrade and qualify the exporter before any long
-clip release, and separately qualify the source adapter before long A2V/V2V.
-Native long-duration proof and reviewed release checks precede Core's matching
-deployment, which must precede Gallery. Keep readers that accept
+rounding. The625-frame generated path has its own native and purchased
+qualification; this does not extend the source adapter's337-frame ceiling.
+Long A2V/V2V requires separate native capacity and purchased qualification,
+followed by matching Core and Gallery releases. Keep readers that accept
 existing long intents on rollback; closing new jobs is not permission to lose
 their original receipts or repeat generation.
 
-Uploads are local files up to64MiB, never arbitrary URLs. Preparation admits two
-concurrent uploads, checks exact geometry/frames/start, bounds parsing/tool
-output, removes private temporary files and creates no quota, hold or job.
+Uploads are local files, never arbitrary URLs. Files<=64MiB use multipart;
+larger originals up to512MiB use sequential chunks<=8MiB. Process-local tickets
+bind one canonical owner and frozen window/geometry, cap one/account and two
+globally, reserve full size above1GiB free disk, and expire after90seconds idle
+or15minutes absolute. API restart invalidates unfinished tickets; it does not
+lose or repeat a paid job. Preparation checks exact geometry/frames/start,
+bounds parsing/tool output, removes private temporary files and creates no
+quota, hold or job.
 Linux uses bubblewrap and prlimit with a cleared environment, isolated network,
 limited filesystem and CPU/address-space/file/descriptor limits. Missing or
 nonworking isolation refuses source-enabled startup. macOS codec tests do not

@@ -33,16 +33,23 @@ Next.js web process and Go API process from one commit-pinned release.
   deploy or use an older security rollback without fresh source/binary scans,
   restored-backup/race proof and the ordinary drained release checks. This
   contract is not a record that the new candidate is already active.
-- Production selects `gallery-4ee2d473`, the verified main release of PR #48.
-  Signed artifacts, host runtime and restored-backup race gates passed. A
+- Production selects `gallery-950979d3`, the verified main release of PR #54,
+  retaining PR #53's chunked source uploads. Signed artifacts, host runtime
+  and restored-backup race gates passed. A
   real purchased-credit opening-image/BF16 browser pilot passed exact-once
   billing and browser/API restart recovery. Public credit-backed BF16
   text/opening-image admission subsequently passed a separate27500-micro clip.
   NVFP4 text/opening-image also passed a separate27500-micro clip; BF16's
   625-frame release check passed520834-micro exact-once settlement/playback/
-  seeking/reload. Source modes and video x402 remain closed. Retained older brokers are not compatible
+  seeking/reload. Public BF16 audio/video sources now pass two separately
+  approved purchased canaries, native/output/audio binding, private-input
+  deletion and completed-result recovery across reload/API restart. Source
+  admission is `open` on Gallery and Core `8e74ef37`, pilot fields cleared;
+  source output stays337frames even with512MiB original uploads. NVFP4 sources,
+  Ingredients, timelines/3D and video x402 remain closed. Retained older brokers
+  are not compatible
   post-video-receipt rollback targets: keep this patched video-aware reader
-  with admission disabled. Timelines/3D remain closed. See `README.md`.
+  with admission disabled. See `README.md`.
 - Releases are detached checkouts under
   `/opt/aipg-gallery-releases/gallery-<commit>` and are activated only through
   `/opt/aipg-gallery-current`.
@@ -97,8 +104,8 @@ Next.js web process and Go API process from one commit-pinned release.
   actual format before restart; never extend the deadline for recovery.
   The separately reviewed public candidate uses explicit
   `GALLERY_DURABLE_VIDEO_ADMISSION_MODE=open`, with both pilot fields cleared.
-  It exposes BF16 only and preserves authenticated credit quotes/holds and
-  all existing receipt readers. Default mode remains `pilot`. Do not deploy
+  It preserves authenticated credit quotes/holds, independent NVFP4/source
+  gates and all existing receipt readers. Default mode remains `pilot`. Do not deploy
   or open it solely because a build passes: review Core's other entry points,
   capacity, public model scope and the actual public-admission approval first.
   Preserve the absolute deadline across restart; expired valid config keeps
