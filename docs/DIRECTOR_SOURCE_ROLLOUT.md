@@ -1,5 +1,17 @@
 # Unified Director Source Rollout
 
+## 26-Second Source Candidate
+
+The matching duration candidate permits625frames /26.04seconds for BF16 audio
+and video sources, matching text/opening-image video. Core requires the additive
+`recipe-media-sources-625-v1` worker capability above337frames, so old workers
+remain eligible only for shorter sources. Upgrade the matching Core/worker
+pair and qualify native audio clocks, motion conditioning and purchased billing
+before selecting this Gallery. NVFP4 sources remain closed. Original upload,
+geometry, per-account concurrency and price limits are unchanged; retain
+625-aware receipt recovery on rollback. The earlier rollout record below
+describes the original337-frame release, not long-source acceptance.
+
 As of October19, Gallery `950979d3` and Core `8e74ef37` publicly admit
 authenticated, credit-backed BF16 audio-to-video and video-to-video in Studio
 Video. Original source files allow512MiB through bounded uploads, with source

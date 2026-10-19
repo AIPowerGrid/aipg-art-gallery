@@ -190,6 +190,43 @@ test("offers a longer clip with exact billing and one submission on desktop and 
   expect(state.errors).toEqual([]);
 });
 
+for (const sourceMode of ["audio", "video"] as const) {
+  test(`submits one 26-second ${sourceMode} source window with the exact charge ceiling`, async ({ page }) => {
+    const state = await fixture(page, { sources: true });
+    let preparations = 0;
+    await page.route("**/api-preview/videos/prepare-source", async (route) => {
+      preparations++;
+      const data = route.request().postDataBuffer()!.toString();
+      expect(data).toContain('\r\n625\r\n');
+      return route.fulfill({ json: { audio: "data:audio/wav;base64,c291bmQ=",
+        ...(sourceMode === "video" ? { video: "data:video/mp4;base64,bW90aW9u" } : {}),
+        frames: 625, width: 512, height: 512, startSeconds: 0 } });
+    });
+    await openClip(page);
+    await page.getByRole("button", { name: sourceMode === "audio" ? "Audio to video" : "Video to video", exact: true }).click();
+    await page.getByRole("combobox", { name: "Clip length", exact: true }).selectOption("625");
+    await page.getByRole("combobox", { name: "Resolution", exact: true }).selectOption("512x512");
+    await page.getByLabel(sourceMode === "audio" ? "Soundtrack" : "Source video", { exact: true }).setInputFiles({
+      name: sourceMode === "audio" ? "source.wav" : "source.mp4",
+      mimeType: sourceMode === "audio" ? "audio/wav" : "video/mp4", buffer: Buffer.from("synthetic source fixture"),
+    });
+    await expect(page.getByText("$0.5208", { exact: true })).toBeVisible();
+    for (const width of [1280, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: `test-results/source26-${sourceMode}-${width}.png`, fullPage: true });
+    }
+    await page.getByRole("button", { name: "Generate clip", exact: true }).click();
+    await expect.poll(state.posts).toBe(1);
+    expect(preparations).toBe(1);
+    expect(state.body()).toMatchObject({ video: { model, frames: 625, max_cost_micro_usd: 520834,
+      reference_audio: "data:audio/wav;base64,c291bmQ=",
+      ...(sourceMode === "video" ? { reference_video: "data:video/mp4;base64,bW90aW9u" } : {}) } });
+    expect(await page.evaluate(() => JSON.stringify({ ...localStorage }))).not.toContain("data:audio");
+    expect(state.errors).toEqual([]);
+  });
+}
+
 test("offers six resolutions and preserves portrait geometry across modes on small screens", async ({ page }) => {
   const state = await fixture(page, { sources: true });
   await openClip(page);

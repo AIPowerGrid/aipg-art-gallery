@@ -135,6 +135,11 @@ jobs to the grid and serves gallery/media.
   These are not arbitrary identity, lip-sync or full512MiB upload proofs.
   Gallery's pilot cohort is comma-separated, unlike Core's JSON array.
   See `deploy/README.md`.
+- The source-duration candidate aligns BF16 audio/video output with the
+  625-frame generated limit. Core must require the additive long-source worker
+  capability before Gallery rollout. Native/audio-clock and funded acceptance
+  remain separate gates; NVFP4 and appearance source admission do not change.
+  Existing long receipt readers must remain available on rollback.
 - Public-admission preparation adds explicit `GALLERY_DURABLE_VIDEO_ADMISSION_MODE`
   (`pilot` default, explicit `open`). Open mode admits only canonical,
   authenticated accounts through the unchanged positive paid-quote/hold

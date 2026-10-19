@@ -197,7 +197,7 @@ it("never dispatches source work when closed, malformed, cancelled or prepared f
   expect(useJobStore.getState().requests).toEqual([]);
 });
 
-it.each(["audio", "video"] as const)("accepts larger %s uploads but not unsupported source output length", (mode) => {
+it.each(["audio", "video"] as const)("accepts larger %s uploads and a 26-second source window", (mode) => {
   const { result } = renderHook(() => useDurableDirectorClip({ ...options, sourceModes: ["audio", "video"] }));
   const file = new File(["fixture"], "long-source");
   Object.defineProperty(file, "size", { value: 65 * 1024 * 1024 });
@@ -205,6 +205,8 @@ it.each(["audio", "video"] as const)("accepts larger %s uploads but not unsuppor
   expect(result.current.sourceFile).toBe(file);
   expect(result.current.error).toBeNull();
   act(() => result.current.setFrames(625));
+  expect(result.current.canSubmit).toBe(true);
+  act(() => result.current.setFrames(633));
   expect(result.current.canSubmit).toBe(false);
   expect(prepareVideoSource).not.toHaveBeenCalled();
 });

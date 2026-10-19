@@ -126,8 +126,9 @@ package owns one concern; `app/app.go` wires them together.
   append and prepare recheck canonical ownership and both admission gates;
   idempotent deletion needs only the signed owner so outage/expiry cannot
   prevent cleanup. Upload settings are frozen before bytes arrive. Source
-  generation remains337frames to match the current worker adapter, independent
-  of the625-frame normalizer/generated-video parser.
+  generation permits625frames for BF16, matching the normalizer and generated
+  parser. Core must route longer sources only to an upgraded worker; retain
+  long-intent readers on rollback and keep NVFP4/appearance sources closed.
 - `config/video_pilot.go` validates the private canonical-account cohort and
   the default-off public NVFP4 opt-in. That switch admits only the exact NVFP4
   model alongside BF16 when public video is open, never bypassing global closure
