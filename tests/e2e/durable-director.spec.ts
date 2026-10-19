@@ -77,7 +77,9 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
   });
   await page.route("https://api.web3modal.org/**", (route) => route.fulfill({ json: {} }));
   // Fixture credentials cannot authenticate WalletConnect telemetry.
-  await page.route("https://pulse.walletconnect.org/batch", (route) => route.fulfill({ status: 204 }));
+  await page.route((url) => url.origin === "https://pulse.walletconnect.org" && url.pathname === "/batch",
+    (route) => route.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type" } }));
   await page.route("https://media.aipg.art/e2e-clip.mp4", (route) => route.fulfill({ contentType: "video/mp4", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(join(__dirname, "../fixtures/clip-81-frames.mp4")) }));
   return { posts: () => posts, body: () => body, errors, finish: () => { finished = true; }, close: () => { enabled = false; }, switchAccount: () => { account = "c0d7a372-adb5-4a1d-b5e3-dda4935f8141"; enabled = false; } };
 }
@@ -117,6 +119,11 @@ test("uploads a larger source in chunks before exactly one video submission", as
     return route.fulfill({ json: { audio: "data:audio/wav;base64,c291bmQ=", frames: 33, width: 512, height: 512, startSeconds: 0 } });
   });
   await openClip(page);
+  const telemetryStatus = await page.evaluate(async () => (await fetch(
+    "https://pulse.walletconnect.org/batch?projectId=synthetic-fixture&st=appkit&sv=test",
+    { method: "POST", body: "{}" },
+  )).status);
+  expect(telemetryStatus).toBe(204);
   await page.getByRole("button", { name: "Audio to video", exact: true }).click();
   await page.getByRole("combobox", { name: "Clip length", exact: true }).selectOption("33");
   await page.getByRole("combobox", { name: "Resolution", exact: true }).selectOption("512x512");
