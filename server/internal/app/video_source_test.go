@@ -144,8 +144,19 @@ func TestSourceAdmissionCannotBypassModeGate(t *testing.T) {
 		t.Fatal("unqualified appearance reference admitted")
 	}
 	request.ReferenceImage = ""
-	request.Frames = 345
+	for _, frames := range []int{345, 481, 625} {
+		request.Frames = frames
+		if app.validateVideoSourceAdmission(request, brokerOwner) != nil {
+			t.Fatal("supported long source rejected")
+		}
+	}
+	request.Frames = 633
 	if app.validateVideoSourceAdmission(request, brokerOwner) == nil {
-		t.Fatal("generated-only duration extension reached source workers")
+		t.Fatal("over-limit source admitted")
+	}
+	request.Frames = 625
+	request.Model = "LTX-2.5 Distilled NVFP4"
+	if app.validateVideoSourceAdmission(request, brokerOwner) == nil {
+		t.Fatal("long source extension opened NVFP4 sources")
 	}
 }

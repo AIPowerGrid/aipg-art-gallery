@@ -145,8 +145,10 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   progress and independent bounded DELETE cleanup after abort/error. Validate
   ticket identity/size/chunk size and every acknowledged offset; no upload or
   generation retry. Settings are frozen by the server at ticket creation.
-  Uploaded-source output stays337frames until the worker's separate longer
-  audio/motion qualification; larger files do not extend generated duration.
+  BF16 uploaded-source output permits625frames, matching generated BF16.
+  Core requires the separate long-source worker capability above337frames;
+  native audio/motion and funded qualification precede release. Larger files
+  do not extend duration beyond625frames. NVFP4 sources remain closed.
   File objects, object URLs and normalized source bodies stay in memory only;
   revoke preview URLs on replacement/unmount. V2V fits 64-aligned geometry and
   retains explicit prepared sound; appearance-only references stay disabled.

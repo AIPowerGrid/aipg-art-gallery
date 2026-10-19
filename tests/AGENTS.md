@@ -39,6 +39,9 @@ Production-build Playwright coverage for consumer-facing generation routes.
   to one POST and checks desktop/mobile overflow. It is not native26-second
   GPU execution or a real debit. Source preparation has independent real-codec
   625-frame window/short-input/cleanup tests in the Go suite.
+  Audio/video source browser cases independently select625frames, prepare
+  once, bind the same exact ceiling and submit once at desktop/mobile sizes.
+  Inputs remain ephemeral. These mocked cases do not qualify native sources.
   A65MiB browser source fixture additionally verifies nine ordered8MiB-or-less
   requests, one preparation and one generation intent, with no original or
   ticket in local storage. Real larger audio/video normalization, fixed/idle
