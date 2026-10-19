@@ -143,4 +143,9 @@ func TestSourceAdmissionCannotBypassModeGate(t *testing.T) {
 	if app.validateVideoSourceAdmission(request, brokerOwner) == nil {
 		t.Fatal("unqualified appearance reference admitted")
 	}
+	request.ReferenceImage = ""
+	request.Frames = 345
+	if app.validateVideoSourceAdmission(request, brokerOwner) == nil {
+		t.Fatal("generated-only duration extension reached source workers")
+	}
 }

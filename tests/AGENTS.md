@@ -39,6 +39,11 @@ Production-build Playwright coverage for consumer-facing generation routes.
   to one POST and checks desktop/mobile overflow. It is not native26-second
   GPU execution or a real debit. Source preparation has independent real-codec
   625-frame window/short-input/cleanup tests in the Go suite.
+  A65MiB browser source fixture additionally verifies nine ordered8MiB-or-less
+  requests, one preparation and one generation intent, with no original or
+  ticket in local storage. Real larger audio/video normalization, fixed/idle
+  expiry, ownership and concurrent-byte integrity live in the Go race suite;
+  this fixture is not live R2/GPU or purchased-source acceptance.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
   account-menu and creation-library navigation, mobile overflow, and a lost POST
   response followed by browser reload/read-only recovery with one generation POST.
@@ -59,6 +64,11 @@ Production-build Playwright coverage for consumer-facing generation routes.
   Google credentials.
 - Mocked API responses must preserve the real Go and Core response shapes.
 - Fail on uncaught page errors and unexpected console errors.
+- Clip fixtures stub WalletConnect's exact telemetry batch endpoint because
+  their project ID is synthetic; application HTTP errors remain failures.
+- Console diagnostics retain resource origins/paths, not query strings. Failed
+  synthetic browser runs retain traces for seven days in CI; never run that
+  artifact upload against authenticated production sessions.
 
 ## Verification
 

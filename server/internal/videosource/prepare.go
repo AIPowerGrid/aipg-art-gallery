@@ -156,6 +156,13 @@ func Prepare(ctx context.Context, upload io.Reader, o Options) (Prepared, error)
 	if copyErr != nil || closeErr != nil || size <= 0 || size > MaxUploadBytes {
 		return result, errors.New("Source upload must be between 1 byte and 64 MB.")
 	}
+	return prepareFile(ctx, input, o)
+}
+
+// The input is an application-owned upload, never a caller-supplied path.
+func prepareFile(ctx context.Context, input string, o Options) (Prepared, error) {
+	var result Prepared
+	directory := filepath.Dir(input)
 	info, err := probe(ctx, input, false)
 	if err != nil {
 		return result, invalid

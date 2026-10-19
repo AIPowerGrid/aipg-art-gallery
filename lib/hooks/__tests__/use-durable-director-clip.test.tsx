@@ -197,6 +197,18 @@ it("never dispatches source work when closed, malformed, cancelled or prepared f
   expect(useJobStore.getState().requests).toEqual([]);
 });
 
+it.each(["audio", "video"] as const)("accepts larger %s uploads but not unsupported source output length", (mode) => {
+  const { result } = renderHook(() => useDurableDirectorClip({ ...options, sourceModes: ["audio", "video"] }));
+  const file = new File(["fixture"], "long-source");
+  Object.defineProperty(file, "size", { value: 65 * 1024 * 1024 });
+  act(() => { result.current.setMode(mode); result.current.setPrompt("a scene"); result.current.loadSource(file); });
+  expect(result.current.sourceFile).toBe(file);
+  expect(result.current.error).toBeNull();
+  act(() => result.current.setFrames(625));
+  expect(result.current.canSubmit).toBe(false);
+  expect(prepareVideoSource).not.toHaveBeenCalled();
+});
+
 it.each(["processing", "completed", "faulted"])("clears a stale unknown notice when the original request is confirmed %s", async(status)=>{
   (createDurableVideoJob as jest.Mock).mockRejectedValue(new TypeError("reply lost"));
   const {result}=setup();

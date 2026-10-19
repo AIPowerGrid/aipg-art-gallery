@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { addToGallery, prepareVideoSource, PreparedVideoSource } from "@/lib/api";
 import { buildDurableSegmentPayload } from "@/lib/create/durable-director-payload";
 import { durableVideoSizeForMode } from "@/lib/create/durable-video-resolutions";
+import { MAX_SOURCE_UPLOAD_BYTES, MAX_SOURCE_VIDEO_FRAMES } from "@/lib/create/video-source-limits";
 import { useDurableVideoQuote } from "@/lib/hooks/use-durable-video-quote";
 import { useJobStore } from "@/lib/stores/job-store";
 import { DurableVideoRequest } from "@/types/models";
@@ -43,6 +44,7 @@ export function useDurableDirectorClip(options: {
   const [sourceURL, setSourceURL] = useState<string | null>(null);
   const [startSeconds, setStartSeconds] = useState(0);
   const [motionStrength, setMotionStrength] = useState(0.85);
+  const [sourceProgress, setSourceProgress] = useState<number | null>(null);
   const preparation = useRef<AbortController | null>(null);
   const [submittedRequest, setSubmittedRequest] = useState<string | undefined>(undefined);
   useEffect(() => {
@@ -70,7 +72,7 @@ export function useDurableDirectorClip(options: {
   }, [originalRequestConfirmed]);
   const sourceEnabled = mode === "text" || (model === "LTX-2.5 Distilled BF16" && options.sourceModes?.includes(mode) === true);
   const canSubmit = options.authenticated && available && sourceEnabled && !busy && !!prompt.trim() &&
-    (mode === "text" || (!!sourceFile && Number.isFinite(startSeconds) && startSeconds >= 0 && startSeconds <= 600)) &&
+    (mode === "text" || (!!sourceFile && frames <= MAX_SOURCE_VIDEO_FRAMES && Number.isFinite(startSeconds) && startSeconds >= 0 && startSeconds <= 600)) &&
     quote.costCeilingMicro !== null && quote.quote?.estimate.balance_sufficient === true;
 
   function setMode(next: "text" | "audio" | "video") {
@@ -82,7 +84,7 @@ export function useDurableDirectorClip(options: {
   function loadSource(file?: File) {
     setSourceFile(null); setError(null);
     if (!file) return;
-    if (file.size <= 0 || file.size > 64 * 1024 * 1024) { setError("Choose a source file up to 64 MB."); return; }
+    if (file.size <= 0 || file.size > MAX_SOURCE_UPLOAD_BYTES) { setError("Choose a source file up to 512 MiB."); return; }
     setSourceFile(file);
   }
 
@@ -121,7 +123,10 @@ export function useDurableDirectorClip(options: {
       if (seed && !/^\d+$/.test(seed)) throw new Error("Seed must be a non-negative integer.");
       let source: PreparedVideoSource | undefined;
       if (mode !== "text") {
-        source = await prepareVideoSource(sourceFile!, { mode, frames, width, height, startSeconds }, abort.signal);
+        setSourceProgress(0);
+        source = await prepareVideoSource(sourceFile!, { mode, frames, width, height, startSeconds }, abort.signal, (value) => {
+          if (!abort.signal.aborted && useJobStore.getState().activeOwner === owner) setSourceProgress(value);
+        });
         if (abort.signal.aborted || useJobStore.getState().activeOwner !== owner) return;
         if (source.frames !== frames || source.width !== width || source.height !== height || source.startSeconds !== startSeconds ||
             !source.audio?.startsWith("data:audio/wav;base64,") ||
@@ -154,6 +159,7 @@ export function useDurableDirectorClip(options: {
       if (useJobStore.getState().activeOwner === owner) setError(failure instanceof Error ? failure.message : "Video submission unavailable.");
     } finally {
       inFlight.current = false; setSubmitting(false);
+      setSourceProgress(null);
       if (preparation.current === abort) preparation.current = null;
     }
   }
@@ -161,5 +167,5 @@ export function useDurableDirectorClip(options: {
   return { model, setModel, available, prompt, setPrompt, negativePrompt, setNegativePrompt, frames, setFrames,
     size, setSize, steps, setSteps, cfgScale, setCfgScale, seed, setSeed, image, imageName, imageLoading, loadImage,
     mode, setMode, sourceFile, sourceURL, loadSource, sourceEnabled, startSeconds, setStartSeconds, motionStrength, setMotionStrength,
-    jobs, pending, busy, submitting, error, quote, canSubmit, submit };
+    sourceProgress, jobs, pending, busy, submitting, error, quote, canSubmit, submit };
 }

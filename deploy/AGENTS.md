@@ -33,12 +33,14 @@ Next.js web process and Go API process from one commit-pinned release.
   deploy or use an older security rollback without fresh source/binary scans,
   restored-backup/race proof and the ordinary drained release checks. This
   contract is not a record that the new candidate is already active.
-- Production selects `gallery-cf533e97`, the verified main release of PR #46.
+- Production selects `gallery-4ee2d473`, the verified main release of PR #48.
   Signed artifacts, host runtime and restored-backup race gates passed. A
   real purchased-credit opening-image/BF16 browser pilot passed exact-once
   billing and browser/API restart recovery. Public credit-backed BF16
   text/opening-image admission subsequently passed a separate27500-micro clip.
-  Source modes, video x402 and NVFP4 Gallery remain closed. Retained older brokers are not compatible
+  NVFP4 text/opening-image also passed a separate27500-micro clip; BF16's
+  625-frame release check passed520834-micro exact-once settlement/playback/
+  seeking/reload. Source modes and video x402 remain closed. Retained older brokers are not compatible
   post-video-receipt rollback targets: keep this patched video-aware reader
   with admission disabled. Timelines/3D remain closed. See `README.md`.
 - Releases are detached checkouts under
@@ -129,6 +131,14 @@ Next.js web process and Go API process from one commit-pinned release.
   Next's direct/local proxy has the matching65MiB ceiling. Verify every outer
   proxy, not only the application handler. Rollback closes source admission on
   a source-aware release without dropping any job receipts.
+  Larger original files use512MiB process-local upload tickets, never a512MiB
+  request. `/api/videos/source-uploads` and its children receive <=8MiB chunks
+  with streaming/no buffering and90-second read deadlines. Ordinary outer32MiB
+  limits already accommodate these chunks; preserve the65MiB prepared-source/
+  job routes separately. Require PrivateTmp, actual temp-filesystem capacity
+  and single-process routing. Upload reservations preserve1GiB free disk and
+  cap two files globally. API restart invalidates unfinished tickets and cleans
+  its PrivateTmp; no generation receipt or billing row is dropped.
 
 ## Verification
 

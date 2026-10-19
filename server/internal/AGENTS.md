@@ -30,6 +30,16 @@ package owns one concern; `app/app.go` wires them together.
   Non-root macOS execution is
   local codec-test evidence only. Private temp files are removed on every exit.
   Preparation never quotes, reserves credits, uploads to Core/R2 or generates.
+  `uploads.go` adds process-local, account-owned 512MiB source tickets with
+  strict sequential 8MiB chunks. One upload/account, two globally, 1GiB free
+  disk beyond conservative full-size reservations, 90-second inactivity and
+  fixed 15-minute expiry bound temporary storage. Successful preparation
+  consumes/deletes the original without copying it; rejection/cancellation/
+  expiry also removes it. Cleanup failure retains its reservation and retries.
+  Production requires PrivateTmp for process-crash leftovers. Tickets are not
+  durable jobs and do not survive API restart; browser re-selection is safe
+  only because no generation/charge exists yet. Do not horizontally replicate
+  this ephemeral store without shared storage or explicit sticky routing.
 - `aipg/` — HTTP client for the new grid `/v1` (OpenAI-shaped). `GenerateMedia` is a
   single synchronous call to `/v1/images|videos|3d/generations`.
   `MediaGenerationTimeout` is the shared image/video client + detached-job
@@ -112,6 +122,12 @@ package owns one concern; `app/app.go` wires them together.
   intent replay and before quoting/journaling. Reference images remain closed;
   motion without explicit sound or with audio disabled is rejected. Core still
   independently decodes sources and enforces its source-path gates and holds.
+  `app/video_source_upload.go` owns start/chunk/prepare/delete routes. Start,
+  append and prepare recheck canonical ownership and both admission gates;
+  idempotent deletion needs only the signed owner so outage/expiry cannot
+  prevent cleanup. Upload settings are frozen before bytes arrive. Source
+  generation remains337frames to match the current worker adapter, independent
+  of the625-frame normalizer/generated-video parser.
 - `config/video_pilot.go` validates the private canonical-account cohort and
   the default-off public NVFP4 opt-in. That switch admits only the exact NVFP4
   model alongside BF16 when public video is open, never bypassing global closure

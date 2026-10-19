@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // SPDX-FileCopyrightText: 2026 AI Power Grid
 import { expect, Page, test } from "@playwright/test";
-import { readFileSync } from "node:fs";
+import { readFileSync, truncateSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const owner = "aa37ea21-367e-4b1d-bba0-d1f987001ce3";
@@ -28,7 +28,13 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     if (options.rejectCredit && text.startsWith("Failed to load resource:") && text.includes("status of 402")) return;
     if (options.loseReply && text.startsWith("Failed to load resource:") && text.includes("status of 503")) return;
     if (options.signedOut && text.startsWith("Failed to load resource:") && text.includes("status of 401")) return;
-    errors.push(text);
+    const location = message.location().url;
+    let source = "unknown source";
+    if (location) {
+      try { const url = new URL(location); source = url.origin + url.pathname; }
+      catch { source = "non-URL source"; }
+    }
+    errors.push(`${text} [${source}]`);
   });
   await page.route("**/api-preview/**", async (route) => {
     const request = route.request();
@@ -70,6 +76,8 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     return route.fulfill({ status: 404, json: { error: "not found" } });
   });
   await page.route("https://api.web3modal.org/**", (route) => route.fulfill({ json: {} }));
+  // Fixture credentials cannot authenticate WalletConnect telemetry.
+  await page.route("https://pulse.walletconnect.org/batch", (route) => route.fulfill({ status: 204 }));
   await page.route("https://media.aipg.art/e2e-clip.mp4", (route) => route.fulfill({ contentType: "video/mp4", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(join(__dirname, "../fixtures/clip-81-frames.mp4")) }));
   return { posts: () => posts, body: () => body, errors, finish: () => { finished = true; }, close: () => { enabled = false; }, switchAccount: () => { account = "c0d7a372-adb5-4a1d-b5e3-dda4935f8141"; enabled = false; } };
 }
@@ -80,6 +88,60 @@ async function openClip(page: Page) {
   await page.getByLabel("Clip prompt").fill("camera glides over the ocean at sunrise");
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeEnabled();
 }
+
+test("uploads a larger source in chunks before exactly one video submission", async ({ page }) => {
+  const state = await fixture(page, { sources: true });
+  const uploadId = "8a3dc411-c399-4126-ac6d-e8d80aecc848";
+  const bytes = 65 * 1024 * 1024;
+  let offset = 0;
+  let chunks = 0;
+  let preparations = 0;
+  await page.route("**/api-preview/videos/source-uploads**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname.endsWith("/source-uploads")) {
+      expect(request.postDataJSON()).toEqual({ size: bytes, mode: "audio", frames: 33, width: 512, height: 512, startSeconds: 0 });
+      return route.fulfill({ status: 201, json: { uploadId, chunkBytes: 8 * 1024 * 1024, size: bytes, expiresAt: new Date(Date.now() + 900000).toISOString() } });
+    }
+    if (request.method() === "PUT") {
+      expect(Number(url.searchParams.get("offset"))).toBe(offset);
+      const size = request.postDataBuffer()!.length;
+      expect(size).toBe(Math.min(8 * 1024 * 1024, bytes - offset));
+      offset += size;
+      chunks++;
+      return route.fulfill({ json: { offset } });
+    }
+    expect(url.pathname).toBe(`/api-preview/videos/source-uploads/${uploadId}/prepare`);
+    expect(offset).toBe(bytes);
+    preparations++;
+    return route.fulfill({ json: { audio: "data:audio/wav;base64,c291bmQ=", frames: 33, width: 512, height: 512, startSeconds: 0 } });
+  });
+  await openClip(page);
+  await page.getByRole("button", { name: "Audio to video", exact: true }).click();
+  await page.getByRole("combobox", { name: "Clip length", exact: true }).selectOption("33");
+  await page.getByRole("combobox", { name: "Resolution", exact: true }).selectOption("512x512");
+  const sourcePath = test.info().outputPath("long-source.wav");
+  const header = Buffer.alloc(44);
+  header.write("RIFF"); header.writeUInt32LE(bytes - 8, 4); header.write("WAVEfmt ", 8);
+  header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(2, 22);
+  header.writeUInt32LE(48000, 24); header.writeUInt32LE(192000, 28);
+  header.writeUInt16LE(4, 32); header.writeUInt16LE(16, 34);
+  header.write("data", 36); header.writeUInt32LE(bytes - 44, 40);
+  writeFileSync(sourcePath, header);
+  truncateSync(sourcePath, bytes);
+  await page.getByLabel("Soundtrack", { exact: true }).setInputFiles(sourcePath);
+  await page.getByRole("button", { name: "Generate clip", exact: true }).click();
+  await expect.poll(() => chunks, { timeout: 30_000, message: "All nine source chunks must finish before generation" }).toBe(9);
+  await expect.poll(() => preparations).toBe(1);
+  await expect.poll(state.posts).toBe(1);
+  expect(chunks).toBe(9);
+  expect(preparations).toBe(1);
+  expect(state.body()).toMatchObject({ video: { frames: 33, reference_audio: "data:audio/wav;base64,c291bmQ=" } });
+  const persisted = await page.evaluate(() => JSON.stringify({ ...localStorage }));
+  expect(persisted).not.toContain("data:audio");
+  expect(persisted).not.toContain(uploadId);
+  expect(state.errors).toEqual([]);
+});
 
 test("quotes exact frames and submits one capped clip, preserving the timeline", async ({ page }) => {
   const state = await fixture(page);
