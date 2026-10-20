@@ -27,6 +27,18 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 
 ## Local Contracts
 
+- Authenticated, CSRF/rate-limited `POST /api/images/jobs` is the scene-first
+  single-image contract. Require a saved request ID, private image mode, one
+  output and a positive safe `maxCostMicroUSD`; reject timelines, end images,
+  masks, styles and LoRAs here. Reuse the existing owner-bound journal and
+  GET-only recovery. Old servers lack this route and cannot silently ignore
+  its budget field. No new migration or image-model admission follows.
+  Fresh capped requests verify the delegated quote's owner/model/modality/count,
+  positive cost within the ceiling, charging and Core's advertised
+  `image-max-cost-micro-usd-v1` contract before journaling/dispatch. Forward
+  `max_cost_micro_usd` for Core's atomic hold. Feature failure is a definite
+  pre-dispatch422, not an uncertain paid submission. Omitted optional ceilings
+  preserve existing request digests and the legacy image route.
 - Require Go 1.26.9 and x/net 0.60.0 or newer for the October 2026 HTTP/2
   and standard-library security patches. Docker's builder is digest-pinned,
   and CI/CodeQL read the module's exact Go version. Both source and compiled-

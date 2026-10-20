@@ -47,6 +47,18 @@ Production-build Playwright coverage for consumer-facing generation routes.
   ticket in local storage. Real larger audio/video normalization, fixed/idle
   expiry, ownership and concurrent-byte integrity live in the Go race suite;
   this fixture is not live R2/GPU or purchased-source acceptance.
+  Scene-first cases at390/1280pixels compose exactly one private capped image,
+  expose the reference upload without expanding a disclosure (also signed out),
+  render the actual cropped raster, require a separate opening-frame selection,
+  then send one explicit audio-driven video request. Neither image completion
+  nor selection animates. Reload exposes completed owner-bound images as manual
+  choices without reusing uploads or generating. Raster/audio request bodies
+  never enter local storage. Scene requests select MOSS Image SFT BF16 with
+  50steps/CFG3/Euler/simple. These fixtures do not qualify MOSS identity
+  editing or actual paid settlement. Dedicated API tests reject legacy fallback;
+  real handler/transport tests cover ceiling drift and missing Core support.
+  Node-environment download tests cover protocol/host/MIME/redirect/size controls;
+  shared Jest setup touches `window` only in browser environments.
 - `e2e/studio.spec.ts` - authenticated Studio focus/preview pricing, universal
   account-menu and creation-library navigation, mobile overflow, and a lost POST
   response followed by browser reload/read-only recovery with one generation POST.

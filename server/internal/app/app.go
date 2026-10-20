@@ -231,6 +231,7 @@ func (a *App) Router() http.Handler {
 			protected.Get("/credits", a.handleCredits)
 			protected.With(httprate.LimitByIP(60, time.Minute)).Post("/credits/quote", a.handleCreditQuote)
 			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/jobs", a.handleCreateJob)
+			protected.With(httprate.LimitByIP(20, time.Minute)).Post("/images/jobs", a.handleCreateShotImage)
 			protected.Get("/jobs/{id}", a.handleJobStatus)
 			protected.Get("/jobs/requests/{requestID}", a.handleJobRequestStatus)
 			protected.With(httprate.LimitByIP(4, time.Minute)).Post("/videos/jobs", a.handleCreateDurableVideo)
@@ -1755,6 +1756,14 @@ func (a *App) handleCreateDurableVideo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
+	a.handleMediaJob(w, r, false)
+}
+
+func (a *App) handleCreateShotImage(w http.ResponseWriter, r *http.Request) {
+	a.handleMediaJob(w, r, true)
+}
+
+func (a *App) handleMediaJob(w http.ResponseWriter, r *http.Request, requireImageLimit bool) {
 	w.Header().Set("Cache-Control", "no-store")
 	var req CreateJobRequest
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxCreateRequestBytes))
@@ -1770,6 +1779,14 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 
 	if err := req.Validate(); err != nil {
 		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	if requireImageLimit && (req.RequestID == "" || req.MaxCostMicroUSD == nil || req.Params.N != 1 || req.Public ||
+		req.MediaType != "image" || req.TimelineData != "" || req.SourceImageEnd != "" ||
+		req.SourceMask != "" || len(req.Loras) != 0 || req.Style != "" ||
+		(req.SourceImage == "" && req.SourceProcessing != "txt2img") ||
+		(req.SourceImage != "" && req.SourceProcessing != "img2img")) {
+		writeError(w, http.StatusBadRequest, errors.New("shot images require one private image, a cost ceiling and an explicit image mode"))
 		return
 	}
 
@@ -1845,6 +1862,23 @@ func (a *App) handleCreateJob(w http.ResponseWriter, r *http.Request) {
 	if quote.AccountID != identity.AccountID {
 		writeError(w, http.StatusBadGateway, errors.New("Grid credit quote account mismatch"))
 		return
+	}
+	if req.MaxCostMicroUSD != nil {
+		if preset.Type != "image" || req.MediaType == "video" {
+			writeError(w, http.StatusBadRequest, errors.New("image cost ceiling requires an image job"))
+			return
+		}
+		if !quote.ChargingEnabled || !quote.Estimate.Priced || quote.Estimate.CostMicro == nil ||
+			*quote.Estimate.CostMicro <= 0 || *quote.Estimate.CostMicro > *req.MaxCostMicroUSD ||
+			quote.Estimate.Model != gen.Model || quote.Estimate.Modality != "image" ||
+			quote.Estimate.N == nil || *quote.Estimate.N != buildCreditQuoteRequest(req, preset).N {
+			writeError(w, http.StatusBadRequest, errors.New("image quote changed or exceeds the selected ceiling"))
+			return
+		}
+		if err := a.client.RequireImageCostLimit(quoteContext); err != nil {
+			writeError(w, http.StatusUnprocessableEntity, errors.New("Grid image cost limit is unavailable; no generation was submitted"))
+			return
+		}
 	}
 	if quote.ChargingEnabled && !quote.Estimate.Priced {
 		writeError(w, http.StatusServiceUnavailable, errors.New("this model is not priced for paid generation"))
@@ -2139,14 +2173,15 @@ func buildModelView(preset models.ModelPreset, stat aipg.ModelStatus, chainModel
 }
 
 type CreateJobRequest struct {
-	RequestID      string           `json:"requestId,omitempty"`
-	ModelID        string           `json:"modelId"`
-	Prompt         string           `json:"prompt"`
-	NegativePrompt string           `json:"negativePrompt"`
-	Params         GenerationParams `json:"params"`
-	NSFW           bool             `json:"nsfw"`
-	Public         bool             `json:"public"`
-	SourceImage    string           `json:"sourceImage"`
+	MaxCostMicroUSD *int64           `json:"maxCostMicroUSD,omitempty"`
+	RequestID       string           `json:"requestId,omitempty"`
+	ModelID         string           `json:"modelId"`
+	Prompt          string           `json:"prompt"`
+	NegativePrompt  string           `json:"negativePrompt"`
+	Params          GenerationParams `json:"params"`
+	NSFW            bool             `json:"nsfw"`
+	Public          bool             `json:"public"`
+	SourceImage     string           `json:"sourceImage"`
 	// End-frame anchor for first-last-frame "fill-between" video recipes. Passed
 	// through to the grid as image_end; must match the published FLF recipe's var.
 	SourceImageEnd   string `json:"sourceImageEnd"`
@@ -2272,6 +2307,9 @@ const (
 )
 
 func (r CreateJobRequest) Validate() error {
+	if r.MaxCostMicroUSD != nil && (*r.MaxCostMicroUSD <= 0 || *r.MaxCostMicroUSD > 9007199254740991) {
+		return errors.New("image cost ceiling must be a positive safe integer")
+	}
 	if strings.TrimSpace(r.Prompt) == "" {
 		return errors.New("prompt is required")
 	}
@@ -2314,8 +2352,9 @@ func (r CreateJobRequest) Validate() error {
 // rather than silently clamping, which is the behaviour we want users to see.
 func buildGenerateRequest(req CreateJobRequest, preset models.ModelPreset) aipg.GenerateRequest {
 	gen := aipg.GenerateRequest{
-		Model: getGridModelName(preset.ID),
-		Style: req.Style,
+		Model:           getGridModelName(preset.ID),
+		Style:           req.Style,
+		MaxCostMicroUSD: req.MaxCostMicroUSD,
 	}
 
 	if req.Style != "" {

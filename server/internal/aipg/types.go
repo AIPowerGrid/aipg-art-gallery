@@ -51,30 +51,31 @@ func parseFloat(raw json.RawMessage) float64 {
 // to the model's recipe default on the grid (the "dumb happy path"), and the
 // grid rejects (422) out-of-band overrides rather than silently clamping.
 type GenerateRequest struct {
-	Prompt         string  `json:"prompt"`
-	Model          string  `json:"model"`
-	N              int     `json:"n,omitempty"`
-	Size           string  `json:"size,omitempty"`            // "WxH"; omit to let grid/source decide
-	Image          string  `json:"image,omitempty"`           // img2img / img2video source (base64 / data URI)
-	ImageEnd       string  `json:"image_end,omitempty"`       // fill-between end-frame anchor (base64 / data URI); FLF recipes
-	TimelineData   string  `json:"timeline,omitempty"`        // LTX Director editor state, stringified (segments may embed imageB64/audioB64 media)
-	LocalPrompts   string  `json:"local_prompts,omitempty"`   // Director prompt relay: "|"-delimited per-segment prompts
-	SegmentLengths string  `json:"segment_lengths,omitempty"` // Director prompt relay: ","-delimited frame counts
-	GuideStrength  string  `json:"guide_strength,omitempty"`  // Director image guides: ","-delimited strengths
-	Loras          []any   `json:"loras,omitempty"`           // CivitAI passthrough (grid-gated + blacklisted)
-	OutputFormat   string  `json:"output_format,omitempty"`   // png|jpeg|webp (image only)
-	ResponseFormat string  `json:"response_format,omitempty"` // url|b64_json
-	NegativePrompt string  `json:"negative_prompt,omitempty"`
-	Seed           string  `json:"seed,omitempty"`
-	Steps          int     `json:"steps,omitempty"`
-	CfgScale       float64 `json:"cfg_scale,omitempty"`
-	Sampler        string  `json:"sampler,omitempty"`
-	Scheduler      string  `json:"scheduler,omitempty"`
-	Seconds        float64 `json:"seconds,omitempty"`        // video only
-	FPS            int     `json:"fps,omitempty"`            // video only
-	Worker         string  `json:"worker,omitempty"`         // soft-affinity: prefer this worker (account must own it)
-	Style          string  `json:"style,omitempty"`          // curated style id; expanded server-side by the grid
-	ProgressToken  string  `json:"progress_token,omitempty"` // poll live % at GET /v1/progress/{token}
+	MaxCostMicroUSD *int64  `json:"max_cost_micro_usd,omitempty"`
+	Prompt          string  `json:"prompt"`
+	Model           string  `json:"model"`
+	N               int     `json:"n,omitempty"`
+	Size            string  `json:"size,omitempty"`            // "WxH"; omit to let grid/source decide
+	Image           string  `json:"image,omitempty"`           // img2img / img2video source (base64 / data URI)
+	ImageEnd        string  `json:"image_end,omitempty"`       // fill-between end-frame anchor (base64 / data URI); FLF recipes
+	TimelineData    string  `json:"timeline,omitempty"`        // LTX Director editor state, stringified (segments may embed imageB64/audioB64 media)
+	LocalPrompts    string  `json:"local_prompts,omitempty"`   // Director prompt relay: "|"-delimited per-segment prompts
+	SegmentLengths  string  `json:"segment_lengths,omitempty"` // Director prompt relay: ","-delimited frame counts
+	GuideStrength   string  `json:"guide_strength,omitempty"`  // Director image guides: ","-delimited strengths
+	Loras           []any   `json:"loras,omitempty"`           // CivitAI passthrough (grid-gated + blacklisted)
+	OutputFormat    string  `json:"output_format,omitempty"`   // png|jpeg|webp (image only)
+	ResponseFormat  string  `json:"response_format,omitempty"` // url|b64_json
+	NegativePrompt  string  `json:"negative_prompt,omitempty"`
+	Seed            string  `json:"seed,omitempty"`
+	Steps           int     `json:"steps,omitempty"`
+	CfgScale        float64 `json:"cfg_scale,omitempty"`
+	Sampler         string  `json:"sampler,omitempty"`
+	Scheduler       string  `json:"scheduler,omitempty"`
+	Seconds         float64 `json:"seconds,omitempty"`        // video only
+	FPS             int     `json:"fps,omitempty"`            // video only
+	Worker          string  `json:"worker,omitempty"`         // soft-affinity: prefer this worker (account must own it)
+	Style           string  `json:"style,omitempty"`          // curated style id; expanded server-side by the grid
+	ProgressToken   string  `json:"progress_token,omitempty"` // poll live % at GET /v1/progress/{token}
 }
 
 // Style is one entry from the grid's GET /v1/styles registry.

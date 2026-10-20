@@ -77,6 +77,8 @@ export interface ModelsResponse {
 
 export interface CreateJobRequest {
   requestId?: string;
+  /** Optional total image ceiling, enforced by Core before reserving credits. */
+  maxCostMicroUSD?: number;
   modelId: string;
   prompt: string;
   negativePrompt?: string;
