@@ -27,6 +27,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   const [showModal, setShowModal] = useState(false);
   const [mediaError, setMediaError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageSize, setImageSize] = useState<{ url: string; width: number; height: number } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -40,6 +41,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   const firstGen = creation.generations[0];
   const mediaUrl = firstGen?.url || firstGen?.base64;
   const isVideo = creation.type === "video" || firstGen?.kind === "video";
+  const isFocusedImage = displayMode === 'focus' && !isVideo;
   const importFrames = videoTiming && videoTiming.url === mediaUrl ? Math.round(videoTiming.duration * 24) : 0;
   const canImportClip = mediaUrl?.startsWith('https://media.aipg.art/') &&
     Number.isSafeInteger(importFrames) && importFrames >= 9 && importFrames <= 337 && importFrames % 8 === 1;
@@ -48,6 +50,22 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   const aspectRatio = creation.width && creation.height 
     ? `${creation.width} / ${creation.height}` 
     : '1 / 1';
+  const requestedRatio = creation.width && creation.height &&
+    creation.width > 0 && creation.height > 0 &&
+    Number.isFinite(creation.width / creation.height)
+    ? creation.width / creation.height : 1;
+  // Only placeholders use requested geometry; completed images size intrinsically.
+  const focusPlaceholderStyle = {
+    aspectRatio,
+    width: `min(720px, ${60 * requestedRatio}svh, ${560 * requestedRatio}px)`,
+    maxWidth: '100%',
+  };
+  const focusedSize = imageSize?.url === mediaUrl ? imageSize : null;
+  const focusedRatio = focusedSize ? focusedSize.width / focusedSize.height : requestedRatio;
+  const focusImageStyle = focusedSize ? {
+    width: `min(${Math.min(focusedSize.width, 720)}px, ${60 * focusedRatio}svh, ${560 * focusedRatio}px)`,
+    maxWidth: '100%',
+  } : focusPlaceholderStyle;
   
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -147,7 +165,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
     }
   };
 
-  const thumbnailUrl = mediaUrl && !mediaUrl.startsWith('data:') && !isVideo
+  const thumbnailUrl = mediaUrl && !mediaUrl.startsWith('data:') && !isVideo && !isFocusedImage
     ? getThumbnailUrl(mediaUrl, 400)
     : mediaUrl;
   
@@ -180,7 +198,8 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   return (
     <>
       <div 
-        className={`mb-0.5 group cursor-pointer break-inside-avoid ${displayMode === 'focus' ? 'mx-auto w-full max-w-5xl' : ''}`}
+        className={`mb-0.5 group cursor-pointer break-inside-avoid ${isFocusedImage ? 'mx-auto w-fit max-w-full' : displayMode === 'focus' ? 'mx-auto w-full max-w-5xl' : ''}`}
+        style={isFocusedImage ? isBatchMode ? focusPlaceholderStyle : focusImageStyle : undefined}
         onClick={() => canOpenModal && setShowModal(true)}
       >
         <div className={`relative rounded-xl overflow-hidden bg-zinc-800 border transition-colors ${
@@ -208,12 +227,12 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
           {isBatchMode && (
             <div 
               className="grid grid-cols-2 grid-rows-2 gap-0.5 bg-zinc-800" 
-              style={{ aspectRatio }}
+              style={isFocusedImage ? focusPlaceholderStyle : { aspectRatio }}
             >
               {Array.from({ length: expectedBatchSize }).map((_, idx) => {
                 const gen = creation.generations[idx];
                 const genUrl = gen?.url || gen?.base64;
-                const genThumbnail = genUrl && !genUrl.startsWith('data:') ? getThumbnailUrl(genUrl, 300) : genUrl;
+                const genThumbnail = genUrl && !genUrl.startsWith('data:') && !isFocusedImage ? getThumbnailUrl(genUrl, 300) : genUrl;
                 const genIsVideo = gen?.kind === "video";
                 
                 return (
@@ -233,7 +252,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                         <img 
                           src={genThumbnail} 
                           alt={`${creation.prompt.slice(0, 20)}... (${idx + 1})`}
-                          className="w-full h-full object-cover"
+                          className={isFocusedImage ? 'block h-auto w-auto max-h-full max-w-full object-contain' : 'w-full h-full object-cover'}
                           loading="eager"
                         />
                       )
@@ -254,7 +273,9 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
           {!isBatchMode && (
             <div 
               className="relative bg-zinc-900 overflow-hidden" 
-              style={showSpinner || displayMode === 'focus' ? { aspectRatio } : undefined}
+              style={isFocusedImage
+                ? showImage ? undefined : focusPlaceholderStyle
+                : showSpinner || displayMode === 'focus' ? { aspectRatio } : undefined}
             >
               {/* ALWAYS render image to preload it - hidden until ready */}
               {thumbnailUrl && !mediaError && (
@@ -272,9 +293,15 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
                     <img 
                       src={thumbnailUrl} 
                       alt={creation.prompt.slice(0, 50)} 
-                      className={`${displayMode === 'focus' ? 'h-full w-full object-contain' : 'w-full h-auto block'} ${showImage ? '' : 'sr-only'}`}
+                      className={`w-full h-auto block ${isFocusedImage ? 'object-contain' : ''} ${showImage ? '' : 'sr-only'}`}
                       loading="eager"
-                      onLoad={() => setImageLoaded(true)}
+                      onLoad={(event) => {
+                        const image = event.currentTarget;
+                        if (thumbnailUrl && image.naturalWidth > 0 && image.naturalHeight > 0) {
+                          setImageSize({ url: thumbnailUrl, width: image.naturalWidth, height: image.naturalHeight });
+                        }
+                        setImageLoaded(true);
+                      }}
                       onError={() => setMediaError(true)} 
                     />
                   )}
