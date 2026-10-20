@@ -103,11 +103,12 @@ jobs to the grid and serves gallery/media.
   aliases; never filter public model IDs against raw workflow filenames. Core's
   recipe-derived generation modes are authoritative for source-image support;
   local preset capabilities are only a graceful-degradation fallback.
-  The MOSS Image SFT BF16 candidate adds its curated presentation/defaults,
-  not live capacity:50steps/CFG3/Euler/simple,512..1344per axis. Its BF16
+  MOSS Image SFT BF16 is live after the October20 owner-approved rollout:
+  Core0d2ee0b7/Galleryc972bfa4,USD0.01/image,one purchased img2img/reload
+  canary. Defaults are50steps/CFG3/Euler/simple,512..1344per axis. Its BF16
   backbone uses anINT8 encoder. Source-guided img2img is not identity editing;
-  batch/LoRA controls stay closed. Core/worker rollout and paid proof remain
-  separate from this catalog change; the default image model is unchanged.
+  batch/LoRA controls stay closed. Presets still confer no live capacity by
+  themselves; the default image model is unchanged. See `deploy/README.md`.
 - **Images:** generated media lives in Cloudflare R2 / `images.aipg.art`; the frontend only
   loads from allowed hosts in `next.config.mjs` — add a host there before referencing it.
 - Gallery rows retain both the Gallery polling/publishing `jobId` and Core's
@@ -126,7 +127,7 @@ jobs to the grid and serves gallery/media.
   matching Core's reviewed pilot. Invalid enabled configuration fails closed;
   expired pilots retain GET recovery while refusing fresh jobs/quotes. Private
   capability discovery does not reveal cohort IDs or qualify model fidelity.
-- Production selects Gallery `950979d3`; Core `8e74ef37` introduced the
+- Earlier PR54 selected Gallery `950979d3`; Core `8e74ef37` introduced the
   matching public source rollout. Later dependency-only Core releases retain
   this contract; read its live `/health` for the selected SHA. Public authenticated,
   credit-backed BF16 supports text/opening-image through625frames and audio/

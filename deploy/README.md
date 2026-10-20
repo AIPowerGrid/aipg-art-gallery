@@ -1,5 +1,39 @@
 # aipg.art production release
 
+## MOSS Image Rollout (2026-10-20)
+
+Production selects `c972bfa4ada7b020c465b88e05d0ebe986baef74` (PR57), with
+Core `0d2ee0b72ee04e779949d68b00dfd6143f6b1be1` (PR237). MOSS Image SFT BF16
+is public for authenticated credit-backed text/image generation at the
+owner-approved USD0.01/image tariff. Krea remains the default; all three
+existing image models remain available. MOSS uses50steps/CFG3/Euler/simple,
+512..1344per axis, a BF16 backbone and INT8 text encoder. Source-guided
+img2img is not a trained identity-reference editor; batches/LoRA stay closed.
+
+PR/main CI, all four protected-main artifact attestations and host Node22 /
+Go1.26.9 binary/pruned-runtime checks pass. A fresh production backup restores
+into disposable scratch and passes all seven standalone race-test packages
+with existing rows/schema unchanged. The first sanitized test environment
+omitted the installed private codecs; correcting PATH to the verified existing
+binaries allows the full suite to pass without skips or live credentials.
+The disposable database/role/password are removed after proof.
+
+Drained activation preserves the environment, ingress, canonical sessions and
+job journal. A duplicate-route temporary maintenance overlay was rejected by
+Nginx before selection; the original configuration was restored, then a
+corrected existing-route guard passed. The prior security-patched
+`gallery-d29cbab9` remains the compatible rollback.
+
+One separately approved Gallery img2img job emits a decoded1344x768 WebP
+through the real Grid worker and R2. Native history verifies one source-bound
+MOSS prompt at50steps/CFG3/Euler/simple/denoise0.65/seed739. The UI reports
+29seconds. One reservation settles at10000micro-USD with one purchased debit
+and one completion. Page reload retains the same worker/seed/Grid receipt and
+image without another dispatch or charge. This is not a live refund test or
+an identity-fidelity guarantee. Prompts, media, account/job IDs and private
+operational evidence are not published here. Existing video admission is
+unchanged; the video sections below retain their own historical scope.
+
 ## Current Public Video Scope
 
 Protected-main PR54 release `950979d3` is deployed. Core `8e74ef37` introduced

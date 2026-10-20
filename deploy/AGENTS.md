@@ -28,12 +28,19 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
+- October20's MOSS rollout selects `gallery-c972bfa4` with Core0d2ee0b7.
+  Exact-main provenance, host pruned-runtime and restored-backup race gates
+  pass, followed by one purchased img2img/browser/reload canary at10000micro-USD.
+  MOSS remains source-guided rather than an identity editor; batch/LoRA stay
+  closed and the default model is unchanged. Environment, ingress and existing
+  video admission are preserved. Retain `gallery-d29cbab9` for rollback and
+  preserve accepted receipts. See the current acceptance record in README.md.
 - The October source candidate requires Go 1.26.9 and x/net 0.60.0; the
   previous scan clearance is historical after the new advisories. Do not
   deploy or use an older security rollback without fresh source/binary scans,
   restored-backup/race proof and the ordinary drained release checks. This
   contract is not a record that the new candidate is already active.
-- Production selects `gallery-950979d3`, the verified main release of PR #54,
+- PR54 selected `gallery-950979d3`, the verified main release,
   retaining PR #53's chunked source uploads. Signed artifacts, host runtime
   and restored-backup race gates passed. A
   real purchased-credit opening-image/BF16 browser pilot passed exact-once
