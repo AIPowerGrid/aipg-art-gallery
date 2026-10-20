@@ -19,6 +19,10 @@ route handlers for things that must not run in the browser — including wallet 
     hostname in `next.config.mjs`), `redirect: 'manual'` (no redirect
     following → SSRF-safe), and a sanitized `Content-Disposition` filename.
     Require HTTPS, no URL credentials or nonstandard port. The explicit
+    outbound URL is rebuilt from a fixed allowed origin with only parsed path
+    and query copied; never fetch the raw request URL or resolve a // path as
+    a new authority. Fragments do not reach the upstream request.
+    The explicit
     `image=1` shot-preview mode adds PNG/JPEG/WebP-only MIME, a streamed10MiB
     ceiling,30-second deadline, no-store/nosniff and redacted failures. Reject
     declared/actual oversized bodies and cancel reads; normal video download

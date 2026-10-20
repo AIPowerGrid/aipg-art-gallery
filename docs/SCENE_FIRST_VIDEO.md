@@ -76,6 +76,7 @@ Changing accounts invalidates late file, quote, crop and submission callbacks.
 
 The scene crop fetch uses the same-origin download proxy's explicit `image=1`
 mode: HTTPS on the CDN allowlist, no credentials/nonstandard ports/redirects,
+fixed outbound origins with separately assigned path/query (not raw URL reuse),
 PNG/JPEG/WebP MIME only, a streamed10MiB ceiling and30-second deadline. Responses
 are no-store/nosniff; exceptions do not print private URLs. Actual browser decode
 and crop must succeed before the scene can become an opening frame.
@@ -103,7 +104,7 @@ On branch `feat/reference-scene-video`, based on `c972bfa`:
 
 - Lockfile-clean install: Node 22.23.2, Next/ESLint config 16.3.8 and sharp
   0.35.5. An older local install was detected and replaced before the final
-  frontend checks. 322 Jest tests across 31 suites and strict TypeScript pass.
+  frontend checks. 323 Jest tests across 31 suites and strict TypeScript pass.
 - Production-build Chromium: 20 durable Director cases pass, including 1280px
   and 390px scene composition, explicit selection, separate image/video posts,
   reload recovery and no uploaded media in browser storage.

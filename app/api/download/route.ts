@@ -19,12 +19,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
-  const isAllowedDomain =
-    parsedUrl.hostname === 'images.aipg.art' ||
-    parsedUrl.hostname === 'media.aipg.art' ||
-    parsedUrl.hostname === 'a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com';
+  const origin = parsedUrl.hostname === 'images.aipg.art' ? 'https://images.aipg.art'
+    : parsedUrl.hostname === 'media.aipg.art' ? 'https://media.aipg.art'
+    : parsedUrl.hostname === 'a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com'
+      ? 'https://a9b7416008b496f49b0f021099cc4128.r2.cloudflarestorage.com' : null;
 
-  if (!isAllowedDomain || parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password ||
+  if (!origin || parsedUrl.protocol !== 'https:' || parsedUrl.username || parsedUrl.password ||
       (parsedUrl.port && parsedUrl.port !== '443')) {
     return NextResponse.json({ error: 'Domain not allowed' }, { status: 403 });
   }
@@ -33,7 +33,11 @@ export async function GET(request: NextRequest) {
     // redirect: 'manual' — the hostname allowlist above only validates the
     // initial URL. If we followed redirects, an open redirect on an allowed
     // origin could bounce us to an internal address (SSRF). Reject any 3xx.
-    const response = await fetch(url, { redirect: 'manual', ...(imageOnly ? { signal: AbortSignal.timeout(30_000) } : {}) });
+    // Assign path/query separately: a path beginning with // must not replace the fixed origin.
+    const target = new URL(origin);
+    target.pathname = parsedUrl.pathname;
+    target.search = parsedUrl.search;
+    const response = await fetch(target.href, { redirect: 'manual', ...(imageOnly ? { signal: AbortSignal.timeout(30_000) } : {}) });
 
     if (response.status >= 300 && response.status < 400) {
       return NextResponse.json({ error: 'Redirects are not allowed' }, { status: 502 });

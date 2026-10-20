@@ -52,6 +52,27 @@ it.each([
   );
   expect((await GET(request(url))).status).toBe(200);
 });
+it("keeps an authority-looking path and query on the fixed storage origin", async () => {
+  (fetch as jest.Mock).mockResolvedValue(
+    new Response(new Uint8Array([1]), {
+      headers: { "Content-Type": "image/png" },
+    }),
+  );
+  expect(
+    (
+      await GET(
+        request(
+          "https://images.aipg.art//evil.test/x?url=https://evil.test#fragment",
+        ),
+      )
+    ).status,
+  ).toBe(200);
+  const target = new URL((fetch as jest.Mock).mock.calls[0][0]);
+  expect(target.origin).toBe("https://images.aipg.art");
+  expect(target.pathname).toBe("//evil.test/x");
+  expect(target.search).toBe("?url=https://evil.test");
+  expect(target.hash).toBe("");
+});
 it.each(["image/svg+xml", "text/html", "video/mp4"])(
   "rejects non-raster MIME %s",
   async (mime) => {
