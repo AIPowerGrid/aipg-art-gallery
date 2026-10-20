@@ -76,6 +76,13 @@ package owns one concern; `app/app.go` wires them together.
 
 ## Local Contracts
 
+- `aipg/image_cost.go` verifies Core's public health feature with no credentials,
+  redirects disabled, a16KiB response bound and the caller's deadline. An old,
+  malformed, redirected or unavailable contract cannot authorize capped image
+  dispatch. `GenerateRequest.MaxCostMicroUSD` is a pointer so omission remains
+  backward-compatible while explicit invalid/zero ceilings reject in the app.
+  The dedicated scene route shares the existing journal/replay implementation;
+  frontend/image-worker qualification remains separate from budget mechanics.
 - `aipg/ownership.go` reads Core's authenticated ownership endpoint with
   redirects disabled and a 16 KiB response cap. Canonical ID equality, UUID
   syntax, unique aliases and the 128-member bound are mandatory. No secrets or

@@ -7,6 +7,19 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 
 ## Ownership
 
+- `create/shot-image.ts` validates the selected live image capability, explicit
+  shot size, one-output private payload and owner/model/count-bound price.
+  Scene composition defaults to `MOSS Image SFT BF16` and uses the selected
+  catalog model's sampling defaults; offline MOSS never triggers a fallback.
+  `hooks/use-shot-image.ts` keeps reference pixels and cropped previews in
+  memory, uses the shared durable request/job store, and never starts video.
+  Recent results are owner-filtered and require explicit selection, including
+  after reload. Late file/crop/submission callbacks cannot cross accounts.
+  A newly completed candidate locks animation until selection or explicit
+  local clearing, without cancelling/refunding its durable image job.
+  Failed library writes never repeat a generation. A raw character reference
+  is not an opening frame. A selected scene goes through the existing clip
+  image loader, with video quote refresh after composition/selection.
 - `api.ts` owns the single typed client for the Go API, including image/video job
   submission, the separate durable-video broker, and the canonical Core-backed credit quote. Sends the session cookie via
   `credentials: 'include'` (no `Authorization` header). Surfaces `status: message` errors.
@@ -34,6 +47,11 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
 ## Local Contracts
 
 - **`api.ts` is the only place that calls the Go API.** Components/hooks go through it.
+- `createJob` sends an explicit image ceiling only to `/images/jobs`, never
+  falls back to `/jobs` on old/missing servers, and preserves the shared saved
+  request-ID recovery lifecycle. The new route requires a private single image,
+  a positive safe ceiling and an explicit source mode. The bounded same-origin
+  `/api/download?image=1` route supplies raster bytes for the crop preview.
 - **The JWT is never in JS.** It lives only in the httpOnly cookie set by `/auth-api/verify`
   (wallet) or the Go `/auth/google` (Google). `auth.ts` / `auth-store.ts` store only
   non-sensitive markers (wallet address, canonical account ID, Google profile) for UI. Never store a token in

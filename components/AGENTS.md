@@ -7,6 +7,19 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
 
 ## Ownership
 
+- `create/director/shot-image-composer.tsx` presents the optional shot stage
+  inside Studio Video. Reference upload, scene prompt, live model selection and
+  a separate image maximum precede one private image job. Only explicit preview
+  selection updates the opening image; neither completion nor selection starts
+  animation. Display the actual center-cropped video geometry and selected
+  state. Existing uploaded first frames and ordinary video generation remain.
+  Keep the optional section expanded initially in text/audio modes so its
+  reference upload is discoverable, including signed out. Video-to-video
+  does not expose this parked character-replacement flow.
+  Composition/selection blocks a simultaneous clip POST; costs are separate,
+  and current-account completed image choices remain manually recoverable.
+  A completed new shot keeps animation blocked until explicitly selected or
+  its local preview is cleared. Clearing never deletes/refunds the saved job.
 - Auth UI: `account-control.tsx`, `wallet-auth-button.tsx`, `auth-modal.tsx`,
   `social-auth.tsx`, and `google-one-tap.tsx`. Google buttons and One Tap share
   one page-wide GSI initialization. `providers.tsx` wires Wagmi / RainbowKit /

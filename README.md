@@ -16,6 +16,10 @@ The AI Power Grid is a decentralized compute network where anyone can contribute
 
 ## Stack
 
+Studio Video's scene-first candidate supports a separately quoted private shot
+image, explicit preview selection and optional audio-driven animation. See
+[Scene-First Video](docs/SCENE_FIRST_VIDEO.md) for its scope and release gates.
+
 | Layer    | Tech                                                                |
 | -------- | ------------------------------------------------------------------- |
 | Frontend | Next.js 16, Tailwind, RainbowKit                                    |

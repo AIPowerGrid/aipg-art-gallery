@@ -64,7 +64,9 @@ export function fetchModels(): Promise<ModelsResponse> {
 }
 
 export function createJob(payload: CreateJobRequest) {
-  return jsonFetch<{ jobId: string; status: string }>("/jobs", {
+  // A separate route prevents older brokers from silently ignoring the ceiling.
+  const path = payload.maxCostMicroUSD !== undefined ? "/images/jobs" : "/jobs";
+  return jsonFetch<{ jobId: string; status: string }>(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

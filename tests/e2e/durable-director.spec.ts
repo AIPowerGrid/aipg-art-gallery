@@ -13,8 +13,10 @@ const credits = { account_id: owner, promotional: { remaining_usd: 0, active: fa
 const queued = { jobId, gridJobId: "31a9054f-4da2-46e1-9eb3-0d18d24cdd00", status: "processing", faulted: false,
   processing: 1, finished: 0, waiting: 0, waitTime: 0, queuePosition: 0, generations: [] };
 
-async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?: boolean; signedOut?: boolean; sources?: boolean } = {}) {
+async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?: boolean; signedOut?: boolean; sources?: boolean; scene?: boolean } = {}) {
   let posts = 0;
+  let imagePosts = 0;
+  let imageBody: Record<string, unknown> | undefined;
   let enabled = true;
   let finished = false;
   let account = owner;
@@ -42,14 +44,16 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     if (path === "/auth/me") return options.signedOut ? route.fulfill({status:401,json:{error:"Sign in required"}}) : route.fulfill({ json: { authMethod: "google", accountId: account, googleId: "clip-preview", email: "clip@example.test", name: "Clip Preview" } });
     if (path === "/styles") return route.fulfill({ json: { models: [], dimensions: [], defaultDimensionId: 0, defaults: { steps: 8, cfgScale: 1, sampler: "euler", scheduler: "normal" } } });
     if (path === "/styles/grid") return route.fulfill({ json: { styles: [] } });
-    if (path === "/models") return route.fulfill({ json: { chainSource: true, models: [{ id: model, name: model, type: "video", status: "online", onlineWorkers: 2, capabilities: [] }] } });
+    if (path === "/models") return route.fulfill({ json: { chainSource: true, models: [{ id: model, name: model, type: "video", status: "online", onlineWorkers: 2, capabilities: [] },
+      ...(options.scene ? [{ id:"MOSS Image SFT BF16",displayName:"MOSS Image SFT",type:"image",status:"online",onlineWorkers:1,capabilities:["txt2img","img2img"],
+        defaults:{steps:50,cfgScale:3,sampler:"euler",scheduler:"simple"},limits:{width:{min:512,max:1344,step:64},height:{min:512,max:1344,step:64}} }] : [])] } });
     if (path === "/videos/capabilities") return route.fulfill({ json: { enabled, models: enabled ? [{ id: model, onlineWorkers: 2 }] : [],sourceModes:options.sources?["audio","video"]:[] } });
     if (path === "/videos/prepare-source") return route.fulfill({json:{audio:"data:audio/wav;base64,c291bmQ=",...(request.postDataBuffer()?.toString().includes('\r\nvideo\r\n')?{video:"data:video/mp4;base64,bW90aW9u"}:{}),frames:33,width:512,height:512,startSeconds:0}});
     if (path === "/credits") return route.fulfill({ json: { ...credits, account_id: account } });
     if (path === "/credits/quote") {
       const quote = request.postDataJSON();
       return route.fulfill({ json: { ...credits, account_id: account, estimate: { model: quote.modelId,
-        modality: quote.modelId === "Krea 2 Turbo" ? "image" : "video", priced: true, reason: null,
+        modality: ["Krea 2 Turbo", "MOSS Image SFT BF16"].includes(quote.modelId) ? "image" : "video", priced: true, reason: null,
         cost_micro: 1000, cost_usd: 0.001, balance_sufficient: true, from_paid_micro: 1000,
         from_daily_micro: 0, from_promotional_micro: 0, shortfall_micro: 0, n: 1, seconds: null } } });
     }
@@ -61,6 +65,14 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
         cost_usd: Math.ceil(quote.frames * 20000 / 24) / 1000000, balance_sufficient: true, from_paid_micro: Math.ceil(quote.frames * 20000 / 24),
         from_daily_micro: 0, from_promotional_micro: 0, shortfall_micro: 0 } } });
     }
+    if (options.scene && path === "/images/jobs" && request.method() === "POST") {
+      imagePosts++; imageBody = request.postDataJSON();
+      return route.fulfill({ status:202,json:{jobId:"7aaa1451405b447f8d9c11abbc0f667a",status:"queued"} });
+    }
+    if (options.scene && path === "/jobs/7aaa1451405b447f8d9c11abbc0f667a") return route.fulfill({json:{...queued,
+      jobId:"7aaa1451405b447f8d9c11abbc0f667a",status:"completed",processing:0,finished:1,
+      generations:[{id:"scene",kind:"image",seed:"1",url:"https://images.aipg.art/scene-fixture.png"}]}});
+    if (options.scene && path === "/gallery/7aaa1451405b447f8d9c11abbc0f667a" && request.method() === "PATCH") return route.fulfill({json:{success:true}});
     if (path === "/videos/jobs" && request.method() === "POST") {
       posts++; body = request.postDataJSON();
       if (options.rejectCredit) return route.fulfill({ status: 402, json: { error: "insufficient credits" } });
@@ -81,7 +93,8 @@ async function fixture(page: Page, options: { loseReply?: boolean; rejectCredit?
     (route) => route.fulfill({ status: 204, headers: { "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS", "Access-Control-Allow-Headers": "content-type" } }));
   await page.route("https://media.aipg.art/e2e-clip.mp4", (route) => route.fulfill({ contentType: "video/mp4", headers: { "Access-Control-Allow-Origin": "*" }, body: readFileSync(join(__dirname, "../fixtures/clip-81-frames.mp4")) }));
-  return { posts: () => posts, body: () => body, errors, finish: () => { finished = true; }, close: () => { enabled = false; }, switchAccount: () => { account = "c0d7a372-adb5-4a1d-b5e3-dda4935f8141"; enabled = false; } };
+  if (options.scene) await page.route("**/api/download?image=1&url=**", route => route.fulfill({contentType:"image/png",body:readFileSync("public/aipg_logo_small.png")}));
+  return { posts: () => posts, body: () => body, imagePosts: () => imagePosts, imageBody: () => imageBody, errors, finish: () => { finished = true; }, close: () => { enabled = false; }, switchAccount: () => { account = "c0d7a372-adb5-4a1d-b5e3-dda4935f8141"; enabled = false; } };
 }
 
 async function openClip(page: Page) {
@@ -90,6 +103,58 @@ async function openClip(page: Page) {
   await page.getByLabel("Clip prompt").fill("camera glides over the ocean at sunrise");
   await expect(page.getByRole("button", { name: "Generate clip" })).toBeEnabled();
 }
+
+for (const width of [1280, 390]) test(`reviews a private shot before one audio-driven clip at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({width,height:900});
+  const state=await fixture(page,{scene:true,sources:true});await openClip(page);
+  await expect(page.getByLabel("Character reference",{exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"Audio to video",exact:true}).click();
+  await page.getByRole("combobox",{name:"Clip length",exact:true}).selectOption("33");
+  await page.getByRole("combobox",{name:"Resolution",exact:true}).selectOption("512x512");
+  await page.getByLabel("Soundtrack",{exact:true}).setInputFiles({name:"sound.wav",mimeType:"audio/wav",buffer:Buffer.from("synthetic-source-sound")});
+  await expect(page.getByLabel("Character reference",{exact:true})).toBeVisible();
+  await page.getByLabel("Character reference",{exact:true}).setInputFiles({name:"reference.png",mimeType:"image/png",buffer:readFileSync("public/aipg_logo_small.png")});
+  await page.getByLabel("Scene prompt",{exact:true}).fill("A character at a cabin table, warm sunlight from the left");
+  await page.getByRole("button",{name:"Compose shot",exact:true}).click();
+  await expect(page.getByAltText("Shot image preview",{exact:true})).toBeVisible({timeout:20000});
+  expect(state.imagePosts()).toBe(1);expect(state.posts()).toBe(0);
+  expect(state.imageBody()).toMatchObject({modelId:"MOSS Image SFT BF16",public:false,sourceProcessing:"img2img",
+    sourceImage:expect.stringMatching(/^data:image\/png/),maxCostMicroUSD:1000,
+    params:{n:1,width:1024,height:1024,steps:50,cfgScale:3,sampler:"euler",scheduler:"simple"}});
+  await expect(page.getByAltText("Opening image guide",{exact:true})).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Generate clip",exact:true})).toBeDisabled();
+  await page.getByRole("button",{name:"Use shot as opening frame",exact:true}).click();
+  await expect(page.getByAltText("Opening image guide",{exact:true})).toBeVisible();
+  expect(state.posts()).toBe(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  const image=page.getByAltText("Shot image preview",{exact:true});
+  expect(await image.evaluate(node=>(node as HTMLImageElement).naturalWidth)).toBe(512);
+  await expect(page.getByRole("button",{name:"Opening frame selected",exact:true})).toBeDisabled();
+  await expect(page.getByRole("button",{name:"Generate clip",exact:true})).toBeEnabled();
+  await page.evaluate(()=>window.scrollTo(0,0));
+  await page.screenshot({path:testInfo.outputPath("scene-reviewed.png"),fullPage:true});
+  await page.getByRole("button",{name:"Generate clip",exact:true}).click();
+  await expect.poll(state.posts).toBe(1);
+  expect(state.body()).toMatchObject({video:{max_cost_micro_usd:27500,frames:33,reference_audio:expect.stringMatching(/^data:audio\/wav/),
+    keyframes:[{frame:0,strength:1,image:expect.stringMatching(/^data:image\/jpeg/)}]}});
+  const saved=await page.evaluate(()=>JSON.stringify({...localStorage}));
+  expect(saved).not.toContain("data:image");expect(saved).not.toContain("data:audio");
+  expect(state.errors).toEqual([]);
+});
+
+test("recovers completed shot choices after reload without selecting or regenerating", async ({page})=>{
+  const state=await fixture(page,{scene:true});await openClip(page);
+  await expect(page.getByLabel("Character reference",{exact:true})).toBeVisible();
+  await page.getByLabel("Scene prompt",{exact:true}).fill("A quiet cabin scene");
+  await page.getByRole("button",{name:"Compose shot",exact:true}).click();
+  await expect(page.getByAltText("Shot image preview",{exact:true})).toBeVisible({timeout:20000});
+  await page.reload({waitUntil:"networkidle"});
+  await expect(page.getByLabel("Character reference",{exact:true})).toBeVisible();
+  await expect(page.getByAltText("Opening image guide",{exact:true})).toHaveCount(0);
+  await page.getByRole("combobox",{name:"Recent images",exact:true}).selectOption("7aaa1451405b447f8d9c11abbc0f667a");
+  await expect(page.getByAltText("Shot image preview",{exact:true})).toBeVisible();
+  expect(state.imagePosts()).toBe(1);expect(state.posts()).toBe(0);expect(state.errors).toEqual([]);
+});
 
 test("uploads a larger source in chunks before exactly one video submission", async ({ page }) => {
   const state = await fixture(page, { sources: true });
@@ -443,7 +508,12 @@ test("signed-out visitors see the same Director without a capability or generati
   await page.goto("/create?type=video",{waitUntil:"networkidle"});
   await expect(page.getByRole("button",{name:"Video",exact:true})).toHaveAttribute("aria-pressed","true");
   await expect(page.getByRole("button",{name:"Sign in to generate"})).toBeVisible();
-  for(const mode of ["Text to video","Audio to video","Video to video"]){await page.getByRole("button",{name:mode,exact:true}).click();await expect(page.getByRole("button",{name:mode,exact:true})).toHaveAttribute("aria-pressed","true");}
+  await expect(page.getByLabel("Character reference",{exact:true})).toBeVisible();
+  for(const mode of ["Text to video","Audio to video","Video to video"]){
+    await page.getByRole("button",{name:mode,exact:true}).click();
+    await expect(page.getByRole("button",{name:mode,exact:true})).toHaveAttribute("aria-pressed","true");
+    await expect(page.getByLabel("Character reference",{exact:true})).toHaveCount(mode === "Video to video" ? 0 : 1);
+  }
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:"test-results/director-signed-out-mobile.png",fullPage:true});

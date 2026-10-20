@@ -3,9 +3,9 @@ import '@testing-library/jest-dom'
 global.fetch = jest.fn();
 global.URL.createObjectURL = jest.fn(() => 'blob:mock-url');
 global.URL.revokeObjectURL = jest.fn();
-global.window.open = jest.fn();
-
-Object.defineProperty(window, 'matchMedia', {
+if (typeof window !== 'undefined') {
+  window.open = jest.fn();
+  Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => ({
     matches: false,
@@ -17,4 +17,5 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: jest.fn(),
     dispatchEvent: jest.fn(),
   })),
-});
+  });
+}

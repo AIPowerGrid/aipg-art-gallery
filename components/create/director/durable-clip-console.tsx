@@ -12,7 +12,7 @@ import {
   Scissors,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { AuthModal } from "@/components/auth-modal";
 import { DurableVideoCapabilities } from "@/lib/api";
@@ -21,6 +21,7 @@ import { DurableVideoRequest } from "@/types/models";
 import { maxDurableVideoFrames } from "@/lib/create/durable-video-limits";
 import { durableVideoResolutions } from "@/lib/create/durable-video-resolutions";
 import { MAX_SOURCE_VIDEO_FRAMES } from "@/lib/create/video-source-limits";
+import { ShotImageComposer } from "./shot-image-composer";
 
 const field =
   "w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400";
@@ -53,7 +54,17 @@ export function DurableClipConsole(props: {
   }) => void;
 }) {
   const authenticated = props.authenticated ?? true;
-  const clip = useDurableDirectorClip({ ...props, authenticated });
+  const direct = useDurableDirectorClip({ ...props, authenticated });
+  const [sceneBusy, setSceneBusy] = useState(false);
+  const sceneBusyRef = useRef(false);
+  const refreshQuote = direct.quote.refresh;
+  const onSceneBusy = useCallback((busy: boolean) => {
+    const previous = sceneBusyRef.current;
+    sceneBusyRef.current = busy;
+    setSceneBusy(busy);
+    if (previous && !busy) refreshQuote();
+  }, [refreshQuote]);
+  const clip = { ...direct, busy: direct.busy || sceneBusy, canSubmit: direct.canSubmit && !sceneBusy };
   const [showAuth, setShowAuth] = useState(false);
   const [timing, setTiming] = useState<{
     url: string;
@@ -111,7 +122,7 @@ export function DurableClipConsole(props: {
         onSubmit={(event) => {
           event.preventDefault();
           if (!authenticated) setShowAuth(true);
-          else if (clip.canSubmit) {
+          else if (clip.canSubmit && !sceneBusyRef.current) {
             followResult.current = { previous: latestId };
             void clip.submit();
           }
@@ -119,6 +130,10 @@ export function DurableClipConsole(props: {
         className="grid min-w-0 grid-cols-1 items-start gap-6 [grid-template-areas:'prompt'_'settings'_'preview'] lg:grid-cols-[minmax(0,1fr)_360px] lg:[grid-template-areas:'prompt_settings'_'preview_settings']"
       >
         <div className="min-w-0 [grid-area:prompt]">
+          {clip.mode !== "video" && <ShotImageComposer
+            owner={props.ownerIdentifier} authenticated={authenticated} videoSize={clip.size}
+            disabled={direct.busy} openingImage={direct.image} onSelect={direct.loadImage} onBusy={onSceneBusy}
+          />}
           <label
             htmlFor="video-clip-prompt"
             className="mb-2 block text-sm font-medium text-zinc-200"

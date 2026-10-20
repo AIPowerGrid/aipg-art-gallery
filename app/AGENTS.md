@@ -15,8 +15,18 @@ route handlers for things that must not run in the browser — including wallet 
     Google sessions share one canonical account.
 - Other route handlers:
   - `api/download/route.ts` — proxied media download with a **strict CDN hostname allowlist**
-    (`images.aipg.art`, `*.r2.cloudflarestorage.com`), `redirect: 'manual'` (no redirect
+    (`images.aipg.art`, `media.aipg.art`, and the exact account-specific R2
+    hostname in `next.config.mjs`), `redirect: 'manual'` (no redirect
     following → SSRF-safe), and a sanitized `Content-Disposition` filename.
+    Require HTTPS, no URL credentials or nonstandard port. The explicit
+    outbound URL is rebuilt from a fixed allowed origin with only parsed path
+    and query copied; never fetch the raw request URL or resolve a // path as
+    a new authority. Fragments do not reach the upstream request.
+    The explicit
+    `image=1` shot-preview mode adds PNG/JPEG/WebP-only MIME, a streamed10MiB
+    ceiling,30-second deadline, no-store/nosniff and redacted failures. Reject
+    declared/actual oversized bodies and cancel reads; normal video download
+    remains separate. Browser decode/crop still validates usable image data.
   - `api/og/route.tsx` + `og/route.tsx` — dynamic Open Graph images.
   - `auth/callback/route.ts` — legacy Supabase OAuth callback; the live Google path uses
     Google Identity Services and the Go `/auth/google` endpoint.
