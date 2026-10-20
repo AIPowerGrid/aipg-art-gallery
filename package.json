@@ -104,6 +104,7 @@
   },
   "overrides": {
     "axios": "1.20.0",
+    "follow-redirects": "1.16.1",
     "@walletconnect/core": "2.23.10",
     "@walletconnect/ethereum-provider": "2.23.10",
     "@walletconnect/sign-client": "2.23.10",
