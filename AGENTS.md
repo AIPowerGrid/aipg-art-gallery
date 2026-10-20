@@ -76,6 +76,8 @@ jobs to the grid and serves gallery/media.
   advisory GHSA-2xp9-vwfh-vxw4 and sharp advisory GHSA-rgj7-g3m4-5g8c gate
   deployment; do not bypass the production dependency audit or roll back to
   affected image-processing packages to undo an unrelated UI change.
+  Keep follow-redirects at least1.16.1 for the cross-origin credential-header
+  fixes (GHSA-q3jh-wrc6-jgq8 and GHSA-8r9p-f939-6h3c); never bypass the audit.
 - Tailwind and its animation plugin are build-only dev dependencies. Keep
   production builds before lockfile-based pruning and verify `next start`
   afterward; do not reintroduce the vulnerable build-tool peer chain into the

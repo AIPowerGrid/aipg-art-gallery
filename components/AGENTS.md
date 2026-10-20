@@ -30,6 +30,12 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
 - Gallery/media: `creation-card.tsx`, `media-card.tsx`, `image-modal.tsx`, `gallery-filter.tsx`,
   `creations-grid.tsx`, `active-jobs-indicator.tsx`. Create flow: `create/*`. Misc: `header.tsx`,
   `network-selector.tsx`, `dimension-slider.tsx`, `error-boundary.tsx`.
+  Studio's focused image uses the original output at its intrinsic aspect ratio,
+  never an enlarged thumbnail or request-metadata-sized completed frame. Cap
+  the left-aligned thumbnail at 320px wide and the smaller of 35svh/280px high,
+  without upscaling small images. Loading/error placeholders and focused
+  batches are bounded too;
+  library grid and video layouts remain unchanged. Click opens the existing modal.
 - Director onboarding: `create/director/*` exposes one contextual coach mark at a time in the required
   first-render order: add a segment, select it, enter a prompt, generate a private Krea 2 Turbo start
   frame or upload one, then render.

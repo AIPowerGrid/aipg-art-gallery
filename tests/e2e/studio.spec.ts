@@ -1,9 +1,58 @@
 import { expect, Page, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import sharp from "sharp";
 
-const IMAGE =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
-const BATCH_IMAGE = `data:image/png;base64,${readFileSync("public/aipg_logo_small.png").toString("base64")}`;
+const IMAGE = `data:image/png;base64,${readFileSync("public/aipg_logo_small.png").toString("base64")}`;
+const BATCH_IMAGE = IMAGE;
+
+for (const width of [1280, 390]) {
+  for (const [shape, imageWidth, imageHeight] of [
+    ['portrait', 512, 1024], ['landscape', 1344, 768],
+    ['square', 1024, 1024], ['small', 128, 96],
+  ] as const) {
+    test(`bounds the ${shape} current image without stretching at ${width}px`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installStudioMocks(page);
+      const errors: string[] = [];
+      page.on('pageerror', error => errors.push(error.message));
+      const url = 'https://images.aipg.art/preview-fixture.png';
+      const raster = await sharp({ create: { width: imageWidth, height: imageHeight,
+        channels: 3, background: '#428a72' } }).png().toBuffer();
+      await page.route(url, route => route.fulfill({ contentType: 'image/png', body: raster }));
+      // Deliberately wrong request dimensions must not dictate completed geometry.
+      await page.route('**/api-preview/gallery/me*', route => route.fulfill({ json: {
+        items: [{ ...ITEMS[0], mediaUrls: [url], params: { width: 1024, height: 1024 } }], count: 1,
+      } }));
+      await page.route('**/api-preview/gallery/latest-job/media', route => route.fulfill({ json: {
+        jobId: 'latest-job', mediaUrls: [url], type: 'image', source: 'cache',
+      } }));
+      await page.goto('/create');
+      const region = page.getByRole('region', { name: 'Current generation' });
+      const preview = region.locator('img');
+      await expect(preview).toBeVisible();
+      await expect.poll(() => preview.evaluate(image =>
+        (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 1,
+      )).toBe(true);
+      await expect(preview).toHaveAttribute('src', url);
+      await expect(preview).not.toHaveClass(/sr-only/);
+      const box = await preview.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width / box!.height).toBeCloseTo(imageWidth / imageHeight, 2);
+      expect(box!.width).toBeLessThanOrEqual(Math.min(imageWidth, 320));
+      expect(box!.height).toBeLessThanOrEqual(Math.min(imageHeight, 280));
+      const regionBox = await region.boundingBox();
+      expect(Math.abs(box!.x - regionBox!.x)).toBeLessThanOrEqual(2);
+      const frame = await preview.evaluate(image => image.parentElement!.getBoundingClientRect().width);
+      expect(frame).toBeCloseTo(box!.width, 0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await preview.scrollIntoViewIfNeeded();
+      await page.screenshot({ path: testInfo.outputPath(`focus-${shape}.png`) });
+      await preview.click();
+      await expect(page.getByRole('button', { name: 'Download', exact: true })).toBeVisible();
+      expect(errors).toEqual([]);
+    });
+  }
+}
 
 for (const width of [1280, 390]) {
   test(`uses the MOSS source-image preset without unsupported controls at ${width}px`, async ({ page }, testInfo) => {
