@@ -192,3 +192,62 @@ func TestBuildModelViewPrefersCoreCapabilities(t *testing.T) {
 		t.Fatalf("expected Core capabilities to replace preset fallback, got %v", view.Capabilities)
 	}
 }
+
+func TestMossPresetMatchesCoreAndKeepsLiveCapacityAuthoritative(t *testing.T) {
+	catalog, err := models.LoadCatalog(filepath.Join("..", "..", "config", "model_presets.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	preset, ok := catalog.Get("MOSS Image SFT BF16")
+	if !ok {
+		t.Fatal("MOSS preset missing")
+	}
+	if preset.Type != "image" || preset.Defaults.Steps != 50 || preset.Defaults.CfgScale != 3 ||
+		preset.Defaults.Sampler != "euler" || preset.Defaults.Scheduler != "simple" {
+		t.Fatalf("MOSS defaults differ from the qualified graph: %+v", preset.Defaults)
+	}
+	if preset.Limits.Width.Max != 1344 || preset.Limits.Height.Max != 1344 ||
+		preset.Limits.Steps.Min != 25 || preset.Limits.Steps.Max != 50 {
+		t.Fatalf("MOSS limits differ from Core: %+v", preset.Limits)
+	}
+	styles, err := os.ReadFile(filepath.Join("..", "..", "..", "config", "styles.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	merged, err := mergeStylesWithCatalog(styles, catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Models []struct {
+			ID           string         `json:"id"`
+			Default      bool           `json:"default"`
+			SupportsLora bool           `json:"supportsLora"`
+			Settings     map[string]any `json:"settings"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal(merged, &doc); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, model := range doc.Models {
+		if model.ID == preset.ID {
+			found = true
+			if model.Default || model.SupportsLora || model.Settings["scheduler"] != "simple" ||
+				model.Settings["steps"] != float64(50) || model.Settings["cfgScale"] != float64(3) {
+				t.Fatalf("MOSS presentation changed the qualified settings: %+v", model)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("MOSS presentation missing")
+	}
+	view := buildModelView(preset, aipg.ModelStatus{}, nil)
+	if view.Status != "offline" || view.OnlineWorkers != 0 || view.OnChain {
+		t.Fatalf("a local preset must not claim live or on-chain capacity: %+v", view)
+	}
+	view = buildModelView(preset, aipg.ModelStatus{Capabilities: []string{"txt2img"}}, nil)
+	if len(view.Capabilities) != 1 || view.Capabilities[0] != "txt2img" {
+		t.Fatalf("Core must override local source-image metadata: %+v", view.Capabilities)
+	}
+}

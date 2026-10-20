@@ -31,7 +31,7 @@ import {
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { AdvancedSettings } from "@/lib/types/create";
 import { DisplayCreation } from "@/lib/storage";
-import { acceptsSourceImage, supportsImageBatch } from "@/lib/create/capabilities";
+import { acceptsSourceImage, getModelCapabilities, supportsImageBatch } from "@/lib/create/capabilities";
 import { DurableClipConsole } from "@/components/create/director/durable-clip-console";
 import { useDurableVideoCapabilities } from "@/lib/hooks/use-durable-video-capabilities";
 import { useDirectorStore } from "@/lib/stores/director-store";
@@ -314,6 +314,9 @@ function CreatePageContent({ onVideo }: { onVideo: () => void }) {
   const handleModelChange = (modelID: string) => {
     const next = styles?.models.find((model) => model.id === modelID) ?? null;
     setSelectedModelId(modelID);
+    if (!getModelCapabilities(next).supportsLora) {
+      setLora(null);
+    }
     if (!acceptsSourceImage(next)) {
       setSourceImage(null);
     }

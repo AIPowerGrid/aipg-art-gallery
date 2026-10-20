@@ -47,6 +47,11 @@ wallet/web3 integration, auth/session handling, Zustand stores, and React hooks.
   to the explicit online image-model allowlist in `supportsImageBatch` until
   recipe metadata can advertise a verified batch strategy. Source-image and
   video submissions remain single-output. Unknown/offline models fail closed.
+  New image submissions and saved metadata honor an explicit model scheduler
+  before the global fallback. Model dimension bands reject unsupported sizes
+  before saving/submitting a request, never silently resize a paid job.
+  `supportsLora:false` hides/rejects adapters for workflows such as MOSS with
+  no qualified injection path; omission preserves existing model behavior.
 - Wallet sign-in (`auth.ts`) must sign Core's returned SIWE message unchanged.
   The Go broker derives the app subject and Core rejects reused,
   stale, cross-service, cross-subject, or foreign-origin challenges.

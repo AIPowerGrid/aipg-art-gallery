@@ -5,6 +5,77 @@ const IMAGE =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 const BATCH_IMAGE = `data:image/png;base64,${readFileSync("public/aipg_logo_small.png").toString("base64")}`;
 
+for (const width of [1280, 390]) {
+  test(`uses the MOSS source-image preset without unsupported controls at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installStudioMocks(page);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    const actualStyles = JSON.parse(readFileSync('config/styles.json', 'utf8'));
+    actualStyles.models = actualStyles.models.filter((model: { id: string }) =>
+      ['MOSS Image SFT BF16', 'Krea 2 Turbo'].includes(model.id));
+    await page.route('**/api-preview/styles', route => route.fulfill({ json: actualStyles }));
+    await page.route('**/api-preview/models', route => route.fulfill({ json: { models: [
+      { id: 'MOSS Image SFT BF16', status: 'online', onlineWorkers: 1, capabilities: ['txt2img', 'img2img'] },
+      { id: 'Krea 2 Turbo', status: 'online', onlineWorkers: 1, capabilities: ['txt2img', 'img2img'] },
+    ] } }));
+    let posts = 0;
+    await page.route('**/api-preview/**', async route => {
+      const path = new URL(route.request().url()).pathname.replace(/^\/api-preview/, '');
+      if (path === '/credits' || path === '/credits/quote') {
+        const credit = liveCredits(1);
+        credit.estimate = { ...credit.estimate, model: 'MOSS Image SFT BF16', cost_usd: 0.01 };
+        await route.fulfill({ json: credit });
+        return;
+      }
+      if (path === '/jobs' && route.request().method() === 'POST') {
+        posts++;
+        const body = route.request().postDataJSON();
+        expect(body.modelId).toBe('MOSS Image SFT BF16');
+        expect(body.sourceProcessing).toBe('img2img');
+        expect(body.sourceImage).toMatch(/^data:image\/png;base64,/);
+        expect(body.loras).toBeUndefined();
+        expect(body.params).toMatchObject({ width: 1344, height: 768, steps: 50, cfgScale: 3,
+          sampler: 'euler', scheduler: 'simple', n: 1 });
+        await route.fulfill({ json: { jobId: 'moss-gallery-job', status: 'queued' } });
+        return;
+      }
+      if (path === '/jobs/moss-gallery-job') {
+        await route.fulfill({ json: { jobId: 'moss-gallery-job', gridJobId: 'moss-core-receipt',
+          status: 'completed', finished: 1, processing: 0, waiting: 0, faulted: false,
+          waitTime: 0, queuePosition: 0, generations: [{ id: 'moss-output', kind: 'image', seed: '739', url: BATCH_IMAGE }] } });
+        return;
+      }
+      if ((path === '/gallery' && route.request().method() === 'POST') ||
+          (path === '/gallery/moss-gallery-job' && route.request().method() === 'PATCH')) {
+        await route.fulfill({ json: { success: true } });
+        return;
+      }
+      await route.fallback();
+    });
+    await page.goto('/create');
+    await page.getByRole('button', { name: 'MOSS Image SFT', exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Generate 4 images' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '2.4:1', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: '16:9', exact: true }).click();
+    await page.locator('input[type=file]').setInputFiles({ name: 'source.png', mimeType: 'image/png',
+      buffer: Buffer.from(IMAGE.split(',')[1], 'base64') });
+    await page.getByRole('tab', { name: /advanced/i }).click();
+    await expect(page.getByRole('button', { name: /LoRA/ })).toHaveCount(0);
+    await page.getByPlaceholder('Describe your image...').fill('Synthetic MOSS source-image fixture');
+    await page.getByRole('button', { name: width < 768 ? 'Generate' : /Generate.*with MOSS/, exact: width < 768 }).click();
+    const canvas = page.getByRole('region', { name: 'Current generation' });
+    await expect(canvas.locator('img')).toHaveCount(1, { timeout: 20_000 });
+    await expect.poll(() => canvas.locator('img').evaluateAll(images => images.every(
+      image => (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 1,
+    ))).toBe(true);
+    expect(posts).toBe(1);
+    expect(errors).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('moss-source.png'), fullPage: true });
+  });
+}
+
 const STYLES = {
   models: [
     {

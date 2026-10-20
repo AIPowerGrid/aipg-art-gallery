@@ -46,6 +46,8 @@ route handlers for things that must not run in the browser — including wallet 
   sufficient even when no browser wallet is currently connected.
 - `/create` clears an uploaded source when selection moves to a model without
   `img2img`/`img2video`; incompatible source state must never ride a later job.
+  Explicit model changes also clear a selected LoRA when the target declares
+  no adapter support, so a hidden old adapter cannot enter a MOSS request.
 - `/create` treats an explicit live-model `offline` status as unavailable:
   identify the model as offline and disable both button and Enter-key submission.
 - `/create` keeps Advanced settings scoped to the selected model, offers native

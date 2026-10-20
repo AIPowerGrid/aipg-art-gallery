@@ -10,7 +10,7 @@ import {
   AdvancedSettings,
 } from "@/lib/types/create";
 import { fitVideoDimensions } from "@/lib/create/build-job-payload";
-import { acceptsSourceImage } from "@/lib/create/capabilities";
+import { acceptsSourceImage, getModelCapabilities, supportsImageSize } from "@/lib/create/capabilities";
 
 interface GenerationState {
   isGenerating: boolean;
@@ -103,6 +103,16 @@ export function useGeneration({
       setState((prev) => ({ ...prev, isGenerating: true, error: null }));
 
       try {
+        if (selectedModel.type === "image" && !supportsImageSize(selectedModel, selectedDimension)) {
+          setError(`Choose a supported image size for ${selectedModel.name}.`);
+          setState((prev) => ({ ...prev, isGenerating: false }));
+          return false;
+        }
+        if (lora && !getModelCapabilities(selectedModel).supportsLora) {
+          setError(`${selectedModel.name} does not support LoRA adapters.`);
+          setState((prev) => ({ ...prev, isGenerating: false }));
+          return false;
+        }
         if (selectedModel.requiresImage && !sourceImage) {
           setError(`${selectedModel.name} requires a source image.`);
           setState((prev) => ({ ...prev, isGenerating: false }));
@@ -127,6 +137,7 @@ export function useGeneration({
           styles.defaults.cfgScale ??
           3.5;
         const seed = advancedSettings.seed || undefined;
+        const scheduler = selectedModel.settings?.scheduler ?? styles.defaults.scheduler ?? "normal";
 
         const isVideo = selectedModel.type === "video";
         const sourceProcessing = sourceImage
@@ -175,7 +186,7 @@ export function useGeneration({
               selectedModel.settings?.sampler ??
               styles.defaults.sampler ??
               "euler",
-            scheduler: styles.defaults.scheduler ?? "normal",
+            scheduler,
             n: batchN,
             ...(isVideo
               ? {
@@ -216,7 +227,7 @@ export function useGeneration({
             steps,
             cfgScale,
             sampler: selectedModel.settings?.sampler ?? styles.defaults.sampler,
-            scheduler: styles.defaults.scheduler,
+            scheduler,
             ...(seed ? { seed } : {}),
           },
         };
@@ -257,7 +268,7 @@ export function useGeneration({
                 cfgScale,
                 sampler:
                   selectedModel.settings?.sampler ?? styles.defaults.sampler,
-                scheduler: styles.defaults.scheduler,
+                scheduler,
                 ...(seed ? { seed } : {}),
               },
               mediaUrls: [],
