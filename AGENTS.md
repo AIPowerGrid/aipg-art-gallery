@@ -44,14 +44,16 @@ jobs to the grid and serves gallery/media.
 
 ## Local Contracts
 
-- Studio Video has a candidate scene-first flow: a separate private shot-image
+- Studio Video has a scene-first flow, deployed as `fe7aeb11`: a private shot-image
   job, explicit cropped-preview selection, then the existing T2V/A2V action.
   Character references are never implicitly used as video opening frames.
   Composition uses an explicitly selected live image model (MOSS Image SFT BF16
   by default, with50steps/CFG3/Euler/simple),
   not an unpriced MSR/Ingredients network identity or model fallback. The
   earlier native MSR comparison is not qualification of MOSS identity editing.
-  See `docs/SCENE_FIRST_VIDEO.md` for the remaining native/funded release gates.
+  Main CI/provenance, restored-backup races and live controls pass. A combined
+  paid MOSS-to-LTX browser canary and reference-fidelity acceptance remain
+  unverified. See `docs/SCENE_FIRST_VIDEO.md` and `deploy/README.md`.
 - **Inherit org engineering standards:** `../aipg-documentation/engineering-standards/`
   (core + git + the matching language file — `go.md` for `server/`, the TS/JS file for the
   frontend). The rules below are repo specializations.

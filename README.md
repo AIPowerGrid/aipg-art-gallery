@@ -16,9 +16,9 @@ The AI Power Grid is a decentralized compute network where anyone can contribute
 
 ## Stack
 
-Studio Video's scene-first candidate supports a separately quoted private shot
+Studio Video's scene-first flow supports a separately quoted private MOSS shot
 image, explicit preview selection and optional audio-driven animation. See
-[Scene-First Video](docs/SCENE_FIRST_VIDEO.md) for its scope and release gates.
+[Scene-First Video](docs/SCENE_FIRST_VIDEO.md) for its deployed scope and remaining acceptance checks.
 
 | Layer    | Tech                                                                |
 | -------- | ------------------------------------------------------------------- |

@@ -28,7 +28,14 @@ Next.js web process and Go API process from one commit-pinned release.
 
 ## Local Contracts
 
-- October20's MOSS rollout selects `gallery-c972bfa4` with Core0d2ee0b7.
+- October20's scene-first rollout selects `gallery-fe7aeb11` (PR59), with
+  `gallery-c972bfa4` retained as the verified rollback. Exact-main CI and all
+  four provenance subjects, restored-backup races, host runtime and drained
+  cutover pass. Live reference controls/MOSS quote and anonymous rejection
+  pass; no new paid combined canary or identity-fidelity proof was performed.
+  Environment, migration0003 and permanent ingress remain unchanged.
+  Retention keeps the active release and MOSS rollback. See README.md.
+- October20's earlier MOSS rollout selected `gallery-c972bfa4` with Core0d2ee0b7.
   Exact-main provenance, host pruned-runtime and restored-backup race gates
   pass, followed by one purchased img2img/browser/reload canary at10000micro-USD.
   MOSS remains source-guided rather than an identity editor; batch/LoRA stay

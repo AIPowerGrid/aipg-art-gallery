@@ -1,8 +1,55 @@
 # aipg.art production release
 
+## Scene-First Video Rollout (2026-10-20)
+
+Production selects `fe7aeb11ab6cab602d9c43d769398d673323d8a1` (PR59), activated
+at `2026-10-20T18:20:53Z` by the owner-approved operator deployment. The signed
+release's source tree is `95c02fefe38bf2106ea860750a5c28be85db2827`.
+Studio Video exposes the optional reference/shot composer expanded by default
+in text/audio modes. MOSS Image SFT BF16 is its default, using the existing
+USD0.01/image quote; standalone Studio Image defaults and video tariffs are
+unchanged. Image composition and video animation remain separate paid actions.
+No V2V character-replacement capability or new worker/model is introduced.
+
+Main CI39471041149 and CodeQL39471041089 pass, including323Jest tests,40browser
+cases, PostgreSQL/race tests, dependency/binary/history scans and the signed
+release-bundle gates. All four exact-main GitHub provenance subjects verify.
+CI builds on Node22.23.3/Go1.26.9; the host runs Node22.23.2 and the exact
+Go1.26.9 executable. The staged pruned runtime and audit pass on the host.
+
+A fresh backup restores into isolated scratch and all seven same-source
+standalone race packages pass without changing existing restored rows/schema
+or using live credentials. The first attempt correctly refused an upload
+reservation at low disk headroom after extraction. Only the preceding release's
+hash-verified redundant plaintext archive was removed, preserving its signed
+encrypted original and runtimes; unchanged tests then passed. Scratch database,
+role and generated password were removed, with original diagnostics retained.
+
+The first activation attempt stopped before editing ingress because a real
+generation was active. After completion, guarded cutover observed an empty
+journal twice, took a fresh final backup, atomically selected the release and
+restarted both services.
+Executable identity, canonical-session/auth gates, unchanged environment and
+schema, restored permanent Nginx config and public200 pages pass. Migration
+revision remains `0003_pending_job_recovery`; configuration is unchanged.
+Verified retention preserves active `gallery-fe7aeb11` and independently
+runnable `gallery-c972bfa4`; backups and signed artifacts are retained.
+
+Encrypted artifact SHA256:
+`b2695727440506bf58c53bbc98f999e8c61e35907247c48f4e7194e471a31d60`.
+Running backend SHA256:
+`ce3da2987e1a6edb98026b22c83c0e3f71280da42d4ca79a589ae1b7f5e2a4ae`.
+Private evidence: `/var/lib/aipg-release-proof/gallery-fe7aeb11/`.
+
+Live browser checks confirm the visible reference upload, selected MOSS model,
+USD0.0100 quote and persistence of the control in audio mode. The shot endpoint
+rejects anonymous POSTs with401. No new paid MOSS-to-LTX canary was submitted;
+combined paid settlement/recovery and reference fidelity remain unverified.
+Do not infer identity preservation from capability discovery or UI checks.
+
 ## MOSS Image Rollout (2026-10-20)
 
-Production selects `c972bfa4ada7b020c465b88e05d0ebe986baef74` (PR57), with
+The earlier MOSS rollout selected `c972bfa4ada7b020c465b88e05d0ebe986baef74` (PR57), with
 Core `0d2ee0b72ee04e779949d68b00dfd6143f6b1be1` (PR237). MOSS Image SFT BF16
 is public for authenticated credit-backed text/image generation at the
 owner-approved USD0.01/image tariff. Krea remains the default; all three

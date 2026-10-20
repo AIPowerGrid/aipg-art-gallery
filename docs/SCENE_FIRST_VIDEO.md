@@ -2,7 +2,9 @@
 
 ## Scope
 
-Candidate Studio flow, not a production deployment record:
+Studio flow deployed as `fe7aeb11` on 2026-10-20. See `deploy/README.md` for
+exact artifact, activation and rollback evidence. The combined paid workflow
+and reference-fidelity acceptance remain unverified.
 
 The reference/shot section is expanded initially in text/audio video modes,
 including signed out. It is distinct from the existing optional First frame
@@ -96,7 +98,21 @@ and crop must succeed before the scene can become an opening frame.
 
 Rollback must preserve active job/status recovery. New cached clients never
 fall back from `/images/jobs` to uncapped `/jobs` if an older server is selected.
-No database migration or destructive cleanup is required for this candidate.
+No database migration is required for this flow.
+
+## Production Verification - 2026-10-20
+
+PR59 is merged and `fe7aeb11ab6cab602d9c43d769398d673323d8a1` is active.
+Exact-main CI/CodeQL, all four artifact attestations,323Jest tests,40browser
+cases, the restored-backup seven-package race suite, host runtime and drained
+activation pass. The permanent environment, ingress and migration0003 are
+unchanged; the preceding MOSS release remains a verified rollback.
+
+The live browser shows the reference upload expanded, MOSS selected and its
+USD0.0100 quote, including after switching to audio mode. Anonymous shot
+submission returns401. No new paid image/video was submitted in this rollout;
+the combined purchased-credit canary and reference-fidelity measurement are
+still outstanding. Earlier local/native samples are not that acceptance.
 
 ## Local Verification - 2026-10-20
 
@@ -118,9 +134,9 @@ On branch `feat/reference-scene-video`, based on `c972bfa`:
   pass. Source secret scans and whitespace checks pass.
 
 Browser output uses fixtures, not generated character-fidelity evidence. No
-production deployment, funded canary, worker restart or release acceptance is
-implied by these results. The separately requested image-and-clip canary and
-reviewed exact-commit release checks remain outstanding.
+production deployment or funded canary is implied by these local results;
+the production record above is separate. The separately requested combined
+image-and-clip paid canary remains outstanding.
 
 Read-only live discovery confirms Core `0d2ee0b7` advertises
 `image-max-cost-micro-usd-v1` and MOSS/BF16 capacity. MOSS advertises text-to-image
