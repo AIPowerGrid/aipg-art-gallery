@@ -19,6 +19,8 @@ Entry point: `cmd/api/main.go`; all routes + HTTP handlers live in `internal/app
 - `config/model_presets.json` — local model defaults/limits merged with on-chain models.
   Create-page UI models come from repo-root `../config/styles.json`; startup discovers it
   from either the repo root or `server/`, and `STYLES_CONFIG_PATH` can override discovery.
+  The MOSS Image SFT BF16 candidate matches Core's50steps/CFG3/Euler/simple
+  and512..1344axis bounds; a preset never proves online capacity or governance.
 - `internal/app/video_source_upload.go` brokers private, bounded chunk uploads
   for larger audio/video sources. Its process-local store belongs to
   `internal/videosource/uploads.go`; it never generates or reserves credits.

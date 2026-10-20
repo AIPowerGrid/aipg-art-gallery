@@ -1,11 +1,13 @@
 "use client";
 
-import { Dimension } from "@/lib/types/create";
+import { Dimension, Model } from "@/lib/types/create";
+import { supportsImageSize } from "@/lib/create/capabilities";
 
 interface SizePickerProps {
   dimensions: Dimension[];
   selectedId: number;
   onChange: (id: number) => void;
+  model?: Model | null;
 }
 
 /**
@@ -14,13 +16,14 @@ interface SizePickerProps {
  * rows instead of a tall card grid. Reads `styles.dimensions`; the selected id
  * flows straight into the generation params.
  */
-export function SizePicker({ dimensions, selectedId, onChange }: SizePickerProps) {
+export function SizePicker({ dimensions, selectedId, onChange, model }: SizePickerProps) {
   if (dimensions.length === 0) return null;
 
   return (
     <div className="flex flex-wrap gap-1.5">
       {dimensions.map((d) => {
         const active = d.id === selectedId;
+        const supported = supportsImageSize(model ?? null, d);
         // Tiny proportional glyph: longest side maps to 14px.
         const max = Math.max(d.width, d.height);
         const w = (d.width / max) * 14;
@@ -30,9 +33,10 @@ export function SizePicker({ dimensions, selectedId, onChange }: SizePickerProps
             key={d.id}
             type="button"
             onClick={() => onChange(d.id)}
+            disabled={!supported}
             aria-pressed={active}
-            title={`${d.label} — ${d.width} × ${d.height}`}
-            className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition-colors ${
+            title={`${d.label} — ${d.width} × ${d.height}${supported ? "" : " (unavailable for this model)"}`}
+            className={`flex items-center gap-1.5 pl-1.5 pr-2.5 py-1.5 rounded-lg border text-[11px] font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               active
                 ? "border-indigo-500/60 bg-indigo-600/15 text-white"
                 : "border-zinc-700 bg-zinc-800/40 text-zinc-300 hover:border-zinc-600"

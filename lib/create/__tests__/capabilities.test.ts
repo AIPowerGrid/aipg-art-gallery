@@ -1,4 +1,4 @@
-import { acceptsSourceImage, supportsImageBatch, getModelCapabilities, listModalities, defaultModelIdForType } from '@/lib/create/capabilities';
+import { acceptsSourceImage, supportsImageBatch, supportsImageSize, getModelCapabilities, listModalities, defaultModelIdForType } from '@/lib/create/capabilities';
 import { Model } from '@/lib/types/create';
 
 const base: Model = {
@@ -29,6 +29,13 @@ describe('supportsImageBatch', () => {
 });
 
 describe('getModelCapabilities', () => {
+  it('keeps MOSS source-image controls but hides unqualified LoRA and batch controls', () => {
+    const moss: Model = { ...base, id: 'MOSS Image SFT BF16', status: 'online',
+      supportsLora: false, capabilities: ['txt2img', 'img2img'] };
+    expect(getModelCapabilities(moss).acceptsImage).toBe(true);
+    expect(getModelCapabilities(moss).supportsLora).toBe(false);
+    expect(supportsImageBatch(moss, false)).toBe(false);
+  });
   it('returns a safe empty capability set for null (no model loaded yet)', () => {
     const caps = getModelCapabilities(null);
     expect(caps).toEqual({
@@ -111,6 +118,28 @@ describe('getModelCapabilities', () => {
         capabilities: ["txt2video", "img2video"],
       }),
     ).toBe(true);
+  });
+});
+
+describe('supportsImageSize', () => {
+  const moss: Model = { ...base, limits: {
+    width: { min: 512, max: 1344, step: 64 },
+    height: { min: 512, max: 1344, step: 64 },
+  } };
+  const dimension = { id: 1, label: 'Wide', aspectRatio: '16:9', width: 1344, height: 768 };
+  it('keeps the tested landscape, portrait and square sizes', () => {
+    expect(supportsImageSize(moss, dimension)).toBe(true);
+    expect(supportsImageSize(moss, { ...dimension, width: 768, height: 1344 })).toBe(true);
+    expect(supportsImageSize(moss, { ...dimension, width: 1024, height: 1024 })).toBe(true);
+  });
+  it.each([{ width: 1536 }, { height: 1536 }, { width: 500 }, { width: 1000 }])(
+    'rejects an unavailable dimension without altering it: %j', patch => {
+      expect(supportsImageSize(moss, { ...dimension, ...patch })).toBe(false);
+    },
+  );
+  it('preserves the existing unrestricted fallback when no model bands exist', () => {
+    expect(supportsImageSize(base, { ...dimension, width: 1536 })).toBe(true);
+    expect(supportsImageSize(null, dimension)).toBe(true);
   });
 });
 

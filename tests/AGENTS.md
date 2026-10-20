@@ -60,6 +60,10 @@ Production-build Playwright coverage for consumer-facing generation routes.
   Four-output batch coverage checks one submission, four rendered images,
   desktop/mobile overflow and source-upload batch reset. These mocked browser
   tests complement, but do not replace, real Core/GPU billing canaries.
+  MOSS cases read the actual curated model config at1280/390pixels, disable
+  out-of-band dimensions and unqualified LoRA/batch controls, and bind source
+  pixels plus50steps/CFG3/Euler/simple to one mocked submission. Screenshots
+  and full image decoding prove client rendering only, not paid GPU execution.
 
 ## Local Contracts
 

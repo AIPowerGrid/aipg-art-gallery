@@ -37,6 +37,8 @@ export interface Model {
   onlineWorkers?: number;
   /** True for i2v-only recipes with no text-to-video path — a source image is mandatory. */
   requiresImage?: boolean;
+  /** Explicitly false when the approved workflow has no LoRA injection path. */
+  supportsLora?: boolean;
 }
 
 export interface AdvancedSettings {

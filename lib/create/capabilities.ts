@@ -14,7 +14,7 @@
  * __tests__/capabilities.test.ts) and reusable from both the rail and the
  * generation path.
  */
-import { Model } from '@/lib/types/create';
+import { Dimension, Model } from '@/lib/types/create';
 
 export interface ModelCapabilities {
   /** Video recipe (motion controls apply; image dimension picker does not). */
@@ -45,6 +45,14 @@ export function acceptsSourceImage(model: Model | null): boolean {
   );
 }
 
+export function supportsImageSize(model: Model | null, dimension: Dimension): boolean {
+  const within = (value: number, range?: { min: number; max: number; step: number }) =>
+    !range || (value >= range.min && value <= range.max &&
+      (!range.step || (value - range.min) % range.step === 0));
+  return within(dimension.width, model?.limits?.width) &&
+    within(dimension.height, model?.limits?.height);
+}
+
 // Explicitly qualified recipe/worker combinations, not every image checkpoint.
 const BATCH_MODELS = new Set([
   "z-image-turbo",
@@ -67,7 +75,7 @@ export function getModelCapabilities(model: Model | null): ModelCapabilities {
     hasCfg: true,
     hasMotion: isVideo,
     hasMotionSize: isVideo && (!!model?.limits?.width || !!model?.limits?.height),
-    supportsLora: !!model && model.type !== 'video',
+    supportsLora: !!model && model.type !== 'video' && model.supportsLora !== false,
     supportsSize: !!model && !isVideo,
     requiresImage: !!model?.requiresImage,
     acceptsImage: acceptsSourceImage(model),

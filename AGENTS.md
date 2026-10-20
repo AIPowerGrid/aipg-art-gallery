@@ -103,6 +103,11 @@ jobs to the grid and serves gallery/media.
   aliases; never filter public model IDs against raw workflow filenames. Core's
   recipe-derived generation modes are authoritative for source-image support;
   local preset capabilities are only a graceful-degradation fallback.
+  The MOSS Image SFT BF16 candidate adds its curated presentation/defaults,
+  not live capacity:50steps/CFG3/Euler/simple,512..1344per axis. Its BF16
+  backbone uses anINT8 encoder. Source-guided img2img is not identity editing;
+  batch/LoRA controls stay closed. Core/worker rollout and paid proof remain
+  separate from this catalog change; the default image model is unchanged.
 - **Images:** generated media lives in Cloudflare R2 / `images.aipg.art`; the frontend only
   loads from allowed hosts in `next.config.mjs` — add a host there before referencing it.
 - Gallery rows retain both the Gallery polling/publishing `jobId` and Core's

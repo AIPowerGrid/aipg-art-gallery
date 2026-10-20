@@ -188,7 +188,7 @@ export function StudioRail({
         <Tabs.Content value="basic" className="focus:outline-none">
           {showSize && (
             <ControlGroup title="Aspect ratio">
-              <SizePicker dimensions={dimensions} selectedId={dimensionId} onChange={onDimensionChange} />
+              <SizePicker dimensions={dimensions} selectedId={dimensionId} onChange={onDimensionChange} model={selectedModel} />
             </ControlGroup>
           )}
           {hasStyles && <ControlGroup title="Style">{styleChips}</ControlGroup>}
@@ -209,7 +209,7 @@ export function StudioRail({
             <AccItem value="composition" title="Composition">
               {showSize && (
                 <div className="mb-4">
-                  <SizePicker dimensions={dimensions} selectedId={dimensionId} onChange={onDimensionChange} />
+                  <SizePicker dimensions={dimensions} selectedId={dimensionId} onChange={onDimensionChange} model={selectedModel} />
                 </div>
               )}
               <label className="block text-xs text-zinc-400 mb-1.5">

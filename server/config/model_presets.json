@@ -334,6 +334,31 @@
     }
   },
   {
+    "id": "MOSS Image SFT BF16",
+    "displayName": "MOSS Image SFT",
+    "type": "image",
+    "description": "MOSS SFT with a BF16 backbone and INT8 text encoder. Text generation and source-guided img2img, not identity replacement. Apache-2.0.",
+    "tags": ["moss", "sft", "bf16"],
+    "samplers": ["euler"],
+    "schedulers": ["simple"],
+    "capabilities": ["txt2img", "img2img"],
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 50,
+      "cfgScale": 3,
+      "sampler": "euler",
+      "scheduler": "simple",
+      "denoise": 0.65
+    },
+    "limits": {
+      "width": {"min": 512, "max": 1344, "step": 64},
+      "height": {"min": 512, "max": 1344, "step": 64},
+      "steps": {"min": 25, "max": 50, "step": 1},
+      "cfgScale": {"min": 2.5, "max": 3, "step": 0.1}
+    }
+  },
+  {
     "id": "Krea 2 Turbo",
     "displayName": "Krea 2 Turbo",
     "type": "image",

@@ -190,6 +190,23 @@
       }
     },
     {
+      "id": "MOSS Image SFT BF16",
+      "name": "MOSS Image SFT",
+      "description": "Text-to-image and source-guided img2img. BF16 backbone, INT8 encoder; not an identity editor.",
+      "type": "image",
+      "enabled": true,
+      "default": false,
+      "supportsLora": false,
+      "capabilities": ["txt2img", "img2img"],
+      "settings": {"steps": 50, "cfgScale": 3, "sampler": "euler", "scheduler": "simple"},
+      "limits": {
+        "steps": {"min": 25, "max": 50},
+        "cfgScale": {"min": 2.5, "max": 3},
+        "width": {"min": 512, "max": 1344, "step": 64},
+        "height": {"min": 512, "max": 1344, "step": 64}
+      }
+    },
+    {
       "id": "Krea 2 Turbo",
       "name": "Krea 2 Turbo",
       "description": "Krea 2 Turbo \u2014 fast, aesthetic image model. Krea 2 is licensed under the Krea 2 Community License Agreement.",

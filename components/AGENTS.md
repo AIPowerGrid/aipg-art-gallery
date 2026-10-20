@@ -104,6 +104,9 @@ layout. Presentation and interaction only; data and auth logic come from `lib/`.
   `img2img`/`img2video` (or requires an image). Do not infer support from modality.
 - Model controls surface Core-derived offline state, and generation controls
   must not submit a model that is explicitly offline.
+  Image size chips retain unsupported ratios visibly disabled according to
+  the selected model's axis bands. The generation hook independently rejects
+  a stale out-of-band selection before dispatch; no silent size clamp follows.
 - Batch controls render only for a production-certified text-to-image workflow.
   Hide the control when the worker cannot prove requested output cardinality.
 - Keep components presentational; push nontrivial logic into `lib/hooks` or `lib/stores`.
