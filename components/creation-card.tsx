@@ -57,13 +57,13 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   // Only placeholders use requested geometry; completed images size intrinsically.
   const focusPlaceholderStyle = {
     aspectRatio,
-    width: `min(720px, ${60 * requestedRatio}svh, ${560 * requestedRatio}px)`,
+    width: `min(320px, ${35 * requestedRatio}svh, ${280 * requestedRatio}px)`,
     maxWidth: '100%',
   };
   const focusedSize = imageSize?.url === mediaUrl ? imageSize : null;
   const focusedRatio = focusedSize ? focusedSize.width / focusedSize.height : requestedRatio;
   const focusImageStyle = focusedSize ? {
-    width: `min(${Math.min(focusedSize.width, 720)}px, ${60 * focusedRatio}svh, ${560 * focusedRatio}px)`,
+    width: `min(${Math.min(focusedSize.width, 320)}px, ${35 * focusedRatio}svh, ${280 * focusedRatio}px)`,
     maxWidth: '100%',
   } : focusPlaceholderStyle;
   
@@ -198,7 +198,7 @@ export function CreationCard({ creation, onDelete, onPublishChange, onRegenerate
   return (
     <>
       <div 
-        className={`mb-0.5 group cursor-pointer break-inside-avoid ${isFocusedImage ? 'mx-auto w-fit max-w-full' : displayMode === 'focus' ? 'mx-auto w-full max-w-5xl' : ''}`}
+        className={`mb-0.5 group cursor-pointer break-inside-avoid ${isFocusedImage ? 'w-fit max-w-full' : displayMode === 'focus' ? 'mx-auto w-full max-w-5xl' : ''}`}
         style={isFocusedImage ? isBatchMode ? focusPlaceholderStyle : focusImageStyle : undefined}
         onClick={() => canOpenModal && setShowModal(true)}
       >

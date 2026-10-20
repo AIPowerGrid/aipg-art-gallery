@@ -27,7 +27,8 @@ for (const width of [1280, 390]) {
         jobId: 'latest-job', mediaUrls: [url], type: 'image', source: 'cache',
       } }));
       await page.goto('/create');
-      const preview = page.getByRole('region', { name: 'Current generation' }).locator('img');
+      const region = page.getByRole('region', { name: 'Current generation' });
+      const preview = region.locator('img');
       await expect(preview).toBeVisible();
       await expect.poll(() => preview.evaluate(image =>
         (image as HTMLImageElement).complete && (image as HTMLImageElement).naturalWidth > 1,
@@ -37,8 +38,10 @@ for (const width of [1280, 390]) {
       const box = await preview.boundingBox();
       expect(box).not.toBeNull();
       expect(box!.width / box!.height).toBeCloseTo(imageWidth / imageHeight, 2);
-      expect(box!.width).toBeLessThanOrEqual(Math.min(imageWidth, 720));
-      expect(box!.height).toBeLessThanOrEqual(Math.min(imageHeight, 540));
+      expect(box!.width).toBeLessThanOrEqual(Math.min(imageWidth, 320));
+      expect(box!.height).toBeLessThanOrEqual(Math.min(imageHeight, 280));
+      const regionBox = await region.boundingBox();
+      expect(Math.abs(box!.x - regionBox!.x)).toBeLessThanOrEqual(2);
       const frame = await preview.evaluate(image => image.parentElement!.getBoundingClientRect().width);
       expect(frame).toBeCloseTo(box!.width, 0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

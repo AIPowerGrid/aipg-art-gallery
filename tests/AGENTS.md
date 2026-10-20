@@ -78,7 +78,7 @@ Production-build Playwright coverage for consumer-facing generation routes.
   and full image decoding prove client rendering only, not paid GPU execution.
   Focus-preview raster fixtures check portrait, landscape, square and small
   outputs at desktop/mobile widths, including mismatched request dimensions.
-  Assert intrinsic proportions, no upscaling, bounded size, original-image
+  Assert intrinsic proportions, no upscaling, compact left-aligned size, original-image
   loading and modal access without a live generation or credit spend.
 
 ## Local Contracts
